@@ -1,0 +1,28 @@
+# --- Root / General ---
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+
+# --- Frontend (Next.js) ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel
+
+# --- Backend (Python/Docker) ---
+backend/node_modules/
+backend/.venv/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/.pytest_cache/
+backend/.docker/
+backend/build/
+backend/dist/
+**/*.egg-info/
+
+# --- Docker & Misc ---
+.docker/
+CLAUDE*.md
