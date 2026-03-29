@@ -1,9 +1,10 @@
 import logging
 import os
-from typing import Any, Generator
+from typing import Generator
 
 from dotenv import load_dotenv
-from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 logger = logging.getLogger("plearner.database")
 
@@ -15,23 +16,32 @@ if not database_url:
     logger.error("DATABASE_URL not found")
     raise ValueError("DATABASE_URL must be set")
 
+
+class Base(DeclarativeBase):
+    pass
+
+
 # Neon requires SSL (usually in the connection string)
 # echo=True enables SQLAlchemy to log every SQL query to the console
 engine = create_engine(database_url, echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def get_session() -> Generator[Session, Any, None]:
+def get_session() -> Generator[Session, None, None]:
     """Dependency to provide a database session to FastAPI routes."""
-    with Session(engine) as session:
-        yield session
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def init_db() -> None:
-    """Creates tables in the database based on SQLModel metadata."""
+    """Creates tables in the database based on SQLAlchemy metadata."""
     try:
         logger.info("Syncing models with Neon database...")
-        SQLModel.metadata.create_all(engine)
+        Base.metadata.create_all(engine)
         logger.info("Database sync completed successfully.")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize database: {e}")
+        logger.error(f"Failed to initialize database: {e}")
         raise

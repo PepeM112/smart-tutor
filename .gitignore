@@ -25,4 +25,4 @@ backend/dist/
 
 # --- Docker & Misc ---
 .docker/
-CLAUDE*.md
+.claude/

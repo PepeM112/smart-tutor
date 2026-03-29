@@ -1,14 +1,21 @@
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ValidationInfo, field_validator
-from sqlmodel import JSON, Column, Field, SQLModel
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import QuestionType
 from app.core.schemas import BaseSchema
+from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.test import Test
+
+# --- Content sub-models (used by Pydantic schema validation) ---
 
 
-# --- Interfaces for QuestionBase.content ---
 class RubricItem(BaseModel):
     point: str = Field(..., description="The concept or fact the user must mention")
     weight: float = Field(..., ge=0.0, le=1.0, description="Score contribution (0.0 to 1.0)")
@@ -27,15 +34,33 @@ class LongTextContent(BaseModel):
     rubric: List[RubricItem]
 
 
-class QuestionBase(SQLModel, BaseSchema):
-    question_type: QuestionType = Field(default=QuestionType.SIMPLE)
+# --- ORM Model ---
+
+
+class Question(Base):
+    __tablename__ = "question"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    question_type: Mapped[int] = mapped_column(Integer, default=int(QuestionType.SIMPLE))
+    prompt: Mapped[str] = mapped_column(String)
+    content: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    hint: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)
+    explanation: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)
+    test_id: Mapped[UUID] = mapped_column(ForeignKey("test.id"))
+
+    test: Mapped["Test"] = relationship(back_populates="questions")
+
+
+# --- Pydantic Schemas ---
+
+
+class QuestionBase(BaseModel, BaseSchema):
+    question_type: QuestionType = QuestionType.SIMPLE
     prompt: str  # Can be text or an Image URL
-
-    content: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-
+    content: Dict[str, Any] = {}
     hint: Optional[str] = None
     explanation: Optional[str] = None
-    test_id: UUID = Field(foreign_key="test.id")
+    test_id: UUID
 
     @field_validator("content")
     @classmethod
@@ -44,7 +69,7 @@ class QuestionBase(SQLModel, BaseSchema):
 
         try:
             if q_type == QuestionType.SIMPLE:
-                SimpleContent(**v)  # Si falla, lanza error
+                SimpleContent(**v)
             elif q_type == QuestionType.MULTIPLE_CHOICE:
                 MultipleChoiceContent(**v)
             elif q_type == QuestionType.LONG_TEXT:
@@ -55,5 +80,9 @@ class QuestionBase(SQLModel, BaseSchema):
         return v
 
 
-class Question(QuestionBase, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class QuestionCreate(QuestionBase):
+    pass
+
+
+class QuestionRead(QuestionBase):
+    id: UUID

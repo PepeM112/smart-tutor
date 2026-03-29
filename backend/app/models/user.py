@@ -1,8 +1,11 @@
 from uuid import UUID, uuid4
 
-from sqlmodel import Field, SQLModel
+from pydantic import BaseModel
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.schemas import BaseSchema, CreatedAtMixin, NamedIntEnum
+from app.database import Base
 
 
 class UserStatus(NamedIntEnum):
@@ -12,15 +15,26 @@ class UserStatus(NamedIntEnum):
     BLOCKED = 3
 
 
-class UserBase(SQLModel, BaseSchema):
-    username: str = Field(index=True, unique=True)
-    email: str = Field(index=True, unique=True)
-    status: UserStatus = Field(default=UserStatus.ACTIVE)
+# --- ORM Model ---
 
 
-class User(CreatedAtMixin, UserBase, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    hashed_password: str
+class User(Base, CreatedAtMixin):
+    __tablename__ = "user"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    username: Mapped[str] = mapped_column(String, index=True, unique=True)
+    email: Mapped[str] = mapped_column(String, index=True, unique=True)
+    status: Mapped[UserStatus] = mapped_column(default=UserStatus.ACTIVE)
+    hashed_password: Mapped[str] = mapped_column(String)
+
+
+# --- Pydantic Schemas ---
+
+
+class UserBase(BaseModel, BaseSchema):
+    username: str
+    email: str
+    status: UserStatus = UserStatus.ACTIVE
 
 
 class UserCreate(UserBase):

@@ -4,15 +4,14 @@ from logging.config import fileConfig
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
-# 1. Import SQLModel and your models so Alembic can "see" them
-from sqlmodel import SQLModel
-
+# 1. Import Base and all models so Alembic can "see" them
 from alembic import context
-from app.models.answer import Answer
-from app.models.question import Question
-from app.models.test import Test
-from app.models.test_result import TestResult
-from app.models.user import User
+from app.database import Base
+from app.models.answer import Answer  # noqa: F401
+from app.models.question import Question  # noqa: F401
+from app.models.test import Test  # noqa: F401
+from app.models.test_result import TestResult  # noqa: F401
+from app.models.user import User  # noqa: F401
 
 load_dotenv()
 
@@ -22,7 +21,7 @@ config = context.config
 # This way you don't have to hardcode your Neon URL in alembic.ini
 db_url = os.getenv("DATABASE_URL")
 if db_url:
-    # SQLModel/SQLAlchemy sometimes needs 'postgresql' instead of 'postgres'
+    # SQLAlchemy sometimes needs 'postgresql' instead of 'postgres'
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     config.set_main_option("sqlalchemy.url", db_url)
@@ -32,7 +31,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # 3. Tell Alembic where to find your table definitions
-target_metadata = SQLModel.metadata
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
