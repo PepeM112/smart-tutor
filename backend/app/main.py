@@ -3,7 +3,8 @@ import sys
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI
-from sqlmodel import Session, select
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
 
 from .database import get_session
@@ -30,7 +31,7 @@ def health() -> dict:
 def test_db(session: Annotated[Session, Depends(get_session)]) -> dict[str, Any]:
     logger.info("Testing database connection to Neon...")
     try:
-        result = session.exec(select(1)).first()
+        result = session.execute(text("SELECT 1")).scalar()
 
         logger.info("Database connection successful!")
         return {"status": "connected", "result": result}

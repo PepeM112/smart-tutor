@@ -1,34 +1,33 @@
-[project]
+[tool.poetry]
 name = "plearner"
 version = "0.1.0"
 description = "AI-powered SRS learning platform backend"
-requires-python = ">=3.10"
-dependencies = [
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.27.0",
-    "pydantic[email]>=2.6.0",
-    "pydantic-settings>=2.2.0",
-    "sqlalchemy>=2.0.27",
-    "psycopg2-binary>=2.9.9",
-    "python-dotenv>=1.0.1",
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
-    "openai>=1.13.0",
-    "python-multipart>=0.0.9" # Necesario para OAuth2
-]
+packages = [{include = "app"}]
 
-[project.optional-dependencies]
-dev = ["mypy", "ruff", "pytest"]
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = ">=0.110.0"
+uvicorn = {extras = ["standard"], version = ">=0.27.0"}
+pydantic = {extras = ["email"], version = ">=2.6.0"}
+pydantic-settings = ">=2.2.0"
+sqlalchemy = ">=2.0.27"
+psycopg2-binary = ">=2.9.9"
+alembic = "*"
+python-dotenv = ">=1.0.1"
+python-jose = {extras = ["cryptography"], version = ">=3.3.0"}
+passlib = {extras = ["bcrypt"], version = ">=1.7.4"}
+bcrypt = ">=5.0.0"
+openai = ">=1.13.0"
+python-multipart = ">=0.0.9"  # Needed for OAuth2
+
+[tool.poetry.group.dev.dependencies]
+mypy = "*"
+ruff = "*"
+pytest = "*"
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["app"]
-
-[tool.setuptools.package-data]
-"*" = ["*.json", "*.txt"]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 target-version = "py310"
