@@ -38,7 +38,7 @@ test: ## Run tests in backend container
 	$(DOCKER_COMPOSE) exec backend pytest tests/ -v
 
 install-backend: ## Install backend dependencies in container
-	$(DOCKER_COMPOSE) exec backend pip install -r requirements.txt
+	$(DOCKER_COMPOSE) exec backend poetry install
 
 # ==============================
 # Database / Migrations
