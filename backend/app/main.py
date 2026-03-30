@@ -7,9 +7,13 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
 
+from app.api.v1.endpoints import users
+
 from .database import get_session
 
 app = FastAPI(title="PLearner API")
+
+app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 
 # --- LOGGING CONFIGURATION ---
 formatter = DefaultFormatter(fmt="%(levelprefix)-10s %(message)s", use_colors=True)
