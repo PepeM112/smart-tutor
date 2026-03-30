@@ -1,6 +1,12 @@
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+
+
+def get_by_id(db: Session, id: UUID) -> User | None:
+    return db.query(User).filter(User.id == id).first()
 
 
 def get_by_email(db: Session, email: str) -> User | None:

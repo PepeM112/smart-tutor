@@ -7,7 +7,6 @@ from app.core.enums import UserStatus
 class UserBase(BaseSchema):
     username: str
     email: str
-    status: UserStatus = UserStatus.ACTIVE
 
 
 class UserCreate(UserBase):
@@ -16,3 +15,4 @@ class UserCreate(UserBase):
 
 class UserRead(UserBase):
     id: UUID
+    status: UserStatus
