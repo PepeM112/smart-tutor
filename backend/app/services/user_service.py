@@ -1,5 +1,5 @@
+import bcrypt as bcrypt_lib
 from fastapi import HTTPException, status
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.core.enums import UserStatus
@@ -7,12 +7,18 @@ from app.crud import user as user_crud
 from app.models.user import User
 from app.schemas.user import UserCreate
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def _hash_password(password: str) -> str:
+    return bcrypt_lib.hashpw(password.encode(), bcrypt_lib.gensalt()).decode()
+
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    return bcrypt_lib.checkpw(plain.encode(), hashed.encode())
 
 
 def authenticate_user(db: Session, username: str, password: str) -> User:
     user = user_crud.get_by_username(db, username=username)
-    if not user or not pwd_context.verify(password, user.hashed_password):
+    if not user or not _verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -36,5 +42,4 @@ def create_user(db: Session, user_in: UserCreate) -> User:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this username already exists.",
         )
-    hashed_password = pwd_context.hash(user_in.password)
-    return user_crud.create(db, username=user_in.username, email=user_in.email, hashed_password=hashed_password)
+    return user_crud.create(db, username=user_in.username, email=user_in.email, hashed_password=_hash_password(user_in.password))
