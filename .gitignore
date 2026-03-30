@@ -26,3 +26,6 @@ backend/dist/
 # --- Docker & Misc ---
 .docker/
 .claude/
+
+# Prevent nested repos
+**/ .git
