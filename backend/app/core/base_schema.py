@@ -1,15 +1,12 @@
 from datetime import datetime, timezone
-from enum import IntEnum
-from typing import Dict
 
-from pydantic import ConfigDict, GetJsonSchemaHandler
+from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
-from pydantic_core import CoreSchema
 from sqlalchemy import DateTime, func
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
 
-class BaseSchema:
+class BaseSchema(BaseModel):
     """
     Ensures Python snake_case becomes Frontend camelCase.
     Also allows reading from SQLAlchemy ORM objects (from_attributes).
@@ -30,12 +27,3 @@ class CreatedAtMixin:
             default=lambda: datetime.now(timezone.utc),
         )
 
-
-class NamedIntEnum(IntEnum):
-    """Ensures TypeScript Enums have names (UNKNOWN = 0) instead of just numbers."""
-
-    @classmethod
-    def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler) -> Dict[str, object]:
-        json_schema = handler(core_schema)
-        json_schema["x-enum-varnames"] = [e.name for e in cls]
-        return json_schema
