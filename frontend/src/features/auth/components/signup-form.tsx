@@ -47,7 +47,7 @@ export function SignupForm() {
               id="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              className="py-6 border-2"
+              className="py-5 border-2"
               required
             />
           </div>
@@ -58,7 +58,7 @@ export function SignupForm() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="py-6 border-2"
+              className="py-5 border-2"
               required
             />
           </div>
@@ -70,7 +70,7 @@ export function SignupForm() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="py-6 border-2 pr-10"
+                className="py-5 border-2 pr-10"
                 required
               />
               <button

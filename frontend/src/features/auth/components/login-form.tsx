@@ -50,7 +50,7 @@ export function LoginForm() {
               id="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="py-6 border-2"
+              className="py-5 border-2"
               required
             />
           </div>
@@ -62,7 +62,7 @@ export function LoginForm() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="py-6 border-2 pr-10"
+                className="py-5 border-2 pr-10"
                 required
               />
               <button
