@@ -43,7 +43,7 @@ export function LoginForm() {
         <p className="text-sm text-muted-foreground">Welcome back — pick up where you left off</p>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -82,7 +82,7 @@ export function LoginForm() {
 
           <Button
             type="submit"
-            className="w-full py-5 font-semibold mt-3"
+            className="w-full py-5 font-semibold mt-6"
           >
             Log in
           </Button>
