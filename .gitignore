@@ -6,10 +6,11 @@
 *.log
 
 # --- Frontend (Next.js) ---
-frontend/node_modules/
-frontend/.next/
-frontend/out/
 frontend/build/
+frontend/node_modules/
+frontend/out/
+frontend/src/client
+frontend/.next/
 frontend/.vercel
 
 # --- Backend (Python/Docker) ---
@@ -26,3 +27,7 @@ backend/dist/
 # --- Docker & Misc ---
 .docker/
 .claude/
+.vscode/
+
+# Prevent nested repos
+**/ .git

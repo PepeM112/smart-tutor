@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-logger = logging.getLogger("plearner.database")
+logger = logging.getLogger("smarttutor.database")
 
 load_dotenv()
 

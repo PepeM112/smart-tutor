@@ -29,7 +29,7 @@ def login(
     db: DbSession,
 ) -> User:
     """Autentica al usuario y devuelve un JWT en una cookie HTTP-only."""
-    user = user_service.authenticate_user(db, username=form_data.username, password=form_data.password)
+    user = user_service.authenticate_user(db, email=form_data.username, password=form_data.password)
     token = create_access_token(str(user.id))
     response.set_cookie(
         key="access_token",

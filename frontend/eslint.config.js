@@ -65,7 +65,6 @@ export default defineConfig([
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      ...importPlugin.configs.recommended.rules,
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs['core-web-vitals'].rules,
 

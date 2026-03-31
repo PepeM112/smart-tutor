@@ -16,12 +16,12 @@ def _verify_password(plain: str, hashed: str) -> bool:
     return bcrypt_lib.checkpw(plain.encode(), hashed.encode())
 
 
-def authenticate_user(db: Session, username: str, password: str) -> User:
-    user = user_crud.get_by_username(db, username=username)
+def authenticate_user(db: Session, email: str, password: str) -> User:
+    user = user_crud.get_by_email(db, email=email)
     if not user or not _verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
         )
     if user.status != UserStatus.ACTIVE:
         raise HTTPException(

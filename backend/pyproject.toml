@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "plearner"
+name = "smart-tutor"
 version = "0.1.0"
 description = "AI-powered SRS learning platform backend"
 packages = [{include = "app"}]
