@@ -5,7 +5,7 @@ export default function LoginPage() {
     <main className="min-h-screen w-full flex flex-col items-center justify-center bg-accent p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-extrabold text-primary tracking-tight">PLearner</h1>
+          <h1 className="text-4xl font-extrabold text-primary tracking-tight">SmartTutor</h1>
           <p className="text-sm text-muted-foreground mt-1">Your personal learning companion</p>
         </div>
         <LoginForm />

@@ -13,7 +13,7 @@ from app.api.v1.endpoints import users
 from .config import settings
 from .database import get_session
 
-app = FastAPI(title="PLearner API")
+app = FastAPI(title="SmartTutor API")
 
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 
@@ -30,7 +30,7 @@ formatter = DefaultFormatter(fmt="%(levelprefix)-10s %(message)s", use_colors=Tr
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(formatter)
 
-logger = logging.getLogger("plearner")
+logger = logging.getLogger("smarttutor")
 logger.handlers = [console_handler]
 logger.setLevel(logging.INFO)
 logger.propagate = False

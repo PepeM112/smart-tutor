@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:style": "stylelint \"src/**/*.{css}\" --allow-empty-input",
+    "format": "eslint . --ext .ts,.tsx --fix && stylelint \"src/**/*.{css}\" --fix --allow-empty-input && prettier \"**/*.{css,ts,tsx,js,json,yaml,yml}\" --write --ignore-path .prettierignore",
+    "format:check": "eslint . --ext .ts,.tsx && stylelint \"src/**/*.{css}\" --allow-empty-input && prettier \"**/*.{css,ts,tsx,js,json,yaml,yml}\" --check --ignore-path .prettierignore",
+    "format:branch": "f() { FILES=$(git diff --name-only --diff-filter=ACMR $(git merge-base HEAD main)); TSX_FILES=$(echo \"$FILES\" | grep -E '\\.(ts|tsx)$'); CSS_FILES=$(echo \"$FILES\" | grep -E '\\.css$'); if [ -n \"$TSX_FILES\" ]; then eslint $TSX_FILES --fix; fi; if [ -n \"$CSS_FILES\" ]; then stylelint $CSS_FILES --fix --allow-empty-input; fi; if [ -n \"$FILES\" ]; then prettier $FILES --write; fi; }; f",
+    "format:branch:check": "f() { FILES=$(git diff --name-only --diff-filter=ACMR $(git merge-base HEAD main)); TSX_FILES=$(echo \"$FILES\" | grep -E '\\.(ts|tsx)$'); CSS_FILES=$(echo \"$FILES\" | grep -E '\\.css$'); if [ -n \"$TSX_FILES\" ]; then eslint $TSX_FILES; fi && if [ -n \"$CSS_FILES\" ]; then stylelint $CSS_FILES --allow-empty-input; fi && if [ -n \"$FILES\" ]; then prettier $FILES --check; fi; }; f",
     "gen-client": "openapi-ts"
   },
   "dependencies": {
