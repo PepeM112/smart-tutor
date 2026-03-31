@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from app.core.base_schema import BaseSchema
+from app.schemas.base import BaseSchema
 
 
 class TestBase(BaseSchema):
