@@ -2,6 +2,7 @@
 # Configuration
 # ==============================
 
+FRONTEND_DIR := ./frontend
 BACKEND_ENV := ./backend/.env
 DOCKER_COMPOSE := docker-compose --env-file ${BACKEND_ENV}
 
@@ -11,7 +12,7 @@ DOCKER_COMPOSE := docker-compose --env-file ${BACKEND_ENV}
 
 default: help
 
-up: ## Start all services (backend + any dependencies)
+up: ## Start all services (backend + frontend)
 	$(DOCKER_COMPOSE) up
 
 build: ## Build and start services in detached mode
@@ -23,6 +24,19 @@ down: ## Stop all services
 rebuild: ## Rebuild images and restart services
 	$(DOCKER_COMPOSE) down
 	$(DOCKER_COMPOSE) up --build -d
+
+# ==============================
+# Frontend
+# ==============================
+
+frontend-logs: ## View frontend logs
+	$(DOCKER_COMPOSE) logs -f frontend
+
+frontend-shell: ## Open bash in frontend container
+	$(DOCKER_COMPOSE) exec frontend sh
+
+frontend-install: ## Install frontend dependencies inside container
+	$(DOCKER_COMPOSE) exec frontend npm install
 
 # ==============================
 # Backend
@@ -64,11 +78,13 @@ migrate-history: ## Show migration history
 # Maintenance
 # ==============================
 
-clean: ## Stop services and remove containers/volumes
-	$(DOCKER_COMPOSE) down -v
+install-all: install-backend frontend-install ## Install all dependencies (BE + FE)
 
-clean-logs: ## Remove docker logs
-	@find /var/lib/docker/containers -name "*.log" -delete
+clean: ## Stop services and remove containers, volumes, and local images
+	$(DOCKER_COMPOSE) down -v --rmi local
+
+clean-logs: ## Remove docker logs (requires sudo/root)
+	@sudo find /var/lib/docker/containers -name "*.log" -delete 2>/dev/null || echo "Log cleanup failed (permissions?)"
 
 restart: ## Restart all services
 	$(DOCKER_COMPOSE) restart
@@ -76,4 +92,4 @@ restart: ## Restart all services
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up down build rebuild logs shell test install-backend migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history clean clean-logs restart help
+.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history clean clean-logs restart help

@@ -1,0 +1,12 @@
+from typing import List
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    cors_origins: List[str] = ["http://localhost:3000", "http://127.0.0.0:3000"]
+
+    model_config = SettingsConfigDict(env_file="./env", extra="ignore")
+
+
+settings = Settings()  # type: ignore - Pydantic's BaseSettings does not have a default constructor, but we know it will work with the provided env file.
