@@ -2,7 +2,7 @@ from uuid import UUID
 
 from pydantic import Field
 
-from app.core.base_schema import BaseSchema
+from app.schemas.base import BaseSchema
 
 
 class TestResultBase(BaseSchema):

@@ -4,18 +4,32 @@ from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
 
-from app.api.v1.endpoints import users
+from app.api.v1.endpoints import questions, tests, users
 
 from .config import settings
 from .database import get_session
 
-app = FastAPI(title="SmartTutor API")
+
+def custom_generate_unique_id(route: APIRoute) -> str:
+    """
+    Generated an operation id based in the tag and the naem of the function.
+    Example: tag "tests" + function "create" -> testsCreate
+    """
+    tag = route.tags[0] if route.tags else "default"
+    # snake_case => PascalCase
+    operation_name = "".join(word.capitalize() for word in route.name.split("_"))
+    return f"{tag}{operation_name}"
+
+app = FastAPI(title="SmartTutor API", generate_unique_id_function=custom_generate_unique_id)
 
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+app.include_router(tests.router, prefix="/api/v1/tests", tags=["tests"])
+app.include_router(questions.router, prefix="/api/v1/questions", tags=["questions"])
 
 app.add_middleware(
     CORSMiddleware,

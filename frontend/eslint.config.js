@@ -1,14 +1,12 @@
 import js from '@eslint/js';
-import nextPlugin from '@next/eslint-plugin-next';
+import { defineConfig } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
 import prettierConfig from 'eslint-config-prettier';
 import importPlugin from 'eslint-plugin-import';
-import jsxA11y from 'eslint-plugin-jsx-a11y';
 import prettierPlugin from 'eslint-plugin-prettier';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
-import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -16,20 +14,11 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    ignores: [
-      'dist/',
-      'node_modules/',
-      '.next/**',
-      'out/**',
-      'build/**',
-      'next-env.d.ts',
-      'src/client/**',
-    ],
+    ignores: ['dist/', 'node_modules/', '.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'src/client/**'],
   },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  jsxA11y.flatConfigs.recommended,
 
   {
     files: ['**/*.{ts,tsx,js,jsx}'],
@@ -49,7 +38,6 @@ export default defineConfig([
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
-      '@next/next': nextPlugin,
       import: importPlugin,
       prettier: prettierPlugin,
     },
@@ -65,8 +53,6 @@ export default defineConfig([
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      ...nextPlugin.configs.recommended.rules,
-      ...nextPlugin.configs['core-web-vitals'].rules,
 
       'prettier/prettier': 'off',
 
@@ -93,6 +79,12 @@ export default defineConfig([
         },
       ],
       'jsx-a11y/anchor-is-valid': 'warn',
+    },
+  },
+  {
+    files: ['**/layout.tsx', '**/page.tsx', '**/loading.tsx', '**/error.tsx', '**/not-found.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
   prettierConfig,

@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from app.core.base_schema import BaseSchema
 from app.core.enums import UserStatus
+from app.schemas.base import BaseSchema
 
 
 class UserBase(BaseSchema):

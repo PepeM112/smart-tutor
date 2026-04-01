@@ -3,9 +3,9 @@ from uuid import UUID, uuid4
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.base_schema import CreatedAtMixin
 from app.core.enums import UserStatus
 from app.database import Base
+from app.models.base import CreatedAtMixin
 
 
 class User(Base, CreatedAtMixin):

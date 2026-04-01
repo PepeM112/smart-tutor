@@ -1,39 +1,41 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+
+import type { BodyLoginApiV1UsersLoginPost } from '@/client';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { sdk } from '@/lib/api-client';
 
+import { useAuthStore } from '../store/authStore';
+
 export function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [form, setForm] = useState<BodyLoginApiV1UsersLoginPost>({ username: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const setUser = useAuthStore(state => state.setUser);
 
-  const handleSubmit = async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    setError('');
-
-    try {
-      const response = await sdk.loginApiV1UsersLoginPost({
-        body: {
-          username: email,
-          password,
-        },
-      });
-
+  const {
+    mutate: login,
+    isPending: isLoggingIn,
+    error: loginError,
+  } = useMutation({
+    mutationFn: () =>
+      sdk.loginApiV1UsersLoginPost({
+        body: { username: form.username, password: form.password },
+      }),
+    onSuccess: response => {
       setUser(response.data ?? null);
-    } catch (e) {
-      setError('Invalid email or password.');
-      console.error(e);
-    }
+    },
+  });
+
+  const handleSubmit = (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    login();
   };
 
   return (
@@ -48,8 +50,8 @@ export function LoginForm() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              value={form.username}
+              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
               className="py-5 border-2"
               required
             />
@@ -60,8 +62,8 @@ export function LoginForm() {
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 className="py-5 border-2 pr-10"
                 required
               />
@@ -76,15 +78,10 @@ export function LoginForm() {
             </div>
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {loginError && <p className="text-sm text-destructive">Invalid email or password.</p>}
 
-          <Button
-            type="submit"
-            className="w-full py-5 font-semibold mt-6"
-          >
-            Log in
+          <Button type="submit" disabled={isLoggingIn} className="w-full py-5 font-semibold mt-6">
+            {isLoggingIn ? 'Logging in…' : 'Log in'}
           </Button>
         </form>
       </CardContent>

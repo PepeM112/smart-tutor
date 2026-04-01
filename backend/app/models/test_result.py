@@ -3,8 +3,8 @@ from uuid import UUID, uuid4
 from sqlalchemy import Float, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.base_schema import CreatedAtMixin
 from app.database import Base
+from app.models.base import CreatedAtMixin
 
 
 class TestResult(Base, CreatedAtMixin):
