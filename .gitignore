@@ -12,6 +12,7 @@ frontend/out/
 frontend/src/client
 frontend/.next/
 frontend/.vercel
+.next/
 
 # --- Backend (Python/Docker) ---
 backend/node_modules/
