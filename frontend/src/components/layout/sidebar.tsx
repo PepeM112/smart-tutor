@@ -64,13 +64,13 @@ export function Sidebar() {
     <aside
       className={cn(
         'relative flex flex-col h-full bg-secondary border-r border-border shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out',
-        collapsed ? 'w-[60px]' : 'w-64'
+        collapsed ? 'w-15' : 'w-64'
       )}
     >
       {/* Header */}
       <div
         className={cn(
-          'flex items-center border-b border-border px-3 py-[14px]',
+          'flex items-center border-b border-border px-3 py-3.5',
           collapsed ? 'justify-center' : 'justify-between'
         )}
       >
