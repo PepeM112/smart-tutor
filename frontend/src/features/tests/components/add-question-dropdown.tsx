@@ -2,6 +2,7 @@
 
 import { ListChecks, Plus, Text } from 'lucide-react';
 
+import { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,8 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-type QuestionType = 'simple' | 'multiple_choice';
 
 type Props = {
   onSelect: (type: QuestionType) => void;
@@ -26,11 +25,11 @@ export function AddQuestionDropdown({ onSelect }: Props) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onSelect={() => onSelect('simple')}>
+        <DropdownMenuItem onSelect={() => onSelect(QuestionType.SIMPLE)}>
           <Text className="size-4" />
           Simple
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onSelect('multiple_choice')}>
+        <DropdownMenuItem onSelect={() => onSelect(QuestionType.MULTIPLE_CHOICE)}>
           <ListChecks className="size-4" />
           Multiple Choice
         </DropdownMenuItem>

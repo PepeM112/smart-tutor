@@ -1,11 +1,11 @@
-from enum import IntEnum
+from enum import Enum
 from typing import Dict
 
 from pydantic import GetJsonSchemaHandler
 from pydantic_core import CoreSchema
 
 
-class NamedIntEnum(IntEnum):
+class NamedIntEnum(int, Enum):
     """Ensures TypeScript Enums have names (UNKNOWN = 0) instead of just numbers."""
 
     @classmethod

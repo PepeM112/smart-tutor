@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -11,8 +12,8 @@ import { AddQuestionDropdown } from './add-question-dropdown';
 import { AutoTextarea } from './auto-textarea';
 import {
   MultipleChoiceQuestionBlock,
-  type MultipleChoiceQuestionData,
   type Choice,
+  type MultipleChoiceQuestionData,
 } from './multiple-choice-question-block';
 import { SimpleQuestionBlock, type SimpleQuestionData } from './simple-question-block';
 
@@ -38,8 +39,8 @@ export function TestEditor() {
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
 
-  function addQuestion(type: 'simple' | 'multiple_choice') {
-    const q = type === 'simple' ? newSimple() : newMultipleChoice();
+  function addQuestion(type: QuestionType) {
+    const q = type === QuestionType.SIMPLE ? newSimple() : newMultipleChoice();
     setQuestions(prev => [...prev, q]);
   }
 
