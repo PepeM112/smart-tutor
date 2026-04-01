@@ -28,6 +28,7 @@ backend/dist/
 .docker/
 .claude/
 .vscode/
+tsconfig.tsbuildinfo
 
 # Prevent nested repos
 **/ .git

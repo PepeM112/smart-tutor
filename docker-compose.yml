@@ -9,6 +9,11 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       - DATABASE_URL=${NEON_DB_DEV}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")'"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build: ./frontend
@@ -21,4 +26,5 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy

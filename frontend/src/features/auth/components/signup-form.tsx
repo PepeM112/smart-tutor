@@ -4,33 +4,33 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { sdk } from '@/lib/api-client';
+import type { UserCreate } from '@/client/types.gen';
 
 export function SignupForm() {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [form, setForm] = useState<UserCreate>({ username: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const router = useRouter();
 
-  const handleSubmit = async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    setError('');
-
-    try {
-      await sdk.signupApiV1UsersSignupPost({
-        body: { username, email, password },
-      });
+  const {
+    mutate: signin,
+    isPending: isSigningIn,
+    error: signinError,
+  } = useMutation({
+    mutationFn: () => sdk.signupApiV1UsersSignupPost({ body: form }),
+    onSuccess: () => {
       router.push('/login');
-    } catch (e) {
-      setError('Could not create account. Please try again.');
-      console.error(e);
-    }
+    },
+  });
+
+  const handleSubmit = (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    signin();
   };
 
   return (
@@ -45,8 +45,8 @@ export function SignupForm() {
             <Label htmlFor="username">Username</Label>
             <Input
               id="username"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
+              value={form.username}
+              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
               className="py-5 border-2"
               required
             />
@@ -56,8 +56,8 @@ export function SignupForm() {
             <Input
               id="email"
               type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               className="py-5 border-2"
               required
             />
@@ -68,8 +68,8 @@ export function SignupForm() {
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 className="py-5 border-2 pr-10"
                 required
               />
@@ -84,15 +84,10 @@ export function SignupForm() {
             </div>
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {signinError && <p className="text-sm text-destructive">Could not create account. Please try again.</p>}
 
-          <Button
-            type="submit"
-            className="w-full py-5 font-semibold mt-6"
-          >
-            Create account
+          <Button type="submit" disabled={isSigningIn} className="w-full py-5 font-semibold mt-6">
+            {isSigningIn ? 'Creating account…' : 'Create account'}
           </Button>
         </form>
       </CardContent>

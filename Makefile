@@ -13,7 +13,7 @@ DOCKER_COMPOSE := docker-compose --env-file ${BACKEND_ENV}
 default: help
 
 up: ## Start all services (backend + frontend)
-	$(DOCKER_COMPOSE) up
+	$(DOCKER_COMPOSE) up -d
 
 build: ## Build and start services in detached mode
 	$(DOCKER_COMPOSE) up --build -d
@@ -38,6 +38,8 @@ frontend-shell: ## Open bash in frontend container
 frontend-install: ## Install frontend dependencies inside container
 	$(DOCKER_COMPOSE) exec frontend npm install
 
+frontend-gen: ## Regenerate API Client SDK from OpenAPI schema
+	$(DOCKER_COMPOSE) exec frontend npm run gen-client
 # ==============================
 # Backend
 # ==============================
@@ -92,4 +94,4 @@ restart: ## Restart all services
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history clean clean-logs restart help
+.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history clean clean-logs restart help
