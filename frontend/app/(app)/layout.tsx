@@ -1,4 +1,4 @@
-import { Sidebar } from '@/components/layout/sidebar'
+import { Sidebar } from '@/components/layout/sidebar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -6,5 +6,5 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
-  )
+  );
 }

@@ -1,16 +1,18 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
-import { useAuthStore } from '../store/authStore';
+
+import type { BodyLoginApiV1UsersLoginPost } from '@/client';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { sdk } from '@/lib/api-client';
-import type { BodyLoginApiV1UsersLoginPost } from '@/client';
+
+import { useAuthStore } from '../store/authStore';
 
 export function LoginForm() {
   const [form, setForm] = useState<BodyLoginApiV1UsersLoginPost>({ username: '', password: '' });

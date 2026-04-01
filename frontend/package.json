@@ -1,6 +1,7 @@
 {
   "name": "frontend",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -49,6 +50,9 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "prettier": "^3.8.1",
+    "stylelint": "^17.6.0",
+    "stylelint-config-standard": "^40.0.0",
+    "stylelint-order": "^8.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "typescript-eslint": "^8.57.2"

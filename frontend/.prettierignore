@@ -6,3 +6,10 @@ coverage/
 public/assets/
 index.html
 .prettierrc.yml
+
+.next/
+out/
+build/
+next-env.d.ts
+node_modules/
+src/client/

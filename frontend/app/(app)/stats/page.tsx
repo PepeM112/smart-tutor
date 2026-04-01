@@ -4,5 +4,5 @@ export default function StatsPage() {
       <h1 className="text-2xl font-semibold text-foreground">Progress Stats</h1>
       <p className="mt-2 text-muted-foreground">Charts and streaks will be displayed here.</p>
     </div>
-  )
+  );
 }

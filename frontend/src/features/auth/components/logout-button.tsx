@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { useRouter } from 'next/navigation'
-import { LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import {
   AlertDialog,
@@ -13,23 +13,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { useAuthStore } from '@/features/auth/store/authStore'
-import { cn } from '@/lib/utils'
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/features/auth/store/authStore';
+import { cn } from '@/lib/utils';
 
 type LogoutButtonProps = {
-  collapsed?: boolean
-}
+  collapsed?: boolean;
+};
 
 export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
-  const router = useRouter()
-  const logout = useAuthStore((state) => state.logout)
+  const router = useRouter();
+  const logout = useAuthStore(state => state.logout);
 
   const handleLogout = () => {
-    logout()
-    router.push('/login')
-  }
+    logout();
+    router.push('/login');
+  };
 
   return (
     <AlertDialog>
@@ -65,5 +65,5 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

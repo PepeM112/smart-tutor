@@ -1,5 +1,6 @@
-import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+
 import { type UserRead } from '@/client';
 
 interface AuthState {
@@ -13,18 +14,19 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    set => ({
       user: null,
       isAuthenticated: false,
       isLoading: true,
 
-      setUser: (user) => set({ 
-        user, 
-        isAuthenticated: !!user, 
-        isLoading: false 
-      }),
+      setUser: user =>
+        set({
+          user,
+          isAuthenticated: !!user,
+          isLoading: false,
+        }),
 
-      setLoading: (loading) => set({ isLoading: loading }),
+      setLoading: loading => set({ isLoading: loading }),
 
       logout: () => {
         set({ user: null, isAuthenticated: false, isLoading: false });
@@ -33,7 +35,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }), 
+      partialize: state => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )
-)
+);

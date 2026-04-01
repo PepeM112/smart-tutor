@@ -1,4 +1,4 @@
-import { SignupForm } from "@/features/auth/components/signup-form"
+import { SignupForm } from '@/features/auth/components/signup-form';
 
 export default function SignupPage() {
   return (
@@ -11,5 +11,5 @@ export default function SignupPage() {
         <SignupForm />
       </div>
     </main>
-  )
+  );
 }

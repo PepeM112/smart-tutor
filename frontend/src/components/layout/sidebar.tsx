@@ -1,8 +1,5 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import {
   BarChart2,
   BookOpen,
@@ -14,22 +11,25 @@ import {
   LayoutDashboard,
   RefreshCw,
   Settings,
-} from 'lucide-react'
+} from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
-import { cn } from '@/lib/utils'
-import { LogoutButton } from '@/features/auth/components/logout-button'
+import { LogoutButton } from '@/features/auth/components/logout-button';
+import { cn } from '@/lib/utils';
 
 type NavItem = {
-  label: string
-  href: string | null
-  icon: React.ElementType
-  disabled?: boolean
-}
+  label: string;
+  href: string | null;
+  icon: React.ElementType;
+  disabled?: boolean;
+};
 
 type NavSection = {
-  label: string
-  items: NavItem[]
-}
+  label: string;
+  items: NavItem[];
+};
 
 const sections: NavSection[] = [
   {
@@ -54,11 +54,11 @@ const sections: NavSection[] = [
       { label: 'Progress Stats', href: '/stats', icon: BarChart2 },
     ],
   },
-]
+];
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false)
-  const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(false);
+  const pathname = usePathname();
 
   return (
     <aside
@@ -74,11 +74,7 @@ export function Sidebar() {
           collapsed ? 'justify-center' : 'justify-between'
         )}
       >
-        {!collapsed && (
-          <span className="text-sm font-semibold text-foreground truncate select-none">
-            SmartTutor
-          </span>
-        )}
+        {!collapsed && <span className="text-sm font-semibold text-foreground truncate select-none">SmartTutor</span>}
         <button
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -90,7 +86,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
-        {sections.map((section) => (
+        {sections.map(section => (
           <div key={section.label}>
             {!collapsed && (
               <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none">
@@ -98,11 +94,9 @@ export function Sidebar() {
               </p>
             )}
             <ul className="space-y-0.5">
-              {section.items.map((item) => {
-                const Icon = item.icon
-                const isActive =
-                  item.href !== null &&
-                  (pathname === item.href || pathname.startsWith(item.href + '/'))
+              {section.items.map(item => {
+                const Icon = item.icon;
+                const isActive = item.href !== null && (pathname === item.href || pathname.startsWith(item.href + '/'));
 
                 if (item.disabled || item.href === null) {
                   return (
@@ -125,7 +119,7 @@ export function Sidebar() {
                         )}
                       </span>
                     </li>
-                  )
+                  );
                 }
 
                 return (
@@ -144,7 +138,7 @@ export function Sidebar() {
                       {!collapsed && <span className="truncate">{item.label}</span>}
                     </Link>
                   </li>
-                )
+                );
               })}
             </ul>
           </div>
@@ -169,5 +163,5 @@ export function Sidebar() {
         <LogoutButton collapsed={collapsed} />
       </div>
     </aside>
-  )
+  );
 }

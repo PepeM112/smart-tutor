@@ -1,16 +1,17 @@
 'use client';
 
-import Link from 'next/link';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
+import { Eye, EyeOff } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+
+import type { UserCreate } from '@/client/types.gen';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { sdk } from '@/lib/api-client';
-import type { UserCreate } from '@/client/types.gen';
 
 export function SignupForm() {
   const [form, setForm] = useState<UserCreate>({ username: '', email: '', password: '' });
