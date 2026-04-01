@@ -74,13 +74,13 @@ export function Sidebar() {
           collapsed ? 'justify-center' : 'justify-between'
         )}
       >
-        {!collapsed && <span className="text-sm font-semibold text-foreground truncate select-none">SmartTutor</span>}
+        {!collapsed && <span className="text-sm font-semibold text-foreground truncate">SmartTutor</span>}
         <button
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
         >
-          {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
       </div>
 
@@ -89,7 +89,7 @@ export function Sidebar() {
         {sections.map(section => (
           <div key={section.label}>
             {!collapsed && (
-              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none">
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                 {section.label}
               </p>
             )}
@@ -128,9 +128,9 @@ export function Sidebar() {
                       href={item.href}
                       title={collapsed ? item.label : undefined}
                       className={cn(
-                        'flex items-center gap-3 rounded-lg text-sm transition-colors py-2',
-                        'text-muted-foreground hover:bg-muted hover:text-foreground',
-                        isActive && 'bg-accent text-accent-foreground font-medium',
+                        'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
+                        'text-foreground/70 hover:bg-muted hover:text-foreground',
+                        isActive && 'bg-primary/10 text-primary',
                         collapsed ? 'justify-center px-0' : 'px-3'
                       )}
                     >
@@ -151,9 +151,9 @@ export function Sidebar() {
           href="/settings"
           title={collapsed ? 'Profile & Settings' : undefined}
           className={cn(
-            'flex items-center gap-3 rounded-lg text-sm transition-colors py-2',
-            'text-muted-foreground hover:bg-muted hover:text-foreground',
-            pathname === '/settings' && 'bg-accent text-accent-foreground font-medium',
+            'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
+            'text-foreground/60 hover:bg-muted hover:text-foreground',
+            pathname === '/settings' && 'bg-primary/10 text-primary',
             collapsed ? 'justify-center px-0' : 'px-3'
           )}
         >
