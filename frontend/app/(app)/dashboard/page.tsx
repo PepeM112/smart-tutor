@@ -1,8 +1,19 @@
+'use client';
+import { useEffect } from 'react';
+
+import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+
 export default function DashboardPage() {
+  const { set, reset } = useBreadcrumbStore();
+
+  useEffect(() => {
+    set('Dashboard');
+    return () => reset();
+  }, [set, reset]);
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-      <p className="mt-2 text-muted-foreground">Your learning overview will appear here.</p>
+    <div className="px-8 pb-8">
+      <p className="text-muted-foreground">Your learning overview will appear here.</p>
     </div>
   );
 }

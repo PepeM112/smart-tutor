@@ -1,13 +1,10 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { useState } from 'react';
 
 import { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Routes } from '@/lib/routes';
 
 import { AddQuestionDropdown } from './add-question-dropdown';
 import { AutoTextarea } from './auto-textarea';
@@ -54,17 +51,7 @@ export function TestEditor() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
-      {/* Header */}
-      <div className="mb-6 flex items-center gap-3">
-        <Button variant="ghost" size="icon-sm" asChild>
-          <Link href={Routes.TESTS}>
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold text-foreground">New Test</h1>
-      </div>
-
+    <div className="px-8 pb-8 max-w-3xl">
       {/* Title & Description */}
       <div className="space-y-3 mb-6">
         <Input className="w-1/2" placeholder="Test name" value={title} onChange={e => setTitle(e.target.value)} />
