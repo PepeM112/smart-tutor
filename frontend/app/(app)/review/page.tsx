@@ -11,7 +11,5 @@ export default function ReviewPage() {
     return () => reset();
   }, [set, reset]);
 
-  return (
-    <p className="text-muted-foreground">Your spaced-repetition session will start here.</p>
-  );
+  return <p className="text-muted-foreground">Your spaced-repetition session will start here.</p>;
 }

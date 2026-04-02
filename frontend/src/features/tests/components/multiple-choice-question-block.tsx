@@ -57,7 +57,12 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove }: Props)
           onChange={e => onChange({ ...data, prompt: e.target.value })}
           className="flex-1"
         />
-        <Button variant="ghost" size="icon-sm" onClick={onRemove} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onRemove}
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
           <Trash2 className="size-4" />
         </Button>
       </div>
@@ -78,7 +83,12 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove }: Props)
               className="flex-1"
             />
             {canRemoveChoice && (
-              <Button variant="ghost" size="icon-xs" onClick={() => removeChoice(ci)} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => removeChoice(ci)}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
                 <Trash2 className="size-3.5" />
               </Button>
             )}

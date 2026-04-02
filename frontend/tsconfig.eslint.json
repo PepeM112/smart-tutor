@@ -5,12 +5,6 @@
     "allowJs": true,
     "checkJs": false
   },
-  "include": [
-    "src/**/*",
-    "app/**/*",
-    ".next/types/**/*.ts",
-    "*.ts",
-    "*.js"
-  ],
+  "include": ["src/**/*", "app/**/*", ".next/types/**/*.ts", "*.ts", "*.js"],
   "exclude": ["node_modules", "dist", ".next"]
 }

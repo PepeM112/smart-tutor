@@ -11,7 +11,5 @@ export default function SettingsPage() {
     return () => reset();
   }, [set, reset]);
 
-  return (
-    <p className="text-muted-foreground">Account settings and SRS preferences.</p>
-  );
+  return <p className="text-muted-foreground">Account settings and SRS preferences.</p>;
 }

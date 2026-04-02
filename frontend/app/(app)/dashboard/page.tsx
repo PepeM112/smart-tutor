@@ -11,7 +11,5 @@ export default function DashboardPage() {
     return () => reset();
   }, [set, reset]);
 
-  return (
-    <p className="text-muted-foreground">Your learning overview will appear here.</p>
-  );
+  return <p className="text-muted-foreground">Your learning overview will appear here.</p>;
 }

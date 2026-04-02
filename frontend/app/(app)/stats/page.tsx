@@ -11,7 +11,5 @@ export default function StatsPage() {
     return () => reset();
   }, [set, reset]);
 
-  return (
-    <p className="text-muted-foreground">Charts and streaks will be displayed here.</p>
-  );
+  return <p className="text-muted-foreground">Charts and streaks will be displayed here.</p>;
 }

@@ -11,7 +11,5 @@ export default function PracticePage() {
     return () => reset();
   }, [set, reset]);
 
-  return (
-    <p className="text-muted-foreground">Choose a test to practice manually.</p>
-  );
+  return <p className="text-muted-foreground">Choose a test to practice manually.</p>;
 }

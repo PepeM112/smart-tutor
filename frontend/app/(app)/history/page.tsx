@@ -11,7 +11,5 @@ export default function HistoryPage() {
     return () => reset();
   }, [set, reset]);
 
-  return (
-    <p className="text-muted-foreground">A chronological log of your past sessions.</p>
-  );
+  return <p className="text-muted-foreground">A chronological log of your past sessions.</p>;
 }

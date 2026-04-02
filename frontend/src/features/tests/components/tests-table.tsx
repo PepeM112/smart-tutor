@@ -1,28 +1,16 @@
 'use client';
 
-import {
-  type ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
+import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { ListChecks, Pencil, Text } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Routes } from '@/lib/routes';
 
 function countByType(questions: QuestionRead[], type: QuestionType): number {
-  return questions.filter((q) => q.questionType === type).length;
+  return questions.filter(q => q.questionType === type).length;
 }
 
 function QuestionTypeBadge({
@@ -55,11 +43,7 @@ const columns: ColumnDef<TestRead>[] = [
       return (
         <div className="min-w-0">
           <p className="font-medium text-foreground truncate">{title}</p>
-          {description && (
-            <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-xs">
-              {description}
-            </p>
-          )}
+          {description && <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-xs">{description}</p>}
         </div>
       );
     },
@@ -69,9 +53,7 @@ const columns: ColumnDef<TestRead>[] = [
     header: 'Questions',
     cell: ({ row }) => {
       const questions = row.original.questions ?? [];
-      return (
-        <span className="tabular-nums text-muted-foreground">{questions.length}</span>
-      );
+      return <span className="tabular-nums text-muted-foreground">{questions.length}</span>;
     },
   },
   {
@@ -104,7 +86,7 @@ const columns: ColumnDef<TestRead>[] = [
           <Button
             variant="ghost"
             size="icon-lg"
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               router.push(Routes.TEST_EDIT(row.original.id));
             }}
@@ -138,13 +120,11 @@ export function TestsTable({ data }: Props) {
     <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
       <Table>
         <TableHeader>
-          {table.getHeaderGroups().map((hg) => (
+          {table.getHeaderGroups().map(hg => (
             <TableRow key={hg.id} className="hover:bg-transparent">
-              {hg.headers.map((header) => (
+              {hg.headers.map(header => (
                 <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
+                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </TableHead>
               ))}
             </TableRow>
@@ -158,16 +138,14 @@ export function TestsTable({ data }: Props) {
               </TableCell>
             </TableRow>
           ) : (
-            rows.map((row) => (
+            rows.map(row => (
               <TableRow
                 key={row.id}
                 className="cursor-pointer"
                 onClick={() => router.push(Routes.TEST_EDIT(row.original.id))}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
+                {row.getVisibleCells().map(cell => (
+                  <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                 ))}
               </TableRow>
             ))

@@ -1,10 +1,10 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { type QuestionCreate, type TestCreate, QuestionType } from '@/client';
+import { type QuestionCreate, type QuestionRead, QuestionType, type TestCreate, type TestUpdate } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
@@ -29,7 +29,7 @@ function toApiQuestion(q: Question): QuestionCreate {
       content: {
         answers: q.answers
           .split(',')
-          .map((a) => a.trim())
+          .map(a => a.trim())
           .filter(Boolean),
       },
     };
@@ -38,9 +38,29 @@ function toApiQuestion(q: Question): QuestionCreate {
     questionType: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
     content: {
-      options: q.choices.map((c) => c.text),
+      options: q.choices.map(c => c.text),
       correct_indices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
     },
+  };
+}
+
+function fromApiQuestion(q: QuestionRead): Question {
+  if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
+    const content = q.content as { options: string[]; correct_indices: number[] };
+    return {
+      type: 'multiple_choice',
+      prompt: q.prompt,
+      choices: (content.options ?? []).map((text, i) => ({
+        text,
+        isCorrect: (content.correct_indices ?? []).includes(i),
+      })) as Choice[],
+    };
+  }
+  const content = q.content as { answers: string[] };
+  return {
+    type: 'simple',
+    prompt: q.prompt,
+    answers: (content.answers ?? []).join(', '),
   };
 }
 
@@ -59,15 +79,32 @@ function newMultipleChoice(): MultipleChoiceQuestionData {
   };
 }
 
-export function TestEditor() {
+type FormProps = {
+  testId?: string;
+  initialTitle?: string;
+  initialDescription?: string;
+  initialQuestions?: Question[];
+};
+
+function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialQuestions = [] }: FormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const isEdit = !!testId;
 
-  const { mutate: createTest, isPending } = useMutation({
+  const [title, setTitle] = useState(initialTitle);
+  const [description, setDescription] = useState(initialDescription);
+  const [questions, setQuestions] = useState<Question[]>(initialQuestions);
+
+  const { mutate: saveTest, isPending } = useMutation({
     mutationFn: () => {
+      if (isEdit) {
+        const payload: TestUpdate = {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          questions: questions.map(toApiQuestion),
+        };
+        return sdk.testsUpdate({ path: { test_id: testId }, body: payload });
+      }
       const payload: TestCreate = {
         title: title.trim(),
         description: description.trim() || undefined,
@@ -96,8 +133,7 @@ export function TestEditor() {
   }
 
   return (
-    <div className="px-8 pb-8 max-w-3xl">
-      {/* Title & Description */}
+    <div className="max-w-3xl">
       <div className="space-y-3 mb-6">
         <Input className="w-1/2" placeholder="Test name" value={title} onChange={e => setTitle(e.target.value)} />
         <AutoTextarea
@@ -108,7 +144,6 @@ export function TestEditor() {
         />
       </div>
 
-      {/* Questions */}
       <div className="space-y-3 mb-4">
         {questions.map((q, i) =>
           q.type === 'simple' ? (
@@ -129,15 +164,40 @@ export function TestEditor() {
         )}
       </div>
 
-      {/* Add question */}
       <AddQuestionDropdown onSelect={addQuestion} />
 
-      {/* Save button */}
       <div className="mt-8">
-        <Button size="lg" disabled={!title.trim() || isPending} onClick={() => createTest()}>
+        <Button size="lg" disabled={!title.trim() || isPending} onClick={() => saveTest()}>
           {isPending ? 'Saving…' : 'Save Test'}
         </Button>
       </div>
     </div>
+  );
+}
+
+type Props = {
+  testId?: string;
+};
+
+export function TestEditor({ testId }: Props) {
+  const { data: existing, isLoading } = useQuery({
+    queryKey: ['tests', testId],
+    queryFn: () => sdk.testsGet({ path: { test_id: testId! } }),
+    enabled: !!testId,
+  });
+
+  if (testId && isLoading) {
+    return <p className="text-muted-foreground">Loading…</p>;
+  }
+
+  const test = existing?.data;
+
+  return (
+    <TestEditorForm
+      testId={testId}
+      initialTitle={test?.title}
+      initialDescription={test?.description ?? undefined}
+      initialQuestions={test?.questions?.map(fromApiQuestion)}
+    />
   );
 }

@@ -36,7 +36,12 @@ export function SimpleQuestionBlock({ data, onChange, onRemove }: Props) {
           />
         </div>
         <div className="ml-auto">
-          <Button variant="ghost" size="icon-sm" onClick={onRemove} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onRemove}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
             <Trash2 className="size-4" />
           </Button>
         </div>
