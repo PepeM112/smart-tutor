@@ -78,6 +78,7 @@ export function TestEditor() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tests'] });
       router.push(Routes.TESTS);
+      router.refresh();
     },
   });
 

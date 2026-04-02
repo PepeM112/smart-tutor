@@ -31,6 +31,7 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
     logout();
     document.cookie = 'session=; path=/; max-age=0';
     router.push(Routes.LOGIN);
+    router.refresh();
   };
 
   return (

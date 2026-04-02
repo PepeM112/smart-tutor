@@ -13,7 +13,7 @@ DOCKER_COMPOSE := docker-compose --env-file ${BACKEND_ENV}
 default: help
 
 up: ## Start all services (backend + frontend)
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) up
 
 build: ## Build and start services in detached mode
 	$(DOCKER_COMPOSE) up --build -d
@@ -85,6 +85,10 @@ install-all: install-backend frontend-install ## Install all dependencies (BE + 
 clean: ## Stop services and remove containers, volumes, and local images
 	$(DOCKER_COMPOSE) down -v --rmi local
 
+clean-fe: ## Remove Next.js build and cache folders
+	rm -rf frontend/.next
+	rm -rf frontend/.turbo
+
 clean-logs: ## Remove docker logs (requires sudo/root)
 	@sudo find /var/lib/docker/containers -name "*.log" -delete 2>/dev/null || echo "Log cleanup failed (permissions?)"
 
@@ -97,4 +101,4 @@ format: ## Formats frontend
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history clean clean-logs restart format help
+.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history clean clean-fe clean-logs restart format help

@@ -26,7 +26,8 @@ export function SignupForm() {
   } = useMutation({
     mutationFn: () => sdk.usersSignup({ body: form }),
     onSuccess: () => {
-      router.push(Routes.SIGNUP);
+      router.push(Routes.LOGIN);
+      router.refresh();
     },
   });
 

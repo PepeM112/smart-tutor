@@ -37,6 +37,7 @@ export function LoginForm() {
       const isProduction = process.env.NODE_ENV === 'production';
       document.cookie = `session=1; path=/; SameSite=Lax${isProduction ? '; Secure' : ''}`;
       router.push(Routes.DASHBOARD);
+      router.refresh();
     },
   });
 
