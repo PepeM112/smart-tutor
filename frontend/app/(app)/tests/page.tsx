@@ -26,7 +26,7 @@ export default function TestsPage() {
   });
 
   return (
-    <div className="px-8 pb-8 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground">Create and manage your question sets here.</p>
         <Button size="lg" icon={Plus} onClick={() => router.push(Routes.TEST_NEW)}>

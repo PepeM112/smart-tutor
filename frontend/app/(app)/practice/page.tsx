@@ -1,8 +1,17 @@
+'use client';
+import { useEffect } from 'react';
+
+import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+
 export default function PracticePage() {
+  const { set, reset } = useBreadcrumbStore();
+
+  useEffect(() => {
+    set('Practice Tests');
+    return () => reset();
+  }, [set, reset]);
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-foreground">Practice Tests</h1>
-      <p className="mt-2 text-muted-foreground">Choose a test to practice manually.</p>
-    </div>
+    <p className="text-muted-foreground">Choose a test to practice manually.</p>
   );
 }

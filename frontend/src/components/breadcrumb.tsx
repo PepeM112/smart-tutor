@@ -13,7 +13,7 @@ export function Breadcrumb() {
   if (!title) return null;
 
   return (
-    <div className="flex items-center gap-3 px-8 py-8">
+    <div className="flex items-center gap-3 p-8">
       {back && (
         <Button variant="ghost" size="icon" onClick={() => router.push(back)}>
           <ArrowLeft className="size-5" />

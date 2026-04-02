@@ -12,8 +12,6 @@ export default function DashboardPage() {
   }, [set, reset]);
 
   return (
-    <div className="px-8 pb-8">
-      <p className="text-muted-foreground">Your learning overview will appear here.</p>
-    </div>
+    <p className="text-muted-foreground">Your learning overview will appear here.</p>
   );
 }
