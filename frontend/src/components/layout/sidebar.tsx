@@ -5,7 +5,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Dumbbell,
+  FlaskConical,
   Grid3X3,
   History,
   LayoutDashboard,
@@ -17,6 +17,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 import { LogoutButton } from '@/features/auth/components/logout-button';
+import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 type NavItem = {
@@ -35,24 +36,27 @@ const sections: NavSection[] = [
   {
     label: 'Learning',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'Review Now', href: '/review', icon: RefreshCw },
-      { label: 'Practice Tests', href: '/practice', icon: Dumbbell },
+      { label: 'Dashboard', href: Routes.DASHBOARD, icon: LayoutDashboard },
+      { label: 'Review Now', href: Routes.REVIEW, icon: RefreshCw },
     ],
   },
   {
     label: 'Library',
     items: [
-      { label: 'My Tests', href: '/tests', icon: BookOpen },
-      { label: 'All Questions', href: null, icon: Grid3X3, disabled: true },
+      { label: 'Tests', href: Routes.TESTS, icon: BookOpen },
+      { label: 'Questions', href: null, icon: Grid3X3, disabled: true },
     ],
   },
   {
     label: 'Analytics',
     items: [
-      { label: 'Exam History', href: '/history', icon: History },
-      { label: 'Progress Stats', href: '/stats', icon: BarChart2 },
+      { label: 'Exam History', href: Routes.HISTORY, icon: History },
+      { label: 'Progress Stats', href: Routes.STATS, icon: BarChart2 },
     ],
+  },
+  {
+    label: 'Dev',
+    items: [{ label: 'Sandbox', href: Routes.SANDBOX, icon: FlaskConical }],
   },
 ];
 
@@ -148,12 +152,12 @@ export function Sidebar() {
       {/* Bottom — settings + logout */}
       <div className="border-t border-border px-2 py-3 space-y-0.5">
         <Link
-          href="/settings"
+          href={Routes.SETTINGS}
           title={collapsed ? 'Profile & Settings' : undefined}
           className={cn(
             'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
             'text-foreground/60 hover:bg-muted hover:text-foreground',
-            pathname === '/settings' && 'bg-primary/10 text-primary',
+            pathname === Routes.SETTINGS && 'bg-primary/10 text-primary',
             collapsed ? 'justify-center px-0' : 'px-3'
           )}
         >

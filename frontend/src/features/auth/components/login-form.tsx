@@ -3,19 +3,23 @@
 import { useMutation } from '@tanstack/react-query';
 import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import type { BodyLoginApiV1UsersLoginPost } from '@/client';
+import type { BodyUsersLogin } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { sdk } from '@/lib/api-client';
+import { Routes } from '@/lib/routes';
 
 import { useAuthStore } from '../store/authStore';
 
 export function LoginForm() {
-  const [form, setForm] = useState<BodyLoginApiV1UsersLoginPost>({ username: '', password: '' });
+  const router = useRouter();
+
+  const [form, setForm] = useState<BodyUsersLogin>({ username: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const setUser = useAuthStore(state => state.setUser);
 
@@ -25,11 +29,15 @@ export function LoginForm() {
     error: loginError,
   } = useMutation({
     mutationFn: () =>
-      sdk.loginApiV1UsersLoginPost({
+      sdk.usersLogin({
         body: { username: form.username, password: form.password },
       }),
     onSuccess: response => {
       setUser(response.data ?? null);
+      const isProduction = process.env.NODE_ENV === 'production';
+      document.cookie = `session=1; path=/; SameSite=Lax${isProduction ? '; Secure' : ''}`;
+      router.push(Routes.DASHBOARD);
+      router.refresh();
     },
   });
 
@@ -88,7 +96,7 @@ export function LoginForm() {
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-primary font-bold underline">
+          <Link href={Routes.SIGNUP} className="text-primary font-bold underline">
             Sign up
           </Link>
         </p>
