@@ -2,6 +2,7 @@
 
 import { Plus, Trash2 } from 'lucide-react';
 
+import { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -13,7 +14,7 @@ export type Choice = {
 };
 
 export type MultipleChoiceQuestionData = {
-  type: 'multiple_choice';
+  type: QuestionType.MULTIPLE_CHOICE;
   prompt: string;
   choices: Choice[];
 };

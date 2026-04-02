@@ -22,7 +22,7 @@ import { SimpleQuestionBlock, type SimpleQuestionData } from './simple-question-
 type Question = SimpleQuestionData | MultipleChoiceQuestionData;
 
 function toApiQuestion(q: Question): QuestionCreate {
-  if (q.type === 'simple') {
+  if (q.type === QuestionType.SIMPLE) {
     return {
       questionType: QuestionType.SIMPLE,
       prompt: q.prompt,
@@ -48,7 +48,7 @@ function fromApiQuestion(q: QuestionRead): Question {
   if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
     const content = q.content as { options: string[]; correct_indices: number[] };
     return {
-      type: 'multiple_choice',
+      type: QuestionType.MULTIPLE_CHOICE,
       prompt: q.prompt,
       choices: (content.options ?? []).map((text, i) => ({
         text,
@@ -58,19 +58,19 @@ function fromApiQuestion(q: QuestionRead): Question {
   }
   const content = q.content as { answers: string[] };
   return {
-    type: 'simple',
+    type: QuestionType.SIMPLE,
     prompt: q.prompt,
     answers: (content.answers ?? []).join(', '),
   };
 }
 
 function newSimple(): SimpleQuestionData {
-  return { type: 'simple', prompt: '', answers: '' };
+  return { type: QuestionType.SIMPLE, prompt: '', answers: '' };
 }
 
 function newMultipleChoice(): MultipleChoiceQuestionData {
   return {
-    type: 'multiple_choice',
+    type: QuestionType.MULTIPLE_CHOICE,
     prompt: '',
     choices: [
       { text: '', isCorrect: false },
@@ -146,7 +146,7 @@ function TestEditorForm({ testId, initialTitle = '', initialDescription = '', in
 
       <div className="space-y-3 mb-4">
         {questions.map((q, i) =>
-          q.type === 'simple' ? (
+          q.type === QuestionType.SIMPLE ? (
             <SimpleQuestionBlock
               key={i}
               data={q}
