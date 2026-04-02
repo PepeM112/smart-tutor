@@ -1,10 +1,14 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { QuestionType } from '@/client';
+import { type QuestionCreate, type TestCreate, QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { sdk } from '@/lib/api-client';
+import { Routes } from '@/lib/routes';
 
 import { AddQuestionDropdown } from './add-question-dropdown';
 import { AutoTextarea } from './auto-textarea';
@@ -16,6 +20,29 @@ import {
 import { SimpleQuestionBlock, type SimpleQuestionData } from './simple-question-block';
 
 type Question = SimpleQuestionData | MultipleChoiceQuestionData;
+
+function toApiQuestion(q: Question): QuestionCreate {
+  if (q.type === 'simple') {
+    return {
+      questionType: QuestionType.SIMPLE,
+      prompt: q.prompt,
+      content: {
+        answers: q.answers
+          .split(',')
+          .map((a) => a.trim())
+          .filter(Boolean),
+      },
+    };
+  }
+  return {
+    questionType: QuestionType.MULTIPLE_CHOICE,
+    prompt: q.prompt,
+    content: {
+      options: q.choices.map((c) => c.text),
+      correct_indices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
+    },
+  };
+}
 
 function newSimple(): SimpleQuestionData {
   return { type: 'simple', prompt: '', answers: '' };
@@ -33,9 +60,26 @@ function newMultipleChoice(): MultipleChoiceQuestionData {
 }
 
 export function TestEditor() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
+
+  const { mutate: createTest, isPending } = useMutation({
+    mutationFn: () => {
+      const payload: TestCreate = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        questions: questions.map(toApiQuestion),
+      };
+      return sdk.testsCreate({ body: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests'] });
+      router.push(Routes.TESTS);
+    },
+  });
 
   function addQuestion(type: QuestionType) {
     const q = type === QuestionType.SIMPLE ? newSimple() : newMultipleChoice();
@@ -89,8 +133,8 @@ export function TestEditor() {
 
       {/* Save button */}
       <div className="mt-8">
-        <Button size="lg" disabled={!title.trim()}>
-          Save Test
+        <Button size="lg" disabled={!title.trim() || isPending} onClick={() => createTest()}>
+          {isPending ? 'Saving…' : 'Save Test'}
         </Button>
       </div>
     </div>
