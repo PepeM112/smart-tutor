@@ -57,11 +57,7 @@ export function ConfirmDialog({
         {children && <div className="mt-4">{children}</div>}
         <AlertDialogFooter className="mt-6">
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            disabled={disableConfirm}
-            className={cn(confirmClassName)}
-          >
+          <AlertDialogAction onClick={onConfirm} disabled={disableConfirm} className={cn(confirmClassName)}>
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
