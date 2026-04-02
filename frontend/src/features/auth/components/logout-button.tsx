@@ -28,6 +28,7 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
 
   const handleLogout = () => {
     logout();
+    document.cookie = 'session=; path=/; max-age=0';
     router.push('/login');
   };
 

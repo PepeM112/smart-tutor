@@ -8,11 +8,9 @@
   "include": [
     "src/**/*",
     "app/**/*",
-    "eslint.config.js",
-    "openapi-ts.config.ts",
-    "next.config.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts"
+    "*.ts",
+    "*.js"
   ],
   "exclude": ["node_modules", "dist", ".next"]
 }
