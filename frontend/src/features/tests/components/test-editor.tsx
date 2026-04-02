@@ -17,6 +17,8 @@ import {
 } from './multiple-choice-question-block';
 import { SimpleQuestionBlock, type SimpleQuestionData } from './simple-question-block';
 
+import { Routes } from '@/lib/routes';
+
 type Question = SimpleQuestionData | MultipleChoiceQuestionData;
 
 function newSimple(): SimpleQuestionData {
@@ -57,7 +59,7 @@ export function TestEditor() {
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <Button variant="ghost" size="icon-sm" asChild>
-          <Link href="/tests">
+          <Link href={Routes.TESTS}>
             <ArrowLeft className="size-4" />
           </Link>
         </Button>

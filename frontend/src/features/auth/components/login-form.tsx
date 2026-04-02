@@ -12,6 +12,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { sdk } from '@/lib/api-client';
+import { Routes } from '@/lib/routes';
 
 import { useAuthStore } from '../store/authStore';
 
@@ -35,7 +36,7 @@ export function LoginForm() {
       setUser(response.data ?? null);
       const isProduction = process.env.NODE_ENV === 'production';
       document.cookie = `session=1; path=/; SameSite=Lax${isProduction ? '; Secure' : ''}`;
-      router.push('/dashboard');
+      router.push(Routes.DASHBOARD);
     },
   });
 
@@ -94,7 +95,7 @@ export function LoginForm() {
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-primary font-bold underline">
+          <Link href={Routes.SIGNUP} className="text-primary font-bold underline">
             Sign up
           </Link>
         </p>

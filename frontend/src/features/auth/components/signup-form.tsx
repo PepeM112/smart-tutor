@@ -12,6 +12,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { sdk } from '@/lib/api-client';
+import { Routes } from '@/lib/routes';
 
 export function SignupForm() {
   const [form, setForm] = useState<UserCreate>({ username: '', email: '', password: '' });
@@ -23,9 +24,9 @@ export function SignupForm() {
     isPending: isSigningIn,
     error: signinError,
   } = useMutation({
-    mutationFn: () => sdk.signupApiV1UsersSignupPost({ body: form }),
+    mutationFn: () => sdk.usersSignup({ body: form }),
     onSuccess: () => {
-      router.push('/login');
+      router.push(Routes.SIGNUP);
     },
   });
 
@@ -95,7 +96,7 @@ export function SignupForm() {
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/login" className="text-primary font-bold underline">
+          <Link href={Routes.LOGIN} className="text-primary font-bold underline">
             Log in
           </Link>
         </p>

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 type LogoutButtonProps = {
@@ -29,7 +30,7 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
   const handleLogout = () => {
     logout();
     document.cookie = 'session=; path=/; max-age=0';
-    router.push('/login');
+    router.push(Routes.LOGIN);
   };
 
   return (

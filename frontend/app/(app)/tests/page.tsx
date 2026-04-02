@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
+import { Routes } from '@/lib/routes';
 
 export default function TestsPage() {
   return (
@@ -11,8 +12,8 @@ export default function TestsPage() {
           <h1 className="text-2xl font-semibold text-foreground">My Tests</h1>
           <p className="mt-2 text-muted-foreground">Create and manage your question sets here.</p>
         </div>
-        <Button size="lg" asChild>
-          <Link href="/tests/new">
+        <Button className="pr-4" size="lg" asChild>
+          <Link href={Routes.TEST_NEW}>
             <Plus data-icon="inline-start" />
             Create Test
           </Link>
