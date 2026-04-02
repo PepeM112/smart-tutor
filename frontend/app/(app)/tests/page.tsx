@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { QuickTestDialog } from '@/features/tests/components/quick-test-dialog';
 import { TestsTable } from '@/features/tests/components/tests-table';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
@@ -16,7 +17,7 @@ export default function TestsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    set('My Tests');
+    set('Tests');
     return () => reset();
   }, [set, reset]);
 
@@ -29,9 +30,12 @@ export default function TestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground">Create and manage your question sets here.</p>
-        <Button size="lg" icon={Plus} onClick={() => router.push(Routes.TEST_NEW)}>
-          Create Test
-        </Button>
+        <div className="flex items-center gap-2">
+          <QuickTestDialog />
+          <Button size="lg" icon={Plus} onClick={() => router.push(Routes.TEST_NEW)}>
+            Create Test
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

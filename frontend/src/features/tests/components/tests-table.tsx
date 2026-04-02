@@ -1,7 +1,7 @@
 'use client';
 
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { ListChecks, Pencil, Text } from 'lucide-react';
+import { Copy, Dumbbell, ListChecks, Pencil, Text } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
@@ -82,7 +82,7 @@ const columns: ColumnDef<TestRead>[] = [
     cell: function ActionsCell({ row }) {
       const router = useRouter();
       return (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-1">
           <Button
             variant="ghost"
             size="icon-lg"
@@ -93,6 +93,25 @@ const columns: ColumnDef<TestRead>[] = [
             aria-label={`Edit ${row.original.title}`}
           >
             <Pencil className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            onClick={e => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(row.original.id);
+            }}
+            aria-label={`Copy ID of ${row.original.title}`}
+          >
+            <Copy className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            onClick={e => e.stopPropagation()}
+            aria-label={`Take test ${row.original.title}`}
+          >
+            <Dumbbell className="size-4" />
           </Button>
         </div>
       );

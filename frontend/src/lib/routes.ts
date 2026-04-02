@@ -15,4 +15,6 @@ export const Routes = {
   STATS: '/stats',
 
   SETTINGS: '/settings',
+
+  SANDBOX: '/sandbox',
 } as const;

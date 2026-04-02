@@ -5,7 +5,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Dumbbell,
+  FlaskConical,
   Grid3X3,
   History,
   LayoutDashboard,
@@ -38,14 +38,13 @@ const sections: NavSection[] = [
     items: [
       { label: 'Dashboard', href: Routes.DASHBOARD, icon: LayoutDashboard },
       { label: 'Review Now', href: Routes.REVIEW, icon: RefreshCw },
-      { label: 'Practice Tests', href: Routes.PRACTICE, icon: Dumbbell },
     ],
   },
   {
     label: 'Library',
     items: [
-      { label: 'My Tests', href: Routes.TESTS, icon: BookOpen },
-      { label: 'All Questions', href: null, icon: Grid3X3, disabled: true },
+      { label: 'Tests', href: Routes.TESTS, icon: BookOpen },
+      { label: 'Questions', href: null, icon: Grid3X3, disabled: true },
     ],
   },
   {
@@ -54,6 +53,10 @@ const sections: NavSection[] = [
       { label: 'Exam History', href: Routes.HISTORY, icon: History },
       { label: 'Progress Stats', href: Routes.STATS, icon: BarChart2 },
     ],
+  },
+  {
+    label: 'Dev',
+    items: [{ label: 'Sandbox', href: Routes.SANDBOX, icon: FlaskConical }],
   },
 ];
 

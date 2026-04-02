@@ -3,18 +3,8 @@
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
@@ -35,8 +25,8 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
   };
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
+    <ConfirmDialog
+      trigger={
         <Button
           variant="ghost"
           title={collapsed ? 'Log out' : undefined}
@@ -48,25 +38,12 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
           <LogOut size={17} className="shrink-0" />
           {!collapsed && <span>Log out</span>}
         </Button>
-      </AlertDialogTrigger>
-
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Log out of SmartTutor?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Your session will end and you will need to log in again to continue.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleLogout}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 border-none"
-          >
-            Log out
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      }
+      title="Log out of SmartTutor?"
+      description="Your session will end and you will need to log in again to continue."
+      confirmLabel="Log out"
+      confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90 border-none"
+      onConfirm={handleLogout}
+    />
   );
 }
