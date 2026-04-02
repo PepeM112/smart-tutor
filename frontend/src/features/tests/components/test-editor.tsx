@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Routes } from '@/lib/routes';
 
 import { AddQuestionDropdown } from './add-question-dropdown';
 import { AutoTextarea } from './auto-textarea';
@@ -16,8 +17,6 @@ import {
   type MultipleChoiceQuestionData,
 } from './multiple-choice-question-block';
 import { SimpleQuestionBlock, type SimpleQuestionData } from './simple-question-block';
-
-import { Routes } from '@/lib/routes';
 
 type Question = SimpleQuestionData | MultipleChoiceQuestionData;
 
