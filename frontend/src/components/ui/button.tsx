@@ -2,6 +2,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { Slot } from 'radix-ui';
 import * as React from 'react';
 
+import { TooltipContent, TooltipRoot, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import type { LucideIcon } from 'lucide-react';
@@ -47,16 +48,18 @@ function Button({
   size = 'default',
   asChild = false,
   icon: Icon,
+  tooltip,
   children,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
     icon?: LucideIcon;
+    tooltip?: string;
   }) {
   const Comp = asChild ? Slot.Root : 'button';
 
-  return (
+  const button = (
     <Comp
       data-slot="button"
       data-variant={variant}
@@ -67,6 +70,15 @@ function Button({
       {!asChild && Icon && <Icon />}
       {children}
     </Comp>
+  );
+
+  if (!tooltip) return button;
+
+  return (
+    <TooltipRoot>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </TooltipRoot>
   );
 }
 

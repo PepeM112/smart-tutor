@@ -86,6 +86,7 @@ const columns: ColumnDef<TestRead>[] = [
           <Button
             variant="ghost"
             size="icon-lg"
+            tooltip="Edit"
             onClick={e => {
               e.stopPropagation();
               router.push(Routes.TEST_EDIT(row.original.id));
@@ -97,6 +98,7 @@ const columns: ColumnDef<TestRead>[] = [
           <Button
             variant="ghost"
             size="icon-lg"
+            tooltip="Copy ID"
             onClick={e => {
               e.stopPropagation();
               navigator.clipboard.writeText(row.original.id);
@@ -108,6 +110,7 @@ const columns: ColumnDef<TestRead>[] = [
           <Button
             variant="ghost"
             size="icon-lg"
+            tooltip="Practice"
             onClick={e => e.stopPropagation()}
             aria-label={`Take test ${row.original.title}`}
           >
