@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from app.core.enums import UserStatus
 from app.schemas.base import BaseSchema
 
@@ -14,5 +12,5 @@ class UserCreate(UserBase):
 
 
 class UserRead(UserBase):
-    id: UUID
+    id: str
     status: UserStatus

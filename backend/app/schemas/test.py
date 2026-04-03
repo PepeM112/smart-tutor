@@ -1,5 +1,4 @@
 from typing import List, Optional
-from uuid import UUID
 
 from app.schemas.base import BaseSchema
 from app.schemas.question import QuestionCreate, QuestionRead
@@ -21,6 +20,6 @@ class TestUpdate(BaseSchema):
 
 
 class TestRead(TestBase):
-    id: UUID
-    user_id: UUID
+    id: str
+    user_id: str
     questions: List[QuestionRead] = []

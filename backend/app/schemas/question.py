@@ -1,5 +1,4 @@
-from typing import Any, Dict, List, Optional
-from uuid import UUID
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
@@ -27,7 +26,7 @@ class LongTextContent(BaseModel):
     rubric: List[RubricItem]
 
 
-def _validate_content(q_type: Optional[QuestionType], content: Dict[str, Any]) -> None:
+def _validate_content(q_type: Optional[QuestionType], content: dict[str, object]) -> None:
     """Validate content shape against the question type."""
     try:
         if q_type == QuestionType.SIMPLE:
@@ -46,13 +45,13 @@ def _validate_content(q_type: Optional[QuestionType], content: Dict[str, Any]) -
 class QuestionBase(BaseSchema):
     question_type: QuestionType = QuestionType.SIMPLE
     prompt: str
-    content: Dict[str, Any] = {}
+    content: dict[str, object] = {}
     hint: Optional[str] = None
     explanation: Optional[str] = None
 
     @field_validator("content")
     @classmethod
-    def validate_content_schema(cls, v: Dict[str, Any], info: ValidationInfo) -> Dict[str, Any]:
+    def validate_content_schema(cls, v: dict[str, object], info: ValidationInfo) -> dict[str, object]:
         q_type = info.data.get("question_type")
         _validate_content(q_type, v)
         return v
@@ -65,7 +64,7 @@ class QuestionCreate(QuestionBase):
 class QuestionUpdate(BaseSchema):
     question_type: Optional[QuestionType] = None
     prompt: Optional[str] = None
-    content: Optional[Dict[str, Any]] = None
+    content: Optional[dict[str, object]] = None
     hint: Optional[str] = None
     explanation: Optional[str] = None
 
@@ -77,5 +76,5 @@ class QuestionUpdate(BaseSchema):
 
 
 class QuestionRead(QuestionBase):
-    id: UUID
-    test_id: UUID
+    id: str
+    test_id: str

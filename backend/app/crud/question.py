@@ -1,5 +1,4 @@
 from typing import List, Optional
-from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -7,15 +6,15 @@ from app.models.question import Question
 from app.schemas.question import QuestionCreate, QuestionUpdate
 
 
-def get_by_id(db: Session, *, id: UUID) -> Optional[Question]:
+def get_by_id(db: Session, *, id: str) -> Optional[Question]:
     return db.query(Question).filter(Question.id == id).first()
 
 
-def list_by_test(db: Session, *, test_id: UUID) -> List[Question]:
+def list_by_test(db: Session, *, test_id: str) -> List[Question]:
     return db.query(Question).filter(Question.test_id == test_id).all()
 
 
-def create(db: Session, *, test_id: UUID, data: QuestionCreate) -> Question:
+def create(db: Session, *, test_id: str, data: QuestionCreate) -> Question:
     question = Question(
         test_id=test_id,
         question_type=int(data.question_type),
@@ -30,7 +29,7 @@ def create(db: Session, *, test_id: UUID, data: QuestionCreate) -> Question:
     return question
 
 
-def create_many(db: Session, *, test_id: UUID, questions: List[QuestionCreate]) -> List[Question]:
+def create_many(db: Session, *, test_id: str, questions: List[QuestionCreate]) -> List[Question]:
     objs = [
         Question(
             test_id=test_id,

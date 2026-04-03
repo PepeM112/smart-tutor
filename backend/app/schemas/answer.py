@@ -1,13 +1,12 @@
-from uuid import UUID
-
+from app.core.enums import AnswerStatus
 from app.schemas.base import BaseSchema
 
 
 class AnswerBase(BaseSchema):
-    test_result_id: UUID
-    question_id: UUID
+    test_result_id: str
+    question_id: str
     user_answer: str
-    is_correct: bool
+    status: AnswerStatus
 
 
 class AnswerCreate(AnswerBase):
@@ -15,4 +14,4 @@ class AnswerCreate(AnswerBase):
 
 
 class AnswerRead(AnswerBase):
-    id: UUID
+    id: str
