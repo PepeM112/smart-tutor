@@ -43,11 +43,14 @@ def _validate_content(q_type: Optional[QuestionType], content: dict[str, object]
 
 
 class QuestionBase(BaseSchema):
-    question_type: QuestionType = QuestionType.SIMPLE
+    question_type: QuestionType
     prompt: str
     content: dict[str, object] = {}
     hint: Optional[str] = None
     explanation: Optional[str] = None
+    test_id: Optional[str] = None
+    group_id: Optional[str] = None
+    order: int = 0
 
     @field_validator("content")
     @classmethod
@@ -77,4 +80,3 @@ class QuestionUpdate(BaseSchema):
 
 class QuestionRead(QuestionBase):
     id: str
-    test_id: str

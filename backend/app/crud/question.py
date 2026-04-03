@@ -14,36 +14,29 @@ def list_by_test(db: Session, *, test_id: str) -> List[Question]:
     return db.query(Question).filter(Question.test_id == test_id).all()
 
 
-def create(db: Session, *, test_id: str, data: QuestionCreate) -> Question:
-    question = Question(
-        test_id=test_id,
-        question_type=int(data.question_type),
-        prompt=data.prompt,
-        content=data.content,
-        hint=data.hint,
-        explanation=data.explanation,
-    )
-    db.add(question)
-    db.commit()
-    db.refresh(question)
-    return question
-
-
-def create_many(db: Session, *, test_id: str, questions: List[QuestionCreate]) -> List[Question]:
+def create_many(
+    db: Session,
+    *,
+    questions: List[QuestionCreate],
+    test_id: Optional[str] = None,
+    group_id: Optional[str] = None,
+) -> List[Question]:
     objs = [
         Question(
             test_id=test_id,
+            group_id=group_id,
             question_type=int(q.question_type),
             prompt=q.prompt,
             content=q.content,
             hint=q.hint,
             explanation=q.explanation,
+            order=q.order,
         )
         for q in questions
     ]
     db.add_all(objs)
-    db.commit()
-    return db.query(Question).filter(Question.test_id == test_id).all()
+    db.flush()
+    return objs
 
 
 def update(db: Session, *, question: Question, data: QuestionUpdate) -> Question:

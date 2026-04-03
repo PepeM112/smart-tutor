@@ -8,6 +8,7 @@ from app.models.base import CreatedAtMixin, generate_ulid
 
 if TYPE_CHECKING:
     from app.models.question import Question
+    from app.models.test_question_group import TestQuestionGroup
 
 
 class Test(Base, CreatedAtMixin):
@@ -19,3 +20,6 @@ class Test(Base, CreatedAtMixin):
     user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"))
 
     questions: Mapped[List["Question"]] = relationship(back_populates="test", cascade="all, delete-orphan")
+    question_groups: Mapped[List["TestQuestionGroup"]] = relationship(
+        back_populates="test", cascade="all, delete-orphan"
+    )

@@ -35,3 +35,8 @@ class AnswerStatus(NamedIntEnum):
     WRONG = 2
     PARTIAL = 3
     PENDING = 4
+
+
+class QuestionGroupType(NamedIntEnum):
+    UNKNOWN = 0
+    VOCABULARY = 1

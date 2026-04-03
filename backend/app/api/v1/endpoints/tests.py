@@ -6,9 +6,12 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.test import Test
+from app.models.test_result import TestResult
 from app.models.user import User
+from app.schemas.correction import TestSubmission
 from app.schemas.test import TestCreate, TestRead, TestUpdate
-from app.services import test_service
+from app.schemas.test_result import TestResultRead
+from app.services import correction_service, test_service
 
 router = APIRouter()
 
@@ -39,3 +42,8 @@ def update(test_id: str, data: TestUpdate, db: DbSession, current_user: CurrentU
 @router.delete("/{test_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(test_id: str, db: DbSession, current_user: CurrentUser) -> None:
     test_service.delete_test(db, test_id=test_id, current_user=current_user)
+
+
+@router.post("/{test_id}/submit", response_model=TestResultRead, status_code=status.HTTP_201_CREATED)
+def submit(test_id: str, data: TestSubmission, db: DbSession, current_user: CurrentUser) -> TestResult:
+    return correction_service.correct_test(db, test_id=test_id, current_user=current_user, submission=data)

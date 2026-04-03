@@ -51,6 +51,17 @@ def upgrade() -> None:
     op.create_index(op.f("ix_test_title"), "test", ["title"], unique=False)
 
     op.create_table(
+        "test_question_group",
+        sa.Column("id", sa.String(26), nullable=False),
+        sa.Column("test_id", sa.String(26), nullable=False),
+        sa.Column("type", sa.Integer(), nullable=False),
+        sa.Column("order", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(["test_id"], ["test.id"]),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("test_id", "order", name="uq_test_group_order"),
+    )
+
+    op.create_table(
         "question",
         sa.Column("id", sa.String(26), nullable=False),
         sa.Column("question_type", sa.Integer(), nullable=False),
@@ -58,9 +69,14 @@ def upgrade() -> None:
         sa.Column("content", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("hint", sa.String(), nullable=True),
         sa.Column("explanation", sa.String(), nullable=True),
-        sa.Column("test_id", sa.String(26), nullable=False),
+        sa.Column("test_id", sa.String(26), nullable=True),
+        sa.Column("group_id", sa.String(26), nullable=True),
+        sa.Column("order", sa.Integer(), nullable=False, server_default="0"),
         sa.ForeignKeyConstraint(["test_id"], ["test.id"]),
+        sa.ForeignKeyConstraint(["group_id"], ["test_question_group.id"]),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("test_id", "order", name="uq_test_question_order"),
+        sa.UniqueConstraint("group_id", "order", name="uq_group_question_order"),
     )
 
     op.create_table(
@@ -96,6 +112,7 @@ def downgrade() -> None:
     op.drop_table("answer")
     op.drop_table("test_result")
     op.drop_table("question")
+    op.drop_table("test_question_group")
     op.drop_index(op.f("ix_test_title"), table_name="test")
     op.drop_table("test")
     op.drop_index(op.f("ix_user_username"), table_name="user")
