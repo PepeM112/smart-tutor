@@ -51,7 +51,7 @@ const sections: NavSection[] = [
     label: 'Analytics',
     items: [
       { label: 'Test History', href: Routes.HISTORY, icon: History },
-      { label: 'Progress Stats', href: Routes.STATS, icon: BarChart2 },
+      { label: 'Progress Stats', href: Routes.STATS, icon: BarChart2, disabled: true },
     ],
   },
   {
