@@ -110,8 +110,11 @@ const columns: ColumnDef<TestRead>[] = [
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip="Practice"
-            onClick={e => e.stopPropagation()}
+            tooltip="Take test"
+            onClick={e => {
+              e.stopPropagation();
+              router.push(Routes.TEST_DETAIL(row.original.id));
+            }}
             aria-label={`Take test ${row.original.title}`}
           >
             <Dumbbell className="size-4" />
