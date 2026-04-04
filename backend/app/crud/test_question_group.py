@@ -19,6 +19,7 @@ def create_many(
             test_id=test_id,
             type=int(group_data.type),
             order=group_data.order,
+            title=group_data.title,
         )
         db.add(group)
         db.flush()  # assigns the group.id so nested questions can reference it

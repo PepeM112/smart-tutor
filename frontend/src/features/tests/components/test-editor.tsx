@@ -4,7 +4,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { type QuestionCreate, type QuestionRead, QuestionType, type TestCreate, type TestUpdate } from '@/client';
+import {
+  type QuestionCreate,
+  type QuestionRead,
+  QuestionGroupType,
+  QuestionType,
+  type TestCreate,
+  type TestQuestionGroupCreate,
+  type TestQuestionGroupRead,
+  type TestUpdate,
+} from '@/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
@@ -17,26 +26,28 @@ import {
   type Choice,
   type MultipleChoiceQuestionData,
 } from './multiple-choice-question-block';
-import { SimpleQuestionBlock, type SimpleQuestionData } from './simple-question-block';
+import {
+  QuestionGroupBlock,
+  type QuestionGroupData,
+  type SimpleRow,
+  newQuestionGroup,
+} from './question-group-block';
 
-type Question = SimpleQuestionData | MultipleChoiceQuestionData;
+/* ------------------------------------------------------------------ */
+/*  Union type for all items in the editor list                       */
+/* ------------------------------------------------------------------ */
 
-function toApiQuestion(q: Question): QuestionCreate {
-  if (q.type === QuestionType.SIMPLE) {
-    return {
-      questionType: QuestionType.SIMPLE,
-      prompt: q.prompt,
-      content: {
-        answers: q.answers
-          .split(',')
-          .map(a => a.trim())
-          .filter(Boolean),
-      },
-    };
-  }
+type EditorItem = MultipleChoiceQuestionData | QuestionGroupData;
+
+/* ------------------------------------------------------------------ */
+/*  Conversion: editor → API payload                                  */
+/* ------------------------------------------------------------------ */
+
+function mcToApiQuestion(q: MultipleChoiceQuestionData, order: number): QuestionCreate {
   return {
     questionType: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
+    order,
     content: {
       options: q.choices.map(c => c.text),
       correct_indices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
@@ -44,29 +55,100 @@ function toApiQuestion(q: Question): QuestionCreate {
   };
 }
 
-function fromApiQuestion(q: QuestionRead): Question {
-  if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
-    const content = q.content as { options: string[]; correct_indices: number[] };
-    return {
-      type: QuestionType.MULTIPLE_CHOICE,
-      prompt: q.prompt,
-      choices: (content.options ?? []).map((text, i) => ({
-        text,
-        isCorrect: (content.correct_indices ?? []).includes(i),
-      })) as Choice[],
-    };
-  }
-  const content = q.content as { answers: string[] };
+function groupToApiGroup(g: QuestionGroupData, order: number): TestQuestionGroupCreate {
   return {
-    type: QuestionType.SIMPLE,
-    prompt: q.prompt,
-    answers: (content.answers ?? []).join(', '),
+    type: g.groupType,
+    order,
+    title: g.title.trim() || undefined,
+    questions: g.rows.map((row, i) => ({
+      questionType: QuestionType.SIMPLE,
+      prompt: row.prompt,
+      order: i,
+      content: {
+        answers: row.answers
+          .split(',')
+          .map(a => a.trim())
+          .filter(Boolean),
+      },
+    })),
   };
 }
 
-function newSimple(): SimpleQuestionData {
-  return { type: QuestionType.SIMPLE, prompt: '', answers: '' };
+/* ------------------------------------------------------------------ */
+/*  Conversion: API response → editor items                           */
+/* ------------------------------------------------------------------ */
+
+function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
+  const content = q.content as { options: string[]; correct_indices: number[] };
+  return {
+    type: QuestionType.MULTIPLE_CHOICE,
+    prompt: q.prompt,
+    choices: (content.options ?? []).map((text, i) => ({
+      text,
+      isCorrect: (content.correct_indices ?? []).includes(i),
+    })) as Choice[],
+  };
 }
+
+function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
+  return {
+    type: 'group',
+    groupType: g.type ?? QuestionGroupType.UNKNOWN,
+    title: g.title ?? '',
+    rows: (g.questions ?? []).map(q => {
+      const content = q.content as { answers: string[] };
+      return {
+        prompt: q.prompt,
+        answers: (content.answers ?? []).join(', '),
+      } as SimpleRow;
+    }),
+  };
+}
+
+/**
+ * Merge standalone questions and question groups into a single ordered list.
+ * Both share the same order space on the backend.
+ */
+function fromApiToEditorItems(
+  questions: QuestionRead[] | undefined,
+  groups: TestQuestionGroupRead[] | undefined,
+): EditorItem[] {
+  type Tagged =
+    | { order: number; kind: 'mc'; data: QuestionRead }
+    | { order: number; kind: 'group'; data: TestQuestionGroupRead };
+
+  const tagged: Tagged[] = [];
+
+  for (const q of questions ?? []) {
+    if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
+      tagged.push({ order: q.order ?? 0, kind: 'mc', data: q });
+    }
+    // standalone simple questions from old data — wrap into a single-row group
+    if (q.questionType === QuestionType.SIMPLE) {
+      const syntheticGroup: TestQuestionGroupRead = {
+        id: '',
+        testId: '',
+        type: QuestionGroupType.UNKNOWN,
+        order: q.order ?? 0,
+        title: null,
+        questions: [q],
+      };
+      tagged.push({ order: q.order ?? 0, kind: 'group', data: syntheticGroup });
+    }
+  }
+
+  for (const g of groups ?? []) {
+    tagged.push({ order: g.order ?? 0, kind: 'group', data: g });
+  }
+
+  tagged.sort((a, b) => a.order - b.order);
+
+  return tagged.map(t => (t.kind === 'mc' ? fromApiMcQuestion(t.data) : fromApiGroup(t.data)));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                           */
+/* ------------------------------------------------------------------ */
 
 function newMultipleChoice(): MultipleChoiceQuestionData {
   return {
@@ -79,36 +161,53 @@ function newMultipleChoice(): MultipleChoiceQuestionData {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Editor form                                                       */
+/* ------------------------------------------------------------------ */
+
 type FormProps = {
   testId?: string;
   initialTitle?: string;
   initialDescription?: string;
-  initialQuestions?: Question[];
+  initialItems?: EditorItem[];
 };
 
-function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialQuestions = [] }: FormProps) {
+function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: FormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const isEdit = !!testId;
 
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
-  const [questions, setQuestions] = useState<Question[]>(initialQuestions);
+  const [items, setItems] = useState<EditorItem[]>(initialItems);
 
   const { mutate: saveTest, isPending } = useMutation({
     mutationFn: () => {
+      const standaloneQuestions: QuestionCreate[] = [];
+      const questionGroups: TestQuestionGroupCreate[] = [];
+
+      items.forEach((item, idx) => {
+        if (item.type === QuestionType.MULTIPLE_CHOICE) {
+          standaloneQuestions.push(mcToApiQuestion(item, idx));
+        } else {
+          questionGroups.push(groupToApiGroup(item, idx));
+        }
+      });
+
       if (isEdit) {
         const payload: TestUpdate = {
           title: title.trim(),
           description: description.trim() || undefined,
-          questions: questions.map(toApiQuestion),
+          questions: standaloneQuestions,
+          questionGroups,
         };
         return sdk.testsUpdate({ path: { test_id: testId }, body: payload });
       }
       const payload: TestCreate = {
         title: title.trim(),
         description: description.trim() || undefined,
-        questions: questions.map(toApiQuestion),
+        questions: standaloneQuestions,
+        questionGroups,
       };
       return sdk.testsCreate({ body: payload });
     },
@@ -119,17 +218,17 @@ function TestEditorForm({ testId, initialTitle = '', initialDescription = '', in
     },
   });
 
-  function addQuestion(type: QuestionType) {
-    const q = type === QuestionType.SIMPLE ? newSimple() : newMultipleChoice();
-    setQuestions(prev => [...prev, q]);
+  function addItem(type: 'group' | 'mc') {
+    const item = type === 'group' ? newQuestionGroup() : newMultipleChoice();
+    setItems(prev => [...prev, item]);
   }
 
-  function updateQuestion(idx: number, data: Question) {
-    setQuestions(prev => prev.map((q, i) => (i === idx ? data : q)));
+  function updateItem(idx: number, data: EditorItem) {
+    setItems(prev => prev.map((item, i) => (i === idx ? data : item)));
   }
 
-  function removeQuestion(idx: number) {
-    setQuestions(prev => prev.filter((_, i) => i !== idx));
+  function removeItem(idx: number) {
+    setItems(prev => prev.filter((_, i) => i !== idx));
   }
 
   return (
@@ -145,26 +244,26 @@ function TestEditorForm({ testId, initialTitle = '', initialDescription = '', in
       </div>
 
       <div className="space-y-3 mb-4">
-        {questions.map((q, i) =>
-          q.type === QuestionType.SIMPLE ? (
-            <SimpleQuestionBlock
+        {items.map((item, i) =>
+          item.type === 'group' ? (
+            <QuestionGroupBlock
               key={i}
-              data={q}
-              onChange={data => updateQuestion(i, data)}
-              onRemove={() => removeQuestion(i)}
+              data={item}
+              onChange={data => updateItem(i, data)}
+              onRemove={() => removeItem(i)}
             />
           ) : (
             <MultipleChoiceQuestionBlock
               key={i}
-              data={q}
-              onChange={data => updateQuestion(i, data)}
-              onRemove={() => removeQuestion(i)}
+              data={item}
+              onChange={data => updateItem(i, data)}
+              onRemove={() => removeItem(i)}
             />
           )
         )}
       </div>
 
-      <AddQuestionDropdown onSelect={addQuestion} />
+      <AddQuestionDropdown onSelect={addItem} />
 
       <div className="mt-8">
         <Button size="lg" disabled={!title.trim() || isPending} onClick={() => saveTest()}>
@@ -174,6 +273,10 @@ function TestEditorForm({ testId, initialTitle = '', initialDescription = '', in
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Wrapper that loads existing test for edit mode                     */
+/* ------------------------------------------------------------------ */
 
 type Props = {
   testId?: string;
@@ -197,7 +300,7 @@ export function TestEditor({ testId }: Props) {
       testId={testId}
       initialTitle={test?.title}
       initialDescription={test?.description ?? undefined}
-      initialQuestions={test?.questions?.map(fromApiQuestion)}
+      initialItems={test ? fromApiToEditorItems(test.questions, test.questionGroups) : undefined}
     />
   );
 }

@@ -8,6 +8,7 @@ from app.schemas.question import QuestionCreate, QuestionRead
 class TestQuestionGroupBase(BaseSchema):
     type: QuestionGroupType = QuestionGroupType.UNKNOWN
     order: int = 0
+    title: Optional[str] = None
 
 
 class TestQuestionGroupCreate(TestQuestionGroupBase):
@@ -17,6 +18,7 @@ class TestQuestionGroupCreate(TestQuestionGroupBase):
 class TestQuestionGroupUpdate(BaseSchema):
     type: Optional[QuestionGroupType] = None
     order: Optional[int] = None
+    title: Optional[str] = None
 
 
 class TestQuestionGroupRead(TestQuestionGroupBase):

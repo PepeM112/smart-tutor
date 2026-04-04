@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -19,6 +19,7 @@ class TestQuestionGroup(Base):
     test_id: Mapped[str] = mapped_column(String(26), ForeignKey("test.id"))
     type: Mapped[int] = mapped_column(Integer, default=int(QuestionGroupType.VOCABULARY))
     order: Mapped[int] = mapped_column(Integer)
+    title: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)
 
     test: Mapped["Test"] = relationship(back_populates="question_groups")
     questions: Mapped[List["Question"]] = relationship(
