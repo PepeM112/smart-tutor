@@ -10,6 +10,7 @@ from app.database import Base
 from app.models.answer import Answer  # noqa: F401
 from app.models.question import Question  # noqa: F401
 from app.models.test import Test  # noqa: F401
+from app.models.test_question_group import TestQuestionGroup  # noqa: F401
 from app.models.test_result import TestResult  # noqa: F401
 from app.models.user import User  # noqa: F401
 

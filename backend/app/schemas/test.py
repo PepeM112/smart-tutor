@@ -1,8 +1,8 @@
 from typing import List, Optional
-from uuid import UUID
 
 from app.schemas.base import BaseSchema
 from app.schemas.question import QuestionCreate, QuestionRead
+from app.schemas.test_question_group import TestQuestionGroupCreate, TestQuestionGroupRead
 
 
 class TestBase(BaseSchema):
@@ -12,15 +12,18 @@ class TestBase(BaseSchema):
 
 class TestCreate(TestBase):
     questions: List[QuestionCreate] = []
+    question_groups: List[TestQuestionGroupCreate] = []
 
 
 class TestUpdate(BaseSchema):
     title: Optional[str] = None
     description: Optional[str] = None
     questions: List[QuestionCreate] = []
+    question_groups: List[TestQuestionGroupCreate] = []
 
 
 class TestRead(TestBase):
-    id: UUID
-    user_id: UUID
+    id: str
+    user_id: str
     questions: List[QuestionRead] = []
+    question_groups: List[TestQuestionGroupRead] = []

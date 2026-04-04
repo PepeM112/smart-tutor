@@ -2,6 +2,12 @@ from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, func
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
+from ulid import ULID
+
+
+def generate_ulid() -> str:
+    """Generate a new ULID string for use as a primary key default."""
+    return str(ULID())
 
 
 class CreatedAtMixin:

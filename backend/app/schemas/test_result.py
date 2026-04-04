@@ -1,13 +1,14 @@
-from uuid import UUID
+from typing import List
 
 from pydantic import Field
 
+from app.schemas.answer import AnswerRead
 from app.schemas.base import BaseSchema
 
 
 class TestResultBase(BaseSchema):
-    test_id: UUID
-    user_id: UUID
+    test_id: str
+    user_id: str
     score: float = Field(default=0.0, ge=0.0, le=100.0)
     total_questions: int
     correct_answers: int
@@ -18,4 +19,5 @@ class TestResultCreate(TestResultBase):
 
 
 class TestResultRead(TestResultBase):
-    id: UUID
+    id: str
+    answers: List[AnswerRead] = []

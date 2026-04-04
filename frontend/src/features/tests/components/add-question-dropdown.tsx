@@ -1,8 +1,7 @@
 'use client';
 
-import { ListChecks, Plus, Text } from 'lucide-react';
+import { Layers, ListChecks, Plus, Text } from 'lucide-react';
 
-import { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,8 +10,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+export type AddItemType = 'group' | 'mc';
+
 type Props = {
-  onSelect: (type: QuestionType) => void;
+  onSelect: (type: AddItemType) => void;
 };
 
 export function AddQuestionDropdown({ onSelect }: Props) {
@@ -25,11 +26,11 @@ export function AddQuestionDropdown({ onSelect }: Props) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onSelect={() => onSelect(QuestionType.SIMPLE)}>
-          <Text className="size-4" />
-          Simple
+        <DropdownMenuItem onSelect={() => onSelect('group')}>
+          <Layers className="size-4" />
+          Simple questions
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onSelect(QuestionType.MULTIPLE_CHOICE)}>
+        <DropdownMenuItem onSelect={() => onSelect('mc')}>
           <ListChecks className="size-4" />
           Multiple Choice
         </DropdownMenuItem>

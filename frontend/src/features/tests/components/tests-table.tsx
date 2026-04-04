@@ -3,6 +3,7 @@
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { Copy, Dumbbell, ListChecks, Pencil, Text } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { Button } from '@/components/ui/button';
@@ -102,6 +103,7 @@ const columns: ColumnDef<TestRead>[] = [
             onClick={e => {
               e.stopPropagation();
               navigator.clipboard.writeText(row.original.id);
+              toast.success('Copied');
             }}
             aria-label={`Copy ID of ${row.original.title}`}
           >
@@ -110,8 +112,11 @@ const columns: ColumnDef<TestRead>[] = [
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip="Practice"
-            onClick={e => e.stopPropagation()}
+            tooltip="Take test"
+            onClick={e => {
+              e.stopPropagation();
+              router.push(Routes.TEST_DETAIL(row.original.id));
+            }}
             aria-label={`Take test ${row.original.title}`}
           >
             <Dumbbell className="size-4" />

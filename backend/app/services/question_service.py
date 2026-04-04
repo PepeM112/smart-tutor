@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,7 +8,7 @@ from app.models.user import User
 from app.schemas.question import QuestionUpdate
 
 
-def _get_owned_question_or_404(db: Session, *, question_id: UUID, current_user: User) -> Question:
+def _get_owned_question_or_404(db: Session, *, question_id: str, current_user: User) -> Question:
     question = question_crud.get_by_id(db, id=question_id)
     if question is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
@@ -20,11 +18,11 @@ def _get_owned_question_or_404(db: Session, *, question_id: UUID, current_user: 
     return question
 
 
-def update_question(db: Session, *, question_id: UUID, current_user: User, data: QuestionUpdate) -> Question:
+def update_question(db: Session, *, question_id: str, current_user: User, data: QuestionUpdate) -> Question:
     question = _get_owned_question_or_404(db, question_id=question_id, current_user=current_user)
     return question_crud.update(db, question=question, data=data)
 
 
-def delete_question(db: Session, *, question_id: UUID, current_user: User) -> None:
+def delete_question(db: Session, *, question_id: str, current_user: User) -> None:
     question = _get_owned_question_or_404(db, question_id=question_id, current_user=current_user)
     question_crud.delete(db, question=question)

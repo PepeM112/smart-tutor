@@ -5,6 +5,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 import type { BodyUsersLogin } from '@/client';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,9 @@ export function LoginForm() {
       document.cookie = `session=1; path=/; SameSite=Lax${isProduction ? '; Secure' : ''}`;
       router.push(Routes.DASHBOARD);
       router.refresh();
+    },
+    onError: () => {
+      toast.error('Invalid username or password');
     },
   });
 

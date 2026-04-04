@@ -27,3 +27,16 @@ class QuestionType(NamedIntEnum):
     SIMPLE = 1
     MULTIPLE_CHOICE = 2
     LONG_TEXT = 3
+
+
+class AnswerStatus(NamedIntEnum):
+    UNKNOWN = 0
+    CORRECT = 1
+    WRONG = 2
+    PARTIAL = 3
+    PENDING = 4
+
+
+class QuestionGroupType(NamedIntEnum):
+    UNKNOWN = 0
+    VOCABULARY = 1
