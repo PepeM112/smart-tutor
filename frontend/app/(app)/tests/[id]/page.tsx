@@ -73,7 +73,7 @@ export default function TakeTestPage({ params }: Props) {
     return <p className="text-muted-foreground">Test not found.</p>;
   }
 
-  if ((test.questions?.length ?? 0) === 0) {
+  if ((test.questions?.length ?? 0) === 0 && (test.questionGroups?.length ?? 0) === 0) {
     return <p className="text-muted-foreground">This test has no questions yet.</p>;
   }
 

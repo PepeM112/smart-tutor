@@ -3,17 +3,26 @@
 import { Loader2, Send } from 'lucide-react';
 import { useState } from 'react';
 
-import { AnswerStatus, type QuestionRead, QuestionType, type TestRead, type TestResultRead } from '@/client';
+import {
+  AnswerStatus,
+  type QuestionRead,
+  QuestionGroupType,
+  QuestionType,
+  type TestQuestionGroupRead,
+  type TestRead,
+  type TestResultRead,
+} from '@/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
 type ExamItem =
   | { kind: 'question'; question: QuestionRead; order: number }
-  | { kind: 'group'; groupType: string; questions: QuestionRead[]; order: number };
+  | { kind: 'group'; group: TestQuestionGroupRead; order: number };
 
 function buildExamItems(test: TestRead): ExamItem[] {
   const items: ExamItem[] = [];
@@ -22,28 +31,12 @@ function buildExamItems(test: TestRead): ExamItem[] {
     items.push({ kind: 'question', question: q, order: q.order ?? 0 });
   }
 
-  for (const g of (test as TestReadWithGroups).questionGroups ?? []) {
-    items.push({
-      kind: 'group',
-      groupType: g.type?.toString() ?? 'GROUP',
-      questions: g.questions ?? [],
-      order: g.order ?? 0,
-    });
+  for (const g of test.questionGroups ?? []) {
+    items.push({ kind: 'group', group: g, order: g.order ?? 0 });
   }
 
   return items.sort((a, b) => a.order - b.order);
 }
-
-/** Extended TestRead with question_groups — until codegen regenerates the type */
-type TestReadWithGroups = TestRead & {
-  questionGroups?: Array<{
-    id: string;
-    testId: string;
-    type: number;
-    order: number;
-    questions: QuestionRead[];
-  }>;
-};
 
 type Props = {
   test: TestRead;
@@ -57,7 +50,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
   const items = buildExamItems(test);
 
   const allQuestions = items.flatMap(item =>
-    item.kind === 'question' ? [item.question] : item.questions
+    item.kind === 'question' ? [item.question] : item.group.questions ?? []
   );
 
   const handleTextChange = (questionId: string, value: string) => {
@@ -81,7 +74,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
 
   const getAnswerStatus = (questionId: string): AnswerStatus | null => {
     if (!result) return null;
-    const answer = result.answers.find(a => a.questionId === questionId);
+    const answer = result.answers?.find(a => a.questionId === questionId);
     return answer ? answer.status : null;
   };
 
@@ -111,18 +104,24 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
     }
   };
 
-  let questionNumber = 0;
+  let itemNumber = 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Test title */}
+      <h2 className="text-2xl font-bold">{test.title}</h2>
+      {test.description && (
+        <p className="text-sm text-muted-foreground -mt-4">{test.description}</p>
+      )}
+
       {items.map((item, idx) => {
         if (item.kind === 'question') {
-          questionNumber++;
+          itemNumber++;
           return (
             <QuestionCard
               key={item.question.id}
               question={item.question}
-              number={questionNumber}
+              number={itemNumber}
               answer={answers[item.question.id] ?? ''}
               onTextChange={handleTextChange}
               onCheckboxToggle={handleCheckboxToggle}
@@ -134,31 +133,48 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
           );
         }
 
-        const groupQuestions = item.questions;
+        const group = item.group;
+        const questions = group.questions ?? [];
+        const isVocabulary = group.type === QuestionGroupType.VOCABULARY;
+        itemNumber++;
+        const groupNumber = itemNumber;
+
         return (
-          <Card key={`group-${idx}`}>
+          <Card key={group.id ?? `group-${idx}`}>
             <CardContent className="space-y-4 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-                Group
+              <p className="font-medium">
+                <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
+                {group.title ?? 'Question Group'}
               </p>
-              {groupQuestions.map(q => {
-                questionNumber++;
-                return (
-                  <QuestionCard
-                    key={q.id}
-                    question={q}
-                    number={questionNumber}
-                    answer={answers[q.id] ?? ''}
-                    onTextChange={handleTextChange}
-                    onCheckboxToggle={handleCheckboxToggle}
-                    status={getAnswerStatus(q.id)}
-                    statusLabel={statusLabel}
-                    statusColor={statusColor}
-                    disabled={!!result}
-                    nested
-                  />
-                );
-              })}
+
+              {isVocabulary ? (
+                <VocabularyTable
+                  questions={questions}
+                  answers={answers}
+                  onTextChange={handleTextChange}
+                  getAnswerStatus={getAnswerStatus}
+                  statusLabel={statusLabel}
+                  statusColor={statusColor}
+                  disabled={!!result}
+                />
+              ) : (
+                <div className="space-y-3">
+                  {questions.map(q => (
+                    <QuestionCard
+                      key={q.id}
+                      question={q}
+                      answer={answers[q.id] ?? ''}
+                      onTextChange={handleTextChange}
+                      onCheckboxToggle={handleCheckboxToggle}
+                      status={getAnswerStatus(q.id)}
+                      statusLabel={statusLabel}
+                      statusColor={statusColor}
+                      disabled={!!result}
+                      nested
+                    />
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         );
@@ -170,7 +186,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
           <CardContent className="flex items-center justify-between py-4">
             <div>
               <p className="text-lg font-semibold">
-                Score: {result.score.toFixed(1)}%
+                Score: {(result.score ?? 0).toFixed(1)}%
               </p>
               <p className="text-sm text-muted-foreground">
                 {result.correctAnswers} of {result.totalQuestions} correct
@@ -198,12 +214,81 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
 }
 
 // ---------------------------------------------------------------------------
-// Question card (used for both standalone and grouped)
+// Vocabulary table — renders simple questions in a school-exam table layout
+// ---------------------------------------------------------------------------
+
+type VocabularyTableProps = {
+  questions: QuestionRead[];
+  answers: Record<string, string>;
+  onTextChange: (id: string, value: string) => void;
+  getAnswerStatus: (id: string) => AnswerStatus | null;
+  statusLabel: (s: AnswerStatus) => string;
+  statusColor: (s: AnswerStatus) => string;
+  disabled: boolean;
+};
+
+function VocabularyTable({
+  questions,
+  answers,
+  onTextChange,
+  getAnswerStatus,
+  statusLabel,
+  statusColor,
+  disabled,
+}: VocabularyTableProps) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-12">#</TableHead>
+          <TableHead>Prompt</TableHead>
+          <TableHead>Answer</TableHead>
+          <TableHead className="w-32 text-right">Result</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {questions.map((q, idx) => {
+          const status = getAnswerStatus(q.id);
+          return (
+            <TableRow key={q.id}>
+              <TableCell className="text-muted-foreground font-medium">{idx + 1}</TableCell>
+              <TableCell className="font-medium">
+                {q.prompt}
+                {q.hint && (
+                  <span className="text-xs text-muted-foreground italic ml-2">({q.hint})</span>
+                )}
+              </TableCell>
+              <TableCell>
+                <Input
+                  placeholder="Type your answer..."
+                  value={answers[q.id] ?? ''}
+                  onChange={e => onTextChange(q.id, e.target.value)}
+                  disabled={disabled}
+                  className="h-8"
+                />
+              </TableCell>
+              <TableCell className="text-right">
+                {status !== null && (
+                  <span className={cn('text-sm font-medium', statusColor(status))}>
+                    {statusLabel(status)}
+                  </span>
+                )}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Question card (used for standalone MC questions and non-vocabulary groups)
 // ---------------------------------------------------------------------------
 
 type QuestionCardProps = {
   question: QuestionRead;
-  number: number;
+  number?: number;
   answer: string;
   onTextChange: (id: string, value: string) => void;
   onCheckboxToggle: (id: string, index: number) => void;
@@ -243,7 +328,7 @@ function QuestionCard({
     <>
       <div className="flex items-start justify-between gap-2">
         <p className="font-medium">
-          <span className="text-muted-foreground mr-1.5">{number}.</span>
+          {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
           {question.prompt}
         </p>
         {status !== null && (
