@@ -5,6 +5,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 import type { UserCreate } from '@/client/types.gen';
 import { Button } from '@/components/ui/button';
@@ -26,8 +27,12 @@ export function SignupForm() {
   } = useMutation({
     mutationFn: () => sdk.usersSignup({ body: form }),
     onSuccess: () => {
+      toast.success('Account created successfully');
       router.push(Routes.LOGIN);
       router.refresh();
+    },
+    onError: () => {
+      toast.error('Error creating account');
     },
   });
 

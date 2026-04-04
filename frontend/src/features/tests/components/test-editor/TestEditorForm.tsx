@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 import { type QuestionCreate, QuestionType, type TestCreate, type TestQuestionGroupCreate, type TestUpdate } from '@/client';
 import { Button } from '@/components/ui/button';
@@ -68,8 +69,12 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tests'] });
+      toast.success(isEdit ? 'Test updated' : 'Test created');
       router.push(Routes.TESTS);
       router.refresh();
+    },
+    onError: () => {
+      toast.error(isEdit ? 'Error updating test' : 'Error creating test');
     },
   });
 

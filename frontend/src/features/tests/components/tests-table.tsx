@@ -3,6 +3,7 @@
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { Copy, Dumbbell, ListChecks, Pencil, Text } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { Button } from '@/components/ui/button';
@@ -102,6 +103,7 @@ const columns: ColumnDef<TestRead>[] = [
             onClick={e => {
               e.stopPropagation();
               navigator.clipboard.writeText(row.original.id);
+              toast.success('Copied');
             }}
             aria-label={`Copy ID of ${row.original.title}`}
           >
