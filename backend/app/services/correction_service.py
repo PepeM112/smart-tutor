@@ -56,24 +56,12 @@ def _levenshtein_distance(s1: str, s2: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-def correct_simple_question(user_answer: str, valid_answers: List[str]) -> AnswerStatus:
-    """
-    Grade a simple (free-text) answer using Levenshtein distance.
-
-    Rules:
-    - Empty answer → WRONG
-    - Distance 0 against any valid answer → CORRECT
-    - Distance 1 AND word length ≥ 3 → PARTIAL (typo tolerance)
-    - Distance ≥ 2 → WRONG
-    """
-    cleaned = user_answer.strip().lower()
-    if not cleaned:
-        return AnswerStatus.WRONG
-
-    best_distance = None
+def _grade_single_token(token: str, valid_answers: List[str]) -> AnswerStatus:
+    """Grade a single user token against the list of valid answers."""
+    best_distance: int | None = None
     for valid in valid_answers:
         normalized = valid.strip().lower()
-        distance = _levenshtein_distance(cleaned, normalized)
+        distance = _levenshtein_distance(token, normalized)
 
         if distance == 0:
             return AnswerStatus.CORRECT
@@ -81,11 +69,40 @@ def correct_simple_question(user_answer: str, valid_answers: List[str]) -> Answe
         if best_distance is None or distance < best_distance:
             best_distance = distance
 
-    # Typo tolerance: distance 1 only if the word is 3+ chars
-    if best_distance == 1 and len(cleaned) >= 3:
+    if best_distance == 1 and len(token) >= 3:
         return AnswerStatus.PARTIAL
 
     return AnswerStatus.WRONG
+
+
+def correct_simple_question(user_answer: str, valid_answers: List[str]) -> AnswerStatus:
+    """
+    Grade a simple (free-text) answer using Levenshtein distance.
+
+    The user may type a single answer or multiple comma-separated answers
+    (e.g. "ir, marchar"). Each token must match a valid answer. The overall
+    status is the worst result across all tokens.
+
+    Rules per token:
+    - Distance 0 against any valid answer → CORRECT
+    - Distance 1 AND token length ≥ 3 → PARTIAL (typo tolerance)
+    - Distance ≥ 2 → WRONG
+    """
+    tokens = [t.strip().lower() for t in user_answer.split(",")]
+    tokens = [t for t in tokens if t]
+
+    if not tokens:
+        return AnswerStatus.WRONG
+
+    worst = AnswerStatus.CORRECT
+    for token in tokens:
+        result = _grade_single_token(token, valid_answers)
+        if result == AnswerStatus.WRONG:
+            return AnswerStatus.WRONG
+        if result == AnswerStatus.PARTIAL:
+            worst = AnswerStatus.PARTIAL
+
+    return worst
 
 
 def correct_multiple_choice_question(selected_indices: List[int], correct_indices: List[int]) -> AnswerStatus:
@@ -155,7 +172,12 @@ def correct_test(
     if test.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    questions_by_id = {q.id: q for q in test.questions}
+    # Build lookup from direct questions AND questions inside groups
+    all_questions: list[Question] = list(test.questions)
+    for group in test.question_groups:
+        all_questions.extend(group.questions)
+
+    questions_by_id = {q.id: q for q in all_questions}
     answers: list[Answer] = []
     correct_count = 0
 
@@ -179,7 +201,7 @@ def correct_test(
             )
         )
 
-    total = len(test.questions)
+    total = len(all_questions)
     score = (correct_count / total * 100) if total > 0 else 0.0
 
     test_result = TestResult(

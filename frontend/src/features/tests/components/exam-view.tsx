@@ -50,7 +50,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
   const items = buildExamItems(test);
 
   const allQuestions = items.flatMap(item =>
-    item.kind === 'question' ? [item.question] : item.group.questions ?? []
+    item.kind === 'question' ? [item.question] : (item.group.questions ?? [])
   );
 
   const handleTextChange = (questionId: string, value: string) => {
@@ -61,9 +61,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
     setAnswers(prev => {
       const current = prev[questionId] ?? '';
       const selected = current ? current.split(',').map(Number) : [];
-      const updated = selected.includes(index)
-        ? selected.filter(i => i !== index)
-        : [...selected, index];
+      const updated = selected.includes(index) ? selected.filter(i => i !== index) : [...selected, index];
       return { ...prev, [questionId]: updated.sort((a, b) => a - b).join(',') };
     });
   };
@@ -110,9 +108,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
     <div className="space-y-6">
       {/* Test title */}
       <h2 className="text-2xl font-bold">{test.title}</h2>
-      {test.description && (
-        <p className="text-sm text-muted-foreground -mt-4">{test.description}</p>
-      )}
+      {test.description && <p className="text-sm text-muted-foreground -mt-4">{test.description}</p>}
 
       {items.map((item, idx) => {
         if (item.kind === 'question') {
@@ -140,8 +136,8 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
         const groupNumber = itemNumber;
 
         return (
-          <Card key={group.id ?? `group-${idx}`}>
-            <CardContent className="space-y-4 pt-4">
+          <Card key={group.id ?? `group-${idx}`} className="p-6">
+            <CardContent className="space-y-4 p-0">
               <p className="font-medium">
                 <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
                 {group.title ?? 'Question Group'}
@@ -185,9 +181,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
         <Card>
           <CardContent className="flex items-center justify-between py-4">
             <div>
-              <p className="text-lg font-semibold">
-                Score: {(result.score ?? 0).toFixed(1)}%
-              </p>
+              <p className="text-lg font-semibold">Score: {(result.score ?? 0).toFixed(1)}%</p>
               <p className="text-sm text-muted-foreground">
                 {result.correctAnswers} of {result.totalQuestions} correct
               </p>
@@ -254,9 +248,7 @@ function VocabularyTable({
               <TableCell className="text-muted-foreground font-medium">{idx + 1}</TableCell>
               <TableCell className="font-medium">
                 {q.prompt}
-                {q.hint && (
-                  <span className="text-xs text-muted-foreground italic ml-2">({q.hint})</span>
-                )}
+                {q.hint && <span className="text-xs text-muted-foreground italic ml-2">({q.hint})</span>}
               </TableCell>
               <TableCell>
                 <Input
@@ -269,9 +261,7 @@ function VocabularyTable({
               </TableCell>
               <TableCell className="text-right">
                 {status !== null && (
-                  <span className={cn('text-sm font-medium', statusColor(status))}>
-                    {statusLabel(status)}
-                  </span>
+                  <span className={cn('text-sm font-medium', statusColor(status))}>{statusLabel(status)}</span>
                 )}
               </TableCell>
             </TableRow>
@@ -319,8 +309,8 @@ function QuestionCard({
     nested ? (
       <div className="rounded-lg border border-border p-4 space-y-3">{children}</div>
     ) : (
-      <Card>
-        <CardContent className="space-y-3 pt-4">{children}</CardContent>
+      <Card className="p-6">
+        <CardContent className="space-y-4 p-0">{children}</CardContent>
       </Card>
     );
 
@@ -338,9 +328,7 @@ function QuestionCard({
         )}
       </div>
 
-      {question.hint && (
-        <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>
-      )}
+      {question.hint && <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
 
       {/* Simple text input */}
       {isSimple && (
@@ -366,10 +354,7 @@ function QuestionCard({
                   onCheckedChange={() => onCheckboxToggle(question.id, idx)}
                   disabled={disabled}
                 />
-                <Label
-                  htmlFor={`${question.id}-opt-${idx}`}
-                  className="text-sm cursor-pointer"
-                >
+                <Label htmlFor={`${question.id}-opt-${idx}`} className="text-sm cursor-pointer">
                   {option}
                 </Label>
               </div>
@@ -380,9 +365,7 @@ function QuestionCard({
 
       {/* Show explanation after submission if available */}
       {status !== null && question.explanation && (
-        <p className="text-xs text-muted-foreground border-t border-border pt-2">
-          {question.explanation}
-        </p>
+        <p className="text-xs text-muted-foreground border-t border-border pt-2">{question.explanation}</p>
       )}
     </>
   );
