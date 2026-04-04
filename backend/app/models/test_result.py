@@ -8,6 +8,7 @@ from app.models.base import CreatedAtMixin, generate_ulid
 
 if TYPE_CHECKING:
     from app.models.answer import Answer
+    from app.models.test import Test
 
 
 class TestResult(Base, CreatedAtMixin):
@@ -21,3 +22,8 @@ class TestResult(Base, CreatedAtMixin):
     correct_answers: Mapped[int] = mapped_column(Integer)
 
     answers: Mapped[List["Answer"]] = relationship(cascade="all, delete-orphan", foreign_keys="Answer.test_result_id")
+    test: Mapped["Test"] = relationship(foreign_keys=[test_id])
+
+    @property
+    def test_title(self) -> str:
+        return self.test.title if self.test else ""
