@@ -12,6 +12,7 @@ export const Routes = {
   TEST_DETAIL: (id: string) => `/tests/${id}`,
 
   HISTORY: '/history',
+  RESULT_DETAIL: (id: string) => `/history/${id}`,
   STATS: '/stats',
 
   SETTINGS: '/settings',

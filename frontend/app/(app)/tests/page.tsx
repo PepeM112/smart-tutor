@@ -28,7 +28,7 @@ export default function TestsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <p className="text-muted-foreground">Create and manage your question sets here.</p>
         <div className="flex items-center gap-2">
           <QuickTestDialog />

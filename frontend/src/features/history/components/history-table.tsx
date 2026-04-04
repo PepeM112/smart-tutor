@@ -1,9 +1,13 @@
 'use client';
 
 import { type ColumnDef } from '@tanstack/react-table';
+import { Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import type { TestResultListItem } from '@/client';
 import { DataTable } from '@/components/shared/data-table';
+import { Button } from '@/components/ui/button';
+import { Routes } from '@/lib/routes';
 
 function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString(undefined, {
@@ -55,6 +59,29 @@ const columns: ColumnDef<TestResultListItem, unknown>[] = [
     header: 'Date',
     cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.createdAt)}</span>,
   },
+  {
+    id: 'actions',
+    header: '',
+    cell: function ActionsCell({ row }) {
+      const router = useRouter();
+      return (
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            tooltip="View details"
+            onClick={e => {
+              e.stopPropagation();
+              router.push(Routes.RESULT_DETAIL(row.original.id));
+            }}
+            aria-label="View result details"
+          >
+            <Eye className="size-4" />
+          </Button>
+        </div>
+      );
+    },
+  },
 ];
 
 type Props = {
@@ -62,5 +89,14 @@ type Props = {
 };
 
 export function HistoryTable({ data }: Props) {
-  return <DataTable columns={columns} data={data} emptyMessage="No test history yet. Take your first test!" />;
+  const router = useRouter();
+
+  return (
+    <DataTable
+      columns={columns}
+      data={data}
+      emptyMessage="No test history yet. Take your first test!"
+      onRowClick={row => router.push(Routes.RESULT_DETAIL(row.id))}
+    />
+  );
 }
