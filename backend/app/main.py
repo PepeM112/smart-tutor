@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
 
-from app.api.v1.endpoints import questions, results, tests, users
+from app.api.v1.endpoints import questions, results, review, tests, users
 
 from .config import settings
 from .database import get_session
@@ -31,6 +31,7 @@ app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(tests.router, prefix="/api/v1/tests", tags=["tests"])
 app.include_router(results.router, prefix="/api/v1/results", tags=["results"])
 app.include_router(questions.router, prefix="/api/v1/questions", tags=["questions"])
+app.include_router(review.router, prefix="/api/v1/review", tags=["review"])
 
 app.add_middleware(
     CORSMiddleware,

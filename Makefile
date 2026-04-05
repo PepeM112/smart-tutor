@@ -39,7 +39,7 @@ frontend-install: ## Install frontend dependencies inside container
 	$(DOCKER_COMPOSE) exec frontend npm install
 
 frontend-gen: ## Regenerate API Client SDK from OpenAPI schema
-	$(DOCKER_COMPOSE) exec frontend npm run gen-client
+	cd frontend && npm run gen-client
 # ==============================
 # Backend
 # ==============================
