@@ -26,15 +26,6 @@ type Props = {
   onRemove: () => void;
 };
 
-export function newQuestionGroup(): QuestionGroupData {
-  return {
-    type: 'group',
-    groupType: QuestionGroupType.UNKNOWN,
-    title: '',
-    rows: [{ prompt: '', answers: '' }],
-  };
-}
-
 export function QuestionGroupBlock({ data, onChange, onRemove }: Props) {
   const canRemoveRow = data.rows.length > 1;
 

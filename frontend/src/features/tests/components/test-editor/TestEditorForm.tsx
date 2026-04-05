@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { type QuestionCreate, QuestionType, type TestCreate, type TestQuestionGroupCreate, type TestUpdate } from '@/client';
+import {
+  type QuestionCreate,
+  QuestionType,
+  type TestCreate,
+  type TestQuestionGroupCreate,
+  type TestUpdate,
+} from '@/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
@@ -14,10 +20,10 @@ import { Routes } from '@/lib/routes';
 import { AddQuestionDropdown } from '../add-question-dropdown';
 import { AutoTextarea } from '../auto-textarea';
 import { MultipleChoiceQuestionBlock } from '../multiple-choice-question-block';
-import { QuestionGroupBlock, newQuestionGroup } from '../question-group-block';
+import { QuestionGroupBlock } from '../question-group-block';
 
 import { groupToApiGroup, mcToApiQuestion } from './converters';
-import { newMultipleChoice } from './helpers';
+import { newMultipleChoice, newQuestionGroup } from './helpers';
 
 import type { EditorItem } from './types';
 

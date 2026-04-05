@@ -1,13 +1,13 @@
 'use client';
 
-import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { type ColumnDef } from '@tanstack/react-table';
 import { Copy, Dumbbell, ListChecks, Pencil, Text } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
+import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Routes } from '@/lib/routes';
 
 function countByType(questions: QuestionRead[], type: QuestionType): number {
@@ -35,7 +35,7 @@ function QuestionTypeBadge({
   );
 }
 
-const columns: ColumnDef<TestRead>[] = [
+const columns: ColumnDef<TestRead, unknown>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
@@ -132,53 +132,14 @@ type Props = {
 };
 
 export function TestsTable({ data }: Props) {
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
-
   const router = useRouter();
-  const rows = table.getRowModel().rows;
-  const isEmpty = rows.length === 0;
 
   return (
-    <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map(hg => (
-            <TableRow key={hg.id} className="hover:bg-transparent">
-              {hg.headers.map(header => (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {isEmpty ? (
-            <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                No tests yet. Create your first one!
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map(row => (
-              <TableRow
-                key={row.id}
-                className="cursor-pointer"
-                onClick={() => router.push(Routes.TEST_EDIT(row.original.id))}
-              >
-                {row.getVisibleCells().map(cell => (
-                  <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                ))}
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={data}
+      emptyMessage="No tests yet. Create your first one!"
+      onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
+    />
   );
 }

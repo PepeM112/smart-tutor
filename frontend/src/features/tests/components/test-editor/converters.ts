@@ -83,37 +83,31 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
  */
 export function fromApiToEditorItems(
   questions: QuestionRead[] | undefined,
-  groups: TestQuestionGroupRead[] | undefined,
+  groups: TestQuestionGroupRead[] | undefined
 ): EditorItem[] {
   type Tagged =
     | { order: number; kind: 'mc'; data: QuestionRead }
     | { order: number; kind: 'group'; data: TestQuestionGroupRead };
 
-  const tagged: Tagged[] = [];
-
-  for (const q of questions ?? []) {
-    if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
-      tagged.push({ order: q.order ?? 0, kind: 'mc', data: q });
-    }
-    // standalone simple questions from old data — wrap into a single-row group
-    if (q.questionType === QuestionType.SIMPLE) {
-      const syntheticGroup: TestQuestionGroupRead = {
-        id: '',
-        testId: '',
-        type: QuestionGroupType.UNKNOWN,
-        order: q.order ?? 0,
-        title: null,
-        questions: [q],
-      };
-      tagged.push({ order: q.order ?? 0, kind: 'group', data: syntheticGroup });
-    }
-  }
-
-  for (const g of groups ?? []) {
-    tagged.push({ order: g.order ?? 0, kind: 'group', data: g });
-  }
-
-  tagged.sort((a, b) => a.order - b.order);
+  const tagged: Tagged[] = [
+    ...(questions ?? []).reduce<Tagged[]>((acc, q) => {
+      if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
+        acc.push({ order: q.order ?? 0, kind: 'mc', data: q });
+      } else if (q.questionType === QuestionType.SIMPLE) {
+        const syntheticGroup: TestQuestionGroupRead = {
+          id: '',
+          testId: '',
+          type: QuestionGroupType.UNKNOWN,
+          order: q.order ?? 0,
+          title: null,
+          questions: [q],
+        };
+        acc.push({ order: q.order ?? 0, kind: 'group', data: syntheticGroup });
+      }
+      return acc;
+    }, []),
+    ...(groups ?? []).map<Tagged>(g => ({ order: g.order ?? 0, kind: 'group', data: g })),
+  ].sort((a, b) => a.order - b.order);
 
   return tagged.map(t => (t.kind === 'mc' ? fromApiMcQuestion(t.data) : fromApiGroup(t.data)));
 }
