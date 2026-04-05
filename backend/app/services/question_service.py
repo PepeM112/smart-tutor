@@ -12,9 +12,10 @@ def _get_owned_question_or_404(db: Session, *, question_id: str, current_user: U
     question = question_crud.get_by_id(db, id=question_id)
     if question is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
-    test = test_crud.get_by_id(db, id=question.test_id)
-    if test is None or test.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if question.test_id:
+        test = test_crud.get_by_id(db, id=question.test_id)
+        if test is None or test.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return question
 
 
