@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from app.core.enums import AnswerStatus
 from app.schemas.base import BaseSchema
@@ -27,3 +27,5 @@ class QuestionCheckResponse(BaseSchema):
     """Response for a single question check."""
 
     status: AnswerStatus
+    correct_answers: Optional[List[str]] = None
+    correct_indices: Optional[List[int]] = None

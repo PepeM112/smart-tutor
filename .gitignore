@@ -28,6 +28,7 @@ backend/dist/
 # --- Docker & Misc ---
 .docker/
 .claude/
+CLAUDE.md
 .vscode/
 tsconfig.tsbuildinfo
 

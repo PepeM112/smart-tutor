@@ -129,7 +129,12 @@ function MultipleChoiceReview({ question, userAnswer }: { question: QuestionRead
   const options = (content.options ?? []) as string[];
   const correctIndices = new Set((content.correct_indices ?? []) as number[]);
   const selectedIndices = new Set(
-    userAnswer ? userAnswer.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)) : []
+    userAnswer
+      ? userAnswer
+          .split(',')
+          .map(s => parseInt(s.trim(), 10))
+          .filter(n => !isNaN(n))
+      : []
   );
 
   return (
@@ -375,7 +380,7 @@ export function ResultDetail({ result, test }: Props) {
                       ? 'text-green-600'
                       : correctCount === 0
                         ? 'text-destructive'
-                        : 'text-amber-500',
+                        : 'text-amber-500'
                   )}
                 >
                   {correctCount}/{totalCount}

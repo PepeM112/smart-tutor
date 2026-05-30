@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from app.core.enums import QuestionGroupType
 from app.schemas.base import BaseSchema
-from app.schemas.question import QuestionCreate, QuestionRead
+from app.schemas.question import QuestionCreate, QuestionRead, QuestionReadStripped
 
 
 class TestQuestionGroupBase(BaseSchema):
@@ -25,3 +25,9 @@ class TestQuestionGroupRead(TestQuestionGroupBase):
     id: str
     test_id: str
     questions: List[QuestionRead] = []
+
+
+class TestQuestionGroupReadStripped(TestQuestionGroupBase):
+    id: str
+    test_id: str
+    questions: List[QuestionReadStripped] = []

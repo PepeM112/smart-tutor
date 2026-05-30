@@ -1,6 +1,6 @@
-from typing import Annotated, List
+from typing import Annotated, List, Union
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -9,9 +9,10 @@ from app.models.test import Test
 from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.correction import TestSubmission
-from app.schemas.test import TestCreate, TestRead, TestUpdate
+from app.schemas.test import TestCreate, TestRead, TestReadStripped, TestUpdate
 from app.schemas.test_result import TestResultRead
 from app.services import correction_service, test_service
+from app.services.question_helpers import build_stripped_test
 
 router = APIRouter()
 
@@ -24,9 +25,17 @@ def list(db: DbSession, current_user: CurrentUser) -> List[Test]:
     return test_service.list_tests(db, current_user=current_user)
 
 
-@router.get("/{test_id}", response_model=TestRead)
-def get(test_id: str, db: DbSession, current_user: CurrentUser) -> Test:
-    return test_service.get_test(db, test_id=test_id, current_user=current_user)
+@router.get("/{test_id}", response_model=Union[TestReadStripped, TestRead])
+def get(
+    test_id: str,
+    db: DbSession,
+    current_user: CurrentUser,
+    strip_answers: bool = Query(default=False),
+) -> Union[TestReadStripped, TestRead, Test]:
+    test = test_service.get_test(db, test_id=test_id, current_user=current_user)
+    if strip_answers:
+        return build_stripped_test(test)
+    return test
 
 
 @router.post("", response_model=TestRead, status_code=status.HTTP_201_CREATED)

@@ -39,7 +39,7 @@ frontend-install: ## Install frontend dependencies inside container
 	$(DOCKER_COMPOSE) exec frontend npm install
 
 frontend-gen: ## Regenerate API Client SDK from OpenAPI schema
-	$(DOCKER_COMPOSE) exec frontend npm run gen-client
+	cd frontend && npm run gen-client
 # ==============================
 # Backend
 # ==============================
@@ -81,6 +81,9 @@ migrate-history: ## Show migration history
 # ==============================
 
 install-all: install-backend frontend-install ## Install all dependencies (BE + FE)
+
+seed: ## Seed database with test data for review testing
+	bash scripts/seed-review-data.sh
 
 clean: ## Stop services and remove containers, volumes, and local images
 	$(DOCKER_COMPOSE) down -v --rmi local

@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 import type { TestResultRead } from '@/client';
 import { ExamView } from '@/features/tests/components/exam-view';
-import { client, sdk } from '@/lib/api-client';
+import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
@@ -22,8 +22,8 @@ export default function TakeTestPage({ params }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: testResponse, isLoading } = useQuery({
-    queryKey: ['tests', id],
-    queryFn: () => sdk.testsGet({ path: { test_id: id } }),
+    queryKey: ['tests', id, 'exam'],
+    queryFn: () => sdk.testsGet({ path: { test_id: id }, query: { strip_answers: true } }),
   });
 
   const test = testResponse?.data;
@@ -37,19 +37,14 @@ export default function TakeTestPage({ params }: Props) {
     async (answers: Record<string, string>) => {
       setIsSubmitting(true);
       try {
-        /**
-         * Manual client call — `testsSubmit` doesn't exist in the SDK yet.
-         * TODO: Replace with `sdk.testsSubmit(...)` after running `make frontend-gen`
-         */
-        const response = await client.post({
-          url: `/api/v1/tests/${id}/submit`,
+        const response = await sdk.testsSubmit({
+          path: { test_id: id },
           body: {
             answers: Object.entries(answers).map(([questionId, userAnswer]) => ({
               questionId,
               userAnswer,
             })),
           },
-          headers: { 'Content-Type': 'application/json' },
         });
         setResult(response.data as TestResultRead);
       } catch {

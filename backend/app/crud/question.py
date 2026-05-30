@@ -1,8 +1,11 @@
 from typing import List, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.enums import QuestionType
 from app.models.question import Question
+from app.models.test import Test
 from app.schemas.question import QuestionCreate, QuestionUpdate
 
 
@@ -50,3 +53,18 @@ def update(db: Session, *, question: Question, data: QuestionUpdate) -> Question
 def delete(db: Session, *, question: Question) -> None:
     db.delete(question)
     db.commit()
+
+
+def list_random_for_user(db: Session, *, user_id: str, limit: int) -> List[Question]:
+    """Return up to *limit* random SIMPLE/MC questions across all the user's tests."""
+    return (
+        db.query(Question)
+        .join(Test, Question.test_id == Test.id)
+        .filter(
+            Test.user_id == user_id,
+            Question.question_type.in_([int(QuestionType.SIMPLE), int(QuestionType.MULTIPLE_CHOICE)]),
+        )
+        .order_by(func.random())
+        .limit(limit)
+        .all()
+    )
