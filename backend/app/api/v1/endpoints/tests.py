@@ -1,6 +1,7 @@
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -12,6 +13,7 @@ from app.schemas.correction import TestSubmission
 from app.schemas.test import TestCreate, TestRead, TestUpdate
 from app.schemas.test_result import TestResultRead
 from app.services import correction_service, test_service
+from app.services.question_helpers import strip_question_answers_from_test
 
 router = APIRouter()
 
@@ -25,8 +27,16 @@ def list(db: DbSession, current_user: CurrentUser) -> List[Test]:
 
 
 @router.get("/{test_id}", response_model=TestRead)
-def get(test_id: str, db: DbSession, current_user: CurrentUser) -> Test:
-    return test_service.get_test(db, test_id=test_id, current_user=current_user)
+def get(
+    test_id: str,
+    db: DbSession,
+    current_user: CurrentUser,
+    strip_answers: bool = Query(default=False),
+):
+    test = test_service.get_test(db, test_id=test_id, current_user=current_user)
+    if strip_answers:
+        return JSONResponse(content=strip_question_answers_from_test(test))
+    return test
 
 
 @router.post("", response_model=TestRead, status_code=status.HTTP_201_CREATED)

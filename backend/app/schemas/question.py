@@ -80,3 +80,17 @@ class QuestionUpdate(BaseSchema):
 
 class QuestionRead(QuestionBase):
     id: str
+
+
+class QuestionReadStripped(BaseSchema):
+    """QuestionRead without content validation — used when answer data is stripped."""
+
+    question_type: QuestionType
+    prompt: str
+    content: dict[str, object] = {}
+    hint: Optional[str] = None
+    explanation: Optional[str] = None
+    test_id: Optional[str] = None
+    group_id: Optional[str] = None
+    order: int = 0
+    id: str

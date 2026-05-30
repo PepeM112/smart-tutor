@@ -22,8 +22,8 @@ export default function TakeTestPage({ params }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: testResponse, isLoading } = useQuery({
-    queryKey: ['tests', id],
-    queryFn: () => sdk.testsGet({ path: { test_id: id } }),
+    queryKey: ['tests', id, 'exam'],
+    queryFn: () => sdk.testsGet({ path: { test_id: id }, query: { strip_answers: true } }),
   });
 
   const test = testResponse?.data;

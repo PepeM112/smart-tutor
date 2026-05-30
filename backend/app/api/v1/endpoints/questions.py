@@ -14,6 +14,7 @@ from app.schemas.correction import QuestionCheckRequest, QuestionCheckResponse
 from app.schemas.question import QuestionRead, QuestionUpdate
 from app.services import question_service
 from app.services.correction_service import correct_question
+from app.services.question_helpers import get_correct_answer_fields
 
 router = APIRouter()
 
@@ -41,4 +42,4 @@ def check(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
 
     answer_status = correct_question(data.user_answer, question)
-    return QuestionCheckResponse(status=answer_status)
+    return QuestionCheckResponse(status=answer_status, **get_correct_answer_fields(question))
