@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { feedbackTextColor, statusLabel } from '@/features/review/helpers';
 import { cn } from '@/lib/utils';
 
 type ExamItem =
@@ -76,31 +77,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
     return answer ? answer.status : null;
   };
 
-  const statusLabel = (s: AnswerStatus): string => {
-    switch (s) {
-      case AnswerStatus.CORRECT:
-        return 'Correct';
-      case AnswerStatus.PARTIAL:
-        return 'Almost correct (typo)';
-      case AnswerStatus.WRONG:
-        return 'Wrong';
-      default:
-        return 'Pending';
-    }
-  };
-
-  const statusColor = (s: AnswerStatus): string => {
-    switch (s) {
-      case AnswerStatus.CORRECT:
-        return 'text-green-600';
-      case AnswerStatus.PARTIAL:
-        return 'text-amber-500';
-      case AnswerStatus.WRONG:
-        return 'text-destructive';
-      default:
-        return 'text-muted-foreground';
-    }
-  };
+  const statusColor = feedbackTextColor;
 
   let itemNumber = 0;
 

@@ -1,9 +1,9 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
-import type { QuestionRead } from '@/client';
 import { ReviewSession } from '@/features/review/components/review-session';
 import { REVIEW_BATCH_SIZE } from '@/features/review/helpers';
 import { sdk } from '@/lib/api-client';
@@ -11,29 +11,18 @@ import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 export default function ReviewPage() {
   const { set, reset } = useBreadcrumbStore();
-  const [questions, setQuestions] = useState<QuestionRead[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     set('Review Now');
     return () => reset();
   }, [set, reset]);
 
-  useEffect(() => {
-    async function fetchQuestions() {
-      try {
-        const { data } = (await sdk.reviewGetReviewQuestions({
-          query: { limit: REVIEW_BATCH_SIZE },
-        })) as { data: QuestionRead[] };
-        setQuestions(data ?? []);
-      } catch {
-        setQuestions([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchQuestions();
-  }, []);
+  const { data: response, isLoading } = useQuery({
+    queryKey: ['review', 'questions'],
+    queryFn: () => sdk.reviewList({ query: { limit: REVIEW_BATCH_SIZE } }),
+  });
+
+  const questions = response?.data ?? [];
 
   if (isLoading) {
     return (
@@ -43,7 +32,7 @@ export default function ReviewPage() {
     );
   }
 
-  if (!questions || questions.length === 0) {
+  if (questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <p className="text-muted-foreground">No questions available for review.</p>

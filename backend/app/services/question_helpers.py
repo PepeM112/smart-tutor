@@ -1,10 +1,11 @@
 """Shared helpers for question content manipulation."""
 
-from app.core.enums import QuestionType
+from app.core.enums import QuestionGroupType, QuestionType
 from app.models.question import Question
 from app.models.test import Test
 from app.schemas.question import QuestionReadStripped
 from app.schemas.test import TestReadStripped
+from app.schemas.test_question_group import TestQuestionGroupReadStripped
 
 
 def strip_question_answers(question: Question) -> dict:
@@ -38,30 +39,26 @@ def build_stripped_question(question: Question) -> QuestionReadStripped:
     )
 
 
-def strip_question_answers_from_test(test: Test) -> dict:
-    """Serialize a Test ORM object with answers stripped from all questions.
-
-    Uses Pydantic schemas for serialization to stay in sync with schema changes.
-    """
-    stripped = TestReadStripped(
+def build_stripped_test(test: Test) -> TestReadStripped:
+    """Build a TestReadStripped from an ORM Test with answers removed from all questions."""
+    return TestReadStripped(
         id=test.id,
         title=test.title,
         description=test.description,
         user_id=test.user_id,
         questions=[build_stripped_question(q) for q in test.questions],
         question_groups=[
-            {
-                "id": g.id,
-                "test_id": g.test_id,
-                "type": g.type,
-                "order": g.order,
-                "title": g.title,
-                "questions": [build_stripped_question(q) for q in g.questions],
-            }
+            TestQuestionGroupReadStripped(
+                id=g.id,
+                test_id=g.test_id,
+                type=QuestionGroupType(g.type),
+                order=g.order,
+                title=g.title,
+                questions=[build_stripped_question(q) for q in g.questions],
+            )
             for g in test.question_groups
         ],
     )
-    return stripped.model_dump(by_alias=True)
 
 
 def get_correct_answer_fields(question: Question) -> dict:

@@ -1,16 +1,8 @@
 'use client';
 
-import {
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
-  Circle,
-  Loader2,
-  MinusCircle,
-  XCircle,
-} from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Loader2, MinusCircle, XCircle } from 'lucide-react';
 
-import { AnswerStatus, type QuestionRead, QuestionType } from '@/client';
+import { AnswerStatus, type QuestionReadStripped, QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -27,7 +19,7 @@ export type CheckResult = {
 };
 
 type Props = {
-  question: QuestionRead;
+  question: QuestionReadStripped;
   answer: string;
   onAnswerChange: (answer: string) => void;
   onCheck: () => void;
@@ -40,9 +32,9 @@ type Props = {
 function StatusIcon({ status }: { status: AnswerStatus }) {
   switch (status) {
     case AnswerStatus.CORRECT:
-      return <CheckCircle2 className="size-5 text-green-600 shrink-0" />;
+      return <CheckCircle2 className="size-5 text-feedback-correct shrink-0" />;
     case AnswerStatus.PARTIAL:
-      return <AlertTriangle className="size-5 text-amber-500 shrink-0" />;
+      return <AlertTriangle className="size-5 text-feedback-partial shrink-0" />;
     case AnswerStatus.WRONG:
       return <XCircle className="size-5 text-destructive shrink-0" />;
     default:
@@ -70,11 +62,15 @@ function MultipleChoiceInput({
             key={idx}
             className={cn(
               'flex items-center gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors',
-              checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50',
+              checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
             )}
             onClick={() => onToggle(idx)}
           >
-            <Checkbox id={`review-opt-${idx}`} checked={checked} tabIndex={-1} />
+            <Checkbox
+              id={`review-opt-${idx}`}
+              checked={checked}
+              onCheckedChange={() => onToggle(idx)}
+            />
             <Label htmlFor={`review-opt-${idx}`} className="text-sm cursor-pointer flex-1" onClick={e => e.preventDefault()}>
               {option}
             </Label>
@@ -95,7 +91,12 @@ function MultipleChoiceReview({
   correctIndices: number[];
 }) {
   const selectedSet = new Set(
-    answer ? answer.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)) : [],
+    answer
+      ? answer
+          .split(',')
+          .map(s => parseInt(s.trim(), 10))
+          .filter(n => !isNaN(n))
+      : []
   );
   const correctSet = new Set(correctIndices);
 
@@ -110,15 +111,15 @@ function MultipleChoiceReview({
         let iconColor = 'text-muted-foreground/40';
 
         if (isSelected && isCorrect) {
-          bg = 'bg-green-50 dark:bg-green-950/30';
+          bg = 'bg-feedback-correct-bg';
           Icon = CheckCircle2;
-          iconColor = 'text-green-600';
+          iconColor = 'text-feedback-correct';
         } else if (!isSelected && isCorrect) {
-          bg = 'bg-amber-50 dark:bg-amber-950/30';
+          bg = 'bg-feedback-partial-bg';
           Icon = MinusCircle;
-          iconColor = 'text-amber-500';
+          iconColor = 'text-feedback-partial';
         } else if (isSelected && !isCorrect) {
-          bg = 'bg-red-50 dark:bg-red-950/30';
+          bg = 'bg-feedback-wrong-bg';
           Icon = XCircle;
           iconColor = 'text-destructive';
         }
@@ -161,9 +162,7 @@ export function QuestionReview({
         <CardContent className="space-y-6 p-0">
           <div className="text-center space-y-2">
             <p className="text-lg font-semibold">{question.prompt}</p>
-            {question.hint && (
-              <p className="text-sm text-muted-foreground italic">Hint: {question.hint}</p>
-            )}
+            {question.hint && <p className="text-sm text-muted-foreground italic">Hint: {question.hint}</p>}
           </div>
 
           {isSimple && (
@@ -180,8 +179,9 @@ export function QuestionReview({
             />
           )}
 
-          {isMC && content && (
-            isChecked && checkResult?.correctIndices ? (
+          {isMC &&
+            content &&
+            (isChecked && checkResult?.correctIndices ? (
               <MultipleChoiceReview
                 options={(content.options ?? []) as string[]}
                 answer={answer}
@@ -193,8 +193,7 @@ export function QuestionReview({
                 answer={answer}
                 onToggle={handleCheckboxToggle}
               />
-            )
-          )}
+            ))}
 
           {!isChecked && (
             <Button className="w-full" size="lg" onClick={onCheck} disabled={isChecking || !answer.trim()}>
@@ -215,16 +214,14 @@ export function QuestionReview({
               {isSimple && checkResult.status !== AnswerStatus.CORRECT && checkResult.correctAnswers && (
                 <p className="text-sm text-muted-foreground mt-0.5">
                   Correct answer:{' '}
-                  <span className="text-green-600 font-medium">{checkResult.correctAnswers.join(', ')}</span>
+                  <span className="text-feedback-correct font-medium">{checkResult.correctAnswers.join(', ')}</span>
                 </p>
               )}
             </div>
           </div>
 
           {question.explanation && (
-            <p className="text-sm text-muted-foreground mt-3 border-t border-border/50 pt-3">
-              {question.explanation}
-            </p>
+            <p className="text-sm text-muted-foreground mt-3 border-t border-border/50 pt-3">{question.explanation}</p>
           )}
 
           <div className="mt-4 flex justify-end">

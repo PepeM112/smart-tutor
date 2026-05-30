@@ -41,6 +41,16 @@
   /* Extra color for hover */
   --color-brand-hover: #2563eb;
 
+  /* Feedback states */
+  --color-feedback-correct: #16a34a;
+  --color-feedback-correct-bg: #f0fdf4;
+  --color-feedback-correct-border: #bbf7d0;
+  --color-feedback-partial: #d97706;
+  --color-feedback-partial-bg: #fffbeb;
+  --color-feedback-partial-border: #fde68a;
+  --color-feedback-wrong-bg: #fef2f2;
+  --color-feedback-wrong-border: #fecaca;
+
   /* Borders */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -100,6 +110,14 @@
   --secondary-foreground: #f8fafc;
   --border: #334155;
   --input: #334155;
+  --color-feedback-correct: #4ade80;
+  --color-feedback-correct-bg: oklch(0.26 0.065 152);
+  --color-feedback-correct-border: oklch(0.35 0.08 152);
+  --color-feedback-partial: #fbbf24;
+  --color-feedback-partial-bg: oklch(0.26 0.06 80);
+  --color-feedback-partial-border: oklch(0.35 0.08 80);
+  --color-feedback-wrong-bg: oklch(0.26 0.06 25);
+  --color-feedback-wrong-border: oklch(0.35 0.08 25);
 }
 
 @layer base {

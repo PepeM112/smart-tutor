@@ -5,9 +5,9 @@ export const REVIEW_BATCH_SIZE = 10;
 export function statusLabel(s: AnswerStatus): string {
   switch (s) {
     case AnswerStatus.CORRECT:
-      return 'Correct!';
+      return 'Correct';
     case AnswerStatus.PARTIAL:
-      return 'Almost! (typo)';
+      return 'Almost correct (typo)';
     case AnswerStatus.WRONG:
       return 'Wrong';
     default:
@@ -18,11 +18,11 @@ export function statusLabel(s: AnswerStatus): string {
 export function feedbackBg(s: AnswerStatus): string {
   switch (s) {
     case AnswerStatus.CORRECT:
-      return 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30';
+      return 'border-feedback-correct-border bg-feedback-correct-bg';
     case AnswerStatus.PARTIAL:
-      return 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30';
+      return 'border-feedback-partial-border bg-feedback-partial-bg';
     case AnswerStatus.WRONG:
-      return 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30';
+      return 'border-feedback-wrong-border bg-feedback-wrong-bg';
     default:
       return '';
   }
@@ -31,9 +31,9 @@ export function feedbackBg(s: AnswerStatus): string {
 export function feedbackTextColor(s: AnswerStatus): string {
   switch (s) {
     case AnswerStatus.CORRECT:
-      return 'text-green-600';
+      return 'text-feedback-correct';
     case AnswerStatus.PARTIAL:
-      return 'text-amber-500';
+      return 'text-feedback-partial';
     case AnswerStatus.WRONG:
       return 'text-destructive';
     default:

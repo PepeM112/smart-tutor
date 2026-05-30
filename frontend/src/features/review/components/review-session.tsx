@@ -1,17 +1,19 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 
-import { AnswerStatus, type QuestionCheckResponse, type QuestionRead } from '@/client';
+import { AnswerStatus, type QuestionCheckResponse, type QuestionReadStripped } from '@/client';
 import { sdk } from '@/lib/api-client';
 
 import { REVIEW_BATCH_SIZE } from '../helpers';
+
 import { BatchSummary } from './batch-summary';
 import { ProgressBar } from './progress-bar';
 import { type CheckResult, QuestionReview } from './question-review';
 
 export type CheckedQuestion = {
-  question: QuestionRead;
+  question: QuestionReadStripped;
   userAnswer: string;
   status: AnswerStatus;
 };
@@ -19,11 +21,11 @@ export type CheckedQuestion = {
 type SessionPhase = 'answering' | 'checked' | 'batch-done';
 
 type Props = {
-  initialQuestions: QuestionRead[];
+  initialQuestions: QuestionReadStripped[];
 };
 
 export function ReviewSession({ initialQuestions }: Props) {
-  const [questions, setQuestions] = useState<QuestionRead[]>(initialQuestions);
+  const [questions, setQuestions] = useState<QuestionReadStripped[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [phase, setPhase] = useState<SessionPhase>('answering');
@@ -39,10 +41,11 @@ export function ReviewSession({ initialQuestions }: Props) {
     if (!currentQuestion || !answer.trim()) return;
     setIsChecking(true);
     try {
-      const { data } = (await sdk.questionsCheck({
+      const response = await sdk.questionsCheck({
         path: { question_id: currentQuestion.id },
         body: { userAnswer: answer },
-      })) as { data: QuestionCheckResponse };
+      });
+      const data = response.data as QuestionCheckResponse;
 
       const result: CheckResult = {
         status: data.status,
@@ -53,12 +56,7 @@ export function ReviewSession({ initialQuestions }: Props) {
       setResults(prev => [...prev, { question: currentQuestion, userAnswer: answer, status: data.status }]);
       setPhase('checked');
     } catch {
-      setCheckResult({ status: AnswerStatus.WRONG });
-      setResults(prev => [
-        ...prev,
-        { question: currentQuestion, userAnswer: answer, status: AnswerStatus.WRONG },
-      ]);
-      setPhase('checked');
+      toast.error('Failed to check answer. Please try again.');
     } finally {
       setIsChecking(false);
     }
@@ -78,9 +76,10 @@ export function ReviewSession({ initialQuestions }: Props) {
   const handleContinue = async () => {
     setIsLoadingBatch(true);
     try {
-      const { data } = (await sdk.reviewGetReviewQuestions({
+      const response = await sdk.reviewList({
         query: { limit: REVIEW_BATCH_SIZE },
-      })) as { data: QuestionRead[] };
+      });
+      const data = response.data ?? [];
 
       if (!data || data.length === 0) {
         setExhausted(true);
@@ -93,6 +92,8 @@ export function ReviewSession({ initialQuestions }: Props) {
       setCheckResult(null);
       setResults([]);
       setPhase('answering');
+    } catch {
+      toast.error('Failed to load next batch. Please try again.');
     } finally {
       setIsLoadingBatch(false);
     }

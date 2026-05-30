@@ -25,10 +25,10 @@ export function BatchSummary({
 
   const bannerColor =
     score >= 80
-      ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
+      ? 'border-feedback-correct-border bg-feedback-correct-bg'
       : score >= 50
-        ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30'
-        : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30';
+        ? 'border-feedback-partial-border bg-feedback-partial-bg'
+        : 'border-feedback-wrong-border bg-feedback-wrong-bg';
 
   return (
     <div className="flex flex-col items-center justify-center gap-8 py-12">
@@ -41,7 +41,9 @@ export function BatchSummary({
       </div>
 
       {exhausted ? (
-        <p className="text-sm text-muted-foreground">You've reviewed all available questions. Add more tests to keep going!</p>
+        <p className="text-sm text-muted-foreground">
+          You&apos;ve reviewed all available questions. Add more tests to keep going!
+        </p>
       ) : (
         <Button size="lg" icon={isLoading ? Loader2 : RefreshCw} onClick={onContinue} disabled={isLoading}>
           {isLoading ? 'Loading...' : 'Keep Reviewing'}
