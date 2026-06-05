@@ -30,11 +30,11 @@ def _validate_content(q_type: Optional[QuestionType], content: dict[str, object]
     """Validate content shape against the question type."""
     try:
         if q_type == QuestionType.SIMPLE:
-            SimpleContent(**content)
+            SimpleContent.model_validate(content)
         elif q_type == QuestionType.MULTIPLE_CHOICE:
-            MultipleChoiceContent(**content)
+            MultipleChoiceContent.model_validate(content)
         elif q_type == QuestionType.LONG_TEXT:
-            LongTextContent(**content)
+            LongTextContent.model_validate(content)
     except Exception as e:
         raise ValueError(f"Invalid content for {q_type}: {str(e)}") from e
 
