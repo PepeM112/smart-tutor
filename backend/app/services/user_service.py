@@ -42,4 +42,6 @@ def create_user(db: Session, user_in: UserCreate) -> User:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this username already exists.",
         )
-    return user_crud.create(db, username=user_in.username, email=user_in.email, hashed_password=_hash_password(user_in.password))
+    return user_crud.create(
+        db, username=user_in.username, email=user_in.email, hashed_password=_hash_password(user_in.password)
+    )

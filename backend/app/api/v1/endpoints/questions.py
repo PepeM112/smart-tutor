@@ -31,7 +31,7 @@ def delete(question_id: str, db: DbSession, current_user: CurrentUser) -> None:
 def check(
     question_id: str, data: QuestionCheckRequest, db: DbSession, current_user: CurrentUser
 ) -> QuestionCheckResponse:
-    """Check a single question answer. Returns the answer status. No side effects (yet — SRS will use this)."""
+    """Check a single question answer and update SRS state."""
     return question_service.check_question(
         db, question_id=question_id, current_user=current_user, user_answer=data.user_answer
     )

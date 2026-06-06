@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from app.core.enums import QuestionGroupType
 from app.schemas.base import BaseSchema
 from app.schemas.question import QuestionCreate, QuestionRead, QuestionReadStripped
@@ -8,26 +6,26 @@ from app.schemas.question import QuestionCreate, QuestionRead, QuestionReadStrip
 class TestQuestionGroupBase(BaseSchema):
     type: QuestionGroupType = QuestionGroupType.UNKNOWN
     order: int = 0
-    title: Optional[str] = None
+    title: str | None = None
 
 
 class TestQuestionGroupCreate(TestQuestionGroupBase):
-    questions: List[QuestionCreate] = []
+    questions: list[QuestionCreate] = []
 
 
 class TestQuestionGroupUpdate(BaseSchema):
-    type: Optional[QuestionGroupType] = None
-    order: Optional[int] = None
-    title: Optional[str] = None
+    type: QuestionGroupType | None = None
+    order: int | None = None
+    title: str | None = None
 
 
 class TestQuestionGroupRead(TestQuestionGroupBase):
     id: str
     test_id: str
-    questions: List[QuestionRead] = []
+    questions: list[QuestionRead] = []
 
 
 class TestQuestionGroupReadStripped(TestQuestionGroupBase):
     id: str
     test_id: str
-    questions: List[QuestionReadStripped] = []
+    questions: list[QuestionReadStripped] = []

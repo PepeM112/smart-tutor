@@ -1,5 +1,3 @@
-from typing import List, Set
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -23,9 +21,9 @@ def _get_owned_test_or_404(db: Session, *, test_id: str, current_user: User) -> 
 
 
 def _validate_order_space(
-    questions: List[QuestionCreate],
-    groups: List[TestQuestionGroupCreate],
-    existing_orders: Set[int],
+    questions: list[QuestionCreate],
+    groups: list[TestQuestionGroupCreate],
+    existing_orders: set[int],
 ) -> None:
     """
     Validate that standalone questions and question groups don't collide in
@@ -56,7 +54,7 @@ def _validate_order_space(
         )
 
 
-def _get_existing_orders(test: Test) -> Set[int]:
+def _get_existing_orders(test: Test) -> set[int]:
     """Collect all order values currently used in a test (questions + groups)."""
     orders: set[int] = set()
     for q in test.questions:
@@ -66,7 +64,7 @@ def _get_existing_orders(test: Test) -> Set[int]:
     return orders
 
 
-def list_tests(db: Session, *, current_user: User) -> List[Test]:
+def list_tests(db: Session, *, current_user: User) -> list[Test]:
     return test_crud.list_by_user(db, user_id=current_user.id)
 
 

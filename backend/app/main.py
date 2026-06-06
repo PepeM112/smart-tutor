@@ -25,6 +25,7 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     operation_name = "".join(word.capitalize() for word in route.name.split("_"))
     return f"{tag}{operation_name}"
 
+
 app = FastAPI(title="SmartTutor API", generate_unique_id_function=custom_generate_unique_id)
 
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])

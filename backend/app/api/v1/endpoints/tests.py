@@ -1,4 +1,4 @@
-from typing import Annotated, List, Union
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -20,18 +20,18 @@ DbSession = Annotated[Session, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-@router.get("", response_model=List[TestRead])
-def list(db: DbSession, current_user: CurrentUser) -> List[Test]:
+@router.get("", response_model=list[TestRead])
+def list(db: DbSession, current_user: CurrentUser) -> list[Test]:
     return test_service.list_tests(db, current_user=current_user)
 
 
-@router.get("/{test_id}", response_model=Union[TestReadStripped, TestRead])
+@router.get("/{test_id}", response_model=TestReadStripped | TestRead)
 def get(
     test_id: str,
     db: DbSession,
     current_user: CurrentUser,
     strip_answers: bool = Query(default=False),
-) -> Union[TestReadStripped, TestRead, Test]:
+) -> TestReadStripped | TestRead | Test:
     test = test_service.get_test(db, test_id=test_id, current_user=current_user)
     if strip_answers:
         return build_stripped_test(test)

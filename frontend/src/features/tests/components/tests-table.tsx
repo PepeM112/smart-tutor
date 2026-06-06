@@ -102,7 +102,7 @@ const columns: ColumnDef<TestRead, unknown>[] = [
             tooltip="Copy ID"
             onClick={e => {
               e.stopPropagation();
-              navigator.clipboard.writeText(row.original.id);
+              void navigator.clipboard.writeText(row.original.id);
               toast.success('Copied');
             }}
             aria-label={`Copy ID of ${row.original.title}`}

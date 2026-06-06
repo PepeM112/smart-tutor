@@ -27,11 +27,11 @@ class Question(Base):
     #   LONG   → {"rubric": [{"point": "...", "weight": 0.5}]}
     # Shape enforced at the Pydantic layer, not in the DB.
     content: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
-    hint: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)  # shown before answering
-    explanation: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)  # shown after answering
-    test_id: Mapped[Optional[str]] = mapped_column(String(26), ForeignKey("test.id"))
+    hint: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown before answering
+    explanation: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown after answering
+    test_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test.id"))
     # Organizational grouping within a test (e.g. a "Vocabulary" section with a shared title)
-    group_id: Mapped[Optional[str]] = mapped_column(String(26), ForeignKey("test_question_group.id"), nullable=True)
+    group_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test_question_group.id"), nullable=True)
     order: Mapped[int] = mapped_column(Integer, default=0)
 
     test: Mapped["Test"] = relationship(back_populates="questions")

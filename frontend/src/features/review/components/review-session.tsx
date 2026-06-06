@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
-import { AnswerStatus, type QuestionCheckResponse, type QuestionReadStripped } from '@/client';
+import type { AnswerStatus, QuestionCheckResponse, QuestionReadStripped } from '@/client';
 import { sdk } from '@/lib/api-client';
 
 import { REVIEW_BATCH_SIZE } from '../helpers';
@@ -22,9 +22,10 @@ type SessionPhase = 'answering' | 'checked' | 'batch-done';
 
 type Props = {
   initialQuestions: QuestionReadStripped[];
+  mode: 'review' | 'practice';
 };
 
-export function ReviewSession({ initialQuestions }: Props) {
+export function ReviewSession({ initialQuestions, mode }: Props) {
   const [questions, setQuestions] = useState<QuestionReadStripped[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answer, setAnswer] = useState('');
@@ -51,6 +52,7 @@ export function ReviewSession({ initialQuestions }: Props) {
         status: data.status,
         correctAnswers: data.correctAnswers,
         correctIndices: data.correctIndices,
+        srsState: data.srsState ?? undefined,
       };
       setCheckResult(result);
       setResults(prev => [...prev, { question: currentQuestion, userAnswer: answer, status: data.status }]);
@@ -77,16 +79,16 @@ export function ReviewSession({ initialQuestions }: Props) {
     setIsLoadingBatch(true);
     try {
       const response = await sdk.reviewList({
-        query: { limit: REVIEW_BATCH_SIZE },
+        query: { limit: REVIEW_BATCH_SIZE, mode },
       });
-      const data = response.data ?? [];
+      const data = response.data;
 
-      if (!data || data.length === 0) {
+      if (!data || data.questions.length === 0) {
         setExhausted(true);
         return;
       }
 
-      setQuestions(data);
+      setQuestions(data.questions);
       setCurrentIndex(0);
       setAnswer('');
       setCheckResult(null);
@@ -103,7 +105,12 @@ export function ReviewSession({ initialQuestions }: Props) {
     return (
       <div className="space-y-4">
         <ProgressBar current={questions.length} total={questions.length} />
-        <BatchSummary results={results} onContinue={handleContinue} isLoading={isLoadingBatch} exhausted={exhausted} />
+        <BatchSummary
+          results={results}
+          onContinue={() => void handleContinue()}
+          isLoading={isLoadingBatch}
+          exhausted={exhausted}
+        />
       </div>
     );
   }
@@ -117,7 +124,7 @@ export function ReviewSession({ initialQuestions }: Props) {
         question={currentQuestion}
         answer={answer}
         onAnswerChange={setAnswer}
-        onCheck={handleCheck}
+        onCheck={() => void handleCheck()}
         isChecking={isChecking}
         checkResult={checkResult}
         onNext={handleNext}

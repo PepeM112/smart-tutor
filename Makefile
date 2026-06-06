@@ -77,6 +77,24 @@ migrate-history: ## Show migration history
 	$(DOCKER_COMPOSE) exec backend alembic history --oneline
 
 # ==============================
+# Lint & Format
+# ==============================
+
+lint: ## Check linting + formatting for the whole project (no changes)
+	@echo "=== Backend: ruff ==="
+	$(DOCKER_COMPOSE) exec backend ruff check app/
+	$(DOCKER_COMPOSE) exec backend ruff format --check app/
+	@echo "\n=== Frontend: eslint + prettier ==="
+	cd frontend && npm run format:check
+
+fix: ## Auto-fix linting + formatting for the whole project
+	@echo "=== Backend: ruff ==="
+	$(DOCKER_COMPOSE) exec backend ruff check --fix app/
+	$(DOCKER_COMPOSE) exec backend ruff format app/
+	@echo "\n=== Frontend: eslint + prettier ==="
+	cd frontend && npm run format
+
+# ==============================
 # Maintenance
 # ==============================
 
@@ -98,10 +116,7 @@ clean-logs: ## Remove docker logs (requires sudo/root)
 restart: ## Restart all services
 	$(DOCKER_COMPOSE) restart
 
-format: ## Formats frontend
-	$(DOCKER_COMPOSE) exec frontend npm run format
-
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history clean clean-fe clean-logs restart format help
+.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint fix clean clean-fe clean-logs restart help

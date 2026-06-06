@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -16,8 +16,8 @@ DbSession = Annotated[Session, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-@router.get("", response_model=List[TestResultListItem])
-def list(db: DbSession, current_user: CurrentUser) -> List[TestResult]:
+@router.get("", response_model=list[TestResultListItem])
+def list(db: DbSession, current_user: CurrentUser) -> list[TestResult]:
     return test_result_service.list_results(db, current_user=current_user)
 
 

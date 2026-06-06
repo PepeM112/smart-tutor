@@ -1,5 +1,3 @@
-from typing import List
-
 from sqlalchemy.orm import Session
 
 from app.crud import question as question_crud
@@ -11,8 +9,8 @@ def create_many(
     db: Session,
     *,
     test_id: str,
-    groups: List[TestQuestionGroupCreate],
-) -> List[TestQuestionGroup]:
+    groups: list[TestQuestionGroupCreate],
+) -> list[TestQuestionGroup]:
     result: list[TestQuestionGroup] = []
     for group_data in groups:
         group = TestQuestionGroup(

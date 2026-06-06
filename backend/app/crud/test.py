@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.test import Test
@@ -7,7 +5,7 @@ from app.models.test_question_group import TestQuestionGroup
 from app.schemas.test import TestUpdate
 
 
-def get_by_id(db: Session, *, id: str) -> Optional[Test]:
+def get_by_id(db: Session, *, id: str) -> Test | None:
     return (
         db.query(Test)
         .options(
@@ -19,7 +17,7 @@ def get_by_id(db: Session, *, id: str) -> Optional[Test]:
     )
 
 
-def list_by_user(db: Session, *, user_id: str) -> List[Test]:
+def list_by_user(db: Session, *, user_id: str) -> list[Test]:
     return (
         db.query(Test)
         .options(
@@ -31,7 +29,7 @@ def list_by_user(db: Session, *, user_id: str) -> List[Test]:
     )
 
 
-def create(db: Session, *, user_id: str, title: str, description: Optional[str]) -> Test:
+def create(db: Session, *, user_id: str, title: str, description: str | None) -> Test:
     test = Test(user_id=user_id, title=title, description=description)
     db.add(test)
     db.flush()

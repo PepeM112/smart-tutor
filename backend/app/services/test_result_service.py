@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -17,5 +15,5 @@ def get_result(db: Session, *, result_id: str, current_user: User) -> TestResult
     return result
 
 
-def list_results(db: Session, *, current_user: User) -> List[TestResult]:
+def list_results(db: Session, *, current_user: User) -> list[TestResult]:
     return test_result_crud.list_by_user(db, user_id=current_user.id)
