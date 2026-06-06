@@ -98,6 +98,9 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
               key={item.question.id}
               question={item.question}
               number={itemNumber}
+              pointsLabel={
+                item.question.points != null && item.question.points !== 1 ? item.question.points : undefined
+              }
               answer={answers[item.question.id] ?? ''}
               onTextChange={handleTextChange}
               onCheckboxToggle={handleCheckboxToggle}
@@ -120,6 +123,9 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
             <CardContent className="space-y-4 p-0">
               <p className="font-medium">
                 <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
+                {group.points != null && group.points !== 1 && (
+                  <span className="text-xs text-muted-foreground mr-1.5">[{group.points} pts]</span>
+                )}
                 {group.title ?? 'Question Group'}
               </p>
 
@@ -161,7 +167,14 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
         <Card>
           <CardContent className="flex items-center justify-between py-4">
             <div>
-              <p className="text-lg font-semibold">Score: {(result.score ?? 0).toFixed(1)}%</p>
+              <p className="text-lg font-semibold">
+                Score: {(result.score ?? 0).toFixed(1)}%
+                {result.totalPoints != null && result.totalPoints > 0 && (
+                  <span className="text-base font-normal text-muted-foreground ml-2">
+                    {result.earnedPoints} / {result.totalPoints} pts
+                  </span>
+                )}
+              </p>
               <p className="text-sm text-muted-foreground">
                 {result.correctAnswers} of {result.totalQuestions - (result.pendingAnswers ?? 0)} correct
               </p>
@@ -264,6 +277,7 @@ function VocabularyTable({
 type QuestionCardProps = {
   question: QuestionRead;
   number?: number;
+  pointsLabel?: number;
   answer: string;
   onTextChange: (id: string, value: string) => void;
   onCheckboxToggle: (id: string, index: number) => void;
@@ -277,6 +291,7 @@ type QuestionCardProps = {
 function QuestionCard({
   question,
   number,
+  pointsLabel,
   answer,
   onTextChange,
   onCheckboxToggle,
@@ -308,6 +323,7 @@ function QuestionCard({
       <div className="flex items-start justify-between gap-2">
         <p className="font-medium">
           {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
+          {pointsLabel != null && <span className="text-xs text-muted-foreground mr-1.5">[{pointsLabel} pts]</span>}
           {question.prompt}
         </p>
         {status !== null && (

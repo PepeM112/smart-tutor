@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,6 +33,7 @@ class Question(Base):
     # Organizational grouping within a test (e.g. a "Vocabulary" section with a shared title)
     group_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test_question_group.id"), nullable=True)
     order: Mapped[int] = mapped_column(Integer, default=0)
+    points: Mapped[float] = mapped_column(Float, default=1.0, server_default="1.0")
 
     test: Mapped["Test"] = relationship(back_populates="questions")
     question_group: Mapped[Optional["TestQuestionGroup"]] = relationship(back_populates="questions")

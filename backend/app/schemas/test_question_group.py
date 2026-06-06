@@ -7,6 +7,7 @@ class TestQuestionGroupBase(BaseSchema):
     type: QuestionGroupType = QuestionGroupType.UNKNOWN
     order: int = 0
     title: str | None = None
+    points: float = 1.0
 
 
 class TestQuestionGroupCreate(TestQuestionGroupBase):

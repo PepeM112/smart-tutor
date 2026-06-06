@@ -22,6 +22,7 @@ export type LongTextQuestionData = {
   prompt: string;
   lengthLimit: number;
   criteria: Criterion[];
+  points: number;
 };
 
 function CategoryInput({
@@ -128,6 +129,16 @@ export function LongTextQuestionBlock({ data, onChange, onRemove }: Props) {
             </option>
           ))}
         </select>
+        <Input
+          type="number"
+
+          min={0.5}
+          step={0.5}
+          value={data.points}
+          onChange={e => onChange({ ...data, points: Number(e.target.value) })}
+          className="w-20 shrink-0 text-center"
+          title="Points"
+        />
         <Button
           variant="ghost"
           size="icon-sm"
@@ -160,6 +171,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove }: Props) {
             />
             <Input
               type="number"
+    
               min={0.05}
               max={1}
               step={0.05}

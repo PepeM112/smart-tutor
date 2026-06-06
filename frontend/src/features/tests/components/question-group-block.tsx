@@ -18,6 +18,7 @@ export type QuestionGroupData = {
   groupType: QuestionGroupType;
   title: string;
   rows: SimpleRow[];
+  points: number;
 };
 
 type Props = {
@@ -47,13 +48,22 @@ export function QuestionGroupBlock({ data, onChange, onRemove }: Props) {
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
-      {/* Title + delete button */}
+      {/* Title + points + delete button */}
       <div className="flex items-start gap-2 mb-3">
         <Input
           placeholder="Group title (optional)"
           value={data.title}
           onChange={e => onChange({ ...data, title: e.target.value })}
           className="flex-1"
+        />
+        <Input
+          type="number"
+          min={0.5}
+          step={0.5}
+          value={data.points}
+          onChange={e => onChange({ ...data, points: Number(e.target.value) })}
+          className="w-20 shrink-0 text-center"
+          title="Points"
         />
         <Button
           variant="ghost"

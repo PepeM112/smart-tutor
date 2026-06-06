@@ -63,6 +63,7 @@ class QuestionBase(BaseSchema):
     test_id: str | None = None
     group_id: str | None = None
     order: int = 0
+    points: float = 1.0
 
     @field_validator("content")
     @classmethod
@@ -82,6 +83,7 @@ class QuestionUpdate(BaseSchema):
     content: dict[str, object] | None = None
     hint: str | None = None
     explanation: str | None = None
+    points: float | None = None
 
     @model_validator(mode="after")
     def validate_content_consistency(self) -> "QuestionUpdate":
@@ -105,4 +107,5 @@ class QuestionReadStripped(BaseSchema):
     test_id: str | None = None
     group_id: str | None = None
     order: int = 0
+    points: float = 1.0
     id: str

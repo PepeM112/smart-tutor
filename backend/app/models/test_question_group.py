@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import QuestionGroupType
@@ -20,6 +20,7 @@ class TestQuestionGroup(Base):
     type: Mapped[int] = mapped_column(Integer, default=int(QuestionGroupType.VOCABULARY))
     order: Mapped[int] = mapped_column(Integer)
     title: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    points: Mapped[float] = mapped_column(Float, default=1.0, server_default="1.0")
 
     test: Mapped["Test"] = relationship(back_populates="question_groups")
     questions: Mapped[list["Question"]] = relationship(

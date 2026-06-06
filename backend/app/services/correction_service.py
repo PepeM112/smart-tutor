@@ -158,11 +158,11 @@ def correct_test(
     submission: TestSubmission,
 ) -> TestResult:
     """
-    Grade a full test submission.
+    Grade a full test submission with weighted scoring.
 
-    1. Validate the test exists and belongs to the user
-    2. For each question, grade the answer
-    3. Create a TestResult with all Answer records
+    Standalone questions use their own `points` value.
+    Grouped questions are scored at the group level: `group.points * (correct / total)`.
+    PARTIAL answers earn 50% credit. PENDING answers are excluded from scoring.
     """
     test = test_crud.get_by_id(db, id=test_id)
     if test is None:
@@ -170,13 +170,15 @@ def correct_test(
     if test.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    # Build lookup from direct questions AND questions inside groups
     all_questions: list[Question] = list(test.questions)
     for group in test.question_groups:
         all_questions.extend(group.questions)
 
     questions_by_id = {q.id: q for q in all_questions}
+    grouped_question_ids = {q.id for g in test.question_groups for q in g.questions}
+
     answers: list[Answer] = []
+    answer_statuses: dict[str, AnswerStatus] = {}
     correct_count = 0
     pending_count = 0
 
@@ -189,6 +191,8 @@ def correct_test(
             )
 
         answer_status = correct_question(question_answer.user_answer, question)
+        answer_statuses[question.id] = answer_status
+
         if answer_status == AnswerStatus.CORRECT:
             correct_count += 1
         elif answer_status == AnswerStatus.PENDING:
@@ -202,17 +206,55 @@ def correct_test(
             )
         )
 
-    total = len(all_questions)
-    graded = total - pending_count
-    score = (correct_count / graded * 100) if graded > 0 else 0.0
+    earned_pts = 0.0
+    pending_pts = 0.0
+    total_pts = 0.0
+
+    # Standalone questions — scored individually
+    standalone_questions = [q for q in test.questions if q.id not in grouped_question_ids]
+    for q in standalone_questions:
+        total_pts += q.points
+        s = answer_statuses.get(q.id)
+        if s == AnswerStatus.CORRECT:
+            earned_pts += q.points
+        elif s == AnswerStatus.PARTIAL:
+            earned_pts += q.points * 0.5
+        elif s == AnswerStatus.PENDING:
+            pending_pts += q.points
+
+    # Grouped questions — scored at group level
+    for group in test.question_groups:
+        total_pts += group.points
+        group_correct = 0.0
+        group_total = len(group.questions)
+        has_pending = False
+
+        for q in group.questions:
+            s = answer_statuses.get(q.id)
+            if s == AnswerStatus.CORRECT:
+                group_correct += 1
+            elif s == AnswerStatus.PARTIAL:
+                group_correct += 0.5
+            elif s == AnswerStatus.PENDING:
+                has_pending = True
+
+        if has_pending:
+            pending_pts += group.points
+        elif group_total > 0:
+            earned_pts += group.points * (group_correct / group_total)
+
+    graded_pts = total_pts - pending_pts
+    score = round(earned_pts / graded_pts * 100, 2) if graded_pts > 0 else 0.0
 
     test_result = TestResult(
         test_id=test_id,
         user_id=current_user.id,
-        score=round(score, 2),
-        total_questions=total,
+        score=score,
+        total_questions=len(all_questions),
         correct_answers=correct_count,
         pending_answers=pending_count,
+        earned_points=round(earned_pts, 2),
+        total_points=round(total_pts, 2),
         answers=answers,
     )
     db.add(test_result)

@@ -11,7 +11,7 @@ An exam is a formal, full-test experience. The user selects a specific test, ans
 3. User answers each question
 4. User submits all answers at once as a `TestSubmission`
 5. Backend grades every answer, creates a `TestResult` with individual `Answer` records
-6. Score is calculated as `(correct / total) * 100`
+6. Score is calculated using weighted points: `(earned_points / graded_points) * 100`
 
 ## How Exams Differ From Reviews
 
@@ -37,26 +37,44 @@ Every exam creates a `TestResult` record containing:
 
 Users can browse their result history to track progress over time on specific tests.
 
+## Weighted Scoring
+
+Each question and question group has a `points` value (default 1.0). This allows different questions to carry different weight in the exam score.
+
+### How Scoring Works
+
+**Standalone questions** (MC, Long Text) use their `points` value directly:
+- CORRECT → earns full points
+- PARTIAL → earns 50% of points (Simple questions with typo tolerance)
+- WRONG → earns 0 points
+- PENDING → excluded from both numerator and denominator
+
+**Question groups** are scored at the group level, not per individual question. A group with `points = 2` containing 10 vocabulary words awards points proportionally: `group.points * (correct_count / total_count)`. This avoids rounding accumulation from distributing points to individual questions (e.g. 2/13 = 0.153846... per question).
+
+**Score formula:**
+```
+earned_points = sum of points earned across all items
+graded_points = total_points - pending_points
+score = round(earned_points / graded_points * 100, 2)
+```
+
+### TestResult Fields
+
+`TestResult` stores both count-based and points-based data:
+- `correct_answers`, `total_questions`, `pending_answers` — count fields for display
+- `earned_points`, `total_points` — points fields for weighted scoring
+- `score` — the final percentage
+
+Legacy results (created before weighted scoring) have `total_points = 0`. The frontend falls back to the count-based format when this is the case.
+
 ## Question Groups in Exams
 
-When grading a test submission, the backend collects questions from both the test's standalone questions and all question groups within the test. This means a test with mixed standalone questions and vocabulary groups is graded as a flat list — the grouping is purely organizational, not scoring-related.
+When grading a test submission, the backend collects questions from both the test's standalone questions and all question groups within the test. Standalone questions are scored individually; grouped questions are scored at the group level (see Weighted Scoring above).
 
 ## Long Text Questions in Exams
 
 Long Text questions appear in the exam alongside Simple and MC questions. The user writes their answer in a textarea (sized according to the question's length tier). On submission, Long Text answers receive `PENDING` status because they require AI grading.
 
-**Score calculation with PENDING answers:** The exam score excludes PENDING questions from the denominator. If a test has 8 Simple/MC questions and 2 Long Text questions, and the user gets 6 Simple/MC correct, the immediate score is `6/8 = 75%` with "2 questions pending AI review" shown separately. Once AI grading completes, the score is recalculated to include all 10 questions.
+**Score calculation with PENDING answers:** The exam score excludes PENDING questions' points from the denominator. The score banner shows the points breakdown alongside the percentage.
 
 See [Answer Grading](answer-grading.md#long-text-questions-ai-grading) for details on how AI grading works.
-
-## Future: Weighted Exam Scoring
-
-Currently, every question contributes equally to the exam score (1 question = 1 unit). This works for homogeneous tests (all vocab, all MC) but becomes unfair when mixing question types — a 30-second MC question shouldn't have the same weight as a full-page essay.
-
-A future enhancement will introduce per-question point values at the exam level. The user (or a default) assigns point values when creating the exam, and the score becomes a weighted sum rather than a simple ratio. Key design points:
-
-- Point values live at the **exam level** (how much this question is worth in this particular exam), not on the question itself (a question could appear in multiple exams with different weights)
-- For Long Text questions, the rubric score (0.0–1.0) gets multiplied by the question's point value: `earned = rubric_score * question_points`
-- For Simple/MC, CORRECT = full points, WRONG = 0 (PARTIAL scoring for Simple TBD)
-- The UI would default to equal weights but allow customisation
-- Score display adapts: "27/35 points" or normalised to percentage
