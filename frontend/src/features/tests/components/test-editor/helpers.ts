@@ -1,5 +1,6 @@
 import { QuestionGroupType, QuestionType } from '@/client';
 
+import type { LongTextQuestionData } from '../long-text-question-block';
 import type { Choice, MultipleChoiceQuestionData } from '../multiple-choice-question-block';
 import type { QuestionGroupData } from '../question-group-block';
 
@@ -20,5 +21,14 @@ export function newQuestionGroup(): QuestionGroupData {
     groupType: QuestionGroupType.UNKNOWN,
     title: '',
     rows: [{ prompt: '', answers: '' }],
+  };
+}
+
+export function newLongText(): LongTextQuestionData {
+  return {
+    type: QuestionType.LONG_TEXT,
+    prompt: '',
+    lengthLimit: 2,
+    criteria: [{ point: '', weight: 0.1, category: '' }],
   };
 }

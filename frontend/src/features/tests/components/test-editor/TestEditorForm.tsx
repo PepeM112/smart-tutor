@@ -19,11 +19,12 @@ import { Routes } from '@/lib/routes';
 
 import { AddQuestionDropdown } from '../add-question-dropdown';
 import { AutoTextarea } from '../auto-textarea';
+import { LongTextQuestionBlock } from '../long-text-question-block';
 import { MultipleChoiceQuestionBlock } from '../multiple-choice-question-block';
 import { QuestionGroupBlock } from '../question-group-block';
 
-import { groupToApiGroup, mcToApiQuestion } from './converters';
-import { newMultipleChoice, newQuestionGroup } from './helpers';
+import { groupToApiGroup, longTextToApiQuestion, mcToApiQuestion } from './converters';
+import { newLongText, newMultipleChoice, newQuestionGroup } from './helpers';
 
 import type { EditorItem } from './types';
 
@@ -51,6 +52,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       items.forEach((item, idx) => {
         if (item.type === QuestionType.MULTIPLE_CHOICE) {
           standaloneQuestions.push(mcToApiQuestion(item, idx));
+        } else if (item.type === QuestionType.LONG_TEXT) {
+          standaloneQuestions.push(longTextToApiQuestion(item, idx));
         } else {
           questionGroups.push(groupToApiGroup(item, idx));
         }
@@ -84,9 +87,9 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
   });
 
-  function addItem(type: 'group' | 'mc') {
-    const item = type === 'group' ? newQuestionGroup() : newMultipleChoice();
-    setItems(prev => [...prev, item]);
+  function addItem(type: 'group' | 'mc' | 'long') {
+    const factories = { group: newQuestionGroup, mc: newMultipleChoice, long: newLongText };
+    setItems(prev => [...prev, factories[type]()]);
   }
 
   function updateItem(idx: number, data: EditorItem) {
@@ -110,23 +113,36 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       </div>
 
       <div className="space-y-3 mb-4">
-        {items.map((item, i) =>
-          item.type === 'group' ? (
-            <QuestionGroupBlock
-              key={i}
-              data={item}
-              onChange={data => updateItem(i, data)}
-              onRemove={() => removeItem(i)}
-            />
-          ) : (
+        {items.map((item, i) => {
+          if (item.type === 'group') {
+            return (
+              <QuestionGroupBlock
+                key={i}
+                data={item}
+                onChange={data => updateItem(i, data)}
+                onRemove={() => removeItem(i)}
+              />
+            );
+          }
+          if (item.type === QuestionType.LONG_TEXT) {
+            return (
+              <LongTextQuestionBlock
+                key={i}
+                data={item}
+                onChange={data => updateItem(i, data)}
+                onRemove={() => removeItem(i)}
+              />
+            );
+          }
+          return (
             <MultipleChoiceQuestionBlock
               key={i}
               data={item}
               onChange={data => updateItem(i, data)}
               onRemove={() => removeItem(i)}
             />
-          )
-        )}
+          );
+        })}
       </div>
 
       <AddQuestionDropdown onSelect={addItem} />

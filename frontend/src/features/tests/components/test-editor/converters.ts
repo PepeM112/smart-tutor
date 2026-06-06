@@ -7,6 +7,7 @@ import {
   type TestQuestionGroupRead,
 } from '@/client';
 
+import type { Criterion, LongTextQuestionData } from '../long-text-question-block';
 import type { Choice, MultipleChoiceQuestionData } from '../multiple-choice-question-block';
 import type { QuestionGroupData, SimpleRow } from '../question-group-block';
 import type { EditorItem } from './types';
@@ -23,6 +24,22 @@ export function mcToApiQuestion(q: MultipleChoiceQuestionData, order: number): Q
     content: {
       options: q.choices.map(c => c.text),
       correct_indices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
+    },
+  };
+}
+
+export function longTextToApiQuestion(q: LongTextQuestionData, order: number): QuestionCreate {
+  return {
+    questionType: QuestionType.LONG_TEXT,
+    prompt: q.prompt,
+    order,
+    content: {
+      length_limit: q.lengthLimit,
+      rubric: q.criteria.map(c => ({
+        point: c.point,
+        weight: c.weight,
+        ...(c.category ? { category: c.category } : {}),
+      })),
     },
   };
 }
@@ -62,6 +79,20 @@ function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
   };
 }
 
+function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
+  const content = q.content as { length_limit: number; rubric: { point: string; weight: number; category?: string }[] };
+  return {
+    type: QuestionType.LONG_TEXT,
+    prompt: q.prompt,
+    lengthLimit: content.length_limit ?? 2,
+    criteria: (content.rubric ?? []).map(r => ({
+      point: r.point,
+      weight: r.weight,
+      category: r.category ?? '',
+    })) as Criterion[],
+  };
+}
+
 function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
   return {
     type: 'group',
@@ -87,12 +118,15 @@ export function fromApiToEditorItems(
 ): EditorItem[] {
   type Tagged =
     | { order: number; kind: 'mc'; data: QuestionRead }
+    | { order: number; kind: 'long'; data: QuestionRead }
     | { order: number; kind: 'group'; data: TestQuestionGroupRead };
 
   const tagged: Tagged[] = [
     ...(questions ?? []).reduce<Tagged[]>((acc, q) => {
       if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
         acc.push({ order: q.order ?? 0, kind: 'mc', data: q });
+      } else if (q.questionType === QuestionType.LONG_TEXT) {
+        acc.push({ order: q.order ?? 0, kind: 'long', data: q });
       } else if (q.questionType === QuestionType.SIMPLE) {
         const syntheticGroup: TestQuestionGroupRead = {
           id: '',
@@ -109,5 +143,9 @@ export function fromApiToEditorItems(
     ...(groups ?? []).map<Tagged>(g => ({ order: g.order ?? 0, kind: 'group', data: g })),
   ].sort((a, b) => a.order - b.order);
 
-  return tagged.map(t => (t.kind === 'mc' ? fromApiMcQuestion(t.data) : fromApiGroup(t.data)));
+  return tagged.map(t => {
+    if (t.kind === 'mc') return fromApiMcQuestion(t.data);
+    if (t.kind === 'long') return fromApiLongTextQuestion(t.data);
+    return fromApiGroup(t.data);
+  });
 }

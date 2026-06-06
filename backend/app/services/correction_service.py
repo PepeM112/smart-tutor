@@ -178,6 +178,7 @@ def correct_test(
     questions_by_id = {q.id: q for q in all_questions}
     answers: list[Answer] = []
     correct_count = 0
+    pending_count = 0
 
     for question_answer in submission.answers:
         question = questions_by_id.get(question_answer.question_id)
@@ -190,6 +191,8 @@ def correct_test(
         answer_status = correct_question(question_answer.user_answer, question)
         if answer_status == AnswerStatus.CORRECT:
             correct_count += 1
+        elif answer_status == AnswerStatus.PENDING:
+            pending_count += 1
 
         answers.append(
             Answer(
@@ -200,7 +203,8 @@ def correct_test(
         )
 
     total = len(all_questions)
-    score = (correct_count / total * 100) if total > 0 else 0.0
+    graded = total - pending_count
+    score = (correct_count / graded * 100) if graded > 0 else 0.0
 
     test_result = TestResult(
         test_id=test_id,
@@ -208,6 +212,7 @@ def correct_test(
         score=round(score, 2),
         total_questions=total,
         correct_answers=correct_count,
+        pending_answers=pending_count,
         answers=answers,
     )
     db.add(test_result)

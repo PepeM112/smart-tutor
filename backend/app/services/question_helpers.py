@@ -21,6 +21,8 @@ def strip_question_answers(question: Question) -> dict:
         content.pop("answers", None)
     elif q_type == QuestionType.MULTIPLE_CHOICE:
         content.pop("correct_indices", None)
+    elif q_type == QuestionType.LONG_TEXT:
+        content.pop("rubric", None)
     return content
 
 
