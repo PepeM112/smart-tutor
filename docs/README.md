@@ -15,8 +15,8 @@ This folder documents **how features work and why they were built this way**. Fo
 | [Authentication](authentication.md)             | JWT flow, HTTP-only cookies, why not localStorage                 |
 | [Architecture Decisions](decisions.md)          | Key technical choices and their rationale                         |
 
-## Project Phases
+## Project Status
 
-**Phase 1 (current):** Tests, Simple + Multiple Choice questions, exams, review with SRS, results history.
+**Implemented:** Tests with three question types (Simple, Multiple Choice, Long Text), question groups, weighted exam scoring with partial credit, SRS-based review sessions, results history.
 
-**Phase 2 (planned):** Long Form questions with AI grading (GPT-4o-mini), PWA support.
+**In progress:** AI grading for Long Text questions (OpenAI GPT-4o-mini). The rubric structure and PENDING flow are in place — the AI service integration is the next step.
