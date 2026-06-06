@@ -17,13 +17,21 @@ class Question(Base):
     __tablename__ = "question"
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
+    # Discriminator — determines the expected shape of `content` (see schemas/question.py)
     question_type: Mapped[int] = mapped_column(Integer, default=int(QuestionType.SIMPLE))
+    # The question text shown to the user (e.g. "How do you say 'to go'?")
     prompt: Mapped[str] = mapped_column(String)
+    # Type-specific answer data as JSONB:
+    #   SIMPLE → {"answers": ["ir", "marchar"]}
+    #   MC     → {"options": [...], "correct_indices": [0, 2]}
+    #   LONG   → {"rubric": [{"point": "...", "weight": 0.5}]}
+    # Shape enforced at the Pydantic layer, not in the DB.
     content: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
-    hint: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)
-    explanation: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)
-    test_id: Mapped[Optional[str]] = mapped_column(String(26), ForeignKey("test.id"))
-    group_id: Mapped[Optional[str]] = mapped_column(String(26), ForeignKey("test_question_group.id"), nullable=True)
+    hint: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown before answering
+    explanation: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown after answering
+    test_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test.id"))
+    # Organizational grouping within a test (e.g. a "Vocabulary" section with a shared title)
+    group_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test_question_group.id"), nullable=True)
     order: Mapped[int] = mapped_column(Integer, default=0)
 
     test: Mapped["Test"] = relationship(back_populates="questions")

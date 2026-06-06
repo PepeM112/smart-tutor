@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,10 +16,10 @@ class Test(Base, CreatedAtMixin):
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
     title: Mapped[str] = mapped_column(String, index=True)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True, default=None)
+    description: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"))
 
-    questions: Mapped[List["Question"]] = relationship(back_populates="test", cascade="all, delete-orphan")
-    question_groups: Mapped[List["TestQuestionGroup"]] = relationship(
+    questions: Mapped[list["Question"]] = relationship(back_populates="test", cascade="all, delete-orphan")
+    question_groups: Mapped[list["TestQuestionGroup"]] = relationship(
         back_populates="test", cascade="all, delete-orphan"
     )

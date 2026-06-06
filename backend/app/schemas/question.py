@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 from app.core.enums import QuestionType
@@ -14,29 +12,29 @@ class RubricItem(BaseModel):
 
 
 class SimpleContent(BaseModel):
-    answers: List[str]
+    answers: list[str]
 
 
 class MultipleChoiceContent(BaseModel):
-    options: List[str] = Field(..., min_length=2, max_length=6)
-    correct_indices: List[int]
+    options: list[str] = Field(..., min_length=2, max_length=6)
+    correct_indices: list[int]
 
 
 class LongTextContent(BaseModel):
-    rubric: List[RubricItem]
+    rubric: list[RubricItem]
 
 
-def _validate_content(q_type: Optional[QuestionType], content: dict[str, object]) -> None:
+def _validate_content(q_type: QuestionType | None, content: dict[str, object]) -> None:
     """Validate content shape against the question type."""
     try:
         if q_type == QuestionType.SIMPLE:
-            SimpleContent(**content)
+            SimpleContent.model_validate(content)
         elif q_type == QuestionType.MULTIPLE_CHOICE:
-            MultipleChoiceContent(**content)
+            MultipleChoiceContent.model_validate(content)
         elif q_type == QuestionType.LONG_TEXT:
-            LongTextContent(**content)
+            LongTextContent.model_validate(content)
     except Exception as e:
-        raise ValueError(f"Invalid content for {q_type}: {str(e)}") from e
+        raise ValueError(f"Invalid content for {q_type}: {e!s}") from e
 
 
 # --- Pydantic Schemas ---
@@ -46,10 +44,10 @@ class QuestionBase(BaseSchema):
     question_type: QuestionType
     prompt: str
     content: dict[str, object] = {}
-    hint: Optional[str] = None
-    explanation: Optional[str] = None
-    test_id: Optional[str] = None
-    group_id: Optional[str] = None
+    hint: str | None = None
+    explanation: str | None = None
+    test_id: str | None = None
+    group_id: str | None = None
     order: int = 0
 
     @field_validator("content")
@@ -65,11 +63,11 @@ class QuestionCreate(QuestionBase):
 
 
 class QuestionUpdate(BaseSchema):
-    question_type: Optional[QuestionType] = None
-    prompt: Optional[str] = None
-    content: Optional[dict[str, object]] = None
-    hint: Optional[str] = None
-    explanation: Optional[str] = None
+    question_type: QuestionType | None = None
+    prompt: str | None = None
+    content: dict[str, object] | None = None
+    hint: str | None = None
+    explanation: str | None = None
 
     @model_validator(mode="after")
     def validate_content_consistency(self) -> "QuestionUpdate":
@@ -88,9 +86,9 @@ class QuestionReadStripped(BaseSchema):
     question_type: QuestionType
     prompt: str
     content: dict[str, object] = {}
-    hint: Optional[str] = None
-    explanation: Optional[str] = None
-    test_id: Optional[str] = None
-    group_id: Optional[str] = None
+    hint: str | None = None
+    explanation: str | None = None
+    test_id: str | None = None
+    group_id: str | None = None
     order: int = 0
     id: str

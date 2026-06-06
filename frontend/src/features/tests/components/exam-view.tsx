@@ -3,14 +3,14 @@
 import { Loader2, Send } from 'lucide-react';
 import { useState } from 'react';
 
-import {
+import type {
   AnswerStatus,
-  type QuestionRead,
   QuestionGroupType,
+  QuestionRead,
   QuestionType,
-  type TestQuestionGroupRead,
-  type TestRead,
-  type TestResultRead,
+  TestQuestionGroupRead,
+  TestRead,
+  TestResultRead,
 } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

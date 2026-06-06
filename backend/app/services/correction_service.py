@@ -11,8 +11,6 @@ Each function has a single responsibility:
 - correct_multiple_choice_question: exact-match grading for MC answers
 """
 
-from typing import List
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -56,7 +54,7 @@ def _levenshtein_distance(s1: str, s2: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _grade_single_token(token: str, valid_answers: List[str]) -> AnswerStatus:
+def _grade_single_token(token: str, valid_answers: list[str]) -> AnswerStatus:
     """Grade a single user token against the list of valid answers."""
     best_distance: int | None = None
     for valid in valid_answers:
@@ -75,7 +73,7 @@ def _grade_single_token(token: str, valid_answers: List[str]) -> AnswerStatus:
     return AnswerStatus.WRONG
 
 
-def correct_simple_question(user_answer: str, valid_answers: List[str]) -> AnswerStatus:
+def correct_simple_question(user_answer: str, valid_answers: list[str]) -> AnswerStatus:
     """
     Grade a simple (free-text) answer using Levenshtein distance.
 
@@ -105,7 +103,7 @@ def correct_simple_question(user_answer: str, valid_answers: List[str]) -> Answe
     return worst
 
 
-def correct_multiple_choice_question(selected_indices: List[int], correct_indices: List[int]) -> AnswerStatus:
+def correct_multiple_choice_question(selected_indices: list[int], correct_indices: list[int]) -> AnswerStatus:
     """
     Grade a multiple-choice answer by comparing selected vs correct indices.
 

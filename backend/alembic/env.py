@@ -13,6 +13,7 @@ from app.models.test import Test  # noqa: F401
 from app.models.test_question_group import TestQuestionGroup  # noqa: F401
 from app.models.test_result import TestResult  # noqa: F401
 from app.models.user import User  # noqa: F401
+from app.models.user_question_state import UserQuestionState  # noqa: F401
 
 load_dotenv()
 

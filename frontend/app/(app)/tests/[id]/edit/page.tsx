@@ -1,6 +1,5 @@
 'use client';
-import { useEffect } from 'react';
-import { use } from 'react';
+import { useEffect, use } from 'react';
 
 import { TestEditor } from '@/features/tests/components/test-editor';
 import { Routes } from '@/lib/routes';

@@ -1,11 +1,9 @@
-from typing import List, Optional
-
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.test_result import TestResult
 
 
-def get_by_id(db: Session, *, id: str) -> Optional[TestResult]:
+def get_by_id(db: Session, *, id: str) -> TestResult | None:
     return (
         db.query(TestResult)
         .options(selectinload(TestResult.answers), selectinload(TestResult.test))
@@ -14,7 +12,7 @@ def get_by_id(db: Session, *, id: str) -> Optional[TestResult]:
     )
 
 
-def list_by_user(db: Session, *, user_id: str) -> List[TestResult]:
+def list_by_user(db: Session, *, user_id: str) -> list[TestResult]:
     return (
         db.query(TestResult)
         .options(selectinload(TestResult.test))

@@ -2,7 +2,7 @@
 
 import { Plus, Trash2 } from 'lucide-react';
 
-import { QuestionType } from '@/client';
+import type { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 

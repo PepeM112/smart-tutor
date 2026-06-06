@@ -2,7 +2,7 @@
 
 import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Loader2, MinusCircle, XCircle } from 'lucide-react';
 
-import { AnswerStatus, type QuestionReadStripped, QuestionType } from '@/client';
+import { AnswerStatus, type QuestionReadStripped, QuestionType, type SrsStateResponse } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,6 +16,7 @@ export type CheckResult = {
   status: AnswerStatus;
   correctAnswers?: string[] | null;
   correctIndices?: number[] | null;
+  srsState?: SrsStateResponse;
 };
 
 type Props = {
@@ -66,12 +67,12 @@ function MultipleChoiceInput({
             )}
             onClick={() => onToggle(idx)}
           >
-            <Checkbox
-              id={`review-opt-${idx}`}
-              checked={checked}
-              onCheckedChange={() => onToggle(idx)}
-            />
-            <Label htmlFor={`review-opt-${idx}`} className="text-sm cursor-pointer flex-1" onClick={e => e.preventDefault()}>
+            <Checkbox id={`review-opt-${idx}`} checked={checked} onCheckedChange={() => onToggle(idx)} />
+            <Label
+              htmlFor={`review-opt-${idx}`}
+              className="text-sm cursor-pointer flex-1"
+              onClick={e => e.preventDefault()}
+            >
               {option}
             </Label>
           </div>
@@ -222,6 +223,18 @@ export function QuestionReview({
 
           {question.explanation && (
             <p className="text-sm text-muted-foreground mt-3 border-t border-border/50 pt-3">{question.explanation}</p>
+          )}
+
+          {process.env.NEXT_PUBLIC_DEV_MODE === 'true' && checkResult.srsState && (
+            <div className="mt-3 border-t border-border/50 pt-3">
+              <p className="text-xs font-mono text-muted-foreground">
+                SRS: ease={checkResult.srsState.easeFactor.toFixed(2)} interval={checkResult.srsState.interval}d reps=
+                {checkResult.srsState.repetitions} next=
+                {checkResult.srsState.nextReview
+                  ? new Date(checkResult.srsState.nextReview).toLocaleDateString()
+                  : 'n/a'}
+              </p>
+            </div>
           )}
 
           <div className="mt-4 flex justify-end">

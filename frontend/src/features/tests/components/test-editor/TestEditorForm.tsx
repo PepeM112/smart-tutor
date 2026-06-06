@@ -74,7 +74,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       return sdk.testsCreate({ body: payload });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tests'] });
+      void queryClient.invalidateQueries({ queryKey: ['tests'] });
       toast.success(isEdit ? 'Test updated' : 'Test created');
       router.push(Routes.TESTS);
       router.refresh();

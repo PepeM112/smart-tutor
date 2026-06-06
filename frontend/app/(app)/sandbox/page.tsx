@@ -3,7 +3,8 @@
 import { Star } from 'lucide-react';
 import { useEffect } from 'react';
 
-import { Button, buttonVariants } from '@/components/ui/button';
+import type { buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 import type { VariantProps } from 'class-variance-authority';

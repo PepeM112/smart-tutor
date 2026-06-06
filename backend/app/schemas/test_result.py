@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List
 
 from pydantic import Field
 
@@ -22,7 +21,7 @@ class TestResultCreate(TestResultBase):
 class TestResultRead(TestResultBase):
     id: str
     created_at: datetime
-    answers: List[AnswerRead] = []
+    answers: list[AnswerRead] = []
 
 
 class TestResultListItem(BaseSchema):

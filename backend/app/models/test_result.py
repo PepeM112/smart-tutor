@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -21,7 +21,7 @@ class TestResult(Base, CreatedAtMixin):
     total_questions: Mapped[int] = mapped_column(Integer)
     correct_answers: Mapped[int] = mapped_column(Integer)
 
-    answers: Mapped[List["Answer"]] = relationship(cascade="all, delete-orphan", foreign_keys="Answer.test_result_id")
+    answers: Mapped[list["Answer"]] = relationship(cascade="all, delete-orphan", foreign_keys="Answer.test_result_id")
     test: Mapped["Test"] = relationship(foreign_keys=[test_id])
 
     @property

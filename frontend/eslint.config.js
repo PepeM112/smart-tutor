@@ -5,6 +5,7 @@ import nextTs from 'eslint-config-next/typescript';
 import prettierConfig from 'eslint-config-prettier';
 import importPlugin from 'eslint-plugin-import';
 import prettierPlugin from 'eslint-plugin-prettier';
+import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import globals from 'globals';
@@ -18,7 +19,7 @@ export default defineConfig([
   },
 
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
 
   {
     files: ['**/*.{ts,tsx,js,jsx}'],
@@ -36,6 +37,7 @@ export default defineConfig([
       },
     },
     plugins: {
+      react,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
       import: importPlugin,
@@ -58,17 +60,38 @@ export default defineConfig([
 
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
 
+      // TS — type-aware checks
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-floating-promises': 'error', // catches forgotten await on async calls
+      '@typescript-eslint/no-misused-promises': [
+        'warn',
+        {
+          // catches async fn where sync expected (e.g. onClick)
+          checksVoidReturn: {
+            attributes: false, // ← this disables it for JSX props like onSubmit, onClick, etc.
+          },
+        },
+      ],
+      '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }], // enforces `import type { X }`
+      '@typescript-eslint/no-unnecessary-condition': 'warn', // flags `if (x)` when x can never be falsy
+      '@typescript-eslint/prefer-nullish-coalescing': 'warn', // prefer ?? instead of || for nullable values
       'no-unused-vars': 'off', // Turned off because @typescript-eslint/no-unused-vars is used
       'no-undef': 'off', // TS already handles this
 
+      // React
+      'react/self-closing-comp': 'warn',
+      'react/jsx-boolean-value': ['warn', 'never'], // disabled instead of disabled={true}
+      'react/jsx-curly-brace-presence': ['warn', { props: 'never', children: 'never' }], // no unnecessary braces
+
+      // Import
       'import/no-unresolved': 'error',
       'import/named': 'error',
       'import/default': 'error',
       'import/namespace': 'error',
       'import/no-cycle': 'off',
       'import/no-self-import': 'error',
+      'import/no-duplicates': 'warn', // merges duplicate imports from same module
       'import/order': [
         'warn',
         {
@@ -86,6 +109,11 @@ export default defineConfig([
     rules: {
       'react-refresh/only-export-components': 'off',
     },
+  },
+  // Disable type-checked rules for JS config files (no tsconfig coverage)
+  {
+    files: ['**/*.js', '**/*.mjs'],
+    ...tseslint.configs.disableTypeChecked,
   },
   prettierConfig,
 ]);

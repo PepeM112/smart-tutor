@@ -9,6 +9,7 @@ from app.schemas.correction import QuestionCheckResponse
 from app.schemas.question import QuestionUpdate, _validate_content
 from app.services.correction_service import correct_question
 from app.services.question_helpers import get_correct_answer_fields
+from app.services.srs_service import record_answer
 
 
 def _get_owned_question_or_404(db: Session, *, question_id: str, current_user: User) -> Question:
@@ -35,8 +36,13 @@ def delete_question(db: Session, *, question_id: str, current_user: User) -> Non
 
 
 def check_question(
-    db: Session, *, question_id: str, current_user: User, user_answer: str
+    db: Session, *, question_id: str, current_user: User, user_answer: str, update_srs: bool = True
 ) -> QuestionCheckResponse:
     question = _get_owned_question_or_404(db, question_id=question_id, current_user=current_user)
     answer_status = correct_question(user_answer, question)
-    return QuestionCheckResponse(status=answer_status, **get_correct_answer_fields(question))
+
+    srs_state = None
+    if update_srs:
+        srs_state = record_answer(db, user_id=current_user.id, question_id=question_id, answer_status=answer_status)
+
+    return QuestionCheckResponse(status=answer_status, srs_state=srs_state, **get_correct_answer_fields(question))
