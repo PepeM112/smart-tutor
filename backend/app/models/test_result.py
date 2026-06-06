@@ -20,6 +20,7 @@ class TestResult(Base, CreatedAtMixin):
     score: Mapped[float] = mapped_column(Float, default=0.0)
     total_questions: Mapped[int] = mapped_column(Integer)
     correct_answers: Mapped[int] = mapped_column(Integer)
+    pending_answers: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     answers: Mapped[list["Answer"]] = relationship(cascade="all, delete-orphan", foreign_keys="Answer.test_result_id")
     test: Mapped["Test"] = relationship(foreign_keys=[test_id])

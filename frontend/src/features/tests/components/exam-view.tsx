@@ -3,14 +3,14 @@
 import { Loader2, Send } from 'lucide-react';
 import { useState } from 'react';
 
-import type {
-  AnswerStatus,
+import {
   QuestionGroupType,
-  QuestionRead,
   QuestionType,
-  TestQuestionGroupRead,
-  TestRead,
-  TestResultRead,
+  type AnswerStatus,
+  type QuestionRead,
+  type TestQuestionGroupRead,
+  type TestRead,
+  type TestResultRead,
 } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,8 +18,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { feedbackTextColor, statusLabel } from '@/features/review/helpers';
 import { cn } from '@/lib/utils';
+
+import { LONG_TEXT_LENGTH_TIERS } from '../constants';
 
 type ExamItem =
   | { kind: 'question'; question: QuestionRead; order: number }
@@ -160,8 +163,13 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
             <div>
               <p className="text-lg font-semibold">Score: {(result.score ?? 0).toFixed(1)}%</p>
               <p className="text-sm text-muted-foreground">
-                {result.correctAnswers} of {result.totalQuestions} correct
+                {result.correctAnswers} of {result.totalQuestions - (result.pendingAnswers ?? 0)} correct
               </p>
+              {result.pendingAnswers != null && result.pendingAnswers > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {result.pendingAnswers} question{result.pendingAnswers === 1 ? '' : 's'} pending AI review
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -281,6 +289,10 @@ function QuestionCard({
   const content = question.content as Record<string, unknown> | undefined;
   const isSimple = question.questionType === QuestionType.SIMPLE;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
+  const isLongText = question.questionType === QuestionType.LONG_TEXT;
+  const longTextTier = isLongText
+    ? (LONG_TEXT_LENGTH_TIERS.find(t => t.value === (content?.length_limit as number)) ?? LONG_TEXT_LENGTH_TIERS[1])
+    : null;
 
   const wrapper = (children: React.ReactNode) =>
     nested ? (
@@ -337,6 +349,26 @@ function QuestionCard({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Long text textarea */}
+      {isLongText && longTextTier && (
+        <div className="space-y-1">
+          <Textarea
+            placeholder="Write your answer..."
+            value={answer}
+            onChange={e => {
+              if (e.target.value.length <= longTextTier.limit) {
+                onTextChange(question.id, e.target.value);
+              }
+            }}
+            disabled={disabled}
+            rows={longTextTier.value === 1 ? 4 : longTextTier.value === 2 ? 10 : 20}
+          />
+          <p className="text-xs text-muted-foreground text-right">
+            {answer.length} / {longTextTier.limit}
+          </p>
         </div>
       )}
 

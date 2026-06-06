@@ -12,6 +12,7 @@ class TestResultBase(BaseSchema):
     score: float = Field(default=0.0, ge=0.0, le=100.0)
     total_questions: int
     correct_answers: int
+    pending_answers: int = 0
 
 
 class TestResultCreate(TestResultBase):
@@ -33,4 +34,5 @@ class TestResultListItem(BaseSchema):
     score: float = Field(default=0.0, ge=0.0, le=100.0)
     total_questions: int
     correct_answers: int
+    pending_answers: int = 0
     created_at: datetime

@@ -45,20 +45,48 @@ content: {
 
 Grading is exact: the selected set must match the correct set exactly.
 
-### Long Form (Phase 2)
+### Long Text
 
-The user writes a paragraph-style answer. A rubric defines key points with score weights. GPT-4o-mini grades the answer against the rubric and returns structured feedback.
+The user writes a paragraph-style answer. A rubric defines the criteria the answer will be evaluated against, each with a score weight. An AI model grades the answer against the rubric and returns structured feedback (see [Answer Grading](answer-grading.md#long-text-questions-ai-grading)).
+
+Long Text questions have three length tiers that control the maximum characters allowed:
+
+| Tier   | Enum Value | Char Limit | Roughly           |
+| ------ | ---------- | ---------- | ----------------- |
+| SHORT  | 1          | ~500       | 3–4 lines         |
+| MEDIUM | 2          | ~1800      | 10–15 lines       |
+| LONG   | 3          | ~5000      | ~1 page           |
+
+Rubric criteria can be optionally grouped by **category** (e.g. "Context & Causes", "Key Events") for organizational clarity. Categories are purely cosmetic — they don't affect scoring.
 
 ```
-prompt: "Explain photosynthesis."
+prompt: "Describe the main events and significance of the Roman Civil War."
 content: {
+  "length_limit": 3,
   "rubric": [
-    { "point": "Converts light energy to chemical energy", "weight": 0.4 },
-    { "point": "Produces oxygen as byproduct", "weight": 0.3 },
-    { "point": "Occurs in chloroplasts", "weight": 0.3 }
+    { "point": "Identifies the political crisis of the late Roman Republic", "weight": 0.1, "category": "Context & Causes" },
+    { "point": "Names the First Triumvirate and its role", "weight": 0.1, "category": "Context & Causes" },
+    { "point": "Mentions Caesar crossing the Rubicon (49 BC)", "weight": 0.15, "category": "Key Events" },
+    { "point": "Refers to the Battle of Pharsalus (48 BC)", "weight": 0.1, "category": "Key Events" },
+    { "point": "Notes Pompey's assassination in Egypt", "weight": 0.05, "category": "Key Events" },
+    { "point": "Mentions Caesar's assassination (44 BC)", "weight": 0.1, "category": "Key Events" },
+    { "point": "Explains the Second Triumvirate formation", "weight": 0.1, "category": "Key Events" },
+    { "point": "Describes Octavian's victory at Actium (31 BC)", "weight": 0.15, "category": "Outcomes" },
+    { "point": "Connects the wars to the fall of the Republic and rise of the Principate", "weight": 0.15, "category": "Outcomes" }
   ]
 }
 ```
+
+**Rubric rules:**
+- Each `weight` must be a multiple of 0.05 (e.g. 0.05, 0.10, 0.15 ... 1.0)
+- Weights are normalized — they represent the proportion of the answer quality each criterion is worth, not exam points
+- The sum of all weights determines the question's "total quality" (typically 1.0)
+- At least one rubric item is required
+
+**Key differences from Simple/MC:**
+- Long Text questions are always **standalone** — they cannot be placed inside QuestionGroups
+- Long Text questions are **excluded from SRS** review — they require AI grading, which makes instant feedback impossible
+- During exams, Long Text answers receive `PENDING` status until AI grading is completed
 
 ## Content Validation
 
@@ -75,4 +103,4 @@ Every question has two optional text fields:
 
 ## Answer Stripping
 
-When questions are served to the user (for exams or reviews), the answer data is stripped from the `content` field before sending. Simple questions have `answers` removed; MC questions have `correct_indices` removed. The user only sees the prompt and options. Correct answers are revealed only after the user submits their answer via the check/correction endpoints.
+When questions are served to the user (for exams or reviews), the answer data is stripped from the `content` field before sending. Simple questions have `answers` removed; MC questions have `correct_indices` removed; Long Text questions have `rubric` removed (but `length_limit` is kept so the frontend knows how to size the textarea). The user only sees the prompt and input constraints. Correct answers are revealed only after the user submits their answer via the check/correction endpoints.

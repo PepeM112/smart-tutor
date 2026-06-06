@@ -95,3 +95,31 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Why:** The frontend is TypeScript, which conventionally uses camelCase. Rather than translating field names in the frontend, the backend serializes to camelCase automatically. All schemas inherit from `BaseSchema` which configures this, so it's enforced globally.
 
 **Watch out:** Any `JSONResponse` with hand-built dicts (bypassing Pydantic) must use camelCase keys manually, or the frontend will get `undefined` for those fields.
+
+---
+
+## Long Text: Normalized Rubric Weights, Not Exam Points
+
+**Decision:** Rubric weights on Long Text questions are normalized proportions (summing to ~1.0), not absolute exam point values.
+
+**Why:** The rubric answers a single question: "how well did the student cover the material?" A weight of 0.15 means "this criterion is 15% of the answer quality." This is independent of how many exam points the question is worth. Separating these concerns means the same question can appear in different exams with different point values, and the rubric doesn't need to change.
+
+**Exam-level scoring** (how many points a question is worth) is a separate layer that will be added later. The rubric score (0.0–1.0) will be multiplied by the question's exam point value to get earned points.
+
+---
+
+## Long Text: 3-Tier Length Limits Over Free-Form
+
+**Decision:** Long Text questions use a `LongTextLength` enum (SHORT/MEDIUM/LONG) instead of a free-form max character count.
+
+**Why:** Simpler UX (dropdown vs. number input) and maps cleanly to the real-world exam formats this feature emulates: "3–4 lines" (SHORT, ~500 chars), "10–15 lines" (MEDIUM, ~1800 chars), "~1 page" (LONG, ~5000 chars). If we ever need a custom limit, we can add a fourth tier rather than switching to free-form.
+
+---
+
+## Long Text: Standalone Only, No SRS
+
+**Decision:** Long Text questions cannot be placed inside QuestionGroups and are excluded from SRS review.
+
+**Why standalone:** QuestionGroups exist for batch question patterns like vocabulary tables. An essay prompt with a multi-criterion rubric is a fundamentally different UX that doesn't benefit from grouping.
+
+**Why no SRS:** SRS requires instant grading to provide the immediate feedback that drives scheduling (CORRECT → longer interval, WRONG → shorter interval). Long Text grading is asynchronous (AI-dependent), so it can't participate in the review loop. The CRUD layer's `_reviewable_base_query` already filters Long Text out.

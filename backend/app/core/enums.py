@@ -36,6 +36,19 @@ class AnswerStatus(NamedIntEnum):
     PENDING = 4
 
 
+class LongTextLength(NamedIntEnum):
+    SHORT = 1
+    MEDIUM = 2
+    LONG = 3
+
+
+LONG_TEXT_CHAR_LIMITS: dict[int, int] = {
+    LongTextLength.SHORT: 500,
+    LongTextLength.MEDIUM: 1800,
+    LongTextLength.LONG: 5000,
+}
+
+
 class QuestionGroupType(NamedIntEnum):
     UNKNOWN = 0
     VOCABULARY = 1

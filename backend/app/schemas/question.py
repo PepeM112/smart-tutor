@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
-from app.core.enums import QuestionType
+from app.core.enums import LongTextLength, QuestionType
 from app.schemas.base import BaseSchema
 
 # --- Content sub-models ---
@@ -9,6 +9,7 @@ from app.schemas.base import BaseSchema
 class RubricItem(BaseModel):
     point: str = Field(..., description="The concept or fact the user must mention")
     weight: float = Field(..., ge=0.0, le=1.0, description="Score contribution (0.0 to 1.0)")
+    category: str | None = Field(default=None, description="Optional grouping label (e.g. 'Key Events')")
 
 
 class SimpleContent(BaseModel):
@@ -21,7 +22,20 @@ class MultipleChoiceContent(BaseModel):
 
 
 class LongTextContent(BaseModel):
-    rubric: list[RubricItem]
+    length_limit: LongTextLength
+    rubric: list[RubricItem] = Field(..., min_length=1)
+
+    @field_validator("rubric")
+    @classmethod
+    def validate_rubric_weights(cls, v: list[RubricItem]) -> list[RubricItem]:
+        for item in v:
+            remainder = round(item.weight % 0.05, 10)
+            if remainder > 1e-9 and remainder < 0.05 - 1e-9:
+                raise ValueError(f"Weight {item.weight} is not a multiple of 0.05")
+        total = sum(item.weight for item in v)
+        if total <= 0:
+            raise ValueError("Sum of rubric weights must be greater than 0")
+        return v
 
 
 def _validate_content(q_type: QuestionType | None, content: dict[str, object]) -> None:

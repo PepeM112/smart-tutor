@@ -34,6 +34,49 @@ MC grading is strict: the set of selected indices must exactly match the set of 
 
 This is a deliberate choice. Partial credit for MC would require weighting logic (how much credit for 2/3 correct but 1 extra?) that adds complexity without much learning value. The SRS system already handles partial mastery through repetition scheduling.
 
+## Long Text Questions: AI Grading
+
+Long Text questions cannot be auto-graded like Simple or MC — they require an AI model to evaluate the answer against the rubric. This creates a fundamentally different grading flow.
+
+### How It Works
+
+1. The user writes a free-text answer (up to the character limit defined by the question's length tier)
+2. On submission, the answer receives `PENDING` status — the correction service cannot grade it synchronously
+3. An AI model (cheap and capable, not necessarily frontier) evaluates the answer against the rubric criteria
+4. The AI receives: the question prompt, the rubric (criteria + weights), and the user's answer
+5. For each criterion, the AI determines whether the user adequately addressed it
+6. The question's score = sum of weights for criteria the user met (0.0 to ~1.0)
+
+### Rubric Scoring
+
+Rubric weights are **normalized proportions**, not exam points. They represent how much of the answer quality each criterion is worth:
+
+```
+Criterion: "Mentions Caesar crossing the Rubicon (49 BC)" → weight: 0.15
+Criterion: "Notes Pompey's assassination in Egypt"        → weight: 0.05
+```
+
+If the user meets criteria worth 0.75 out of 1.0 total weight, their score for this question is 0.75 (75%).
+
+### Mixed Exams (Auto-Graded + Long Text)
+
+When a test contains both auto-graded questions (Simple/MC) and Long Text questions, the exam score is calculated **excluding PENDING answers** from the denominator:
+
+```
+Score = (correct auto-graded) / (total - pending) * 100
+Pending: X questions awaiting AI review
+```
+
+The score updates once AI grading completes. This avoids penalising the user for questions that simply haven't been graded yet.
+
+### Future: Weighted Exam Scoring
+
+Currently all questions have equal weight in the exam score (1 question = 1 point). A future enhancement will add per-question point values at the exam level — e.g. an MC question worth 1 point and a Long Text question worth 5 points. The rubric score (0.0–1.0) would then be scaled by the question's point value: `rubric_score * question_points`. This is a separate concern from the rubric itself and will affect all question types, not just Long Text.
+
+### SRS Exclusion
+
+Long Text questions are excluded from the SRS review flow. Since they can't be graded instantly, they can't provide the immediate feedback that drives spaced repetition scheduling. The `_reviewable_base_query` in the CRUD layer explicitly filters them out.
+
 ## Answer Statuses
 
 Every graded answer gets one of these statuses:
@@ -43,14 +86,16 @@ Every graded answer gets one of these statuses:
 | CORRECT | Exact match (or within tolerance for Simple)                    |
 | PARTIAL | Close but not exact (Simple only: 1 edit away, word >= 3 chars) |
 | WRONG   | Not close enough                                                |
-| PENDING | Not yet graded (reserved for Long Form / AI grading in Phase 2) |
+| PENDING | Not yet graded — awaiting AI evaluation (Long Text only)        |
 
 ## What the User Sees After Checking
 
 After the answer is graded, the response includes:
 
-- The `status` (CORRECT / PARTIAL / WRONG)
+- The `status` (CORRECT / PARTIAL / WRONG / PENDING)
 - `correctAnswers`: the valid answers as strings (for Simple and MC)
 - `correctIndices`: the correct option indices (for MC)
-- `srsState`: the updated SRS scheduling data (only in review flow)
+- `srsState`: the updated SRS scheduling data (only in review flow; not applicable for Long Text)
 - The question's `explanation` field (if set)
+
+For Long Text questions with `PENDING` status, the response indicates the answer is queued for AI review. Once graded, the rubric breakdown (which criteria were met) will be available in the result.
