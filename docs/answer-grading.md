@@ -60,18 +60,19 @@ If the user meets criteria worth 0.75 out of 1.0 total weight, their score for t
 
 ### Mixed Exams (Auto-Graded + Long Text)
 
-When a test contains both auto-graded questions (Simple/MC) and Long Text questions, the exam score is calculated **excluding PENDING answers** from the denominator:
+When a test contains both auto-graded questions (Simple/MC) and Long Text questions, the exam score is calculated using weighted points, **excluding PENDING answers' points** from the denominator:
 
 ```
-Score = (correct auto-graded) / (total - pending) * 100
-Pending: X questions awaiting AI review
+earned_points = sum of earned points (CORRECT = full, PARTIAL = 50%, WRONG = 0)
+graded_points = total_points - pending_points
+score = earned_points / graded_points * 100
 ```
 
 The score updates once AI grading completes. This avoids penalising the user for questions that simply haven't been graded yet.
 
-### Future: Weighted Exam Scoring
+### Weighted Scoring Integration
 
-Currently all questions have equal weight in the exam score (1 question = 1 point). A future enhancement will add per-question point values at the exam level — e.g. an MC question worth 1 point and a Long Text question worth 5 points. The rubric score (0.0–1.0) would then be scaled by the question's point value: `rubric_score * question_points`. This is a separate concern from the rubric itself and will affect all question types, not just Long Text.
+Each question and question group has a `points` value (default 1.0). For Long Text questions, once AI grading completes, the rubric score (0.0–1.0) would be scaled by the question's point value: `rubric_score * question.points`. See [Exams — Weighted Scoring](exams.md#weighted-scoring) for full details on how points-based scoring works across all question types.
 
 ### SRS Exclusion
 

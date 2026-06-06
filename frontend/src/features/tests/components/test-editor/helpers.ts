@@ -12,6 +12,7 @@ export function newMultipleChoice(): MultipleChoiceQuestionData {
       { text: '', isCorrect: false },
       { text: '', isCorrect: false },
     ] as Choice[],
+    points: 1,
   };
 }
 
@@ -21,6 +22,7 @@ export function newQuestionGroup(): QuestionGroupData {
     groupType: QuestionGroupType.UNKNOWN,
     title: '',
     rows: [{ prompt: '', answers: '' }],
+    points: 1,
   };
 }
 
@@ -30,5 +32,6 @@ export function newLongText(): LongTextQuestionData {
     prompt: '',
     lengthLimit: 2,
     criteria: [{ point: '', weight: 0.1, category: '' }],
+    points: 1,
   };
 }

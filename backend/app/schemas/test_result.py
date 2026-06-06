@@ -13,6 +13,8 @@ class TestResultBase(BaseSchema):
     total_questions: int
     correct_answers: int
     pending_answers: int = 0
+    earned_points: float = 0.0
+    total_points: float = 0.0
 
 
 class TestResultCreate(TestResultBase):
@@ -35,4 +37,6 @@ class TestResultListItem(BaseSchema):
     total_questions: int
     correct_answers: int
     pending_answers: int = 0
+    earned_points: float = 0.0
+    total_points: float = 0.0
     created_at: datetime

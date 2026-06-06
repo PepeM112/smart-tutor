@@ -178,6 +178,8 @@ function MultipleChoiceReview({ question, userAnswer }: { question: QuestionRead
 
 function ScoreBanner({ result }: { result: TestResultRead }) {
   const score = result.score ?? 0;
+  const pending = result.pendingAnswers ?? 0;
+  const graded = result.totalQuestions - pending;
   const color =
     score >= 80
       ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
@@ -188,10 +190,22 @@ function ScoreBanner({ result }: { result: TestResultRead }) {
   return (
     <div className={cn('rounded-xl border p-5 flex items-center justify-between', color)}>
       <div>
-        <p className="text-2xl font-bold">{score.toFixed(1)}%</p>
-        <p className="text-sm text-muted-foreground">
-          {result.correctAnswers} of {result.totalQuestions} correct
+        <p className="text-2xl font-bold">
+          {score.toFixed(1)}%
+          {result.totalPoints != null && result.totalPoints > 0 && (
+            <span className="text-base font-normal text-muted-foreground ml-2">
+              {result.earnedPoints} / {result.totalPoints} pts
+            </span>
+          )}
         </p>
+        <p className="text-sm text-muted-foreground">
+          {result.correctAnswers} of {graded} correct
+        </p>
+        {pending > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {pending} question{pending === 1 ? '' : 's'} pending AI review
+          </p>
+        )}
       </div>
     </div>
   );

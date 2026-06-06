@@ -102,9 +102,39 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 **Decision:** Rubric weights on Long Text questions are normalized proportions (summing to ~1.0), not absolute exam point values.
 
-**Why:** The rubric answers a single question: "how well did the student cover the material?" A weight of 0.15 means "this criterion is 15% of the answer quality." This is independent of how many exam points the question is worth. Separating these concerns means the same question can appear in different exams with different point values, and the rubric doesn't need to change.
+**Why:** The rubric answers a single question: "how well did the student cover the material?" A weight of 0.15 means "this criterion is 15% of the answer quality." This is independent of how many exam points the question is worth. Separating these concerns keeps the rubric clean — the `points` field on the Question controls how much the question is worth in the exam.
 
-**Exam-level scoring** (how many points a question is worth) is a separate layer that will be added later. The rubric score (0.0–1.0) will be multiplied by the question's exam point value to get earned points.
+---
+
+## Points on Question + TestQuestionGroup, Not a Separate Exam Entity
+
+**Decision:** The `points` field lives directly on `Question` and `TestQuestionGroup`, not on a separate Exam entity.
+
+**Why:** Questions belong to exactly one test (via `test_id` FK). There's no question sharing between tests. Putting points directly on the models is unambiguous. An Exam entity would only be needed for teacher-student flows, which don't exist yet.
+
+---
+
+## Group Points Computed at Scoring Time, Not Distributed
+
+**Decision:** Group points are not distributed to individual questions. Scoring is computed at the group level as `group.points * (correct / total)`.
+
+**Why:** Distributing `2 / 13 = 0.153846...` to each question and storing it causes rounding accumulation (`0.15 * 13 = 1.95 ≠ 2.0`). Computing the proportion once at scoring time avoids this entirely.
+
+---
+
+## Float Storage for Points, Not Integers
+
+**Decision:** Points are stored as floats, not integers (no cents-style integer math).
+
+**Why:** At exam-score scale (small numbers, 2 decimal places, `round()` at the end), float precision is a non-issue. Integer storage would require multiplying/dividing by 100 everywhere, adding unnecessary complexity.
+
+---
+
+## PARTIAL Credit = 50% Points
+
+**Decision:** PARTIAL answers earn 50% of the question's point value. Applies uniformly: standalone questions get `points * 0.5`, grouped questions count as 0.5 toward the group's correct count.
+
+**Why:** PARTIAL status already existed for Simple questions (typo tolerance with Levenshtein distance = 1). Previously it earned 0 points. Giving 50% credit makes it meaningful — a close-enough answer is better than wrong.
 
 ---
 

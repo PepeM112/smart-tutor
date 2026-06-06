@@ -14,11 +14,11 @@ User
 
 A **Test** is a named collection of questions (e.g. "Spanish Vocabulary Chapter 3"). Tests belong to a single user and are never shared.
 
-A **QuestionGroup** is an organizational layer within a test. It groups related questions under a shared title and type. The main use case is vocabulary: a group titled "Translate to Spanish" with type `VOCABULARY` containing multiple translation questions. Groups and standalone questions share the same order space within a test, so a test's content can interleave individual questions and groups.
+A **QuestionGroup** is an organizational layer within a test. It groups related questions under a shared title and type. The main use case is vocabulary: a group titled "Translate to Spanish" with type `VOCABULARY` containing multiple translation questions. Groups and standalone questions share the same order space within a test, so a test's content can interleave individual questions and groups. Each group has a `points` value (default 1.0) that determines its weight in exam scoring.
 
 ## Question Types
 
-Every question has a `prompt` (the text shown to the user) and a `content` field (JSONB) whose shape depends on the question type.
+Every question has a `prompt` (the text shown to the user), a `content` field (JSONB) whose shape depends on the question type, and a `points` value (default 1.0) that determines its weight in exam scoring. For grouped questions, the group's `points` is the scoring source of truth — individual question `points` are ignored.
 
 ### Simple
 

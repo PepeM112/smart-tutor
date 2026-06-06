@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 
 import { AutoTextarea } from './auto-textarea';
 
@@ -17,6 +18,7 @@ export type MultipleChoiceQuestionData = {
   type: QuestionType.MULTIPLE_CHOICE;
   prompt: string;
   choices: Choice[];
+  points: number;
 };
 
 const MIN_CHOICES = 2;
@@ -57,6 +59,15 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove }: Props)
           value={data.prompt}
           onChange={e => onChange({ ...data, prompt: e.target.value })}
           className="flex-1"
+        />
+        <Input
+          type="number"
+          min={0.5}
+          step={0.5}
+          value={data.points}
+          onChange={e => onChange({ ...data, points: Number(e.target.value) })}
+          className="w-20 shrink-0 text-center"
+          title="Points"
         />
         <Button
           variant="ghost"

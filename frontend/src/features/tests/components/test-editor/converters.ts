@@ -21,6 +21,7 @@ export function mcToApiQuestion(q: MultipleChoiceQuestionData, order: number): Q
     questionType: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
     order,
+    points: q.points,
     content: {
       options: q.choices.map(c => c.text),
       correct_indices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
@@ -33,6 +34,7 @@ export function longTextToApiQuestion(q: LongTextQuestionData, order: number): Q
     questionType: QuestionType.LONG_TEXT,
     prompt: q.prompt,
     order,
+    points: q.points,
     content: {
       length_limit: q.lengthLimit,
       rubric: q.criteria.map(c => ({
@@ -49,6 +51,7 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
     type: g.groupType,
     order,
     title: g.title.trim() || undefined,
+    points: g.points,
     questions: g.rows.map((row, i) => ({
       questionType: QuestionType.SIMPLE,
       prompt: row.prompt,
@@ -76,6 +79,7 @@ function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
       text,
       isCorrect: (content.correct_indices ?? []).includes(i),
     })) as Choice[],
+    points: q.points ?? 1,
   };
 }
 
@@ -90,6 +94,7 @@ function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
       weight: r.weight,
       category: r.category ?? '',
     })) as Criterion[],
+    points: q.points ?? 1,
   };
 }
 
@@ -105,6 +110,7 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
         answers: (content.answers ?? []).join(', '),
       } as SimpleRow;
     }),
+    points: g.points ?? 1,
   };
 }
 
