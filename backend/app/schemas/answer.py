@@ -2,6 +2,12 @@ from app.core.enums import AnswerStatus
 from app.schemas.base import BaseSchema
 
 
+class RubricResultItem(BaseSchema):
+    point: str
+    met: bool
+    weight: float
+
+
 class AnswerBase(BaseSchema):
     test_result_id: str
     question_id: str
@@ -15,3 +21,4 @@ class AnswerCreate(AnswerBase):
 
 class AnswerRead(AnswerBase):
     id: str
+    rubric_result: list[RubricResultItem] | None = None

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -12,6 +12,7 @@ from app.schemas.correction import TestSubmission
 from app.schemas.test import TestCreate, TestRead, TestReadStripped, TestUpdate
 from app.schemas.test_result import TestResultRead
 from app.services import correction_service, test_service
+from app.services.grading_service import grade_pending_answers
 from app.services.question_helpers import build_stripped_test
 
 router = APIRouter()
@@ -54,5 +55,14 @@ def delete(test_id: str, db: DbSession, current_user: CurrentUser) -> None:
 
 
 @router.post("/{test_id}/submit", response_model=TestResultRead, status_code=status.HTTP_201_CREATED)
-def submit(test_id: str, data: TestSubmission, db: DbSession, current_user: CurrentUser) -> TestResult:
-    return correction_service.correct_test(db, test_id=test_id, current_user=current_user, submission=data)
+def submit(
+    test_id: str,
+    data: TestSubmission,
+    db: DbSession,
+    current_user: CurrentUser,
+    background_tasks: BackgroundTasks,
+) -> TestResult:
+    test_result = correction_service.correct_test(db, test_id=test_id, current_user=current_user, submission=data)
+    if test_result.pending_answers > 0:
+        background_tasks.add_task(grade_pending_answers, test_result.id)
+    return test_result

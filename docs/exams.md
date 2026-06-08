@@ -75,6 +75,8 @@ When grading a test submission, the backend collects questions from both the tes
 
 Long Text questions appear in the exam alongside Simple and MC questions. The user writes their answer in a textarea (sized according to the question's length tier). On submission, Long Text answers receive `PENDING` status because they require AI grading.
 
+**Async grading flow:** On submission, Long Text answers are created with `PENDING` status and a `BackgroundTask` fires to grade them via the AI provider. The frontend auto-polls the result every 3 seconds until `pendingAnswers` reaches 0. Once grading completes, the `TestResult` aggregates (score, earned_points, correct_answers, pending_answers) are recalculated.
+
 **Score calculation with PENDING answers:** The exam score excludes PENDING questions' points from the denominator. The score banner shows the points breakdown alongside the percentage.
 
 See [Answer Grading](answer-grading.md#long-text-questions-ai-grading) for details on how AI grading works.

@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { use, useEffect } from 'react';
 
 import { ResultDetail } from '@/features/history/components/result-detail';
+import { useTestResult } from '@/features/history/hooks/use-test-result';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
@@ -17,10 +18,7 @@ export default function ResultDetailPage({ params }: Props) {
   const { id } = use(params);
   const { set, reset } = useBreadcrumbStore();
 
-  const { data: resultResponse, isLoading: isLoadingResult } = useQuery({
-    queryKey: ['results', id],
-    queryFn: () => sdk.resultsGet({ path: { result_id: id } }),
-  });
+  const { data: resultResponse, isLoading: isLoadingResult } = useTestResult(id);
 
   const result = resultResponse?.data;
 

@@ -41,11 +41,16 @@ Long Text questions cannot be auto-graded like Simple or MC — they require an 
 ### How It Works
 
 1. The user writes a free-text answer (up to the character limit defined by the question's length tier)
-2. On submission, the answer receives `PENDING` status — the correction service cannot grade it synchronously
-3. An AI model (cheap and capable, not necessarily frontier) evaluates the answer against the rubric criteria
+2. On submission, the answer receives `PENDING` status — a `BackgroundTask` is fired to grade it asynchronously
+3. The grading service (`grading_service.py`) uses a **Strategy Pattern** to select the AI provider:
+   - `AnthropicGradingProvider` — Claude Haiku 4.5 (default)
+   - `OpenAIGradingProvider` — GPT-4o-mini
+   - Selected via `AI_GRADING_PROVIDER` env var
 4. The AI receives: the question prompt, the rubric (criteria + weights), and the user's answer
-5. For each criterion, the AI determines whether the user adequately addressed it
-6. The question's score = sum of weights for criteria the user met (0.0 to ~1.0)
+5. For each criterion, the AI returns `met: true/false` — stored in `Answer.rubric_result` as JSONB
+6. The question's score = sum of weights for met criteria, scaled by the question's point value
+7. After grading, `TestResult` aggregates (score, earned_points, pending_answers) are recalculated
+8. The frontend auto-polls the result every 3 seconds until `pendingAnswers` reaches 0
 
 ### Rubric Scoring
 
@@ -70,9 +75,25 @@ score = earned_points / graded_points * 100
 
 The score updates once AI grading completes. This avoids penalising the user for questions that simply haven't been graded yet.
 
+### Rubric Result Storage
+
+Each graded Long Text answer stores its rubric result in `Answer.rubric_result` (JSONB):
+
+```json
+[
+  {"point": "Mentions Caesar crossing the Rubicon", "met": true, "weight": 0.15},
+  {"point": "Notes Pompey's assassination in Egypt", "met": false, "weight": 0.05}
+]
+```
+
+The answer's `status` is derived from the rubric result:
+- All criteria met → `CORRECT`
+- Some criteria met → `PARTIAL`
+- No criteria met → `WRONG`
+
 ### Weighted Scoring Integration
 
-Each question and question group has a `points` value (default 1.0). For Long Text questions, once AI grading completes, the rubric score (0.0–1.0) would be scaled by the question's point value: `rubric_score * question.points`. See [Exams — Weighted Scoring](exams.md#weighted-scoring) for full details on how points-based scoring works across all question types.
+Each question and question group has a `points` value (default 1.0). For Long Text questions, once AI grading completes, the earned points are calculated as: `(earned_weight / total_weight) * question.points`. See [Exams — Weighted Scoring](exams.md#weighted-scoring) for full details on how points-based scoring works across all question types.
 
 ### SRS Exclusion
 
@@ -99,4 +120,4 @@ After the answer is graded, the response includes:
 - `srsState`: the updated SRS scheduling data (only in review flow; not applicable for Long Text)
 - The question's `explanation` field (if set)
 
-For Long Text questions with `PENDING` status, the response indicates the answer is queued for AI review. Once graded, the rubric breakdown (which criteria were met) will be available in the result.
+For Long Text questions with `PENDING` status, the response indicates the answer is queued for AI review. Once graded, the rubric breakdown (which criteria were met) is available in `Answer.rubricResult` on the frontend.

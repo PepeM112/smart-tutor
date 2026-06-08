@@ -179,7 +179,8 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
                 {result.correctAnswers} of {result.totalQuestions - (result.pendingAnswers ?? 0)} correct
               </p>
               {result.pendingAnswers != null && result.pendingAnswers > 0 && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Loader2 className="size-3.5 animate-spin" />
                   {result.pendingAnswers} question{result.pendingAnswers === 1 ? '' : 's'} pending AI review
                 </p>
               )}

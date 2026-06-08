@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { use, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import type { TestResultRead } from '@/client';
+import { useTestResult } from '@/features/history/hooks/use-test-result';
 import { ExamView } from '@/features/tests/components/exam-view';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
@@ -18,7 +18,7 @@ type Props = {
 export default function TakeTestPage({ params }: Props) {
   const { id } = use(params);
   const { set, reset } = useBreadcrumbStore();
-  const [result, setResult] = useState<TestResultRead | null>(null);
+  const [resultId, setResultId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: testResponse, isLoading } = useQuery({
@@ -26,7 +26,10 @@ export default function TakeTestPage({ params }: Props) {
     queryFn: () => sdk.testsGet({ path: { test_id: id }, query: { strip_answers: true } }),
   });
 
+  const { data: resultResponse } = useTestResult(resultId);
+
   const test = testResponse?.data;
+  const result = resultResponse?.data ?? null;
 
   useEffect(() => {
     set(test?.title ?? 'Take Test', [{ label: 'Tests', href: Routes.TESTS }], Routes.TESTS);
@@ -46,9 +49,10 @@ export default function TakeTestPage({ params }: Props) {
             })),
           },
         });
-        setResult(response.data as TestResultRead);
-      } catch {
-        toast.error('Failed to submit exam. Please try again.');
+        setResultId(response.data!.id);
+      } catch (err: unknown) {
+        const detail = (err as { error?: { detail?: string } })?.error?.detail;
+        toast.error(detail ?? 'Failed to submit exam. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
