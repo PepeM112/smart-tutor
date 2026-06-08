@@ -131,7 +131,6 @@ export function LongTextQuestionBlock({ data, onChange, onRemove }: Props) {
         </select>
         <Input
           type="number"
-
           min={0.5}
           step={0.5}
           value={data.points}
@@ -171,7 +170,6 @@ export function LongTextQuestionBlock({ data, onChange, onRemove }: Props) {
             />
             <Input
               type="number"
-    
               min={0.05}
               max={1}
               step={0.05}

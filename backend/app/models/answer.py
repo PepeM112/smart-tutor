@@ -1,4 +1,5 @@
 from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.enums import AnswerStatus
@@ -14,3 +15,4 @@ class Answer(Base, CreatedAtMixin):
     question_id: Mapped[str] = mapped_column(String(26), ForeignKey("question.id"))
     user_answer: Mapped[str] = mapped_column(String)
     status: Mapped[int] = mapped_column(Integer, default=int(AnswerStatus.PENDING))
+    rubric_result: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB, nullable=True)

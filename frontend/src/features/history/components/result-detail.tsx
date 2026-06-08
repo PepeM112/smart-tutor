@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Circle, MinusCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, MinusCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
 
 import {
   AnswerStatus,
@@ -202,7 +202,8 @@ function ScoreBanner({ result }: { result: TestResultRead }) {
           {result.correctAnswers} of {graded} correct
         </p>
         {pending > 0 && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="size-3.5 animate-spin" />
             {pending} question{pending === 1 ? '' : 's'} pending AI review
           </p>
         )}
