@@ -52,6 +52,27 @@ logger.handlers = [console_handler]
 logger.setLevel(logging.INFO)
 logger.propagate = False
 
+_GRADING_COLOR = "\033[38;5;208m"
+_RESET = "\033[0m"
+
+
+class _GradingFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        timestamp = self.formatTime(record, "%Y-%m-%d %H:%M:%S")
+        msg = f"{timestamp} {_GRADING_COLOR}[GRADING]{_RESET} {record.getMessage()}"
+        if record.exc_info:
+            msg += "\n" + self.formatException(record.exc_info)
+        return msg
+
+
+_grading_handler = logging.StreamHandler(sys.stdout)
+_grading_handler.setFormatter(_GradingFormatter())
+
+_grading_logger = logging.getLogger("smarttutor.grading")
+_grading_logger.handlers = [_grading_handler]
+_grading_logger.setLevel(logging.INFO)
+_grading_logger.propagate = False
+
 
 @app.get("/health")
 def health() -> dict:

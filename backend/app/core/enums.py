@@ -34,6 +34,7 @@ class AnswerStatus(NamedIntEnum):
     WRONG = 2
     PARTIAL = 3
     PENDING = 4
+    FAILED = 5
 
 
 class LongTextLength(NamedIntEnum):

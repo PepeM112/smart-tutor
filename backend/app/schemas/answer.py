@@ -6,6 +6,7 @@ class RubricResultItem(BaseSchema):
     point: str
     met: bool
     weight: float
+    reason: str = ""
 
 
 class AnswerBase(BaseSchema):

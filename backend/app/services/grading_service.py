@@ -1,5 +1,10 @@
+import json
 import logging
 
+from anthropic import APIStatusError as AnthropicAPIError
+from anthropic import AuthenticationError as AnthropicAuthError
+from openai import APIStatusError as OpenAIAPIError
+from openai import AuthenticationError as OpenAIAuthError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -27,9 +32,14 @@ def _build_rubric_result(
     content: LongTextContent,
     results: list[CriterionResult],
 ) -> list[dict[str, object]]:
-    result_map = {r.index: r.met for r in results}
+    result_map = {r.index: r for r in results}
     return [
-        {"point": item.point, "met": result_map.get(i, False), "weight": item.weight}
+        {
+            "point": item.point,
+            "met": result_map[i].met if i in result_map else False,
+            "weight": item.weight,
+            "reason": result_map[i].reason if i in result_map else "",
+        }
         for i, item in enumerate(content.rubric)
     ]
 
@@ -84,6 +94,29 @@ def _recalculate_test_result(db: Session, test_result: TestResult) -> None:
     test_result.score = score
 
 
+def _mark_all_pending_as_failed(db: Session, test_result_id: str) -> None:
+    """Last-resort: mark every still-PENDING answer as FAILED so nothing stays in limbo."""
+    try:
+        test_result = (
+            db.execute(
+                select(TestResult).options(joinedload(TestResult.answers)).where(TestResult.id == test_result_id)
+            )
+            .unique()
+            .scalar_one_or_none()
+        )
+        if test_result is None:
+            return
+        for answer in test_result.answers:
+            if answer.status == int(AnswerStatus.PENDING):
+                answer.status = int(AnswerStatus.FAILED)
+        _recalculate_test_result(db, test_result)
+        db.commit()
+        logger.error("Marked all pending answers as FAILED for TestResult %s", test_result_id)
+    except Exception:
+        logger.exception("Could not mark answers as FAILED for TestResult %s", test_result_id)
+        db.rollback()
+
+
 def grade_pending_answers(test_result_id: str) -> None:
     """Background task: grade all PENDING long-text answers for a TestResult."""
     db = SessionLocal()
@@ -106,35 +139,80 @@ def grade_pending_answers(test_result_id: str) -> None:
         if not pending_answers:
             return
 
+        total = len(pending_answers)
+        logger.info("Starting grading for TestResult %s (%d pending answers)", test_result_id, total)
+
         question_ids = [a.question_id for a in pending_answers]
         questions = db.execute(select(Question).where(Question.id.in_(question_ids))).scalars().all()
         q_map = {q.id: q for q in questions}
 
-        for answer in pending_answers:
+        for idx, answer in enumerate(pending_answers, 1):
             question = q_map.get(answer.question_id)
             if question is None or QuestionType(question.question_type) != QuestionType.LONG_TEXT:
                 continue
+
+            prompt_preview = question.prompt[:50] + ("..." if len(question.prompt) > 50 else "")
+            logger.info('Q%d/%d "%s" -> sending to %s', idx, total, prompt_preview, provider.name)
 
             try:
                 content = LongTextContent.model_validate(question.content)
                 results = provider.grade(question.prompt, content.rubric, answer.user_answer)
 
-                answer.status = int(_determine_status(results, len(content.rubric)))
+                status = _determine_status(results, len(content.rubric))
+                answer.status = int(status)
                 answer.rubric_result = _build_rubric_result(content, results)
 
+                met_count = sum(1 for r in results if r.met)
+                score = _score_from_rubric_result(content, answer.rubric_result, question.points)
                 logger.info(
-                    "Graded answer %s: %s",
-                    answer.id,
-                    AnswerStatus(answer.status).name,
+                    "Q%d/%d -> %s (%d/%d criteria met, %.2f/%.2f pts)",
+                    idx,
+                    total,
+                    status.name,
+                    met_count,
+                    len(content.rubric),
+                    score,
+                    question.points,
                 )
+            except (AnthropicAuthError, OpenAIAuthError) as exc:
+                logger.error(
+                    "FAILED Q%d/%d -- AUTH ERROR: %s (check your API key)",
+                    idx, total, exc,
+                )
+                answer.status = int(AnswerStatus.FAILED)
+            except (AnthropicAPIError, OpenAIAPIError) as exc:
+                logger.error(
+                    "FAILED Q%d/%d -- API ERROR %d: %s",
+                    idx, total, exc.status_code, exc.message,
+                )
+                answer.status = int(AnswerStatus.FAILED)
+            except (json.JSONDecodeError, KeyError, TypeError) as exc:
+                logger.exception(
+                    "FAILED Q%d/%d -- PARSE ERROR: AI response was not valid JSON (%s)",
+                    idx, total, exc,
+                )
+                answer.status = int(AnswerStatus.FAILED)
             except Exception:
-                logger.exception("Failed to grade answer %s — leaving as PENDING", answer.id)
+                logger.exception("FAILED Q%d/%d -- UNEXPECTED ERROR", idx, total)
+                answer.status = int(AnswerStatus.FAILED)
 
         _recalculate_test_result(db, test_result)
         db.commit()
 
+        logger.info(
+            "All answers graded. Final score: %.2f%% (%.2f/%.2f pts)",
+            test_result.score,
+            test_result.earned_points,
+            test_result.total_points,
+        )
+
+    except ValueError as exc:
+        logger.error("Grading aborted for TestResult %s -- CONFIG ERROR: %s", test_result_id, exc)
+        _mark_all_pending_as_failed(db, test_result_id)
+        db.rollback()
     except Exception:
         logger.exception("Grading task failed for TestResult %s", test_result_id)
+        _mark_all_pending_as_failed(db, test_result_id)
         db.rollback()
     finally:
         db.close()

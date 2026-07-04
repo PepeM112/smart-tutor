@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Circle, Loader2, MinusCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, MinusCircle, XCircle, AlertTriangle, Clock, Check, X } from 'lucide-react';
 
 import {
   AnswerStatus,
@@ -8,6 +8,7 @@ import {
   type QuestionRead,
   QuestionType,
   QuestionGroupType,
+  type RubricResultItem,
   type TestQuestionGroupRead,
   type TestRead,
   type TestResultRead,
@@ -43,6 +44,8 @@ function StatusIcon({ status }: { status: AnswerStatus }) {
       return <AlertTriangle className="size-5 text-amber-500 shrink-0" />;
     case AnswerStatus.WRONG:
       return <XCircle className="size-5 text-destructive shrink-0" />;
+    case AnswerStatus.FAILED:
+      return <XCircle className="size-5 text-destructive shrink-0" />;
     default:
       return <Clock className="size-5 text-muted-foreground shrink-0" />;
   }
@@ -56,6 +59,8 @@ function statusLabel(s: AnswerStatus): string {
       return 'Partially correct';
     case AnswerStatus.WRONG:
       return 'Wrong';
+    case AnswerStatus.FAILED:
+      return 'Grading failed';
     default:
       return 'Pending';
   }
@@ -68,6 +73,8 @@ function statusColor(s: AnswerStatus): string {
     case AnswerStatus.PARTIAL:
       return 'text-amber-500';
     case AnswerStatus.WRONG:
+      return 'text-destructive';
+    case AnswerStatus.FAILED:
       return 'text-destructive';
     default:
       return 'text-muted-foreground';
@@ -266,6 +273,71 @@ function VocabularyReviewTable({
 }
 
 // ---------------------------------------------------------------------------
+// Long text review with rubric breakdown
+// ---------------------------------------------------------------------------
+
+function RubricBreakdown({ items }: { items: RubricResultItem[] }) {
+  const metCount = items.filter(i => i.met).length;
+  const totalWeight = items.reduce((sum, i) => sum + i.weight, 0);
+  const earnedWeight = items.filter(i => i.met).reduce((sum, i) => sum + i.weight, 0);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-muted-foreground">
+          Rubric ({metCount}/{items.length} criteria met)
+        </p>
+        <p className="text-sm font-medium text-muted-foreground">
+          {earnedWeight.toFixed(2)} / {totalWeight.toFixed(2)}
+        </p>
+      </div>
+      <div className="space-y-1.5">
+        {items.map((item, idx) => (
+          <div
+            key={idx}
+            className={cn(
+              'rounded-md border-l-[3px] px-3 py-2',
+              item.met
+                ? 'border-l-green-500 bg-green-50 dark:bg-green-950/20'
+                : 'border-l-red-400 bg-red-50 dark:bg-red-950/20'
+            )}
+          >
+            <div className="flex items-start gap-2">
+              {item.met ? (
+                <Check className="size-4 text-green-600 shrink-0 mt-0.5" />
+              ) : (
+                <X className="size-4 text-red-500 shrink-0 mt-0.5" />
+              )}
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-sm">
+                  {item.point}
+                  <span className="text-muted-foreground ml-1.5">({item.weight.toFixed(2)})</span>
+                </p>
+                {item.reason && <p className="text-xs text-muted-foreground italic">{item.reason}</p>}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LongTextReview({ answer }: { answer?: AnswerRead }) {
+  if (!answer) return null;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-sm text-muted-foreground mb-1">Your answer:</p>
+        <p className="text-sm whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.userAnswer}</p>
+      </div>
+      {answer.rubricResult && answer.rubricResult.length > 0 && <RubricBreakdown items={answer.rubricResult} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Question review card
 // ---------------------------------------------------------------------------
 
@@ -283,6 +355,7 @@ function QuestionReviewCard({
   const status = answer?.status ?? AnswerStatus.UNKNOWN;
   const isWrong = status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
+  const isLongText = question.questionType === QuestionType.LONG_TEXT;
   const correctAnswer = getCorrectAnswer(question);
 
   const inner = (
@@ -300,7 +373,9 @@ function QuestionReviewCard({
 
       {question.hint && <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
 
-      {isMC ? (
+      {isLongText ? (
+        <LongTextReview answer={answer} />
+      ) : isMC ? (
         <MultipleChoiceReview question={question} userAnswer={answer?.userAnswer ?? ''} />
       ) : (
         <div className="space-y-1 text-sm">
