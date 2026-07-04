@@ -7,7 +7,7 @@ from anthropic.types import TextBlock
 
 from app.schemas.question import RubricItem
 from app.services.grading.base import CriterionResult, GradingProvider
-from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt
+from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
 
 logger = logging.getLogger("smarttutor.grading.anthropic")
 
@@ -40,12 +40,24 @@ class AnthropicGradingProvider(GradingProvider):
             messages=[{"role": "user", "content": user_prompt}],
         )
 
+        if not response.content:
+            raise ValueError(
+                f"Empty response from Anthropic (stop_reason={response.stop_reason}, "
+                f"usage={response.usage})"
+            )
+
         block = response.content[0]
         if not isinstance(block, TextBlock):
             raise TypeError(f"Expected TextBlock, got {type(block).__name__}")
         raw_text = block.text
-        logger.debug("Anthropic raw response: %s", raw_text)
 
+        if not raw_text.strip():
+            raise ValueError(
+                f"Anthropic returned empty text (stop_reason={response.stop_reason}, "
+                f"usage={response.usage})"
+            )
+
+        raw_text = strip_code_fences(raw_text)
         data: dict[str, object] = json.loads(raw_text)
         parsed: list[dict[str, object]] = data["results"]  # type: ignore[assignment]
         return [

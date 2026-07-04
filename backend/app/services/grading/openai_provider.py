@@ -6,7 +6,7 @@ from openai import OpenAI
 
 from app.schemas.question import RubricItem
 from app.services.grading.base import CriterionResult, GradingProvider
-from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt
+from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
 
 logger = logging.getLogger("smarttutor.grading.openai")
 
@@ -44,6 +44,7 @@ class OpenAIGradingProvider(GradingProvider):
         raw_text = response.choices[0].message.content or '{"results": []}'
         logger.debug("OpenAI raw response: %s", raw_text)
 
+        raw_text = strip_code_fences(raw_text)
         data: dict[str, object] = json.loads(raw_text)
         parsed: list[dict[str, object]] = data["results"]  # type: ignore[assignment]
         return [

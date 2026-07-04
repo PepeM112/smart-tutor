@@ -1,4 +1,5 @@
 import json
+import re
 
 from app.schemas.question import RubricItem
 
@@ -12,6 +13,14 @@ SYSTEM_PROMPT = (
     "wrote or omitted). "
     "Do not include any other text."
 )
+
+_CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?\s*```$", re.DOTALL)
+
+
+def strip_code_fences(text: str) -> str:
+    """Strip markdown code fences that LLMs sometimes wrap JSON in."""
+    match = _CODE_FENCE_RE.match(text.strip())
+    return match.group(1).strip() if match else text.strip()
 
 
 def build_user_prompt(prompt: str, rubric: list[RubricItem], answer: str) -> str:
