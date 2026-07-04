@@ -8,9 +8,14 @@ from app.schemas.question import RubricItem
 class CriterionResult:
     index: int
     met: bool
+    reason: str = ""
 
 
 class GradingProvider(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
+
     @abstractmethod
     def grade(
         self,

@@ -1,6 +1,7 @@
 'use client';
 
-import { CheckCircle2, Circle, Loader2, MinusCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, MinusCircle, XCircle, Check, X } from 'lucide-react';
+import { useState } from 'react';
 
 import {
   AnswerStatus,
@@ -8,6 +9,7 @@ import {
   type QuestionRead,
   QuestionType,
   QuestionGroupType,
+  type RubricResultItem,
   type TestQuestionGroupRead,
   type TestRead,
   type TestResultRead,
@@ -35,19 +37,6 @@ function buildExamItems(test: TestRead): ExamItem[] {
   return items.sort((a, b) => a.order - b.order);
 }
 
-function StatusIcon({ status }: { status: AnswerStatus }) {
-  switch (status) {
-    case AnswerStatus.CORRECT:
-      return <CheckCircle2 className="size-5 text-green-600 shrink-0" />;
-    case AnswerStatus.PARTIAL:
-      return <AlertTriangle className="size-5 text-amber-500 shrink-0" />;
-    case AnswerStatus.WRONG:
-      return <XCircle className="size-5 text-destructive shrink-0" />;
-    default:
-      return <Clock className="size-5 text-muted-foreground shrink-0" />;
-  }
-}
-
 function statusLabel(s: AnswerStatus): string {
   switch (s) {
     case AnswerStatus.CORRECT:
@@ -56,6 +45,8 @@ function statusLabel(s: AnswerStatus): string {
       return 'Partially correct';
     case AnswerStatus.WRONG:
       return 'Wrong';
+    case AnswerStatus.FAILED:
+      return 'Grading failed';
     default:
       return 'Pending';
   }
@@ -69,9 +60,38 @@ function statusColor(s: AnswerStatus): string {
       return 'text-amber-500';
     case AnswerStatus.WRONG:
       return 'text-destructive';
+    case AnswerStatus.FAILED:
+      return 'text-destructive';
     default:
       return 'text-muted-foreground';
   }
+}
+
+function scoreThresholdColor(pct: number): string {
+  if (pct >= 85) return 'text-green-600';
+  if (pct >= 60) return 'text-amber-500';
+  if (pct >= 35) return 'text-destructive';
+  return 'text-foreground';
+}
+
+function scoreThresholdRing(pct: number): string {
+  if (pct >= 85) return 'ring-green-500/40 hover:bg-green-500/5';
+  if (pct >= 60) return 'ring-amber-500/40 hover:bg-amber-500/5';
+  if (pct >= 35) return 'ring-destructive/40 hover:bg-destructive/5';
+  return 'ring-foreground/10 hover:bg-foreground/5';
+}
+
+type LongTextScore = { label: string; pct: number };
+
+function computeLongTextScore(answer?: AnswerRead, question?: QuestionRead): LongTextScore | null {
+  if (!answer?.rubricResult || answer.rubricResult.length === 0) return null;
+  const items = answer.rubricResult;
+  const totalWeight = items.reduce((sum, i) => sum + i.weight, 0);
+  const earnedWeight = items.filter(i => i.met).reduce((sum, i) => sum + i.weight, 0);
+  const pct = totalWeight > 0 ? (earnedWeight / totalWeight) * 100 : 0;
+  const maxPoints = question?.points ?? 1;
+  const earned = (earnedWeight / totalWeight) * maxPoints;
+  return { label: `${earned.toFixed(2)}/${maxPoints.toFixed(2)}`, pct };
 }
 
 function getCorrectAnswer(question: QuestionRead): string {
@@ -176,37 +196,40 @@ function MultipleChoiceReview({ question, userAnswer }: { question: QuestionRead
 // Score banner
 // ---------------------------------------------------------------------------
 
-function ScoreBanner({ result }: { result: TestResultRead }) {
+function scoreCircleClasses(score: number): string {
+  if (score >= 85) return 'border-green-500 bg-green-500/5 text-green-600';
+  if (score >= 60) return 'border-amber-500 bg-amber-500/5 text-amber-500';
+  if (score >= 35) return 'border-destructive bg-destructive/5 text-destructive';
+  return 'border-foreground/20 bg-foreground/5 text-foreground';
+}
+
+function ScoreBanner({ result, testTitle }: { result: TestResultRead; testTitle: string }) {
   const score = result.score ?? 0;
   const pending = result.pendingAnswers ?? 0;
-  const graded = result.totalQuestions - pending;
-  const color =
-    score >= 80
-      ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
-      : score >= 50
-        ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30'
-        : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30';
 
   return (
-    <div className={cn('rounded-xl border p-5 flex items-center justify-between', color)}>
+    <div className="flex items-center justify-between">
       <div>
-        <p className="text-2xl font-bold">
-          {score.toFixed(1)}%
-          {result.totalPoints != null && result.totalPoints > 0 && (
-            <span className="text-base font-normal text-muted-foreground ml-2">
-              {result.earnedPoints} / {result.totalPoints} pts
-            </span>
-          )}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {result.correctAnswers} of {graded} correct
-        </p>
+        <h1 className="text-xl font-semibold">{testTitle}</h1>
+        {result.totalPoints != null && result.totalPoints > 0 && (
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {result.earnedPoints} / {result.totalPoints} pts
+          </p>
+        )}
         {pending > 0 && (
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
             {pending} question{pending === 1 ? '' : 's'} pending AI review
           </p>
         )}
+      </div>
+      <div
+        className={cn(
+          'flex items-center justify-center size-20 rounded-full border-[3px] shrink-0',
+          scoreCircleClasses(score)
+        )}
+      >
+        <span className="text-lg font-bold tabular-nums">{score.toFixed(1)}%</span>
       </div>
     </div>
   );
@@ -266,6 +289,64 @@ function VocabularyReviewTable({
 }
 
 // ---------------------------------------------------------------------------
+// Long text review with rubric breakdown
+// ---------------------------------------------------------------------------
+
+function RubricBreakdown({ items }: { items: RubricResultItem[] }) {
+  const metCount = items.filter(i => i.met).length;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-muted-foreground">
+        Rubric ({metCount}/{items.length} criteria met)
+      </p>
+      <div className="space-y-1.5">
+        {items.map((item, idx) => (
+          <div
+            key={idx}
+            className={cn(
+              'rounded-md border-l-[3px] px-3 py-2',
+              item.met
+                ? 'border-l-green-500 bg-green-50 dark:bg-green-950/20'
+                : 'border-l-red-400 bg-red-50 dark:bg-red-950/20'
+            )}
+          >
+            <div className="flex items-start gap-2">
+              {item.met ? (
+                <Check className="size-4 text-green-600 shrink-0 mt-0.5" />
+              ) : (
+                <X className="size-4 text-red-500 shrink-0 mt-0.5" />
+              )}
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-sm">
+                  {item.point}
+                  <span className="text-muted-foreground ml-1.5 tabular-nums">({item.weight.toFixed(2)})</span>
+                </p>
+                {item.reason && <p className="text-xs text-muted-foreground italic">{item.reason}</p>}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LongTextReview({ answer }: { answer?: AnswerRead }) {
+  if (!answer) return null;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-sm text-muted-foreground mb-1">Your answer:</p>
+        <p className="text-sm whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.userAnswer}</p>
+      </div>
+      {answer.rubricResult && answer.rubricResult.length > 0 && <RubricBreakdown items={answer.rubricResult} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Question review card
 // ---------------------------------------------------------------------------
 
@@ -283,24 +364,34 @@ function QuestionReviewCard({
   const status = answer?.status ?? AnswerStatus.UNKNOWN;
   const isWrong = status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
+  const isLongText = question.questionType === QuestionType.LONG_TEXT;
   const correctAnswer = getCorrectAnswer(question);
+  const [collapsed, setCollapsed] = useState(isLongText);
 
-  const inner = (
+  const score = isLongText ? computeLongTextScore(answer, question) : null;
+  const scoreColorClass = score ? scoreThresholdColor(score.pct) : statusColor(status);
+
+  const toggle = isLongText ? () => setCollapsed(prev => !prev) : undefined;
+
+  const header = (
+    <div className="flex items-start justify-between gap-2">
+      <p className={cn('font-medium', isLongText && 'cursor-pointer')} onClick={toggle}>
+        {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
+        {question.prompt}
+      </p>
+      <span className={cn('text-sm font-semibold tabular-nums shrink-0', scoreColorClass)}>
+        {score?.label ?? statusLabel(status)}
+      </span>
+    </div>
+  );
+
+  const body = (
     <>
-      <div className="flex items-start justify-between gap-2">
-        <p className="font-medium">
-          {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
-          {question.prompt}
-        </p>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <StatusIcon status={status} />
-          <span className={cn('text-sm font-medium', statusColor(status))}>{statusLabel(status)}</span>
-        </div>
-      </div>
-
       {question.hint && <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
 
-      {isMC ? (
+      {isLongText ? (
+        <LongTextReview answer={answer} />
+      ) : isMC ? (
         <MultipleChoiceReview question={question} userAnswer={answer?.userAnswer ?? ''} />
       ) : (
         <div className="space-y-1 text-sm">
@@ -326,12 +417,28 @@ function QuestionReviewCard({
   );
 
   if (nested) {
-    return <div className="rounded-lg border border-border p-4 space-y-3">{inner}</div>;
+    return (
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        {header}
+        {body}
+      </div>
+    );
   }
 
+  const ringClass = score ? scoreThresholdRing(score.pct) : 'ring-foreground/10';
+
   return (
-    <Card className="p-6">
-      <CardContent className="space-y-4 p-0">{inner}</CardContent>
+    <Card
+      className={cn('p-6 ring-2', ringClass, isLongText && 'cursor-pointer select-none transition-colors')}
+      onClick={toggle}
+    >
+      <CardContent
+        className={cn('space-y-4 p-0', isLongText && 'cursor-default')}
+        onClick={isLongText ? (e: React.MouseEvent) => e.stopPropagation() : undefined}
+      >
+        {header}
+        {!collapsed && body}
+      </CardContent>
     </Card>
   );
 }
@@ -348,15 +455,14 @@ type Props = {
 export function ResultDetail({ result, test }: Props) {
   const items = buildExamItems(test);
   const answerMap = new Map<string, AnswerRead>();
-  for (const a of result.answers ?? []) {
-    answerMap.set(a.questionId, a);
-  }
+
+  (result.answers ?? []).forEach(a => answerMap.set(a.questionId, a));
 
   let itemNumber = 0;
 
   return (
     <div className="space-y-6">
-      <ScoreBanner result={result} />
+      <ScoreBanner result={result} testTitle={test.title} />
 
       {items.map((item, idx) => {
         if (item.kind === 'question') {
@@ -390,7 +496,7 @@ export function ResultDetail({ result, test }: Props) {
                 </p>
                 <span
                   className={cn(
-                    'text-sm font-medium shrink-0',
+                    'text-sm font-medium shrink-0 tabular-nums',
                     correctCount === totalCount
                       ? 'text-green-600'
                       : correctCount === 0
