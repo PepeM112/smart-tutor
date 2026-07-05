@@ -43,7 +43,7 @@ const columns: ColumnDef<TestResultListItem, unknown>[] = [
       <div className="flex items-center gap-1.5">
         <ScoreBadge score={row.original.score ?? 0} />
         {(row.original.pendingAnswers ?? 0) > 0 && (
-          <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+          <span className="inline-flex items-center rounded-md bg-feedback-partial-bg px-1.5 py-0.5 text-xs font-medium text-feedback-partial">
             Pending
           </span>
         )}

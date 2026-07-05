@@ -37,6 +37,7 @@ import {
   getStatusRingColor,
   getStatusBgColor,
 } from '@/features/history/utils/score-colors';
+import { isMCContent, isSimpleContent } from '@/features/tests/utils/question-content';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -62,9 +63,9 @@ function StatusIcon({ status, className }: { status: AnswerStatus; className?: s
   const base = cn('size-5 shrink-0', className);
   switch (status) {
     case AnswerStatus.CORRECT:
-      return <CircleCheck className={cn(base, 'text-green-600')} />;
+      return <CircleCheck className={cn(base, 'text-feedback-correct')} />;
     case AnswerStatus.PARTIAL:
-      return <CircleAlert className={cn(base, 'text-amber-500')} />;
+      return <CircleAlert className={cn(base, 'text-feedback-partial')} />;
     case AnswerStatus.WRONG:
       return <CircleX className={cn(base, 'text-destructive')} />;
     case AnswerStatus.FAILED:
@@ -88,23 +89,16 @@ function computeLongTextScore(answer?: AnswerRead, question?: QuestionRead): Lon
 }
 
 function getCorrectAnswer(question: QuestionRead): string {
-  const content = question.content as Record<string, unknown> | undefined;
-  if (!content) return '';
-
-  if (question.questionType === QuestionType.SIMPLE) {
-    const answers = (content.answers ?? []) as string[];
-    return answers.join(', ');
+  const { content } = question;
+  if (question.questionType === QuestionType.SIMPLE && isSimpleContent(content)) {
+    return content.answers.join(', ');
   }
-
-  if (question.questionType === QuestionType.MULTIPLE_CHOICE) {
-    const options = (content.options ?? []) as string[];
-    const correctIndices = (content.correct_indices ?? []) as number[];
-    return correctIndices
-      .map(i => options[i])
+  if (question.questionType === QuestionType.MULTIPLE_CHOICE && isMCContent(content)) {
+    return content.correct_indices
+      .map(i => content.options[i])
       .filter(Boolean)
       .join(', ');
   }
-
   return '';
 }
 
@@ -116,13 +110,11 @@ function parseSelectedIndices(userAnswer: string): number[] {
 }
 
 function getUserAnswerDisplay(question: QuestionRead, userAnswer: string): string {
-  if (question.questionType === QuestionType.MULTIPLE_CHOICE) {
-    const content = question.content as Record<string, unknown> | undefined;
-    if (!content) return userAnswer;
-    const options = (content.options ?? []) as string[];
+  const { content } = question;
+  if (question.questionType === QuestionType.MULTIPLE_CHOICE && isMCContent(content)) {
     return (
       parseSelectedIndices(userAnswer)
-        .map(i => options[i])
+        .map(i => content.options[i])
         .filter(Boolean)
         .join(', ') || '(no answer)'
     );
@@ -139,16 +131,15 @@ function countCorrectInGroup(questions: QuestionRead[], answerMap: Map<string, A
 // ---------------------------------------------------------------------------
 
 function MultipleChoiceReview({ question, userAnswer }: { question: QuestionRead; userAnswer: string }) {
-  const content = question.content as Record<string, unknown> | undefined;
-  if (!content) return null;
+  const { content } = question;
+  if (!isMCContent(content)) return null;
 
-  const options = (content.options ?? []) as string[];
-  const correctIndices = new Set((content.correct_indices ?? []) as number[]);
+  const correctIndices = new Set(content.correct_indices);
   const selectedIndices = new Set(userAnswer ? parseSelectedIndices(userAnswer) : []);
 
   return (
     <div className="space-y-1">
-      {options.map((option, idx) => {
+      {content.options.map((option, idx) => {
         const isSelected = selectedIndices.has(idx);
         const isCorrect = correctIndices.has(idx);
 
@@ -157,15 +148,15 @@ function MultipleChoiceReview({ question, userAnswer }: { question: QuestionRead
         let iconColor = 'text-muted-foreground/40';
 
         if (isSelected && isCorrect) {
-          bg = 'bg-green-50 dark:bg-green-950/30';
+          bg = 'bg-feedback-correct-bg';
           Icon = CheckCircle2;
-          iconColor = 'text-green-600';
+          iconColor = 'text-feedback-correct';
         } else if (!isSelected && isCorrect) {
-          bg = 'bg-amber-50 dark:bg-amber-950/30';
+          bg = 'bg-feedback-partial-bg';
           Icon = MinusCircle;
-          iconColor = 'text-amber-500';
+          iconColor = 'text-feedback-partial';
         } else if (isSelected && !isCorrect) {
-          bg = 'bg-red-50 dark:bg-red-950/30';
+          bg = 'bg-feedback-wrong-bg';
           Icon = XCircle;
           iconColor = 'text-destructive';
         }
@@ -257,7 +248,7 @@ function VocabularyReviewTable({
                 </span>
               </TableCell>
               <TableCell>
-                <span className="text-green-600 font-medium">{getCorrectAnswer(q)}</span>
+                <span className="text-feedback-correct font-medium">{getCorrectAnswer(q)}</span>
               </TableCell>
               <TableCell className="text-right">
                 <StatusIcon status={status} className="ml-auto" />
@@ -289,15 +280,15 @@ function RubricBreakdown({ items }: { items: RubricResultItem[] }) {
             className={cn(
               'rounded-md border-l-[3px] px-3 py-2',
               item.met
-                ? 'border-l-green-500 bg-green-50 dark:bg-green-950/20'
-                : 'border-l-red-400 bg-red-50 dark:bg-red-950/20'
+                ? 'border-l-feedback-correct bg-feedback-correct-bg'
+                : 'border-l-destructive bg-feedback-wrong-bg'
             )}
           >
             <div className="flex items-start gap-2">
               {item.met ? (
-                <Check className="size-4 text-green-600 shrink-0 mt-0.5" />
+                <Check className="size-4 text-feedback-correct shrink-0 mt-0.5" />
               ) : (
-                <X className="size-4 text-red-500 shrink-0 mt-0.5" />
+                <X className="size-4 text-destructive shrink-0 mt-0.5" />
               )}
               <div className="space-y-0.5 min-w-0">
                 <p className="text-sm">
@@ -418,7 +409,7 @@ function NestedQuestionCard({ question, answer }: { question: QuestionRead; answ
           {isWrong && correctAnswer && (
             <p>
               <span className="text-muted-foreground">Correct answer: </span>
-              <span className="text-green-600 font-medium">{correctAnswer}</span>
+              <span className="text-feedback-correct font-medium">{correctAnswer}</span>
             </p>
           )}
         </div>
@@ -455,7 +446,7 @@ function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; an
               <p className="text-muted-foreground">Correct answer</p>
               {question.explanation && <Tooltip content={question.explanation} />}
             </div>
-            <p className="rounded-md bg-muted/50 p-3 text-green-600 font-medium">{correctAnswer}</p>
+            <p className="rounded-md bg-muted/50 p-3 text-feedback-correct font-medium">{correctAnswer}</p>
           </div>
         )}
       </div>

@@ -38,8 +38,11 @@ class LongTextContent(BaseModel):
         return v
 
 
-def _validate_content(q_type: QuestionType | None, content: dict[str, object]) -> None:
-    """Validate content shape against the question type."""
+QuestionContent = SimpleContent | MultipleChoiceContent | LongTextContent
+
+
+def _validate_content(q_type: QuestionType | None, content: QuestionContent) -> None:
+    """Validate that the content model matches the question type."""
     try:
         if q_type == QuestionType.SIMPLE:
             SimpleContent.model_validate(content)
@@ -57,7 +60,7 @@ def _validate_content(q_type: QuestionType | None, content: dict[str, object]) -
 class QuestionBase(BaseSchema):
     question_type: QuestionType
     prompt: str
-    content: dict[str, object] = {}
+    content: QuestionContent
     hint: str | None = None
     explanation: str | None = None
     test_id: str | None = None
@@ -67,7 +70,7 @@ class QuestionBase(BaseSchema):
 
     @field_validator("content")
     @classmethod
-    def validate_content_schema(cls, v: dict[str, object], info: ValidationInfo) -> dict[str, object]:
+    def validate_content_schema(cls, v: QuestionContent, info: ValidationInfo) -> QuestionContent:
         q_type = info.data.get("question_type")
         _validate_content(q_type, v)
         return v
@@ -80,7 +83,7 @@ class QuestionCreate(QuestionBase):
 class QuestionUpdate(BaseSchema):
     question_type: QuestionType | None = None
     prompt: str | None = None
-    content: dict[str, object] | None = None
+    content: QuestionContent | None = None
     hint: str | None = None
     explanation: str | None = None
     points: float | None = None
@@ -101,7 +104,7 @@ class QuestionReadStripped(BaseSchema):
 
     question_type: QuestionType
     prompt: str
-    content: dict[str, object] = {}
+    content: QuestionContent
     hint: str | None = None
     explanation: str | None = None
     test_id: str | None = None

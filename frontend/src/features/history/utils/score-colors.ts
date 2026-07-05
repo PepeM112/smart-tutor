@@ -1,48 +1,49 @@
 import { AnswerStatus } from '@/client';
 
 // Unified thresholds: 80 / 65 / 35
+// Colors use semantic tokens from globals.css (--color-feedback-*)
 
 export function getScoreTextColor(pct: number): string {
-  if (pct >= 80) return 'text-green-600';
-  if (pct >= 65) return 'text-amber-500';
+  if (pct >= 80) return 'text-feedback-correct';
+  if (pct >= 65) return 'text-feedback-partial';
   if (pct >= 35) return 'text-destructive';
   return 'text-foreground';
 }
 
 export function getScoreRingColor(pct: number): string {
-  if (pct >= 80) return 'ring-green-500/40';
-  if (pct >= 65) return 'ring-amber-500/40';
+  if (pct >= 80) return 'ring-feedback-correct/40';
+  if (pct >= 65) return 'ring-feedback-partial/40';
   if (pct >= 35) return 'ring-destructive/40';
   return 'ring-foreground/10';
 }
 
 export function getScoreBgColor(pct: number): string {
-  if (pct >= 80) return 'bg-green-50 dark:bg-green-950/30';
-  if (pct >= 65) return 'bg-amber-50 dark:bg-amber-950/30';
-  if (pct >= 35) return 'bg-red-50 dark:bg-red-950/30';
+  if (pct >= 80) return 'bg-feedback-correct-bg';
+  if (pct >= 65) return 'bg-feedback-partial-bg';
+  if (pct >= 35) return 'bg-feedback-wrong-bg';
   return 'bg-foreground/5';
 }
 
 export function getScoreCircleClasses(pct: number): string {
-  if (pct >= 80) return 'border-green-500 bg-green-500/5 text-green-600';
-  if (pct >= 65) return 'border-amber-500 bg-amber-500/5 text-amber-500';
+  if (pct >= 80) return 'border-feedback-correct bg-feedback-correct/5 text-feedback-correct';
+  if (pct >= 65) return 'border-feedback-partial bg-feedback-partial/5 text-feedback-partial';
   if (pct >= 35) return 'border-destructive bg-destructive/5 text-destructive';
   return 'border-foreground/20 bg-foreground/5 text-foreground';
 }
 
 export function getScoreBadgeClasses(pct: number): string {
-  if (pct >= 80) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-  if (pct >= 65) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-  if (pct >= 35) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+  if (pct >= 80) return 'bg-feedback-correct-bg text-feedback-correct';
+  if (pct >= 65) return 'bg-feedback-partial-bg text-feedback-partial';
+  if (pct >= 35) return 'bg-feedback-wrong-bg text-destructive';
   return 'bg-muted text-muted-foreground';
 }
 
 export function getStatusTextColor(status: AnswerStatus): string {
   switch (status) {
     case AnswerStatus.CORRECT:
-      return 'text-green-600';
+      return 'text-feedback-correct';
     case AnswerStatus.PARTIAL:
-      return 'text-amber-500';
+      return 'text-feedback-partial';
     case AnswerStatus.WRONG:
     case AnswerStatus.FAILED:
       return 'text-destructive';
@@ -54,9 +55,9 @@ export function getStatusTextColor(status: AnswerStatus): string {
 export function getStatusRingColor(status: AnswerStatus): string {
   switch (status) {
     case AnswerStatus.CORRECT:
-      return 'ring-green-500/40';
+      return 'ring-feedback-correct/40';
     case AnswerStatus.PARTIAL:
-      return 'ring-amber-500/40';
+      return 'ring-feedback-partial/40';
     case AnswerStatus.WRONG:
     case AnswerStatus.FAILED:
       return 'ring-destructive/40';
@@ -68,12 +69,12 @@ export function getStatusRingColor(status: AnswerStatus): string {
 export function getStatusBgColor(status: AnswerStatus): string {
   switch (status) {
     case AnswerStatus.CORRECT:
-      return 'bg-green-50 dark:bg-green-950/30';
+      return 'bg-feedback-correct-bg';
     case AnswerStatus.PARTIAL:
-      return 'bg-amber-50 dark:bg-amber-950/30';
+      return 'bg-feedback-partial-bg';
     case AnswerStatus.WRONG:
     case AnswerStatus.FAILED:
-      return 'bg-red-50 dark:bg-red-950/30';
+      return 'bg-feedback-wrong-bg';
     default:
       return 'bg-foreground/5';
   }
