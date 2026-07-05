@@ -356,6 +356,9 @@ function CompactQuestionCard({
 
   return (
     <Card
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
       className={cn(
         'p-4 ring-1 transition-colors',
         ringClass,
@@ -522,7 +525,16 @@ type Props = {
 const SPLIT_RATIO_KEY = 'result-detail-split-ratio';
 const DEFAULT_SPLIT_RATIO = 0.5;
 
+function saveSplitRatio(ratio: number): void {
+  try {
+    localStorage.setItem(SPLIT_RATIO_KEY, ratio.toString());
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 function loadSplitRatio(): number {
+  if (typeof window === 'undefined') return DEFAULT_SPLIT_RATIO;
   try {
     const stored = localStorage.getItem(SPLIT_RATIO_KEY);
     if (stored) {
@@ -530,7 +542,7 @@ function loadSplitRatio(): number {
       if (!isNaN(parsed) && parsed >= 0.2 && parsed <= 0.8) return parsed;
     }
   } catch {
-    /* SSR or storage unavailable */
+    /* storage unavailable */
   }
   return DEFAULT_SPLIT_RATIO;
 }
@@ -551,18 +563,18 @@ export function ResultDetail({ result, test }: Props) {
 
   const isPending = (result.pendingAnswers ?? 0) > 0;
 
-  const questionNumbers = useMemo(() => {
-    const map = new Map<string, number>();
+  const { itemNumbers, questionNumbers } = useMemo(() => {
+    const itemNums: number[] = [];
+    const questionNums = new Map<string, number>();
     let counter = 0;
     items.forEach(item => {
+      counter++;
+      itemNums.push(counter);
       if (item.kind === 'question') {
-        counter++;
-        map.set(item.question.id, counter);
-      } else {
-        counter++;
+        questionNums.set(item.question.id, counter);
       }
     });
-    return map;
+    return { itemNumbers: itemNums, questionNumbers: questionNums };
   }, [items]);
 
   const selectedQuestion = selectedQuestionId
@@ -592,11 +604,7 @@ export function ResultDetail({ result, test }: Props) {
       isDragging.current = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      try {
-        localStorage.setItem(SPLIT_RATIO_KEY, latestRatio.current.toString());
-      } catch {
-        /* storage unavailable */
-      }
+      saveSplitRatio(latestRatio.current);
     };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -609,7 +617,6 @@ export function ResultDetail({ result, test }: Props) {
   }, []);
 
   const hasSelection = selectedQuestionId !== null;
-  let itemNumber = 0;
 
   return (
     <div ref={containerRef} className="flex h-[calc(100vh-6rem)] overflow-hidden">
@@ -619,7 +626,6 @@ export function ResultDetail({ result, test }: Props) {
 
         {items.map((item, idx) => {
           if (item.kind === 'question') {
-            itemNumber++;
             const question = item.question;
 
             return (
@@ -627,7 +633,7 @@ export function ResultDetail({ result, test }: Props) {
                 key={question.id}
                 question={question}
                 answer={answerMap.get(question.id)}
-                number={itemNumber}
+                number={itemNumbers[idx]}
                 isSelected={selectedQuestionId === question.id}
                 disabled={question.questionType === QuestionType.LONG_TEXT && isPending}
                 onClick={() => setSelectedQuestionId(question.id)}
@@ -638,8 +644,7 @@ export function ResultDetail({ result, test }: Props) {
           const group = item.group;
           const questions = group.questions ?? [];
           const isVocabulary = group.type === QuestionGroupType.VOCABULARY;
-          itemNumber++;
-          const groupNumber = itemNumber;
+          const groupNumber = itemNumbers[idx];
 
           const correctCount = countCorrectInGroup(questions, answerMap);
           const totalCount = questions.length;
@@ -684,11 +689,7 @@ export function ResultDetail({ result, test }: Props) {
           hasSelection
             ? () => {
                 setSplitRatio(DEFAULT_SPLIT_RATIO);
-                try {
-                  localStorage.setItem(SPLIT_RATIO_KEY, DEFAULT_SPLIT_RATIO.toString());
-                } catch {
-                  /* storage unavailable */
-                }
+                saveSplitRatio(DEFAULT_SPLIT_RATIO);
               }
             : undefined
         }

@@ -1,6 +1,6 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import url('tailwindcss');
+@import url('tw-animate-css');
+@import url('shadcn/tailwind.css');
 
 @custom-variant dark (&:is(.dark *));
 
@@ -12,28 +12,20 @@
   /* Main colors from :root */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -60,18 +52,18 @@
 
 :root {
   /* Main background and text */
-  --background: #ffffff;
+  --background: #fff;
   --foreground: #1e293b;
 
   /* Cards & Popups */
-  --card: #ffffff;
+  --card: #fff;
   --card-foreground: #1e293b;
-  --popover: #ffffff;
+  --popover: #fff;
   --popover-foreground: #1e293b;
 
   /* Primary */
   --primary: #3b82f6;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #fff;
 
   /* Secondary (Gris-azuladísimo) */
   --secondary: #f8fafc;
@@ -87,7 +79,7 @@
 
   /* Error / Alert */
   --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #fff;
 
   /* Borders & Inputs */
   --border: #e2e8f0;
@@ -105,28 +97,30 @@
   --card: #1e293b;
   --card-foreground: #f8fafc;
   --primary: #3b82f6;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #fff;
   --secondary: #1e293b;
   --secondary-foreground: #f8fafc;
   --border: #334155;
   --input: #334155;
   --color-feedback-correct: #4ade80;
-  --color-feedback-correct-bg: oklch(0.26 0.065 152);
-  --color-feedback-correct-border: oklch(0.35 0.08 152);
+  --color-feedback-correct-bg: oklch(26% 0.065 152deg);
+  --color-feedback-correct-border: oklch(35% 0.08 152deg);
   --color-feedback-partial: #fbbf24;
-  --color-feedback-partial-bg: oklch(0.26 0.06 80);
-  --color-feedback-partial-border: oklch(0.35 0.08 80);
-  --color-feedback-wrong-bg: oklch(0.26 0.06 25);
-  --color-feedback-wrong-border: oklch(0.35 0.08 25);
+  --color-feedback-partial-bg: oklch(26% 0.06 80deg);
+  --color-feedback-partial-border: oklch(35% 0.08 80deg);
+  --color-feedback-wrong-bg: oklch(26% 0.06 25deg);
+  --color-feedback-wrong-border: oklch(35% 0.08 25deg);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
   }
+
   button,
   a,
   select,
@@ -136,7 +130,6 @@
   [role='menuitemradio'] {
     cursor: pointer;
   }
-
 }
 
 .scrollbar-none::-webkit-scrollbar {
