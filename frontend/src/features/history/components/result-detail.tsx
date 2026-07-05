@@ -612,9 +612,9 @@ export function ResultDetail({ result, test }: Props) {
   let itemNumber = 0;
 
   return (
-    <div ref={containerRef} className="flex h-[calc(100vh-6rem)]">
+    <div ref={containerRef} className="flex h-[calc(100vh-6rem)] overflow-hidden">
       {/* Left panel */}
-      <div className="min-w-0 overflow-y-auto p-0.5 pr-4 pb-4 space-y-4" style={{ flex: splitRatio }}>
+      <div className="min-w-0 overflow-y-auto scrollbar-none p-0.5 pr-4 pb-4 space-y-4" style={{ flex: splitRatio }}>
         <ScoreBanner result={result} testTitle={test.title} />
 
         {items.map((item, idx) => {
@@ -673,39 +673,42 @@ export function ResultDetail({ result, test }: Props) {
         })}
       </div>
 
-      {hasSelection && (
-        <>
-          {/* Resizable divider */}
-          <div
-            className="shrink-0 relative flex items-center justify-center w-12 cursor-col-resize"
-            onMouseDown={handleDividerMouseDown}
-            onDoubleClick={() => {
-              setSplitRatio(DEFAULT_SPLIT_RATIO);
-              try {
-                localStorage.setItem(SPLIT_RATIO_KEY, DEFAULT_SPLIT_RATIO.toString());
-              } catch {
-                /* storage unavailable */
+      {/* Resizable divider — always rendered for consistent layout */}
+      <div
+        className={cn(
+          'shrink-0 relative flex items-center justify-center w-12',
+          hasSelection ? 'cursor-col-resize' : 'invisible'
+        )}
+        onMouseDown={hasSelection ? handleDividerMouseDown : undefined}
+        onDoubleClick={
+          hasSelection
+            ? () => {
+                setSplitRatio(DEFAULT_SPLIT_RATIO);
+                try {
+                  localStorage.setItem(SPLIT_RATIO_KEY, DEFAULT_SPLIT_RATIO.toString());
+                } catch {
+                  /* storage unavailable */
+                }
               }
-            }}
-          >
-            <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-            <div className="relative z-10 flex items-center justify-center w-6 h-10 rounded-full border border-border bg-background text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronsLeftRight className="size-5" />
-            </div>
-          </div>
+            : undefined
+        }
+      >
+        <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
+        <div className="relative z-10 flex items-center justify-center w-6 h-10 rounded-full border border-border bg-background text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronsLeftRight className="size-5" />
+        </div>
+      </div>
 
-          {/* Right panel */}
-          <div className="min-w-0 overflow-y-auto p-0.5 pl-4 pb-4" style={{ flex: 1 - splitRatio }}>
-            {selectedQuestion && (
-              <QuestionDetailPanel
-                question={selectedQuestion}
-                answer={selectedAnswer}
-                number={questionNumbers.get(selectedQuestion.id) ?? 0}
-              />
-            )}
-          </div>
-        </>
-      )}
+      {/* Right panel — always rendered for consistent layout */}
+      <div className="min-w-0 overflow-y-auto scrollbar-none p-0.5 pl-4 pb-4" style={{ flex: 1 - splitRatio }}>
+        {hasSelection && selectedQuestion && (
+          <QuestionDetailPanel
+            question={selectedQuestion}
+            answer={selectedAnswer}
+            number={questionNumbers.get(selectedQuestion.id) ?? 0}
+          />
+        )}
+      </div>
     </div>
   );
 }

@@ -49,16 +49,17 @@ export function Tooltip({ content, children, side = 'top', className }: TooltipP
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
-        <button
-          type="button"
+        <span
+          role="button"
+          tabIndex={0}
           data-slot="tooltip-trigger"
-          className="cursor-pointer"
+          className="inline-flex cursor-pointer"
           onClick={handleClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
           {children ?? <HelpCircle className="size-3.5 text-muted-foreground/60" />}
-        </button>
+        </span>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
