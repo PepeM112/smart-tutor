@@ -1,7 +1,7 @@
 'use client';
 
-import { CheckCircle2, Circle, Loader2, MinusCircle, XCircle, Check, X } from 'lucide-react';
-import { useState } from 'react';
+import { CheckCircle2, ChevronsLeftRight, Circle, Loader2, MinusCircle, XCircle, Check, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   AnswerStatus,
@@ -75,10 +75,17 @@ function scoreThresholdColor(pct: number): string {
 }
 
 function scoreThresholdRing(pct: number): string {
-  if (pct >= 85) return 'ring-green-500/40 hover:bg-green-500/5';
-  if (pct >= 60) return 'ring-amber-500/40 hover:bg-amber-500/5';
-  if (pct >= 35) return 'ring-destructive/40 hover:bg-destructive/5';
-  return 'ring-foreground/10 hover:bg-foreground/5';
+  if (pct >= 85) return 'ring-green-500/40';
+  if (pct >= 60) return 'ring-amber-500/40';
+  if (pct >= 35) return 'ring-destructive/40';
+  return 'ring-foreground/10';
+}
+
+function scoreThresholdBg(pct: number): string {
+  if (pct >= 85) return 'bg-green-50 dark:bg-green-950/30';
+  if (pct >= 60) return 'bg-amber-50 dark:bg-amber-950/30';
+  if (pct >= 35) return 'bg-red-50 dark:bg-red-950/30';
+  return 'bg-foreground/5';
 }
 
 type LongTextScore = { label: string; pct: number };
@@ -90,7 +97,7 @@ function computeLongTextScore(answer?: AnswerRead, question?: QuestionRead): Lon
   const earnedWeight = items.filter(i => i.met).reduce((sum, i) => sum + i.weight, 0);
   const pct = totalWeight > 0 ? (earnedWeight / totalWeight) * 100 : 0;
   const maxPoints = question?.points ?? 1;
-  const earned = (earnedWeight / totalWeight) * maxPoints;
+  const earned = totalWeight > 0 ? (earnedWeight / totalWeight) * maxPoints : 0;
   return { label: `${earned.toFixed(2)}/${maxPoints.toFixed(2)}`, pct };
 }
 
@@ -115,17 +122,20 @@ function getCorrectAnswer(question: QuestionRead): string {
   return '';
 }
 
+function parseSelectedIndices(userAnswer: string): number[] {
+  return userAnswer
+    .split(',')
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => !isNaN(n));
+}
+
 function getUserAnswerDisplay(question: QuestionRead, userAnswer: string): string {
   if (question.questionType === QuestionType.MULTIPLE_CHOICE) {
     const content = question.content as Record<string, unknown> | undefined;
     if (!content) return userAnswer;
     const options = (content.options ?? []) as string[];
-    const selectedIndices = userAnswer
-      .split(',')
-      .map(s => parseInt(s.trim(), 10))
-      .filter(n => !isNaN(n));
     return (
-      selectedIndices
+      parseSelectedIndices(userAnswer)
         .map(i => options[i])
         .filter(Boolean)
         .join(', ') || '(no answer)'
@@ -148,14 +158,7 @@ function MultipleChoiceReview({ question, userAnswer }: { question: QuestionRead
 
   const options = (content.options ?? []) as string[];
   const correctIndices = new Set((content.correct_indices ?? []) as number[]);
-  const selectedIndices = new Set(
-    userAnswer
-      ? userAnswer
-          .split(',')
-          .map(s => parseInt(s.trim(), 10))
-          .filter(n => !isNaN(n))
-      : []
-  );
+  const selectedIndices = new Set(userAnswer ? parseSelectedIndices(userAnswer) : []);
 
   return (
     <div className="space-y-1">
@@ -364,23 +367,16 @@ function QuestionReviewCard({
   const status = answer?.status ?? AnswerStatus.UNKNOWN;
   const isWrong = status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
-  const isLongText = question.questionType === QuestionType.LONG_TEXT;
   const correctAnswer = getCorrectAnswer(question);
-  const [collapsed, setCollapsed] = useState(isLongText);
-
-  const score = isLongText ? computeLongTextScore(answer, question) : null;
-  const scoreColorClass = score ? scoreThresholdColor(score.pct) : statusColor(status);
-
-  const toggle = isLongText ? () => setCollapsed(prev => !prev) : undefined;
 
   const header = (
     <div className="flex items-start justify-between gap-2">
-      <p className={cn('font-medium', isLongText && 'cursor-pointer')} onClick={toggle}>
+      <p className="font-medium">
         {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
         {question.prompt}
       </p>
-      <span className={cn('text-sm font-semibold tabular-nums shrink-0', scoreColorClass)}>
-        {score?.label ?? statusLabel(status)}
+      <span className={cn('text-sm font-semibold tabular-nums shrink-0', statusColor(status))}>
+        {statusLabel(status)}
       </span>
     </div>
   );
@@ -389,9 +385,7 @@ function QuestionReviewCard({
     <>
       {question.hint && <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
 
-      {isLongText ? (
-        <LongTextReview answer={answer} />
-      ) : isMC ? (
+      {isMC ? (
         <MultipleChoiceReview question={question} userAnswer={answer?.userAnswer ?? ''} />
       ) : (
         <div className="space-y-1 text-sm">
@@ -425,21 +419,94 @@ function QuestionReviewCard({
     );
   }
 
+  return (
+    <Card className="p-6 ring-1 ring-foreground/10">
+      <CardContent className="space-y-4 p-0">
+        {header}
+        {body}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Compact card for long-text questions (left panel)
+// ---------------------------------------------------------------------------
+
+function CompactQuestionCard({
+  question,
+  answer,
+  number,
+  isSelected,
+  disabled,
+  onClick,
+}: {
+  question: QuestionRead;
+  answer?: AnswerRead;
+  number: number;
+  isSelected: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const score = computeLongTextScore(answer, question);
+  const scoreColorClass = score ? scoreThresholdColor(score.pct) : statusColor(answer?.status ?? AnswerStatus.UNKNOWN);
+
   const ringClass = score ? scoreThresholdRing(score.pct) : 'ring-foreground/10';
 
   return (
     <Card
-      className={cn('p-6 ring-2', ringClass, isLongText && 'cursor-pointer select-none transition-colors')}
-      onClick={toggle}
+      className={cn(
+        'p-4 ring-1 transition-colors',
+        ringClass,
+        isSelected && (score ? scoreThresholdBg(score.pct) : 'bg-accent'),
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer select-none'
+      )}
+      onClick={disabled ? undefined : onClick}
     >
-      <CardContent
-        className={cn('space-y-4 p-0', isLongText && 'cursor-default')}
-        onClick={isLongText ? (e: React.MouseEvent) => e.stopPropagation() : undefined}
-      >
-        {header}
-        {!collapsed && body}
+      <CardContent className="p-0">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-medium">
+            <span className="text-muted-foreground mr-1.5">{number}.</span>
+            {question.prompt}
+          </p>
+          {!score && (answer?.status === AnswerStatus.UNKNOWN || !answer) ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground shrink-0" />
+          ) : (
+            <span className={cn('text-sm font-semibold tabular-nums shrink-0', scoreColorClass)}>
+              {score?.label ?? statusLabel(answer?.status ?? AnswerStatus.UNKNOWN)}
+            </span>
+          )}
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Right panel detail for selected question
+// ---------------------------------------------------------------------------
+
+function QuestionDetailPanel({
+  question,
+  answer,
+  number,
+}: {
+  question: QuestionRead;
+  answer?: AnswerRead;
+  number: number;
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="font-medium">
+        <span className="text-muted-foreground mr-1.5">{number}.</span>
+        {question.prompt}
+      </p>
+      {question.hint && <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
+      <LongTextReview answer={answer} />
+      {question.explanation && (
+        <p className="text-xs text-muted-foreground border-t border-border pt-2">{question.explanation}</p>
+      )}
+    </div>
   );
 }
 
@@ -453,74 +520,180 @@ type Props = {
 };
 
 export function ResultDetail({ result, test }: Props) {
-  const items = buildExamItems(test);
-  const answerMap = new Map<string, AnswerRead>();
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
+  const [splitRatio, setSplitRatio] = useState(0.5);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
 
-  (result.answers ?? []).forEach(a => answerMap.set(a.questionId, a));
+  const items = useMemo(() => buildExamItems(test), [test]);
+
+  const answerMap = useMemo(() => {
+    const map = new Map<string, AnswerRead>();
+    (result.answers ?? []).forEach(a => map.set(a.questionId, a));
+    return map;
+  }, [result.answers]);
+
+  const isPending = (result.pendingAnswers ?? 0) > 0;
+
+  const questionNumbers = useMemo(() => {
+    const map = new Map<string, number>();
+    let counter = 0;
+    items.forEach(item => {
+      if (item.kind === 'question') {
+        counter++;
+        map.set(item.question.id, counter);
+      } else {
+        counter++;
+      }
+    });
+    return map;
+  }, [items]);
+
+  const selectedQuestion = selectedQuestionId
+    ? (test.questions ?? []).find(q => q.id === selectedQuestionId)
+    : undefined;
+  const selectedAnswer = selectedQuestionId ? answerMap.get(selectedQuestionId) : undefined;
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const ratio = (e.clientX - rect.left) / rect.width;
+      setSplitRatio(Math.max(0.2, Math.min(0.8, ratio)));
+    };
+    const handleMouseUp = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
 
   let itemNumber = 0;
 
   return (
-    <div className="space-y-6">
-      <ScoreBanner result={result} testTitle={test.title} />
+    <div ref={containerRef} className="flex h-[calc(100vh-6rem)]">
+      {/* Left panel */}
+      <div className="min-w-0 overflow-y-auto p-0.5 pr-4 pb-4 space-y-4" style={{ flex: splitRatio }}>
+        <ScoreBanner result={result} testTitle={test.title} />
 
-      {items.map((item, idx) => {
-        if (item.kind === 'question') {
+        {items.map((item, idx) => {
+          if (item.kind === 'question') {
+            itemNumber++;
+            const question = item.question;
+            const isLongText = question.questionType === QuestionType.LONG_TEXT;
+
+            if (isLongText) {
+              return (
+                <CompactQuestionCard
+                  key={question.id}
+                  question={question}
+                  answer={answerMap.get(question.id)}
+                  number={itemNumber}
+                  isSelected={selectedQuestionId === question.id}
+                  disabled={isPending}
+                  onClick={() => setSelectedQuestionId(question.id)}
+                />
+              );
+            }
+
+            return (
+              <QuestionReviewCard
+                key={question.id}
+                question={question}
+                answer={answerMap.get(question.id)}
+                number={itemNumber}
+              />
+            );
+          }
+
+          const group = item.group;
+          const questions = group.questions ?? [];
+          const isVocabulary = group.type === QuestionGroupType.VOCABULARY;
           itemNumber++;
+          const groupNumber = itemNumber;
+
+          const correctCount = countCorrectInGroup(questions, answerMap);
+          const totalCount = questions.length;
+
           return (
-            <QuestionReviewCard
-              key={item.question.id}
-              question={item.question}
-              answer={answerMap.get(item.question.id)}
-              number={itemNumber}
-            />
-          );
-        }
-
-        const group = item.group;
-        const questions = group.questions ?? [];
-        const isVocabulary = group.type === QuestionGroupType.VOCABULARY;
-        itemNumber++;
-        const groupNumber = itemNumber;
-
-        const correctCount = countCorrectInGroup(questions, answerMap);
-        const totalCount = questions.length;
-
-        return (
-          <Card key={group.id ?? `group-${idx}`} className="p-6">
-            <CardContent className="space-y-4 p-0">
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-medium">
-                  <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
-                  {group.title ?? 'Question Group'}
-                </p>
-                <span
-                  className={cn(
-                    'text-sm font-medium shrink-0 tabular-nums',
-                    correctCount === totalCount
-                      ? 'text-green-600'
-                      : correctCount === 0
-                        ? 'text-destructive'
-                        : 'text-amber-500'
-                  )}
-                >
-                  {correctCount}/{totalCount}
-                </span>
-              </div>
-
-              {isVocabulary ? (
-                <VocabularyReviewTable questions={questions} answerMap={answerMap} />
-              ) : (
-                <div className="space-y-3">
-                  {questions.map(q => (
-                    <QuestionReviewCard key={q.id} question={q} answer={answerMap.get(q.id)} nested />
-                  ))}
+            <Card key={group.id ?? `group-${idx}`} className="p-6 ring-1 ring-foreground/10">
+              <CardContent className="space-y-4 p-0">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium">
+                    <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
+                    {group.title ?? 'Question Group'}
+                  </p>
+                  <span
+                    className={cn(
+                      'text-sm font-medium shrink-0 tabular-nums',
+                      correctCount === totalCount
+                        ? 'text-green-600'
+                        : correctCount === 0
+                          ? 'text-destructive'
+                          : 'text-amber-500'
+                    )}
+                  >
+                    {correctCount}/{totalCount}
+                  </span>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
+
+                {isVocabulary ? (
+                  <VocabularyReviewTable questions={questions} answerMap={answerMap} />
+                ) : (
+                  <div className="space-y-3">
+                    {questions.map(q => (
+                      <QuestionReviewCard key={q.id} question={q} answer={answerMap.get(q.id)} nested />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Resizable divider */}
+      <div
+        className="shrink-0 relative flex items-center justify-center w-12 cursor-col-resize"
+        onMouseDown={handleDividerMouseDown}
+        onDoubleClick={() => setSplitRatio(0.5)}
+      >
+        <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
+        <div className="relative z-10 flex items-center justify-center w-6 h-10 rounded-full border border-border bg-background text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronsLeftRight className="size-5" />
+        </div>
+      </div>
+
+      {/* Right panel */}
+      <div className="min-w-0 overflow-y-auto p-0.5 pl-4 pb-4" style={{ flex: 1 - splitRatio }}>
+        {selectedQuestion ? (
+          <QuestionDetailPanel
+            question={selectedQuestion}
+            answer={selectedAnswer}
+            number={questionNumbers.get(selectedQuestion.id) ?? 0}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground">Select a question to view details</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

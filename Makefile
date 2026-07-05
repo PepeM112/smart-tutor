@@ -94,6 +94,31 @@ fix: ## Auto-fix linting + formatting for the whole project
 	@echo "\n=== Frontend: eslint + prettier ==="
 	cd frontend && npm run format
 
+format-branch: ## Auto-fix lint + format only files changed on current branch (vs dev)
+	@echo "=== Backend: ruff (branch files) ==="
+	@PY_FILES=$$(git diff --name-only --diff-filter=ACMR $$(git merge-base HEAD dev) | grep -E '^backend/.*\.py$$' | sed 's|^backend/||'); \
+	if [ -n "$$PY_FILES" ]; then \
+		$(DOCKER_COMPOSE) exec backend sh -c "ruff check --fix $$PY_FILES && ruff format $$PY_FILES"; \
+	else \
+		echo "No Python files changed."; \
+	fi
+	@echo "\n=== Frontend: eslint + prettier (branch files) ==="
+	@cd frontend && npm run format:branch
+
+format-branch-check: ## Check lint + format only files changed on current branch (vs dev)
+	@echo "=== Backend: ruff (branch files) ==="
+	@PY_FILES=$$(git diff --name-only --diff-filter=ACMR $$(git merge-base HEAD dev) | grep -E '^backend/.*\.py$$' | sed 's|^backend/||'); \
+	if [ -n "$$PY_FILES" ]; then \
+		$(DOCKER_COMPOSE) exec backend sh -c "ruff check $$PY_FILES && ruff format --check $$PY_FILES"; \
+	else \
+		echo "No Python files changed."; \
+	fi
+	@echo "\n=== Frontend: eslint + prettier (branch files) ==="
+	@cd frontend && npm run format:branch:check
+
+type-check: ## Run TypeScript type checking (frontend)
+	cd frontend && npx tsc --noEmit
+
 # ==============================
 # Maintenance
 # ==============================
@@ -119,4 +144,4 @@ restart: ## Restart all services
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint fix clean clean-fe clean-logs restart help
+.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint fix format-branch format-branch-check type-check clean clean-fe clean-logs restart help

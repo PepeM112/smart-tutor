@@ -1,11 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { use, useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { use, useEffect } from 'react';
 import { toast } from 'sonner';
 
-import { useTestResult } from '@/features/history/hooks/use-test-result';
 import { ExamView } from '@/features/tests/components/exam-view';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
@@ -17,48 +17,44 @@ type Props = {
 
 export default function TakeTestPage({ params }: Props) {
   const { id } = use(params);
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const { set, reset } = useBreadcrumbStore();
-  const [resultId, setResultId] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: testResponse, isLoading } = useQuery({
+  const { data: testResponse, isLoading, isError } = useQuery({
     queryKey: ['tests', id, 'exam'],
     queryFn: () => sdk.testsGet({ path: { test_id: id }, query: { strip_answers: true } }),
   });
 
-  const { data: resultResponse } = useTestResult(resultId);
-
   const test = testResponse?.data;
-  const result = resultResponse?.data ?? null;
+
+  const { mutate: submitExam, isPending: isSubmitting } = useMutation({
+    mutationFn: (answers: Record<string, string>) =>
+      sdk.testsSubmit({
+        path: { test_id: id },
+        body: {
+          answers: Object.entries(answers).map(([questionId, userAnswer]) => ({
+            questionId,
+            userAnswer,
+          })),
+        },
+      }),
+    onSuccess: async (response) => {
+      const resultId = response.data?.id;
+      if (!resultId) return;
+      await queryClient.invalidateQueries({ queryKey: ['results'] });
+      router.push(Routes.RESULT_DETAIL(resultId));
+    },
+    onError: (err: unknown) => {
+      const detail = (err as { detail?: string })?.detail;
+      toast.error(detail ?? 'Failed to submit exam. Please try again.');
+    },
+  });
 
   useEffect(() => {
     set(test?.title ?? 'Take Test', [{ label: 'Tests', href: Routes.TESTS }], Routes.TESTS);
     return () => reset();
   }, [set, reset, test?.title]);
-
-  const handleSubmit = useCallback(
-    async (answers: Record<string, string>) => {
-      setIsSubmitting(true);
-      try {
-        const response = await sdk.testsSubmit({
-          path: { test_id: id },
-          body: {
-            answers: Object.entries(answers).map(([questionId, userAnswer]) => ({
-              questionId,
-              userAnswer,
-            })),
-          },
-        });
-        setResultId(response.data!.id);
-      } catch (err: unknown) {
-        const detail = (err as { error?: { detail?: string } })?.error?.detail;
-        toast.error(detail ?? 'Failed to submit exam. Please try again.');
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [id]
-  );
 
   if (isLoading) {
     return (
@@ -66,6 +62,10 @@ export default function TakeTestPage({ params }: Props) {
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <p className="text-muted-foreground">Failed to load test. Please try again.</p>;
   }
 
   if (!test) {
@@ -76,5 +76,5 @@ export default function TakeTestPage({ params }: Props) {
     return <p className="text-muted-foreground">This test has no questions yet.</p>;
   }
 
-  return <ExamView test={test} onSubmit={handleSubmit} isSubmitting={isSubmitting} result={result} />;
+  return <ExamView test={test} onSubmit={submitExam} isSubmitting={isSubmitting} result={null} />;
 }
