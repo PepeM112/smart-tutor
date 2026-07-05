@@ -6,7 +6,7 @@ from openai import OpenAI
 
 from app.schemas.question import RubricItem
 from app.services.grading.base import CriterionResult, GradingProvider
-from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
+from app.services.grading.prompts import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
 
 logger = logging.getLogger("smarttutor.grading.openai")
 

@@ -1,6 +1,18 @@
 'use client';
 
-import { CheckCircle2, ChevronsLeftRight, Circle, Loader2, MinusCircle, XCircle, Check, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronsLeftRight,
+  Circle,
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Loader2,
+  MinusCircle,
+  XCircle,
+  Check,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -16,6 +28,15 @@ import {
 } from '@/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip } from '@/components/ui/tooltip';
+import {
+  getScoreTextColor,
+  getScoreRingColor,
+  getScoreBgColor,
+  getScoreCircleClasses,
+  getStatusRingColor,
+  getStatusBgColor,
+} from '@/features/history/utils/score-colors';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -37,55 +58,20 @@ function buildExamItems(test: TestRead): ExamItem[] {
   return items.sort((a, b) => a.order - b.order);
 }
 
-function statusLabel(s: AnswerStatus): string {
-  switch (s) {
+function StatusIcon({ status, className }: { status: AnswerStatus; className?: string }) {
+  const base = cn('size-5 shrink-0', className);
+  switch (status) {
     case AnswerStatus.CORRECT:
-      return 'Correct';
+      return <CircleCheck className={cn(base, 'text-green-600')} />;
     case AnswerStatus.PARTIAL:
-      return 'Partially correct';
+      return <CircleAlert className={cn(base, 'text-amber-500')} />;
     case AnswerStatus.WRONG:
-      return 'Wrong';
+      return <CircleX className={cn(base, 'text-destructive')} />;
     case AnswerStatus.FAILED:
-      return 'Grading failed';
+      return <CircleX className={cn(base, 'text-destructive')} />;
     default:
-      return 'Pending';
+      return <Loader2 className={cn(base, 'text-muted-foreground animate-spin')} />;
   }
-}
-
-function statusColor(s: AnswerStatus): string {
-  switch (s) {
-    case AnswerStatus.CORRECT:
-      return 'text-green-600';
-    case AnswerStatus.PARTIAL:
-      return 'text-amber-500';
-    case AnswerStatus.WRONG:
-      return 'text-destructive';
-    case AnswerStatus.FAILED:
-      return 'text-destructive';
-    default:
-      return 'text-muted-foreground';
-  }
-}
-
-function scoreThresholdColor(pct: number): string {
-  if (pct >= 85) return 'text-green-600';
-  if (pct >= 60) return 'text-amber-500';
-  if (pct >= 35) return 'text-destructive';
-  return 'text-foreground';
-}
-
-function scoreThresholdRing(pct: number): string {
-  if (pct >= 85) return 'ring-green-500/40';
-  if (pct >= 60) return 'ring-amber-500/40';
-  if (pct >= 35) return 'ring-destructive/40';
-  return 'ring-foreground/10';
-}
-
-function scoreThresholdBg(pct: number): string {
-  if (pct >= 85) return 'bg-green-50 dark:bg-green-950/30';
-  if (pct >= 60) return 'bg-amber-50 dark:bg-amber-950/30';
-  if (pct >= 35) return 'bg-red-50 dark:bg-red-950/30';
-  return 'bg-foreground/5';
 }
 
 type LongTextScore = { label: string; pct: number };
@@ -199,13 +185,6 @@ function MultipleChoiceReview({ question, userAnswer }: { question: QuestionRead
 // Score banner
 // ---------------------------------------------------------------------------
 
-function scoreCircleClasses(score: number): string {
-  if (score >= 85) return 'border-green-500 bg-green-500/5 text-green-600';
-  if (score >= 60) return 'border-amber-500 bg-amber-500/5 text-amber-500';
-  if (score >= 35) return 'border-destructive bg-destructive/5 text-destructive';
-  return 'border-foreground/20 bg-foreground/5 text-foreground';
-}
-
 function ScoreBanner({ result, testTitle }: { result: TestResultRead; testTitle: string }) {
   const score = result.score ?? 0;
   const pending = result.pendingAnswers ?? 0;
@@ -229,7 +208,7 @@ function ScoreBanner({ result, testTitle }: { result: TestResultRead; testTitle:
       <div
         className={cn(
           'flex items-center justify-center size-20 rounded-full border-[3px] shrink-0',
-          scoreCircleClasses(score)
+          getScoreCircleClasses(score)
         )}
       >
         <span className="text-lg font-bold tabular-nums">{score.toFixed(1)}%</span>
@@ -281,7 +260,7 @@ function VocabularyReviewTable({
                 <span className="text-green-600 font-medium">{getCorrectAnswer(q)}</span>
               </TableCell>
               <TableCell className="text-right">
-                <span className={cn('text-sm font-medium', statusColor(status))}>{statusLabel(status)}</span>
+                <StatusIcon status={status} className="ml-auto" />
               </TableCell>
             </TableRow>
           );
@@ -350,41 +329,79 @@ function LongTextReview({ answer }: { answer?: AnswerRead }) {
 }
 
 // ---------------------------------------------------------------------------
-// Question review card
+// Compact question card (left panel — all question types)
 // ---------------------------------------------------------------------------
 
-function QuestionReviewCard({
+function CompactQuestionCard({
   question,
   answer,
   number,
-  nested,
+  isSelected,
+  disabled,
+  onClick,
 }: {
   question: QuestionRead;
   answer?: AnswerRead;
-  number?: number;
-  nested?: boolean;
+  number: number;
+  isSelected: boolean;
+  disabled?: boolean;
+  onClick: () => void;
 }) {
+  const status = answer?.status ?? AnswerStatus.UNKNOWN;
+  const isLongText = question.questionType === QuestionType.LONG_TEXT;
+  const score = isLongText ? computeLongTextScore(answer, question) : null;
+
+  const ringClass = score ? getScoreRingColor(score.pct) : getStatusRingColor(status);
+  const bgClass = score ? getScoreBgColor(score.pct) : getStatusBgColor(status);
+
+  return (
+    <Card
+      className={cn(
+        'p-4 ring-1 transition-colors',
+        ringClass,
+        isSelected && bgClass,
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer select-none'
+      )}
+      onClick={disabled ? undefined : onClick}
+    >
+      <CardContent className="p-0">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-medium">
+            <span className="text-muted-foreground mr-1.5">{number}.</span>
+            {question.prompt}
+          </p>
+          {isLongText && !score && (status === AnswerStatus.UNKNOWN || !answer) ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground shrink-0" />
+          ) : score ? (
+            <span className={cn('text-sm font-semibold tabular-nums shrink-0', getScoreTextColor(score.pct))}>
+              {score.label}
+            </span>
+          ) : (
+            <StatusIcon status={status} />
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Nested question card (inside groups — still inline, not clickable)
+// ---------------------------------------------------------------------------
+
+function NestedQuestionCard({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
   const status = answer?.status ?? AnswerStatus.UNKNOWN;
   const isWrong = status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const correctAnswer = getCorrectAnswer(question);
 
-  const header = (
-    <div className="flex items-start justify-between gap-2">
-      <p className="font-medium">
-        {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
-        {question.prompt}
-      </p>
-      <span className={cn('text-sm font-semibold tabular-nums shrink-0', statusColor(status))}>
-        {statusLabel(status)}
-      </span>
-    </div>
-  );
-
-  const body = (
-    <>
+  return (
+    <div className="rounded-lg border border-border p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-medium">{question.prompt}</p>
+        <StatusIcon status={status} />
+      </div>
       {question.hint && <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
-
       {isMC ? (
         <MultipleChoiceReview question={question} userAnswer={answer?.userAnswer ?? ''} />
       ) : (
@@ -403,88 +420,60 @@ function QuestionReviewCard({
           )}
         </div>
       )}
-
       {question.explanation && (
         <p className="text-xs text-muted-foreground border-t border-border pt-2">{question.explanation}</p>
       )}
-    </>
-  );
-
-  if (nested) {
-    return (
-      <div className="rounded-lg border border-border p-4 space-y-3">
-        {header}
-        {body}
-      </div>
-    );
-  }
-
-  return (
-    <Card className="p-6 ring-1 ring-foreground/10">
-      <CardContent className="space-y-4 p-0">
-        {header}
-        {body}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Compact card for long-text questions (left panel)
+// Right panel detail — handles all question types
 // ---------------------------------------------------------------------------
 
-function CompactQuestionCard({
-  question,
-  answer,
-  number,
-  isSelected,
-  disabled,
-  onClick,
-}: {
-  question: QuestionRead;
-  answer?: AnswerRead;
-  number: number;
-  isSelected: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  const score = computeLongTextScore(answer, question);
-  const scoreColorClass = score ? scoreThresholdColor(score.pct) : statusColor(answer?.status ?? AnswerStatus.UNKNOWN);
-
-  const ringClass = score ? scoreThresholdRing(score.pct) : 'ring-foreground/10';
+function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
+  const status = answer?.status ?? AnswerStatus.UNKNOWN;
+  const isWrong = status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
+  const correctAnswer = getCorrectAnswer(question);
 
   return (
-    <Card
-      className={cn(
-        'p-4 ring-1 transition-colors',
-        ringClass,
-        isSelected && (score ? scoreThresholdBg(score.pct) : 'bg-accent'),
-        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer select-none'
-      )}
-      onClick={disabled ? undefined : onClick}
-    >
-      <CardContent className="p-0">
-        <div className="flex items-start justify-between gap-2">
-          <p className="font-medium">
-            <span className="text-muted-foreground mr-1.5">{number}.</span>
-            {question.prompt}
+    <div className="space-y-3">
+      {question.hint && <p className="-mt-2 text-sm text-muted-foreground italic">Hint: {question.hint}</p>}
+      <div className="space-y-2 text-sm">
+        <div>
+          <p className="text-muted-foreground mb-0.5">Your answer</p>
+          <p className={cn('rounded-md bg-muted/50 p-3', isWrong && 'line-through text-muted-foreground')}>
+            {answer ? getUserAnswerDisplay(question, answer.userAnswer) : '(no answer)'}
           </p>
-          {!score && (answer?.status === AnswerStatus.UNKNOWN || !answer) ? (
-            <Loader2 className="size-4 animate-spin text-muted-foreground shrink-0" />
-          ) : (
-            <span className={cn('text-sm font-semibold tabular-nums shrink-0', scoreColorClass)}>
-              {score?.label ?? statusLabel(answer?.status ?? AnswerStatus.UNKNOWN)}
-            </span>
-          )}
         </div>
-      </CardContent>
-    </Card>
+        {correctAnswer && (
+          <div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <p className="text-muted-foreground">Correct answer</p>
+              {question.explanation && <Tooltip content={question.explanation} />}
+            </div>
+            <p className="rounded-md bg-muted/50 p-3 text-green-600 font-medium">{correctAnswer}</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Right panel detail for selected question
-// ---------------------------------------------------------------------------
+function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
+  return (
+    <div className="space-y-3">
+      {question.hint && <p className="-mt-2 text-sm text-muted-foreground italic">Hint: {question.hint}</p>}
+      <MultipleChoiceReview question={question} userAnswer={answer?.userAnswer ?? ''} />
+      {question.explanation && (
+        <div className="flex items-center gap-1.5 border-t border-border pt-2">
+          <Tooltip content={question.explanation} />
+          <p className="text-xs text-muted-foreground">Explanation</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function QuestionDetailPanel({
   question,
@@ -495,16 +484,27 @@ function QuestionDetailPanel({
   answer?: AnswerRead;
   number: number;
 }) {
+  const isLongText = question.questionType === QuestionType.LONG_TEXT;
+  const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
+
   return (
     <div className="space-y-4">
       <p className="font-medium">
         <span className="text-muted-foreground mr-1.5">{number}.</span>
         {question.prompt}
       </p>
-      {question.hint && <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
-      <LongTextReview answer={answer} />
-      {question.explanation && (
-        <p className="text-xs text-muted-foreground border-t border-border pt-2">{question.explanation}</p>
+      {isLongText ? (
+        <>
+          {question.hint && <p className="-mt-2 text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
+          <LongTextReview answer={answer} />
+          {question.explanation && (
+            <p className="text-xs text-muted-foreground border-t border-border pt-2">{question.explanation}</p>
+          )}
+        </>
+      ) : isMC ? (
+        <MCQuestionDetail question={question} answer={answer} />
+      ) : (
+        <SimpleQuestionDetail question={question} answer={answer} />
       )}
     </div>
   );
@@ -519,9 +519,25 @@ type Props = {
   test: TestRead;
 };
 
+const SPLIT_RATIO_KEY = 'result-detail-split-ratio';
+const DEFAULT_SPLIT_RATIO = 0.5;
+
+function loadSplitRatio(): number {
+  try {
+    const stored = localStorage.getItem(SPLIT_RATIO_KEY);
+    if (stored) {
+      const parsed = parseFloat(stored);
+      if (!isNaN(parsed) && parsed >= 0.2 && parsed <= 0.8) return parsed;
+    }
+  } catch {
+    /* SSR or storage unavailable */
+  }
+  return DEFAULT_SPLIT_RATIO;
+}
+
 export function ResultDetail({ result, test }: Props) {
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
-  const [splitRatio, setSplitRatio] = useState(0.5);
+  const [splitRatio, setSplitRatio] = useState(loadSplitRatio);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
@@ -561,6 +577,9 @@ export function ResultDetail({ result, test }: Props) {
     document.body.style.userSelect = 'none';
   }, []);
 
+  const latestRatio = useRef(splitRatio);
+  latestRatio.current = splitRatio;
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging.current || !containerRef.current) return;
@@ -573,6 +592,11 @@ export function ResultDetail({ result, test }: Props) {
       isDragging.current = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      try {
+        localStorage.setItem(SPLIT_RATIO_KEY, latestRatio.current.toString());
+      } catch {
+        /* storage unavailable */
+      }
     };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -584,6 +608,7 @@ export function ResultDetail({ result, test }: Props) {
     };
   }, []);
 
+  const hasSelection = selectedQuestionId !== null;
   let itemNumber = 0;
 
   return (
@@ -596,28 +621,16 @@ export function ResultDetail({ result, test }: Props) {
           if (item.kind === 'question') {
             itemNumber++;
             const question = item.question;
-            const isLongText = question.questionType === QuestionType.LONG_TEXT;
-
-            if (isLongText) {
-              return (
-                <CompactQuestionCard
-                  key={question.id}
-                  question={question}
-                  answer={answerMap.get(question.id)}
-                  number={itemNumber}
-                  isSelected={selectedQuestionId === question.id}
-                  disabled={isPending}
-                  onClick={() => setSelectedQuestionId(question.id)}
-                />
-              );
-            }
 
             return (
-              <QuestionReviewCard
+              <CompactQuestionCard
                 key={question.id}
                 question={question}
                 answer={answerMap.get(question.id)}
                 number={itemNumber}
+                isSelected={selectedQuestionId === question.id}
+                disabled={question.questionType === QuestionType.LONG_TEXT && isPending}
+                onClick={() => setSelectedQuestionId(question.id)}
               />
             );
           }
@@ -630,6 +643,7 @@ export function ResultDetail({ result, test }: Props) {
 
           const correctCount = countCorrectInGroup(questions, answerMap);
           const totalCount = questions.length;
+          const groupPct = totalCount > 0 ? (correctCount / totalCount) * 100 : 0;
 
           return (
             <Card key={group.id ?? `group-${idx}`} className="p-6 ring-1 ring-foreground/10">
@@ -639,16 +653,7 @@ export function ResultDetail({ result, test }: Props) {
                     <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
                     {group.title ?? 'Question Group'}
                   </p>
-                  <span
-                    className={cn(
-                      'text-sm font-medium shrink-0 tabular-nums',
-                      correctCount === totalCount
-                        ? 'text-green-600'
-                        : correctCount === 0
-                          ? 'text-destructive'
-                          : 'text-amber-500'
-                    )}
-                  >
+                  <span className={cn('text-sm font-medium shrink-0 tabular-nums', getScoreTextColor(groupPct))}>
                     {correctCount}/{totalCount}
                   </span>
                 </div>
@@ -658,7 +663,7 @@ export function ResultDetail({ result, test }: Props) {
                 ) : (
                   <div className="space-y-3">
                     {questions.map(q => (
-                      <QuestionReviewCard key={q.id} question={q} answer={answerMap.get(q.id)} nested />
+                      <NestedQuestionCard key={q.id} question={q} answer={answerMap.get(q.id)} />
                     ))}
                   </div>
                 )}
@@ -668,32 +673,39 @@ export function ResultDetail({ result, test }: Props) {
         })}
       </div>
 
-      {/* Resizable divider */}
-      <div
-        className="shrink-0 relative flex items-center justify-center w-12 cursor-col-resize"
-        onMouseDown={handleDividerMouseDown}
-        onDoubleClick={() => setSplitRatio(0.5)}
-      >
-        <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-        <div className="relative z-10 flex items-center justify-center w-6 h-10 rounded-full border border-border bg-background text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronsLeftRight className="size-5" />
-        </div>
-      </div>
-
-      {/* Right panel */}
-      <div className="min-w-0 overflow-y-auto p-0.5 pl-4 pb-4" style={{ flex: 1 - splitRatio }}>
-        {selectedQuestion ? (
-          <QuestionDetailPanel
-            question={selectedQuestion}
-            answer={selectedAnswer}
-            number={questionNumbers.get(selectedQuestion.id) ?? 0}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">Select a question to view details</p>
+      {hasSelection && (
+        <>
+          {/* Resizable divider */}
+          <div
+            className="shrink-0 relative flex items-center justify-center w-12 cursor-col-resize"
+            onMouseDown={handleDividerMouseDown}
+            onDoubleClick={() => {
+              setSplitRatio(DEFAULT_SPLIT_RATIO);
+              try {
+                localStorage.setItem(SPLIT_RATIO_KEY, DEFAULT_SPLIT_RATIO.toString());
+              } catch {
+                /* storage unavailable */
+              }
+            }}
+          >
+            <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
+            <div className="relative z-10 flex items-center justify-center w-6 h-10 rounded-full border border-border bg-background text-muted-foreground hover:text-foreground transition-colors">
+              <ChevronsLeftRight className="size-5" />
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Right panel */}
+          <div className="min-w-0 overflow-y-auto p-0.5 pl-4 pb-4" style={{ flex: 1 - splitRatio }}>
+            {selectedQuestion && (
+              <QuestionDetailPanel
+                question={selectedQuestion}
+                answer={selectedAnswer}
+                number={questionNumbers.get(selectedQuestion.id) ?? 0}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

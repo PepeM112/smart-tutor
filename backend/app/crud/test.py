@@ -1,32 +1,34 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.enums import TestStatus
 from app.models.test import Test
 from app.models.test_question_group import TestQuestionGroup
 from app.schemas.test import TestUpdate
 
 
 def get_by_id(db: Session, *, id: str) -> Test | None:
-    return (
-        db.query(Test)
+    stmt = (
+        select(Test)
         .options(
             selectinload(Test.questions),
             selectinload(Test.question_groups).selectinload(TestQuestionGroup.questions),
         )
-        .filter(Test.id == id)
-        .first()
+        .where(Test.id == id, Test.status == TestStatus.ACTIVE)
     )
+    return db.scalars(stmt).first()
 
 
 def list_by_user(db: Session, *, user_id: str) -> list[Test]:
-    return (
-        db.query(Test)
+    stmt = (
+        select(Test)
         .options(
             selectinload(Test.questions),
             selectinload(Test.question_groups).selectinload(TestQuestionGroup.questions),
         )
-        .filter(Test.user_id == user_id)
-        .all()
+        .where(Test.user_id == user_id, Test.status == TestStatus.ACTIVE)
     )
+    return list(db.scalars(stmt).all())
 
 
 def create(db: Session, *, user_id: str, title: str, description: str | None) -> Test:
@@ -45,5 +47,5 @@ def update(db: Session, *, test: Test, data: TestUpdate) -> Test:
 
 
 def delete(db: Session, *, test: Test) -> None:
-    db.delete(test)
+    test.status = TestStatus.DELETED
     db.commit()

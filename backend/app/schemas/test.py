@@ -27,6 +27,7 @@ class TestUpdate(BaseSchema):
 class TestRead(TestBase):
     id: str
     user_id: str
+    status: int
     questions: list[QuestionRead] = []
     question_groups: list[TestQuestionGroupRead] = []
 
@@ -34,5 +35,6 @@ class TestRead(TestBase):
 class TestReadStripped(TestBase):
     id: str
     user_id: str
+    status: int
     questions: list[QuestionReadStripped] = []
     question_groups: list[TestQuestionGroupReadStripped] = []

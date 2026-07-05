@@ -21,7 +21,7 @@ from app.schemas.question import LongTextContent, RubricItem
 from app.services.grading.anthropic_provider import AnthropicGradingProvider
 from app.services.grading.base import CriterionResult
 from app.services.grading.openai_provider import OpenAIGradingProvider
-from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
+from app.services.grading.prompts import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
 from app.services.grading_service import (
     _build_rubric_result,
     _determine_status,

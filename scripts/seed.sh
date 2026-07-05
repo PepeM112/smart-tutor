@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Seed script for testing AI grading of Long Text questions.
-# Creates a test with rubric-based Long Text questions covering different topics.
+# Seed script — creates a test user and all sample tests.
 #
-# Usage: bash scripts/seed-long-text-data.sh
+# Usage: bash scripts/seed.sh
 # Requires: curl, jq, backend running at localhost:8000
 
 set -euo pipefail
@@ -14,7 +13,7 @@ trap 'rm -f "$COOKIE_JAR"' EXIT
 EMAIL="reviewer@test.com"
 PASSWORD="Test1234!"
 
-echo "=== Seeding Long Text test data ==="
+echo "=== Seeding test data ==="
 
 # --- Register (ignore 400 if user already exists) ---
 echo -n "Creating user... "
@@ -32,15 +31,181 @@ curl -s -o /dev/null -c "$COOKIE_JAR" \
   -d "username=$EMAIL&password=$PASSWORD"
 echo "done"
 
+# Helper: POST with auth cookie
 post() {
   curl -s -b "$COOKIE_JAR" -X POST "$1" -H "Content-Type: application/json" -d "$2"
 }
 
 # ============================================================
-# Test: History 2º ESO — Long Text Questions
+# Test 1: Spanish Vocabulary (Simple questions)
 # ============================================================
-echo -n "Creating test: History 2º ESO... "
-TEST=$(post "$API/tests" "$(cat <<'EOF'
+echo -n "Creating test: Spanish Vocabulary... "
+TEST1=$(post "$API/tests" '{
+  "title": "Spanish Vocabulary",
+  "description": "Basic Spanish words for review testing",
+  "questions": [
+    {
+      "questionType": 1,
+      "prompt": "How do you say \"hello\" in Spanish?",
+      "content": {"answers": ["hola"]},
+      "hint": "Think of a common greeting",
+      "explanation": "\"Hola\" is the most common informal greeting in Spanish.",
+      "order": 0
+    },
+    {
+      "questionType": 1,
+      "prompt": "Translate: \"to go\"",
+      "content": {"answers": ["ir", "marchar"]},
+      "explanation": "\"Ir\" is the most common translation. \"Marchar\" also works in some contexts.",
+      "order": 1
+    },
+    {
+      "questionType": 1,
+      "prompt": "What is \"cat\" in Spanish?",
+      "content": {"answers": ["gato"]},
+      "order": 2
+    },
+    {
+      "questionType": 1,
+      "prompt": "Translate: \"house\"",
+      "content": {"answers": ["casa", "hogar"]},
+      "hint": "One of the first words you learn",
+      "order": 3
+    },
+    {
+      "questionType": 1,
+      "prompt": "How do you say \"thank you\"?",
+      "content": {"answers": ["gracias"]},
+      "explanation": "\"Gracias\" — always be polite!",
+      "order": 4
+    },
+    {
+      "questionType": 1,
+      "prompt": "Translate: \"water\"",
+      "content": {"answers": ["agua"]},
+      "order": 5
+    }
+  ]
+}' | jq -r '.id')
+echo "$TEST1"
+
+# ============================================================
+# Test 2: Geography (MC questions + a couple Simple)
+# ============================================================
+echo -n "Creating test: World Geography... "
+TEST2=$(post "$API/tests" '{
+  "title": "World Geography",
+  "description": "Capitals, flags, and continents",
+  "questions": [
+    {
+      "questionType": 2,
+      "prompt": "Which of these are European countries?",
+      "content": {"options": ["France", "Brazil", "Germany", "Japan", "Italy"], "correct_indices": [0, 2, 4]},
+      "explanation": "France, Germany, and Italy are in Europe. Brazil is in South America, Japan in Asia.",
+      "order": 0
+    },
+    {
+      "questionType": 2,
+      "prompt": "What is the capital of Australia?",
+      "content": {"options": ["Sydney", "Melbourne", "Canberra", "Brisbane"], "correct_indices": [2]},
+      "hint": "It is NOT the largest city",
+      "explanation": "Canberra is the capital. Sydney is the largest city but not the capital.",
+      "order": 1
+    },
+    {
+      "questionType": 2,
+      "prompt": "Which continents does the equator cross?",
+      "content": {"options": ["Africa", "South America", "Asia", "Europe"], "correct_indices": [0, 1, 2]},
+      "order": 2
+    },
+    {
+      "questionType": 2,
+      "prompt": "Which ocean is the largest?",
+      "content": {"options": ["Atlantic", "Pacific", "Indian", "Arctic"], "correct_indices": [1]},
+      "explanation": "The Pacific Ocean covers more area than all landmasses combined.",
+      "order": 3
+    },
+    {
+      "questionType": 1,
+      "prompt": "What is the capital of France?",
+      "content": {"answers": ["Paris", "paris"]},
+      "order": 4
+    },
+    {
+      "questionType": 1,
+      "prompt": "What is the longest river in the world?",
+      "content": {"answers": ["Nile", "nile", "the nile", "rio nilo"]},
+      "hint": "Its in Africa",
+      "explanation": "The Nile flows through northeastern Africa, approximately 6,650 km long.",
+      "order": 5
+    }
+  ]
+}' | jq -r '.id')
+echo "$TEST2"
+
+# ============================================================
+# Test 3: Spanish Basics (MC only)
+# ============================================================
+echo -n "Creating test: Spanish Basics — Multiple Choice... "
+TEST3=$(post "$API/tests" '{
+  "title": "Spanish Basics — Multiple Choice",
+  "description": "Vocabulary and grammar basics, multiple choice only",
+  "questions": [
+    {
+      "questionType": 2,
+      "prompt": "Which of these means \"thank you\" in Spanish?",
+      "content": {"options": ["Gracias", "Por favor", "De nada", "Lo siento"], "correct_indices": [0]},
+      "explanation": "\"Gracias\" means \"thank you\". \"Por favor\" is \"please\", \"de nada\" is \"you'\''re welcome\", and \"lo siento\" is \"I'\''m sorry\".",
+      "order": 0
+    },
+    {
+      "questionType": 2,
+      "prompt": "Which of these are colors in Spanish?",
+      "content": {"options": ["Rojo", "Mesa", "Azul", "Silla"], "correct_indices": [0, 2]},
+      "hint": "\"Mesa\" and \"silla\" are pieces of furniture",
+      "explanation": "\"Rojo\" (red) and \"azul\" (blue) are colors. \"Mesa\" means table and \"silla\" means chair.",
+      "order": 1
+    },
+    {
+      "questionType": 2,
+      "prompt": "Which of these are Spanish definite articles (\"the\")?",
+      "content": {"options": ["El", "La", "Los", "Un"], "correct_indices": [0, 1, 2]},
+      "hint": "\"Un\" is an indefinite article, not a definite one",
+      "explanation": "\"El\", \"la\", and \"los\" are definite articles (\"the\"). \"Un\" is an indefinite article (\"a/an\").",
+      "order": 2
+    },
+    {
+      "questionType": 2,
+      "prompt": "Which of these are days of the week in Spanish?",
+      "content": {"options": ["Lunes", "Enero", "Martes", "Verano"], "correct_indices": [0, 2]},
+      "explanation": "\"Lunes\" (Monday) and \"martes\" (Tuesday) are days of the week. \"Enero\" is a month and \"verano\" is a season.",
+      "order": 3
+    },
+    {
+      "questionType": 2,
+      "prompt": "What is the correct conjugation of \"ser\" for \"yo\" (I am)?",
+      "content": {"options": ["Soy", "Eres", "Es", "Somos"], "correct_indices": [0]},
+      "hint": "Think of the phrase \"yo ___ estudiante\"",
+      "explanation": "\"Soy\" is the first-person singular form of \"ser\". \"Eres\" is for \"tu\", \"es\" for \"el/ella\", and \"somos\" for \"nosotros\".",
+      "order": 4
+    },
+    {
+      "questionType": 2,
+      "prompt": "Which of these are numbers in Spanish?",
+      "content": {"options": ["Tres", "Perro", "Cinco", "Azul"], "correct_indices": [0, 2]},
+      "hint": "\"Perro\" and \"azul\" are not numbers",
+      "explanation": "\"Tres\" (three) and \"cinco\" (five) are numbers. \"Perro\" means dog and \"azul\" means blue.",
+      "order": 5
+    }
+  ]
+}' | jq -r '.id')
+echo "$TEST3"
+
+# ============================================================
+# Test 4: History 2º ESO — Long Text Questions (AI-graded)
+# ============================================================
+echo -n "Creating test: History 2º ESO — Long Text Exam... "
+TEST4=$(post "$API/tests" "$(cat <<'EOF'
 {
   "title": "History 2º ESO — Long Text Exam",
   "description": "Development questions on ancient and medieval history. AI-graded against rubric criteria.",
@@ -208,17 +373,20 @@ TEST=$(post "$API/tests" "$(cat <<'EOF'
 EOF
 )")
 
-TEST_ID=$(echo "$TEST" | jq -r '.id // empty')
-if [ -z "$TEST_ID" ]; then
+TEST4_ID=$(echo "$TEST4" | jq -r '.id // empty')
+if [ -z "$TEST4_ID" ]; then
   echo "FAILED"
-  echo "$TEST" | jq .
+  echo "$TEST4" | jq .
   exit 1
 fi
-echo "created (id: $TEST_ID)"
+echo "$TEST4_ID"
 
-Q_COUNT=$(echo "$TEST" | jq '.questions | length')
-echo "  → $Q_COUNT Long Text questions created"
+Q_COUNT=$(echo "$TEST4" | jq '.questions | length')
+
 echo ""
-echo "=== Done ==="
-echo "Login with: $EMAIL / $PASSWORD"
-echo "Test ID: $TEST_ID"
+echo "=== Seed complete ==="
+echo "User:  $EMAIL / $PASSWORD"
+echo "Tests: $TEST1, $TEST2, $TEST3, $TEST4_ID"
+echo "Total: $(( 6 + 6 + 6 )) Simple/MC questions + $Q_COUNT Long Text questions"
+echo ""
+echo "Log in at http://localhost:3000 with these credentials."

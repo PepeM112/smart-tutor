@@ -1,7 +1,8 @@
 'use client';
 
-import { Layers, ListChecks, Plus, Text } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
+import { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getQuestionTypeInfo } from '@/features/tests/utils/question-icons';
 
 export type AddItemType = 'group' | 'mc' | 'long';
 
@@ -26,18 +28,21 @@ export function AddQuestionDropdown({ onSelect }: Props) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onSelect={() => onSelect('group')}>
-          <Layers className="size-4" />
-          Simple questions
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onSelect('mc')}>
-          <ListChecks className="size-4" />
-          Multiple Choice
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onSelect('long')}>
-          <Text className="size-4" />
-          Long Text
-        </DropdownMenuItem>
+        {(
+          [
+            { addType: 'group' as const, questionType: QuestionType.SIMPLE, label: 'Simple questions' },
+            { addType: 'mc' as const, questionType: QuestionType.MULTIPLE_CHOICE, label: 'Multiple Choice' },
+            { addType: 'long' as const, questionType: QuestionType.LONG_TEXT, label: 'Long Text' },
+          ] as const
+        ).map(({ addType, questionType, label }) => {
+          const { icon: Icon } = getQuestionTypeInfo(questionType);
+          return (
+            <DropdownMenuItem key={addType} onSelect={() => onSelect(addType)}>
+              <Icon className="size-4" />
+              {label}
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
