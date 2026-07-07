@@ -123,17 +123,23 @@ function RightPanel({
   itemNumbers,
 }: {
   selectedItem: SelectedItem | null;
-  items: ReturnType<typeof buildExamItems>;
+  items: ExamItem[];
   test: TestRead;
   answerMap: Map<string, AnswerRead>;
   itemNumbers: number[];
 }) {
   if (!selectedItem) return null;
 
+  const itemIdx = items.findIndex((item, idx) => {
+    if (selectedItem.type === ExamItemType.QUESTION) {
+      return item.type === ExamItemType.QUESTION && item.question.id === selectedItem.id;
+    }
+    return item.type === ExamItemType.GROUP && (item.group.id ?? `group-${idx}`) === selectedItem.id;
+  });
+
   if (selectedItem.type === ExamItemType.QUESTION) {
     const question = (test.questions ?? []).find(q => q.id === selectedItem.id);
     if (!question) return null;
-    const itemIdx = items.findIndex(i => i.type === ExamItemType.QUESTION && i.question.id === selectedItem.id);
     return (
       <QuestionDetailPanel
         question={question}
@@ -143,13 +149,10 @@ function RightPanel({
     );
   }
 
-  const itemIdx = items.findIndex(
-    (i, idx) => i.type === ExamItemType.GROUP && (i.group.id ?? `group-${idx}`) === selectedItem.id
-  );
   const groupItem = itemIdx >= 0 ? items[itemIdx] : undefined;
-  if (!groupItem || groupItem.type !== ExamItemType.GROUP) return null;
+  if (groupItem?.type !== ExamItemType.GROUP) return null;
 
-  const group = groupItem.group;
+  const { group } = groupItem;
   return (
     <GroupDetailPanel
       title={group.title ?? 'Question Group'}
