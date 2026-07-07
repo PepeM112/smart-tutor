@@ -19,7 +19,7 @@ export function VocabularyReviewTable({
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">#</TableHead>
-          <TableHead>Prompt</TableHead>
+          <TableHead>Question</TableHead>
           <TableHead>Your answer</TableHead>
           <TableHead>Correct answer</TableHead>
           <TableHead className="w-32 text-right">Result</TableHead>

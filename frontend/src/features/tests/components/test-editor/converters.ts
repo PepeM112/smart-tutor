@@ -123,14 +123,14 @@ export function fromApiToEditorItems(
   groups: TestQuestionGroupRead[] | undefined
 ): EditorItem[] {
   type Tagged =
-    | { order: number; kind: 'mc'; data: QuestionRead }
+    | { order: number; kind: 'multiple_choice'; data: QuestionRead }
     | { order: number; kind: 'long'; data: QuestionRead }
     | { order: number; kind: 'group'; data: TestQuestionGroupRead };
 
   const tagged: Tagged[] = [
     ...(questions ?? []).reduce<Tagged[]>((acc, q) => {
       if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
-        acc.push({ order: q.order ?? 0, kind: 'mc', data: q });
+        acc.push({ order: q.order ?? 0, kind: 'multiple_choice', data: q });
       } else if (q.questionType === QuestionType.LONG_TEXT) {
         acc.push({ order: q.order ?? 0, kind: 'long', data: q });
       } else if (q.questionType === QuestionType.SIMPLE) {
@@ -149,9 +149,12 @@ export function fromApiToEditorItems(
     ...(groups ?? []).map<Tagged>(g => ({ order: g.order ?? 0, kind: 'group', data: g })),
   ].sort((a, b) => a.order - b.order);
 
-  return tagged.map(t => {
-    if (t.kind === 'mc') return fromApiMcQuestion(t.data);
-    if (t.kind === 'long') return fromApiLongTextQuestion(t.data);
-    return fromApiGroup(t.data);
-  });
+  return tagged
+    .map(t => {
+      if (t.kind === 'multiple_choice') return fromApiMcQuestion(t.data);
+      if (t.kind === 'long') return fromApiLongTextQuestion(t.data);
+      if (t.kind === 'group') return fromApiGroup(t.data);
+      return undefined;
+    })
+    .filter(it => it !== undefined);
 }

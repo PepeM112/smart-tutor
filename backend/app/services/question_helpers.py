@@ -48,6 +48,7 @@ def build_stripped_test(test: Test) -> TestReadStripped:
         title=test.title,
         description=test.description,
         user_id=test.user_id,
+        status=test.status,
         questions=[build_stripped_question(q) for q in test.questions],
         question_groups=[
             TestQuestionGroupReadStripped(

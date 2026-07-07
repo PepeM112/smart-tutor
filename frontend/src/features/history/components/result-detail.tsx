@@ -3,35 +3,35 @@
 import { ChevronsLeftRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { QuestionGroupType, QuestionType, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { getScoreTextColor } from '@/features/history/utils/score-colors';
+import { QuestionType, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
 import { cn } from '@/lib/utils';
 
 import { useResizableSplit } from '../hooks/use-resizable-split';
 
+import GroupDetailPanel from './group-detail-panel';
 import { QuestionDetailPanel } from './question-detail-panel';
-import { CompactQuestionCard, NestedQuestionCard } from './question-review-cards';
-import { buildExamItems, countCorrectInGroup } from './result-detail-utils';
+import { CompactGroupCard, CompactQuestionCard } from './question-review-cards';
+import { ExamItemType, buildExamItems, countCorrectInGroup, type ExamItem } from './result-detail-utils';
 import { ScoreBanner } from './score-banner';
-import { VocabularyReviewTable } from './vocabulary-review-table';
 
 type Props = {
   result: TestResultRead;
   test: TestRead;
 };
 
+type SelectedItem = { type: ExamItemType; id: string };
+
 const SPLIT_RATIO_KEY = 'result-detail-split-ratio';
 const DEFAULT_SPLIT_RATIO = 0.5;
 
-export function ResultDetail({ result, test }: Props) {
-  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
+export default function ResultDetail({ result, test }: Props) {
+  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(
     SPLIT_RATIO_KEY,
     DEFAULT_SPLIT_RATIO
   );
 
-  const items = useMemo(() => buildExamItems(test), [test]);
+  const items: ExamItem[] = useMemo(() => buildExamItems(test), [test]);
 
   const answerMap = useMemo(() => {
     const map = new Map<string, AnswerRead>();
@@ -41,26 +41,9 @@ export function ResultDetail({ result, test }: Props) {
 
   const isPending = (result.pendingAnswers ?? 0) > 0;
 
-  const { itemNumbers, questionNumbers } = useMemo(() => {
-    const itemNums: number[] = [];
-    const questionNums = new Map<string, number>();
-    let counter = 0;
-    items.forEach(item => {
-      counter++;
-      itemNums.push(counter);
-      if (item.kind === 'question') {
-        questionNums.set(item.question.id, counter);
-      }
-    });
-    return { itemNumbers: itemNums, questionNumbers: questionNums };
-  }, [items]);
+  const itemNumbers = useMemo(() => items.map((_, idx) => idx + 1), [items]);
 
-  const selectedQuestion = selectedQuestionId
-    ? (test.questions ?? []).find(q => q.id === selectedQuestionId)
-    : undefined;
-  const selectedAnswer = selectedQuestionId ? answerMap.get(selectedQuestionId) : undefined;
-
-  const hasSelection = selectedQuestionId !== null;
+  const hasSelection = selectedItem !== null;
 
   return (
     <div ref={containerRef} className="flex h-[calc(100vh-6rem)] overflow-hidden">
@@ -69,7 +52,7 @@ export function ResultDetail({ result, test }: Props) {
         <ScoreBanner result={result} testTitle={test.title} />
 
         {items.map((item, idx) => {
-          if (item.kind === 'question') {
+          if (item.type === ExamItemType.QUESTION) {
             const question = item.question;
 
             return (
@@ -78,51 +61,32 @@ export function ResultDetail({ result, test }: Props) {
                 question={question}
                 answer={answerMap.get(question.id)}
                 number={itemNumbers[idx]}
-                isSelected={selectedQuestionId === question.id}
+                isSelected={selectedItem?.type === ExamItemType.QUESTION && selectedItem.id === question.id}
                 disabled={question.questionType === QuestionType.LONG_TEXT && isPending}
-                onClick={() => setSelectedQuestionId(question.id)}
+                onClick={() => setSelectedItem({ type: ExamItemType.QUESTION, id: question.id })}
               />
             );
           }
 
           const group = item.group;
           const questions = group.questions ?? [];
-          const isVocabulary = group.type === QuestionGroupType.VOCABULARY;
-          const groupNumber = itemNumbers[idx];
-
-          const correctCount = countCorrectInGroup(questions, answerMap);
-          const totalCount = questions.length;
-          const groupPct = totalCount > 0 ? (correctCount / totalCount) * 100 : 0;
+          const groupId = group.id ?? `group-${idx}`;
 
           return (
-            <Card key={group.id ?? `group-${idx}`} className="p-6 ring-1 ring-foreground/10">
-              <CardContent className="space-y-4 p-0">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium">
-                    <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
-                    {group.title ?? 'Question Group'}
-                  </p>
-                  <span className={cn('text-sm font-medium shrink-0 tabular-nums', getScoreTextColor(groupPct))}>
-                    {correctCount}/{totalCount}
-                  </span>
-                </div>
-
-                {isVocabulary ? (
-                  <VocabularyReviewTable questions={questions} answerMap={answerMap} />
-                ) : (
-                  <div className="space-y-3">
-                    {questions.map(q => (
-                      <NestedQuestionCard key={q.id} question={q} answer={answerMap.get(q.id)} />
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <CompactGroupCard
+              key={groupId}
+              title={group.title ?? 'Question Group'}
+              correctCount={countCorrectInGroup(questions, answerMap)}
+              totalCount={questions.length}
+              number={itemNumbers[idx]}
+              isSelected={selectedItem?.type === ExamItemType.GROUP && selectedItem.id === groupId}
+              onClick={() => setSelectedItem({ type: ExamItemType.GROUP, id: groupId })}
+            />
           );
         })}
       </div>
 
-      {/* Resizable divider — always rendered for consistent layout */}
+      {/* Resizable divider */}
       <div
         className={cn(
           'shrink-0 relative flex items-center justify-center w-12',
@@ -137,16 +101,62 @@ export function ResultDetail({ result, test }: Props) {
         </div>
       </div>
 
-      {/* Right panel — always rendered for consistent layout */}
+      {/* Right panel */}
       <div className="min-w-0 overflow-y-auto scrollbar-none p-0.5 pl-4 pb-4" style={{ flex: 1 - splitRatio }}>
-        {hasSelection && selectedQuestion && (
-          <QuestionDetailPanel
-            question={selectedQuestion}
-            answer={selectedAnswer}
-            number={questionNumbers.get(selectedQuestion.id) ?? 0}
-          />
-        )}
+        <RightPanel
+          selectedItem={selectedItem}
+          items={items}
+          test={test}
+          answerMap={answerMap}
+          itemNumbers={itemNumbers}
+        />
       </div>
     </div>
+  );
+}
+
+function RightPanel({
+  selectedItem,
+  items,
+  test,
+  answerMap,
+  itemNumbers,
+}: {
+  selectedItem: SelectedItem | null;
+  items: ReturnType<typeof buildExamItems>;
+  test: TestRead;
+  answerMap: Map<string, AnswerRead>;
+  itemNumbers: number[];
+}) {
+  if (!selectedItem) return null;
+
+  if (selectedItem.type === ExamItemType.QUESTION) {
+    const question = (test.questions ?? []).find(q => q.id === selectedItem.id);
+    if (!question) return null;
+    const itemIdx = items.findIndex(i => i.type === ExamItemType.QUESTION && i.question.id === selectedItem.id);
+    return (
+      <QuestionDetailPanel
+        question={question}
+        answer={answerMap.get(selectedItem.id)}
+        number={itemIdx >= 0 ? itemNumbers[itemIdx] : 0}
+      />
+    );
+  }
+
+  const itemIdx = items.findIndex(
+    (i, idx) => i.type === ExamItemType.GROUP && (i.group.id ?? `group-${idx}`) === selectedItem.id
+  );
+  const groupItem = itemIdx >= 0 ? items[itemIdx] : undefined;
+  if (!groupItem || groupItem.type !== ExamItemType.GROUP) return null;
+
+  const group = groupItem.group;
+  return (
+    <GroupDetailPanel
+      title={group.title ?? 'Question Group'}
+      type={group.type}
+      questions={group.questions ?? []}
+      answerMap={answerMap}
+      number={itemNumbers[itemIdx]}
+    />
   );
 }

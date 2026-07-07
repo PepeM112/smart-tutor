@@ -41,6 +41,26 @@ class LongTextContent(BaseModel):
 QuestionContent = SimpleContent | MultipleChoiceContent | LongTextContent
 
 
+# --- Stripped content (answer fields optional, used when answers are hidden) ---
+
+
+class SimpleContentStripped(BaseModel):
+    answers: list[str] | None = None
+
+
+class MultipleChoiceContentStripped(BaseModel):
+    options: list[str] = Field(..., min_length=2, max_length=6)
+    correct_indices: list[int] | None = None
+
+
+class LongTextContentStripped(BaseModel):
+    length_limit: LongTextLength
+    rubric: list[RubricItem] | None = None
+
+
+StrippedQuestionContent = LongTextContentStripped | MultipleChoiceContentStripped | SimpleContentStripped
+
+
 def _validate_content(q_type: QuestionType | None, content: QuestionContent) -> None:
     """Validate that the content model matches the question type."""
     try:
@@ -100,11 +120,11 @@ class QuestionRead(QuestionBase):
 
 
 class QuestionReadStripped(BaseSchema):
-    """QuestionRead without content validation — used when answer data is stripped."""
+    """QuestionRead with answer fields optional — used when answers are stripped before serving."""
 
     question_type: QuestionType
     prompt: str
-    content: QuestionContent
+    content: StrippedQuestionContent
     hint: str | None = None
     explanation: str | None = None
     test_id: str | None = None
