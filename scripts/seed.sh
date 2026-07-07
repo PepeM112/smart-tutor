@@ -31,6 +31,10 @@ curl -s -o /dev/null -c "$COOKIE_JAR" \
   -d "username=$EMAIL&password=$PASSWORD"
 echo "done"
 
+# --- Clean previous data for this user ---
+echo -n "Cleaning previous data... "
+docker exec -i backend python3 - "$EMAIL" < "$(dirname "$0")/clean_user.py" 2>&1 | grep -v "INFO\|sqlalchemy"
+
 # Helper: POST with auth cookie
 post() {
   curl -s -b "$COOKIE_JAR" -X POST "$1" -H "Content-Type: application/json" -d "$2"
@@ -85,9 +89,45 @@ TEST1=$(post "$API/tests" '{
       "content": {"answers": ["agua"]},
       "order": 5
     }
+  ],
+  "questionGroups": [
+    {
+      "type": 1,
+      "order": 6,
+      "title": "Family Members",
+      "points": 1.0,
+      "questions": [
+        {
+          "questionType": 1,
+          "prompt": "Translate: \"mother\"",
+          "content": {"answers": ["madre", "mamá"]},
+          "hint": "Very similar to English",
+          "order": 0
+        },
+        {
+          "questionType": 1,
+          "prompt": "Translate: \"father\"",
+          "content": {"answers": ["padre", "papá"]},
+          "order": 1
+        },
+        {
+          "questionType": 1,
+          "prompt": "Translate: \"brother\"",
+          "content": {"answers": ["hermano"]},
+          "order": 2
+        },
+        {
+          "questionType": 1,
+          "prompt": "Translate: \"sister\"",
+          "content": {"answers": ["hermana"]},
+          "order": 3
+        }
+      ]
+    }
   ]
-}' | jq -r '.id')
-echo "$TEST1"
+}')
+TEST1_ID=$(echo "$TEST1" | jq -r '.id')
+echo "$TEST1_ID"
 
 # ============================================================
 # Test 2: Geography (MC questions + a couple Simple)
@@ -383,10 +423,86 @@ echo "$TEST4_ID"
 
 Q_COUNT=$(echo "$TEST4" | jq '.questions | length')
 
+# Extract question IDs in order (same order as the test definition above)
+Q4_ROMAN=$(echo "$TEST4" | jq -r '.questions[0].id')
+Q4_FEUDAL=$(echo "$TEST4" | jq -r '.questions[1].id')
+Q4_FALL=$(echo "$TEST4" | jq -r '.questions[2].id')
+
+# ============================================================
+# Submit History test with pre-written answers
+# ============================================================
+echo -n "Submitting History test result... "
+RESULT4=$(post "$API/tests/$TEST4_ID/submit" "$(cat <<EOF
+{
+  "answers": [
+    {"questionId": "$Q4_ROMAN", "userAnswer": "The fall of the Roman Republic was accelerated by the First Triumvirate—an informal, uneasy political alliance formed in 60 BC between Julius Caesar, Pompey the Great, and Crassus. This alliance bypassed the Senate, but it fractured when Crassus died fighting the Parthians and Caesar's daughter Julia (Pompey's wife) died in childbirth. Politically isolated, Pompey aligned with traditionalist senators who feared Caesar's growing ambition. When the Senate ordered Caesar to disband his army, he refused, famously crossing the Rubicon river with his Thirteenth Legion in 49 BC, plunging Rome into civil war.\n\nCaesar's lightning-fast invasion caught the Senate unprepared. Pompey fled to Greece to consolidate a massive army, but Caesar pursued him and won a definitive tactical victory at the Battle of Pharsalus in 48 BC. Pompey fled to Egypt, where he was betrayed and assassinated by advisors to Pharaoh Ptolemy XIII. Caesar, arriving soon after, aligned with Cleopatra and spent the next few years systematically eliminating the remaining senatorial resistance across the Mediterranean.\n\nUpon returning to Rome, Caesar consolidated absolute authority. In early 44 BC, the Senate named him dictator perpetuo (dictator in perpetuity). This flagrant violation of republican tradition drove a group of senators, led by Brutus and Cassius, to assassinate Caesar on the Ides of March (44 BC). Instead of saving the Republic, this triggered a power vacuum. Caesar's adopted heir, Octavian, and general Mark Antony formed the Second Triumvirate, defeated the assassins, and then turned on each other. Octavian decisively crushed the combined forces of Antony and Cleopatra at the naval Battle of Actium in 31 BC. By 27 BC, Octavian took the title Augustus, becoming Rome's first Emperor."},
+    {"questionId": "$Q4_FEUDAL", "userAnswer": "The feudal system emerged across Western Europe between the 8th and 10th centuries out of absolute necessity. Following the collapse of the Carolingian Empire, central authority vanished, leaving Europe entirely defenseless against terrifying, rapid raids by Vikings, Magyars, and Saracens. Because monarchs lacked the treasury or standing armies to defend vast territories, power fragmented. Authority devolved to local warlords who could construct fortified castles and field immediate local military defense.\n\nAt its core, feudalism was a social pyramid bound by reciprocal legal, military, and economic obligations based on the control of land (fiefs). The relationship between a lord and a vassal was finalized through a solemn oath of fealty. In exchange for land, the vassal promised military service (typically 40 days a year) and counsel in the lord's court. The vassal then ruled over their own manor.\n\nAt the bottom of this pyramid sat the peasants and serfs. While some peasants were legally free, the vast majority were serfs. Serfs were not slaves—they could not be bought or sold away from the land—but they were legally bound to the estate. They were forced to farm the lord's personal land, pay heavy taxes in grain or livestock, and pay fees to use the lord's mill and oven. In return, the lord provided them with a small plot to feed their families and physical protection inside the castle walls during times of war.\n\nStrengths: It successfully restored localized order, safety, and self-sufficiency when central states failed.\nWeaknesses: It created intense political fragmentation, as conflicting vassal loyalties caused endless private wars. It also enforced severe social stagnation, locking the vast majority of the population into inherited, generational poverty."},
+    {"questionId": "$Q4_FALL", "userAnswer": "The Western Roman Empire fell in 476 AD due to internal decay and external pressure. Internally, political instability, civil wars, rampant inflation, and a reliance on unreliable mercenary armies crippled the state. Externally, migrating Germanic tribes pressured by the Huns shattered Rome's borders. The collapse splintered Europe into localized Germanic kingdoms, ending centralized ancient rule, disrupting trade, and allowing the Catholic Church to emerge as the primary unifying cultural force"}
+  ]
+}
+EOF
+)")
+
+RESULT4_ID=$(echo "$RESULT4" | jq -r '.id // empty')
+if [ -z "$RESULT4_ID" ]; then
+  echo "FAILED"
+  echo "$RESULT4" | jq . 2>/dev/null || echo "$RESULT4"
+else
+  echo "$RESULT4_ID"
+
+  # Patch answers with pre-computed AI grading rubric results (bypasses needing API keys)
+  echo -n "Patching grading results... "
+  docker exec -i backend python3 - "$RESULT4_ID" "$Q4_ROMAN" "$Q4_FEUDAL" "$Q4_FALL" < "$(dirname "$0")/patch_grading.py" 2>&1 | grep -v "INFO\|sqlalchemy"
+fi
+
+# ============================================================
+# Submit Spanish Vocabulary test with sample answers
+# ============================================================
+echo -n "Submitting Spanish Vocabulary test result... "
+# Get question IDs from the created test
+Q1_HELLO=$(echo "$TEST1" | jq -r '.questions[] | select(.prompt | contains("hello")) | .id')
+Q1_TOGO=$(echo "$TEST1" | jq -r '.questions[] | select(.prompt | contains("to go")) | .id')
+Q1_CAT=$(echo "$TEST1" | jq -r '.questions[] | select(.prompt | contains("cat")) | .id')
+Q1_HOUSE=$(echo "$TEST1" | jq -r '.questions[] | select(.prompt | contains("house")) | .id')
+Q1_THANKS=$(echo "$TEST1" | jq -r '.questions[] | select(.prompt | contains("thank you")) | .id')
+Q1_WATER=$(echo "$TEST1" | jq -r '.questions[] | select(.prompt | contains("water")) | .id')
+# Group questions
+Q1_MOTHER=$(echo "$TEST1" | jq -r '.questionGroups[0].questions[] | select(.prompt | contains("mother")) | .id')
+Q1_FATHER=$(echo "$TEST1" | jq -r '.questionGroups[0].questions[] | select(.prompt | contains("father")) | .id')
+Q1_BROTHER=$(echo "$TEST1" | jq -r '.questionGroups[0].questions[] | select(.prompt | contains("brother")) | .id')
+Q1_SISTER=$(echo "$TEST1" | jq -r '.questionGroups[0].questions[] | select(.prompt | contains("sister")) | .id')
+
+RESULT1=$(post "$API/tests/$TEST1_ID/submit" "$(cat <<EOF
+{
+  "answers": [
+    {"questionId": "$Q1_HELLO", "userAnswer": "hola"},
+    {"questionId": "$Q1_TOGO", "userAnswer": "ir"},
+    {"questionId": "$Q1_CAT", "userAnswer": "perro"},
+    {"questionId": "$Q1_HOUSE", "userAnswer": "casa"},
+    {"questionId": "$Q1_THANKS", "userAnswer": "gracias"},
+    {"questionId": "$Q1_WATER", "userAnswer": "agua"},
+    {"questionId": "$Q1_MOTHER", "userAnswer": "madre"},
+    {"questionId": "$Q1_FATHER", "userAnswer": "papa"},
+    {"questionId": "$Q1_BROTHER", "userAnswer": "hermano"},
+    {"questionId": "$Q1_SISTER", "userAnswer": "hermana"}
+  ]
+}
+EOF
+)")
+
+RESULT1_ID=$(echo "$RESULT1" | jq -r '.id // empty')
+if [ -z "$RESULT1_ID" ]; then
+  echo "FAILED"
+  echo "$RESULT1" | jq . 2>/dev/null || echo "$RESULT1"
+else
+  echo "$RESULT1_ID (score: $(echo "$RESULT1" | jq '.score')%)"
+fi
+
 echo ""
 echo "=== Seed complete ==="
 echo "User:  $EMAIL / $PASSWORD"
-echo "Tests: $TEST1, $TEST2, $TEST3, $TEST4_ID"
-echo "Total: $(( 6 + 6 + 6 )) Simple/MC questions + $Q_COUNT Long Text questions"
+echo "Tests: $TEST1_ID, $TEST2, $TEST3, $TEST4_ID"
+echo "Results: $RESULT1_ID (Spanish), $RESULT4_ID (History)"
+echo "Total: $(( 6 + 6 + 6 )) Simple/MC questions + 4 grouped questions + $Q_COUNT Long Text questions"
 echo ""
 echo "Log in at http://localhost:3000 with these credentials."

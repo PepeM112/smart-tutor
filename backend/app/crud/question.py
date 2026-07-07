@@ -32,7 +32,7 @@ def create_many(
             group_id=group_id,
             question_type=int(q.question_type),
             prompt=q.prompt,
-            content=q.content,
+            content=q.content.model_dump(),
             hint=q.hint,
             explanation=q.explanation,
             order=q.order,
