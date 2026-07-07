@@ -63,15 +63,12 @@ StrippedQuestionContent = LongTextContentStripped | MultipleChoiceContentStrippe
 
 def _validate_content(q_type: QuestionType | None, content: QuestionContent) -> None:
     """Validate that the content model matches the question type."""
-    try:
-        if q_type == QuestionType.SIMPLE:
-            SimpleContent.model_validate(content)
-        elif q_type == QuestionType.MULTIPLE_CHOICE:
-            MultipleChoiceContent.model_validate(content)
-        elif q_type == QuestionType.LONG_TEXT:
-            LongTextContent.model_validate(content)
-    except Exception as e:
-        raise ValueError(f"Invalid content for {q_type}: {e!s}") from e
+    if q_type == QuestionType.SIMPLE and not isinstance(content, SimpleContent):
+        raise ValueError(f"Invalid content for {q_type}: expected SimpleContent, got {type(content).__name__}")
+    if q_type == QuestionType.MULTIPLE_CHOICE and not isinstance(content, MultipleChoiceContent):
+        raise ValueError(f"Invalid content for {q_type}: expected MultipleChoiceContent, got {type(content).__name__}")
+    if q_type == QuestionType.LONG_TEXT and not isinstance(content, LongTextContent):
+        raise ValueError(f"Invalid content for {q_type}: expected LongTextContent, got {type(content).__name__}")
 
 
 # --- Pydantic Schemas ---

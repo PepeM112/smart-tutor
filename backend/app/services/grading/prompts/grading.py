@@ -2,7 +2,6 @@ import json
 import re
 
 from app.schemas.question import RubricItem
-from app.services.ai.prompts.registry import PromptTemplate, registry
 
 GRADING_SYSTEM_PROMPT = (
     "You are an exam grader. You receive a question, a rubric of criteria, "
@@ -14,8 +13,6 @@ GRADING_SYSTEM_PROMPT = (
     "wrote or omitted). "
     "Do not include any other text."
 )
-
-GRADING_PROMPT = GRADING_SYSTEM_PROMPT
 
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?\s*```$", re.DOTALL)
 
@@ -29,11 +26,3 @@ def strip_code_fences(text: str) -> str:
 def build_grading_user_prompt(prompt: str, rubric: list[RubricItem], answer: str) -> str:
     criteria = [{"index": i, "point": item.point} for i, item in enumerate(rubric)]
     return f"## Question\n{prompt}\n\n## Rubric\n{json.dumps(criteria)}\n\n## Student Answer\n{answer}"
-
-
-GRADING_TEMPLATE = PromptTemplate(
-    name="rubric_grading",
-    system_prompt=GRADING_SYSTEM_PROMPT,
-    description="Grades a student answer against rubric criteria",
-)
-registry.register(GRADING_TEMPLATE)

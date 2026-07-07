@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
-from app.core.enums import QuestionType
+from app.core.enums import QuestionType, TestStatus
 from app.models.question import Question
 from app.models.test import Test
 from app.models.user_question_state import UserQuestionState
@@ -67,6 +67,7 @@ def _reviewable_base_query(*, user_id: str) -> Select[tuple[Question]]:
         .join(Test, Question.test_id == Test.id)
         .where(
             Test.user_id == user_id,
+            Test.status == int(TestStatus.ACTIVE),
             Question.question_type.in_([int(QuestionType.SIMPLE), int(QuestionType.MULTIPLE_CHOICE)]),
         )
     )

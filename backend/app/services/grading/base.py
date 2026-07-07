@@ -1,7 +1,16 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import TypedDict
+
+from typing_extensions import NotRequired
 
 from app.schemas.question import RubricItem
+
+
+class RawCriterionDict(TypedDict):
+    index: int
+    met: bool
+    reason: NotRequired[str]
 
 
 @dataclass(frozen=True)
