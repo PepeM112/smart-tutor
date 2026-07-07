@@ -2,7 +2,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { Slot } from 'radix-ui';
 import * as React from 'react';
 
-import { TooltipContent, TooltipRoot, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import type { LucideIcon } from 'lucide-react';
@@ -74,12 +74,7 @@ function Button({
 
   if (!tooltip) return button;
 
-  return (
-    <TooltipRoot>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
-    </TooltipRoot>
-  );
+  return <Tooltip content={tooltip}>{button}</Tooltip>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

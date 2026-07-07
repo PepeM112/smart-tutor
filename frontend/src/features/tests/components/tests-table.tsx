@@ -1,29 +1,26 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Copy, Dumbbell, ListChecks, Pencil, Text } from 'lucide-react';
+import { Copy, Dumbbell, Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { getQuestionTypeInfo } from '@/features/tests/utils/question-icons';
+import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 function countByType(questions: QuestionRead[], type: QuestionType): number {
   return questions.filter(q => q.questionType === type).length;
 }
 
-function QuestionTypeBadge({
-  icon: Icon,
-  count,
-  label,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  count: number;
-  label: string;
-}) {
+function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number }) {
   if (count === 0) return null;
+  const { icon: Icon, label } = getQuestionTypeInfo(type);
   return (
     <span
       title={`${count} ${label}`}
@@ -64,15 +61,17 @@ const columns: ColumnDef<TestRead, unknown>[] = [
       const questions = row.original.questions ?? [];
       const simple = countByType(questions, QuestionType.SIMPLE);
       const mc = countByType(questions, QuestionType.MULTIPLE_CHOICE);
+      const longText = countByType(questions, QuestionType.LONG_TEXT);
 
-      if (simple === 0 && mc === 0) {
+      if (simple === 0 && mc === 0 && longText === 0) {
         return <span className="text-xs text-muted-foreground/60">--</span>;
       }
 
       return (
         <div className="flex items-center gap-1.5">
-          <QuestionTypeBadge icon={Text} count={simple} label="Simple" />
-          <QuestionTypeBadge icon={ListChecks} count={mc} label="Multiple Choice" />
+          <QuestionTypeBadge type={QuestionType.SIMPLE} count={simple} />
+          <QuestionTypeBadge type={QuestionType.MULTIPLE_CHOICE} count={mc} />
+          <QuestionTypeBadge type={QuestionType.LONG_TEXT} count={longText} />
         </div>
       );
     },
@@ -82,6 +81,16 @@ const columns: ColumnDef<TestRead, unknown>[] = [
     header: '',
     cell: function ActionsCell({ row }) {
       const router = useRouter();
+      const queryClient = useQueryClient();
+      const { mutate: deleteTest, isPending: isDeleting } = useMutation({
+        mutationFn: () => sdk.testsDelete({ path: { test_id: row.original.id } }),
+        onSuccess: () => {
+          void queryClient.invalidateQueries({ queryKey: ['tests'] });
+          toast.success('Test deleted');
+        },
+        onError: () => toast.error('Failed to delete test'),
+      });
+
       return (
         <div className="flex justify-end gap-1">
           <Button
@@ -121,6 +130,25 @@ const columns: ColumnDef<TestRead, unknown>[] = [
           >
             <Dumbbell className="size-4" />
           </Button>
+          <ConfirmDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                tooltip="Delete"
+                onClick={e => e.stopPropagation()}
+                disabled={isDeleting}
+                aria-label={`Delete ${row.original.title}`}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            }
+            title="Delete test"
+            description={`Are you sure you want to delete "${row.original.title}"? This action cannot be undone.`}
+            confirmLabel="Delete"
+            confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+            onConfirm={() => deleteTest()}
+          />
         </div>
       );
     },

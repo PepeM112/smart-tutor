@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import type { TestResultListItem } from '@/client';
 import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
+import { getScoreBadgeClasses } from '@/features/history/utils/score-colors';
 import { Routes } from '@/lib/routes';
 
 function formatDate(date: Date | string): string {
@@ -20,15 +21,10 @@ function formatDate(date: Date | string): string {
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  const color =
-    score >= 80
-      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-      : score >= 50
-        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-
   return (
-    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${color}`}>
+    <span
+      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${getScoreBadgeClasses(score)}`}
+    >
       {score.toFixed(0)}%
     </span>
   );
@@ -47,7 +43,7 @@ const columns: ColumnDef<TestResultListItem, unknown>[] = [
       <div className="flex items-center gap-1.5">
         <ScoreBadge score={row.original.score ?? 0} />
         {(row.original.pendingAnswers ?? 0) > 0 && (
-          <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+          <span className="inline-flex items-center rounded-md bg-feedback-partial-bg px-1.5 py-0.5 text-xs font-medium text-feedback-partial">
             Pending
           </span>
         )}

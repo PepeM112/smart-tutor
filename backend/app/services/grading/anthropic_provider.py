@@ -6,8 +6,8 @@ from anthropic import Anthropic
 from anthropic.types import TextBlock
 
 from app.schemas.question import RubricItem
-from app.services.grading.base import CriterionResult, GradingProvider
-from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
+from app.services.grading.base import CriterionResult, GradingProvider, RawCriterionDict
+from app.services.grading.prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
 
 logger = logging.getLogger("smarttutor.grading.anthropic")
 
@@ -31,19 +31,18 @@ class AnthropicGradingProvider(GradingProvider):
         rubric: list[RubricItem],
         answer: str,
     ) -> list[CriterionResult]:
-        user_prompt = build_user_prompt(prompt, rubric, answer)
+        user_prompt = build_grading_user_prompt(prompt, rubric, answer)
 
         response = self._client.messages.create(
             model=MODEL,
             max_tokens=2048,
-            system=SYSTEM_PROMPT,
+            system=GRADING_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
 
         if not response.content:
             raise ValueError(
-                f"Empty response from Anthropic (stop_reason={response.stop_reason}, "
-                f"usage={response.usage})"
+                f"Empty response from Anthropic (stop_reason={response.stop_reason}, usage={response.usage})"
             )
 
         block = response.content[0]
@@ -53,18 +52,16 @@ class AnthropicGradingProvider(GradingProvider):
 
         if not raw_text.strip():
             raise ValueError(
-                f"Anthropic returned empty text (stop_reason={response.stop_reason}, "
-                f"usage={response.usage})"
+                f"Anthropic returned empty text (stop_reason={response.stop_reason}, usage={response.usage})"
             )
 
         raw_text = strip_code_fences(raw_text)
-        data: dict[str, object] = json.loads(raw_text)
-        parsed: list[dict[str, object]] = data["results"]  # type: ignore[assignment]
+        data: dict[str, list[RawCriterionDict]] = json.loads(raw_text)
         return [
             CriterionResult(
-                index=int(item["index"]),
-                met=bool(item["met"]),
-                reason=str(item.get("reason", "")),
+                index=item["index"],
+                met=item["met"],
+                reason=item.get("reason", ""),
             )
-            for item in parsed
+            for item in data["results"]
         ]

@@ -38,17 +38,37 @@ class LongTextContent(BaseModel):
         return v
 
 
-def _validate_content(q_type: QuestionType | None, content: dict[str, object]) -> None:
-    """Validate content shape against the question type."""
-    try:
-        if q_type == QuestionType.SIMPLE:
-            SimpleContent.model_validate(content)
-        elif q_type == QuestionType.MULTIPLE_CHOICE:
-            MultipleChoiceContent.model_validate(content)
-        elif q_type == QuestionType.LONG_TEXT:
-            LongTextContent.model_validate(content)
-    except Exception as e:
-        raise ValueError(f"Invalid content for {q_type}: {e!s}") from e
+QuestionContent = SimpleContent | MultipleChoiceContent | LongTextContent
+
+
+# --- Stripped content (answer fields optional, used when answers are hidden) ---
+
+
+class SimpleContentStripped(BaseModel):
+    answers: list[str] | None = None
+
+
+class MultipleChoiceContentStripped(BaseModel):
+    options: list[str] = Field(..., min_length=2, max_length=6)
+    correct_indices: list[int] | None = None
+
+
+class LongTextContentStripped(BaseModel):
+    length_limit: LongTextLength
+    rubric: list[RubricItem] | None = None
+
+
+StrippedQuestionContent = LongTextContentStripped | MultipleChoiceContentStripped | SimpleContentStripped
+
+
+def _validate_content(q_type: QuestionType | None, content: QuestionContent) -> None:
+    """Validate that the content model matches the question type."""
+    if q_type == QuestionType.SIMPLE and not isinstance(content, SimpleContent):
+        raise ValueError(f"Invalid content for {q_type}: expected SimpleContent, got {type(content).__name__}")
+    if q_type == QuestionType.MULTIPLE_CHOICE and not isinstance(content, MultipleChoiceContent):
+        raise ValueError(f"Invalid content for {q_type}: expected MultipleChoiceContent, got {type(content).__name__}")
+    if q_type == QuestionType.LONG_TEXT and not isinstance(content, LongTextContent):
+        raise ValueError(f"Invalid content for {q_type}: expected LongTextContent, got {type(content).__name__}")
 
 
 # --- Pydantic Schemas ---
@@ -57,7 +77,7 @@ def _validate_content(q_type: QuestionType | None, content: dict[str, object]) -
 class QuestionBase(BaseSchema):
     question_type: QuestionType
     prompt: str
-    content: dict[str, object] = {}
+    content: QuestionContent
     hint: str | None = None
     explanation: str | None = None
     test_id: str | None = None
@@ -67,7 +87,7 @@ class QuestionBase(BaseSchema):
 
     @field_validator("content")
     @classmethod
-    def validate_content_schema(cls, v: dict[str, object], info: ValidationInfo) -> dict[str, object]:
+    def validate_content_schema(cls, v: QuestionContent, info: ValidationInfo) -> QuestionContent:
         q_type = info.data.get("question_type")
         _validate_content(q_type, v)
         return v
@@ -80,7 +100,7 @@ class QuestionCreate(QuestionBase):
 class QuestionUpdate(BaseSchema):
     question_type: QuestionType | None = None
     prompt: str | None = None
-    content: dict[str, object] | None = None
+    content: QuestionContent | None = None
     hint: str | None = None
     explanation: str | None = None
     points: float | None = None
@@ -97,11 +117,11 @@ class QuestionRead(QuestionBase):
 
 
 class QuestionReadStripped(BaseSchema):
-    """QuestionRead without content validation — used when answer data is stripped."""
+    """QuestionRead with answer fields optional — used when answers are stripped before serving."""
 
     question_type: QuestionType
     prompt: str
-    content: dict[str, object] = {}
+    content: StrippedQuestionContent
     hint: str | None = None
     explanation: str | None = None
     test_id: str | None = None

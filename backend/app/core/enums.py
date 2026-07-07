@@ -21,6 +21,12 @@ class UserStatus(NamedIntEnum):
     BLOCKED = 3
 
 
+class TestStatus(NamedIntEnum):
+    UNKNOWN = 0
+    ACTIVE = 1
+    DELETED = 2
+
+
 class QuestionType(NamedIntEnum):
     UNKNOWN = 0
     SIMPLE = 1

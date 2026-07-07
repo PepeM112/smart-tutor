@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { use, useEffect } from 'react';
 
-import { ResultDetail } from '@/features/history/components/result-detail';
+import ResultDetail from '@/features/history/components/result-detail';
 import { useTestResult } from '@/features/history/hooks/use-test-result';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';

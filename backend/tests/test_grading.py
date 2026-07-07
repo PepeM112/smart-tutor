@@ -21,7 +21,7 @@ from app.schemas.question import LongTextContent, RubricItem
 from app.services.grading.anthropic_provider import AnthropicGradingProvider
 from app.services.grading.base import CriterionResult
 from app.services.grading.openai_provider import OpenAIGradingProvider
-from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
+from app.services.grading.prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
 from app.services.grading_service import (
     _build_rubric_result,
     _determine_status,
@@ -56,7 +56,7 @@ def _make_ai_response(results: list[dict]) -> str:
 
 class TestBuildUserPrompt:
     def test_includes_question_rubric_and_answer(self) -> None:
-        prompt = build_user_prompt("What happened?", SAMPLE_RUBRIC, "Caesar crossed the Rubicon.")
+        prompt = build_grading_user_prompt("What happened?", SAMPLE_RUBRIC, "Caesar crossed the Rubicon.")
         assert "## Question" in prompt
         assert "What happened?" in prompt
         assert "## Rubric" in prompt
@@ -64,7 +64,7 @@ class TestBuildUserPrompt:
         assert "Caesar crossed the Rubicon." in prompt
 
     def test_rubric_is_valid_json(self) -> None:
-        prompt = build_user_prompt("Q", SAMPLE_RUBRIC, "A")
+        prompt = build_grading_user_prompt("Q", SAMPLE_RUBRIC, "A")
         rubric_section = prompt.split("## Rubric\n")[1].split("\n\n## Student Answer")[0]
         parsed = json.loads(rubric_section)
         assert len(parsed) == 3
@@ -72,9 +72,9 @@ class TestBuildUserPrompt:
         assert parsed[0]["point"] == "Mentions the Rubicon crossing"
 
     def test_system_prompt_requests_json_format(self) -> None:
-        assert "JSON" in SYSTEM_PROMPT
-        assert "reason" in SYSTEM_PROMPT
-        assert "met" in SYSTEM_PROMPT
+        assert "JSON" in GRADING_SYSTEM_PROMPT
+        assert "reason" in GRADING_SYSTEM_PROMPT
+        assert "met" in GRADING_SYSTEM_PROMPT
 
 
 # ---------------------------------------------------------------------------

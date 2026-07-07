@@ -3,7 +3,7 @@ import re
 
 from app.schemas.question import RubricItem
 
-SYSTEM_PROMPT = (
+GRADING_SYSTEM_PROMPT = (
     "You are an exam grader. You receive a question, a rubric of criteria, "
     "and a student's answer. For each criterion, decide whether the answer meets it "
     "and provide a brief justification. "
@@ -23,6 +23,6 @@ def strip_code_fences(text: str) -> str:
     return match.group(1).strip() if match else text.strip()
 
 
-def build_user_prompt(prompt: str, rubric: list[RubricItem], answer: str) -> str:
+def build_grading_user_prompt(prompt: str, rubric: list[RubricItem], answer: str) -> str:
     criteria = [{"index": i, "point": item.point} for i, item in enumerate(rubric)]
     return f"## Question\n{prompt}\n\n## Rubric\n{json.dumps(criteria)}\n\n## Student Answer\n{answer}"

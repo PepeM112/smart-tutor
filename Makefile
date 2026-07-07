@@ -87,7 +87,7 @@ lint: ## Check linting + formatting for the whole project (no changes)
 	@echo "\n=== Frontend: eslint + prettier ==="
 	cd frontend && npm run format:check
 
-fix: ## Auto-fix linting + formatting for the whole project
+format: ## Auto-fix linting + formatting for the whole project
 	@echo "=== Backend: ruff ==="
 	$(DOCKER_COMPOSE) exec backend ruff check --fix app/
 	$(DOCKER_COMPOSE) exec backend ruff format app/
@@ -96,25 +96,32 @@ fix: ## Auto-fix linting + formatting for the whole project
 
 format-branch: ## Auto-fix lint + format only files changed on current branch (vs dev)
 	@echo "=== Backend: ruff (branch files) ==="
-	@PY_FILES=$$(git diff --name-only --diff-filter=ACMR $$(git merge-base HEAD dev) | grep -E '^backend/.*\.py$$' | sed 's|^backend/||'); \
+	@PY_FILES=$$(git diff --name-only --diff-filter=ACMR $$(git merge-base HEAD dev) | grep -E '^backend/.*\.py$$' | sed 's|^backend/||' | tr '\n' ' '); \
 	if [ -n "$$PY_FILES" ]; then \
 		$(DOCKER_COMPOSE) exec backend sh -c "ruff check --fix $$PY_FILES && ruff format $$PY_FILES"; \
 	else \
 		echo "No Python files changed."; \
 	fi
 	@echo "\n=== Frontend: eslint + prettier (branch files) ==="
-	@cd frontend && npm run format:branch
+	cd frontend && npm run format:branch
+
+format-check: ## Check lint + format for the whole project (no changes)
+	@echo "=== Backend: ruff ==="
+	$(DOCKER_COMPOSE) exec backend ruff check app/
+	$(DOCKER_COMPOSE) exec backend ruff format --check app/
+	@echo "\n=== Frontend: eslint + prettier ==="
+	cd frontend && npm run format:check
 
 format-branch-check: ## Check lint + format only files changed on current branch (vs dev)
 	@echo "=== Backend: ruff (branch files) ==="
-	@PY_FILES=$$(git diff --name-only --diff-filter=ACMR $$(git merge-base HEAD dev) | grep -E '^backend/.*\.py$$' | sed 's|^backend/||'); \
+	@PY_FILES=$$(git diff --name-only --diff-filter=ACMR $$(git merge-base HEAD dev) | grep -E '^backend/.*\.py$$' | sed 's|^backend/||' | tr '\n' ' '); \
 	if [ -n "$$PY_FILES" ]; then \
 		$(DOCKER_COMPOSE) exec backend sh -c "ruff check $$PY_FILES && ruff format --check $$PY_FILES"; \
 	else \
 		echo "No Python files changed."; \
 	fi
 	@echo "\n=== Frontend: eslint + prettier (branch files) ==="
-	@cd frontend && npm run format:branch:check
+	cd frontend && npm run format:branch:check
 
 type-check: ## Run TypeScript type checking (frontend)
 	cd frontend && npx tsc --noEmit
@@ -125,8 +132,8 @@ type-check: ## Run TypeScript type checking (frontend)
 
 install-all: install-backend frontend-install ## Install all dependencies (BE + FE)
 
-seed: ## Seed database with test data for review testing
-	bash scripts/seed-review-data.sh
+seed: ## Seed database with all sample tests
+	bash scripts/seed.sh
 
 clean: ## Stop services and remove containers, volumes, and local images
 	$(DOCKER_COMPOSE) down -v --rmi local
@@ -144,4 +151,4 @@ restart: ## Restart all services
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint fix format-branch format-branch-check type-check clean clean-fe clean-logs restart help
+.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint format format-check format-branch format-branch-check type-check seed clean clean-fe clean-logs restart help

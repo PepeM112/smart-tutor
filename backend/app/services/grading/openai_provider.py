@@ -5,8 +5,8 @@ import os
 from openai import OpenAI
 
 from app.schemas.question import RubricItem
-from app.services.grading.base import CriterionResult, GradingProvider
-from app.services.grading.prompt import SYSTEM_PROMPT, build_user_prompt, strip_code_fences
+from app.services.grading.base import CriterionResult, GradingProvider, RawCriterionDict
+from app.services.grading.prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
 
 logger = logging.getLogger("smarttutor.grading.openai")
 
@@ -30,13 +30,13 @@ class OpenAIGradingProvider(GradingProvider):
         rubric: list[RubricItem],
         answer: str,
     ) -> list[CriterionResult]:
-        user_prompt = build_user_prompt(prompt, rubric, answer)
+        user_prompt = build_grading_user_prompt(prompt, rubric, answer)
 
         response = self._client.chat.completions.create(
             model=MODEL,
             response_format={"type": "json_object"},
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": GRADING_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
         )
@@ -45,13 +45,12 @@ class OpenAIGradingProvider(GradingProvider):
         logger.debug("OpenAI raw response: %s", raw_text)
 
         raw_text = strip_code_fences(raw_text)
-        data: dict[str, object] = json.loads(raw_text)
-        parsed: list[dict[str, object]] = data["results"]  # type: ignore[assignment]
+        data: dict[str, list[RawCriterionDict]] = json.loads(raw_text)
         return [
             CriterionResult(
-                index=int(item["index"]),
-                met=bool(item["met"]),
-                reason=str(item.get("reason", "")),
+                index=item["index"],
+                met=item["met"],
+                reason=item.get("reason", ""),
             )
-            for item in parsed
+            for item in data["results"]
         ]

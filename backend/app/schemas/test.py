@@ -1,3 +1,4 @@
+from app.core.enums import TestStatus
 from app.schemas.base import BaseSchema
 from app.schemas.question import QuestionCreate, QuestionRead, QuestionReadStripped
 from app.schemas.test_question_group import (
@@ -27,6 +28,7 @@ class TestUpdate(BaseSchema):
 class TestRead(TestBase):
     id: str
     user_id: str
+    status: TestStatus
     questions: list[QuestionRead] = []
     question_groups: list[TestQuestionGroupRead] = []
 
@@ -34,5 +36,6 @@ class TestRead(TestBase):
 class TestReadStripped(TestBase):
     id: str
     user_id: str
+    status: TestStatus
     questions: list[QuestionReadStripped] = []
     question_groups: list[TestQuestionGroupReadStripped] = []
