@@ -44,6 +44,7 @@ class AnswerStatus(NamedIntEnum):
 
 
 class LongTextLength(NamedIntEnum):
+    UNKNOWN = 0
     SHORT = 1
     MEDIUM = 2
     LONG = 3
@@ -59,3 +60,16 @@ LONG_TEXT_CHAR_LIMITS: dict[int, int] = {
 class QuestionGroupType(NamedIntEnum):
     UNKNOWN = 0
     VOCABULARY = 1
+
+
+class NoteSource(NamedIntEnum):
+    UNKNOWN = 0
+    USER_CREATED = 1
+    AI_GENERATED = 2
+
+
+class NoteLength(NamedIntEnum):
+    UNKNOWN = 0
+    SHORT = 1
+    MEDIUM = 2
+    LONG = 3

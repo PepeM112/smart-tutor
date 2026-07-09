@@ -17,7 +17,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("/questions", response_model=ReviewResponse)
-def list(
+def list_(
     db: DbSession,
     current_user: CurrentUser,
     limit: int = Query(default=10, ge=1, le=50),

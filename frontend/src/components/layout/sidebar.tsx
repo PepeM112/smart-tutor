@@ -5,6 +5,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  FileText,
   FlaskConical,
   Grid3X3,
   History,
@@ -44,6 +45,7 @@ const sections: NavSection[] = [
     label: 'Library',
     items: [
       { label: 'Tests', href: Routes.TESTS, icon: BookOpen },
+      { label: 'Notes', href: Routes.NOTES, icon: FileText },
       { label: 'Questions', href: null, icon: Grid3X3, disabled: true },
     ],
   },
