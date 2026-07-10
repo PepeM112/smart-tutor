@@ -6,7 +6,9 @@ from app.schemas.base import BaseSchema
 
 class NoteBase(BaseSchema):
     title: str
+    description: str | None = None
     content: str = ""
+    tags: list[str] = []
 
 
 class NoteCreate(NoteBase):
@@ -15,7 +17,9 @@ class NoteCreate(NoteBase):
 
 class NoteUpdate(BaseSchema):
     title: str | None = None
+    description: str | None = None
     content: str | None = None
+    tags: list[str] | None = None
 
 
 class NoteRead(NoteBase):

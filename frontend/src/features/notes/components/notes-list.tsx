@@ -49,12 +49,12 @@ const columns: ColumnDef<NoteRead, unknown>[] = [
     accessorKey: 'title',
     header: 'Title',
     cell: ({ row }) => {
-      const { title, content = '' } = row.original;
-      const preview = content.slice(0, 80).replace(/\n/g, ' ');
+      const { title, description } = row.original;
+      const preview = description && description.length > 80 ? `${description.slice(0, 80)}...` : description;
       return (
         <div className="min-w-0">
           <p className="font-medium text-foreground truncate">{title}</p>
-          {preview && <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-xs">{preview}...</p>}
+          {preview && <p className="mt-0.5 text-xs text-muted-foreground max-w-xs">{preview}</p>}
         </div>
       );
     },

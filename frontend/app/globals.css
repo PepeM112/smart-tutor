@@ -196,9 +196,10 @@
 .markdown-body code {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  padding: 0.15em 0.35em;
+  padding: 0.3em 0.5em;
   border-radius: 0.25rem;
-  background: var(--muted);
+  background: rgb(40 44 52);
+  color: #f0f0f0;
 }
 
 .markdown-body pre {
@@ -214,6 +215,17 @@
   background: none;
 }
 
+.markdown-body pre:has(> div) {
+  padding: 0;
+  background: none;
+  overflow: hidden;
+
+  div {
+    border-radius: 0.5rem !important;
+  }
+}
+
+
 .markdown-body blockquote {
   border-left: 3px solid var(--border);
   padding-left: 1rem;
@@ -223,16 +235,30 @@
 
 .markdown-body table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
   margin-bottom: 0.75rem;
   font-size: 0.875rem;
 }
 
 .markdown-body th,
 .markdown-body td {
-  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   padding: 0.5rem 0.75rem;
   text-align: left;
+}
+
+.markdown-body th:last-child,
+.markdown-body td:last-child {
+  border-right: none;
+}
+
+.markdown-body tr:last-child td {
+  border-bottom: none;
 }
 
 .markdown-body th {

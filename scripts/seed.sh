@@ -456,6 +456,28 @@ else
 fi
 
 # ============================================================
+# Note: Markdown Test Note (comprehensive formatting reference)
+# ============================================================
+echo -n "Creating note: Markdown Test... "
+NOTE1=$(post "$API/notes" "$(cat <<'NOTEOF'
+{
+  "title": "Markdown Test Note",
+  "description": "Comprehensive markdown formatting reference for testing the renderer",
+  "tags": ["test", "markdown", "reference"],
+  "content": "# Heading 1\n## Heading 2\n### Heading 3\n#### Heading 4\n##### Heading 5\n###### Heading 6\n\n---\n\nThis is a normal paragraph. It has **bold text**, *italic text*, `inline code`, and a [link](https://example.com).\n\n## Lists\n\n### Bullet list\n\n- Item one\n- Item two\n  - Nested item\n  - Another nested\n- Item three\n\n### Numbered list\n\n1. First\n2. Second\n3. Third\n\n### Checkboxes\n\n- [x] Completed task\n- [ ] Incomplete task\n- [x] Another done\n\n## Table\n\n| Name    | Type   | Required |\n|---------|--------|----------|\n| title   | string | yes      |\n| content | text   | no       |\n| tags    | array  | no       |\n\n## Code Blocks\n\nInline: `const x = 42;`\n\n```python\ndef hello(name: str) -> str:\n    return f\"Hello, {name}!\"\n```\n\n```typescript\nfunction greet(name: string): string {\n  return `Hello, ${name}!`;\n}\n```\n\n## Blockquote\n\n> This is a blockquote.\n> It can span multiple lines.\n\n## Image (placeholder)\n\n![Alt text](https://via.placeholder.com/300x100)\n\n## Horizontal Rules\n\n---\n\n***\n\n___\n\nThat covers the main Markdown features!"
+}
+NOTEOF
+)")
+
+NOTE1_ID=$(echo "$NOTE1" | jq -r '.id // empty')
+if [ -z "$NOTE1_ID" ]; then
+  echo "FAILED"
+  echo "$NOTE1" | jq . 2>/dev/null || echo "$NOTE1"
+else
+  echo "$NOTE1_ID"
+fi
+
+# ============================================================
 # Submit Spanish Vocabulary test with sample answers
 # ============================================================
 echo -n "Submitting Spanish Vocabulary test result... "
@@ -502,7 +524,8 @@ echo ""
 echo "=== Seed complete ==="
 echo "User:  $EMAIL / $PASSWORD"
 echo "Tests: $TEST1_ID, $TEST2, $TEST3, $TEST4_ID"
+echo "Notes: $NOTE1_ID (Markdown Test)"
 echo "Results: $RESULT1_ID (Spanish), $RESULT4_ID (History)"
-echo "Total: $(( 6 + 6 + 6 )) Simple/MC questions + 4 grouped questions + $Q_COUNT Long Text questions"
+echo "Total: $(( 6 + 6 + 6 )) Simple/MC questions + 4 grouped questions + $Q_COUNT Long Text questions + 1 note"
 echo ""
 echo "Log in at http://localhost:3000 with these credentials."

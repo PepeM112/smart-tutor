@@ -29,6 +29,7 @@ db.execute(text(f"DELETE FROM question WHERE group_id IN ({user_groups})"), {"ui
 db.execute(text(f"DELETE FROM question WHERE test_id IN ({user_tests})"), {"uid": uid})
 db.execute(text(f"DELETE FROM test_question_group WHERE test_id IN ({user_tests})"), {"uid": uid})
 db.execute(text(f"DELETE FROM test WHERE user_id = :uid"), {"uid": uid})
+db.execute(text(f"DELETE FROM note WHERE user_id = :uid"), {"uid": uid})
 
 db.commit()
 db.close()

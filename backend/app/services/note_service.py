@@ -30,8 +30,7 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
     note = note_crud.create(
         db,
         user_id=current_user.id,
-        title=data.title,
-        content=data.content,
+        data=data,
         source=NoteSource.USER_CREATED,
     )
     db.commit()
@@ -56,11 +55,11 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
         guidance=data.guidance,
         length=data.length,
     )
+    create_data = NoteCreate(title=data.topic, content=content)
     note = note_crud.create(
         db,
         user_id=current_user.id,
-        title=data.topic,
-        content=content,
+        data=create_data,
         source=NoteSource.AI_GENERATED,
     )
     db.commit()
