@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import NoteSource
 from app.models.note import Note
-from app.schemas.note import NoteCreate, NoteUpdate
+from app.schemas.note import NoteUpdate
 
 
 def get_by_id(db: Session, *, id: str) -> Note | None:
@@ -16,14 +16,23 @@ def list_by_user(db: Session, *, user_id: str) -> list[Note]:
     return list(db.scalars(stmt).all())
 
 
-def create(db: Session, *, user_id: str, data: NoteCreate, source: NoteSource) -> Note:
+def create(
+    db: Session,
+    *,
+    user_id: str,
+    title: str,
+    description: str | None = None,
+    content: str = "",
+    source: NoteSource,
+    tags: list[str] | None = None,
+) -> Note:
     note = Note(
         user_id=user_id,
-        title=data.title,
-        description=data.description,
-        content=data.content,
+        title=title,
+        description=description,
+        content=content,
         source=int(source),
-        tags=data.tags,
+        tags=tags or [],
     )
     db.add(note)
     db.flush()

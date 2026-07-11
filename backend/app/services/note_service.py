@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -6,7 +8,12 @@ from app.crud import note as note_crud
 from app.models.note import Note
 from app.models.user import User
 from app.schemas.note import NoteCreate, NoteGenerate, NoteUpdate
-from app.services.ai import get_ai_provider
+from app.services.llm import get_llm_client
+from app.services.note_prompts import NOTE_GENERATION_SYSTEM_PROMPT, build_note_generation_user_prompt
+
+logger = logging.getLogger("smarttutor.notes")
+
+NOTE_MAX_TOKENS = 4096
 
 
 def _get_owned_note_or_404(db: Session, *, note_id: str, current_user: User) -> Note:
@@ -30,8 +37,11 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
     note = note_crud.create(
         db,
         user_id=current_user.id,
-        data=data,
+        title=data.title,
+        description=data.description,
+        content=data.content,
         source=NoteSource.USER_CREATED,
+        tags=data.tags,
     )
     db.commit()
     db.refresh(note)
@@ -49,17 +59,45 @@ def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
 
 
 def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Note:
-    provider = get_ai_provider()
-    content = provider.generate_notes(
-        topic=data.topic,
-        guidance=data.guidance,
-        length=data.length,
+    try:
+        llm = get_llm_client()
+    except ValueError as exc:
+        logger.error("AI provider unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI service is not configured. Please contact the administrator.",
+        ) from exc
+
+    user_prompt = build_note_generation_user_prompt(
+        data.topic,
+        data.guidance,
+        data.length,
     )
-    create_data = NoteCreate(title=data.topic, content=content)
+
+    try:
+        content = llm.complete(
+            system=NOTE_GENERATION_SYSTEM_PROMPT,
+            user=user_prompt,
+            max_tokens=NOTE_MAX_TOKENS,
+        )
+    except (ValueError, TypeError) as exc:
+        logger.error("AI provider returned unusable response: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI service returned an invalid response. Please try again.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error during note generation")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI service encountered an error. Please try again later.",
+        ) from exc
+
     note = note_crud.create(
         db,
         user_id=current_user.id,
-        data=create_data,
+        title=data.topic,
+        content=content,
         source=NoteSource.AI_GENERATED,
     )
     db.commit()
