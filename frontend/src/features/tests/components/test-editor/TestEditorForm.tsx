@@ -12,13 +12,13 @@ import {
   type TestQuestionGroupCreate,
   type TestUpdate,
 } from '@/client';
+import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { AddQuestionDropdown } from '../add-question-dropdown';
-import { AutoTextarea } from '../auto-textarea';
 import { LongTextQuestionBlock } from '../long-text-question-block';
 import { MultipleChoiceQuestionBlock } from '../multiple-choice-question-block';
 import { QuestionGroupBlock } from '../question-group-block';

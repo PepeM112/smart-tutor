@@ -22,7 +22,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("", response_model=list[TestRead])
-def list(db: DbSession, current_user: CurrentUser) -> list[Test]:
+def list_(db: DbSession, current_user: CurrentUser) -> list[Test]:
     return test_service.list_tests(db, current_user=current_user)
 
 

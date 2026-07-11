@@ -177,19 +177,26 @@ def grade_pending_answers(test_result_id: str) -> None:
             except (AnthropicAuthError, OpenAIAuthError) as exc:
                 logger.error(
                     "FAILED Q%d/%d -- AUTH ERROR: %s (check your API key)",
-                    idx, total, exc,
+                    idx,
+                    total,
+                    exc,
                 )
                 answer.status = int(AnswerStatus.FAILED)
             except (AnthropicAPIError, OpenAIAPIError) as exc:
                 logger.error(
                     "FAILED Q%d/%d -- API ERROR %d: %s",
-                    idx, total, exc.status_code, exc.message,
+                    idx,
+                    total,
+                    exc.status_code,
+                    exc.message,
                 )
                 answer.status = int(AnswerStatus.FAILED)
             except (json.JSONDecodeError, KeyError, TypeError) as exc:
                 logger.exception(
                     "FAILED Q%d/%d -- PARSE ERROR: AI response was not valid JSON (%s)",
-                    idx, total, exc,
+                    idx,
+                    total,
+                    exc,
                 )
                 answer.status = int(AnswerStatus.FAILED)
             except Exception:

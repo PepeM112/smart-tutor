@@ -1,0 +1,122 @@
+"""Shared low-level LLM client — call any provider, get text back.
+
+Both the grading module and note generation use the same underlying LLM
+providers.  This module centralises client initialisation and text extraction
+so that each feature only needs to supply a system prompt, user prompt, and
+max_tokens.
+"""
+
+import logging
+import os
+from abc import ABC, abstractmethod
+
+logger = logging.getLogger("smarttutor.llm")
+
+
+class LLMClient(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
+
+    @abstractmethod
+    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+        """Send a system + user message pair and return the raw text response."""
+        ...
+
+
+class AnthropicLLMClient(LLMClient):
+    MODEL = "claude-haiku-4-5-20251001"
+
+    def __init__(self) -> None:
+        from anthropic import Anthropic
+
+        api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY is not set")
+        self._client = Anthropic(api_key=api_key)
+
+    @property
+    def name(self) -> str:
+        return f"Anthropic ({self.MODEL})"
+
+    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+        from anthropic.types import TextBlock
+
+        response = self._client.messages.create(
+            model=self.MODEL,
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+
+        if not response.content:
+            raise ValueError(
+                f"Empty response from Anthropic (stop_reason={response.stop_reason}, usage={response.usage})"
+            )
+
+        block = response.content[0]
+        if not isinstance(block, TextBlock):
+            raise TypeError(f"Expected TextBlock, got {type(block).__name__}")
+
+        text = block.text.strip()
+        if not text:
+            raise ValueError(
+                f"Anthropic returned empty text (stop_reason={response.stop_reason}, usage={response.usage})"
+            )
+
+        return text
+
+
+class OpenAILLMClient(LLMClient):
+    MODEL = "gpt-4o-mini"
+
+    def __init__(self) -> None:
+        from openai import OpenAI
+
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is not set")
+        self._client = OpenAI(api_key=api_key)
+
+    @property
+    def name(self) -> str:
+        return f"OpenAI ({self.MODEL})"
+
+    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+        response = self._client.chat.completions.create(
+            model=self.MODEL,
+            max_tokens=max_tokens,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
+
+        text = (response.choices[0].message.content or "").strip()
+        if not text:
+            raise ValueError("OpenAI returned empty text")
+
+        return text
+
+
+_CLIENTS: dict[str, type[LLMClient]] = {}
+_INSTANCES: dict[str, LLMClient] = {}
+
+
+def _load_clients() -> None:
+    if _CLIENTS:
+        return
+    _CLIENTS["anthropic"] = AnthropicLLMClient
+    _CLIENTS["openai"] = OpenAILLMClient
+
+
+def get_llm_client() -> LLMClient:
+    """Return a singleton LLM client based on the AI_GRADING_PROVIDER env var."""
+    _load_clients()
+    name = os.getenv("AI_GRADING_PROVIDER", "anthropic").lower()
+    if name not in _INSTANCES:
+        cls = _CLIENTS.get(name)
+        if cls is None:
+            raise ValueError(f"Unknown LLM provider: {name!r}. Available: {list(_CLIENTS)}")
+        _INSTANCES[name] = cls()
+    return _INSTANCES[name]

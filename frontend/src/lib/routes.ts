@@ -11,6 +11,10 @@ export const Routes = {
   TEST_EDIT: (id: string) => `/tests/${id}/edit`,
   TEST_DETAIL: (id: string) => `/tests/${id}`,
 
+  NOTES: '/notes',
+  NOTE_NEW: '/notes/new',
+  NOTE_DETAIL: (id: string) => `/notes/${id}`,
+
   HISTORY: '/history',
   RESULT_DETAIL: (id: string) => `/history/${id}`,
   STATS: '/stats',

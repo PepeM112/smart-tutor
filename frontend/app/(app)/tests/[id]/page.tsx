@@ -21,7 +21,11 @@ export default function TakeTestPage({ params }: Props) {
   const queryClient = useQueryClient();
   const { set, reset } = useBreadcrumbStore();
 
-  const { data: testResponse, isLoading, isError } = useQuery({
+  const {
+    data: testResponse,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['tests', id, 'exam'],
     queryFn: () => sdk.testsGet({ path: { test_id: id }, query: { strip_answers: true } }),
   });
@@ -39,7 +43,7 @@ export default function TakeTestPage({ params }: Props) {
           })),
         },
       }),
-    onSuccess: async (response) => {
+    onSuccess: async response => {
       const resultId = response.data?.id;
       if (!resultId) return;
       await queryClient.invalidateQueries({ queryKey: ['results'] });
