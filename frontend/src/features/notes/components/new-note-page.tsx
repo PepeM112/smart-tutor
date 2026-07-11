@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AutoTextarea } from '@/components/shared/auto-textarea';
@@ -23,6 +23,15 @@ export function NewNotePage() {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
 
+  const isDirty = !!(title || description || content || tags.length > 0);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
   const { mutate: createNote, isPending: isCreating } = useMutation({
     mutationFn: () =>
       sdk.notesCreate({
@@ -31,7 +40,8 @@ export function NewNotePage() {
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
       toast.success('Note created');
-      router.push(Routes.NOTE_DETAIL(res.data!.id));
+      if (!res.data) return;
+      router.push(Routes.NOTE_DETAIL(res.data.id));
     },
     onError: () => toast.error('Failed to create note'),
   });

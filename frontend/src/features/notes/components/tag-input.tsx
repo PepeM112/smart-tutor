@@ -35,7 +35,7 @@ export function TagInput({ tags, onChange }: Props) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 w-64 rounded-md border border-input px-2 py-1 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+    <div className="flex flex-wrap items-center gap-1.5 w-64 max-w-full rounded-md border border-input px-2 py-1 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
       {tags.map(tag => (
         <span
           key={tag}

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, Pencil, Save } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
@@ -49,6 +49,13 @@ function NoteForm({ note }: { note: NoteRead }) {
   const [content, setContent] = useState(note.content ?? '');
   const [tags, setTags] = useState<string[]>(note.tags ?? []);
   const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const { mutate: save, isPending: isSaving } = useMutation({
     mutationFn: () =>

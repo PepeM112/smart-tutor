@@ -52,7 +52,8 @@ export function GenerateNoteDialog() {
       toast.success('Note generated');
       setOpen(false);
       resetForm();
-      router.push(Routes.NOTE_DETAIL(res.data!.id));
+      if (!res.data) return;
+      router.push(Routes.NOTE_DETAIL(res.data.id));
     },
     onError: () => toast.error('Failed to generate note'),
   });

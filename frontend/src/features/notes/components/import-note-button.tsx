@@ -21,7 +21,8 @@ export function ImportNoteButton() {
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
       toast.success('Note imported');
-      router.push(Routes.NOTE_DETAIL(res.data!.id));
+      if (!res.data) return;
+      router.push(Routes.NOTE_DETAIL(res.data.id));
     },
     onError: () => toast.error('Failed to import note'),
   });
