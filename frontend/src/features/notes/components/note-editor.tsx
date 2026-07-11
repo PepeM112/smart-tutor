@@ -59,10 +59,7 @@ export function NoteEditor({ content, onChange }: Props) {
   return (
     <div ref={containerRef} className="flex h-full gap-0">
       {/* Editor panel */}
-      <div
-        className="min-w-0 rounded-lg border border-border"
-        style={{ flex: splitRatio }}
-      >
+      <div className="min-w-0 rounded-lg border border-border" style={{ flex: splitRatio }}>
         <textarea
           ref={textareaRef}
           value={content}

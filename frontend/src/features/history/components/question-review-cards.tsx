@@ -3,7 +3,6 @@
 import { Loader2 } from 'lucide-react';
 
 import { AnswerStatus, type AnswerRead, type QuestionRead } from '@/client';
-
 import { Card, CardContent } from '@/components/ui/card';
 import {
   getScoreTextColor,
@@ -91,11 +90,7 @@ export function CompactGroupCard({
     <Card
       role="button"
       tabIndex={0}
-      className={cn(
-        'p-4 ring-1 transition-colors cursor-pointer select-none',
-        ringClass,
-        isSelected && bgClass
-      )}
+      className={cn('p-4 ring-1 transition-colors cursor-pointer select-none', ringClass, isSelected && bgClass)}
       onClick={onClick}
     >
       <CardContent className="p-0">
