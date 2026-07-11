@@ -22,7 +22,7 @@ type Props = {
 
 function NoteForm({ note }: { note: NoteRead }) {
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(true);
   const [title, setTitle] = useState(note.title);
   const [description, setDescription] = useState(note.description ?? '');
   const [content, setContent] = useState(note.content ?? '');

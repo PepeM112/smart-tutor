@@ -58,7 +58,7 @@ export function NoteEditor({ content, onChange }: Props) {
           onChange={e => onChange(e.target.value)}
           onKeyDown={e => handleEditorKeyDown(e, onChange)}
           placeholder="Start writing in Markdown..."
-          className="w-full h-full resize-none bg-transparent p-6 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="w-full h-full resize-none scrollbar-none bg-transparent p-6 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
           spellCheck={false}
         />
       </div>
