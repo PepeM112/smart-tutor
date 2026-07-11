@@ -3,11 +3,10 @@
 import { Plus, Trash2 } from 'lucide-react';
 
 import type { QuestionType } from '@/client';
+import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-
-import { AutoTextarea } from './auto-textarea';
 
 export type Choice = {
   text: string;

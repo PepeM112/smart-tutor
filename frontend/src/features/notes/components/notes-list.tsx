@@ -13,6 +13,23 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
+type Props = {
+  data: NoteRead[];
+};
+
+export function NotesList({ data }: Props) {
+  const router = useRouter();
+
+  return (
+    <DataTable
+      columns={columns}
+      data={data}
+      emptyMessage="No notes yet. Create your first one!"
+      onRowClick={row => router.push(Routes.NOTE_DETAIL(row.id))}
+    />
+  );
+}
+
 function downloadMarkdown(title: string, content: string) {
   const blob = new Blob([content], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
@@ -135,20 +152,3 @@ const columns: ColumnDef<NoteRead, unknown>[] = [
     },
   },
 ];
-
-type Props = {
-  data: NoteRead[];
-};
-
-export function NotesList({ data }: Props) {
-  const router = useRouter();
-
-  return (
-    <DataTable
-      columns={columns}
-      data={data}
-      emptyMessage="No notes yet. Create your first one!"
-      onRowClick={row => router.push(Routes.NOTE_DETAIL(row.id))}
-    />
-  );
-}

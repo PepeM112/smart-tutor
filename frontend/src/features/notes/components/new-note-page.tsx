@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AutoTextarea } from '@/features/tests/components/auto-textarea';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 

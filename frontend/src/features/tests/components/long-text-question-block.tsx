@@ -4,12 +4,11 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
 import type { QuestionType } from '@/client';
+import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
-
-import { AutoTextarea } from './auto-textarea';
 
 export type Criterion = {
   point: string;

@@ -4,9 +4,8 @@ import { ChevronsLeftRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { QuestionType, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
+import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { cn } from '@/lib/utils';
-
-import { useResizableSplit } from '../hooks/use-resizable-split';
 
 import GroupDetailPanel from './group-detail-panel';
 import { QuestionDetailPanel } from './question-detail-panel';

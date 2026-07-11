@@ -6,9 +6,9 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
+import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AutoTextarea } from '@/features/tests/components/auto-textarea';
 import { sdk } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,27 @@ import { TagInput } from './tag-input';
 type Props = {
   noteId: string;
 };
+
+export function NotePage({ noteId }: Props) {
+  const { data: note, isLoading } = useQuery({
+    queryKey: ['notes', noteId],
+    queryFn: () => sdk.notesGet({ path: { note_id: noteId } }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!note?.data) {
+    return <p className="text-muted-foreground">Note not found.</p>;
+  }
+
+  return <NoteForm key={note.data.id} note={note.data} />;
+}
 
 function NoteForm({ note }: { note: NoteRead }) {
   const queryClient = useQueryClient();
@@ -133,25 +154,4 @@ function NoteForm({ note }: { note: NoteRead }) {
       </div>
     </div>
   );
-}
-
-export function NotePage({ noteId }: Props) {
-  const { data: note, isLoading } = useQuery({
-    queryKey: ['notes', noteId],
-    queryFn: () => sdk.notesGet({ path: { note_id: noteId } }),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (!note?.data) {
-    return <p className="text-muted-foreground">Note not found.</p>;
-  }
-
-  return <NoteForm key={note.data.id} note={note.data} />;
 }
