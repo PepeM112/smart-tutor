@@ -187,7 +187,7 @@ def process_challenge(answer_id: str) -> None:
         parsed = json.loads(cleaned)
         results: list[dict[str, object]] = parsed["results"]
 
-        result_map = {int(r["index"]): r for r in results}
+        result_map = {int(str(r["index"])): r for r in results}
 
         any_flipped = False
         for i in pending_indices:
