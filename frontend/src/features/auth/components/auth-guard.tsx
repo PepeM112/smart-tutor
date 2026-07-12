@@ -7,6 +7,7 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { useAuthStore } from '../store/auth-store';
+import { clearSessionCookie } from '../utils/session-cookie';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -22,15 +23,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     sdk
       .usersMe()
       .then(res => setUser(res.data ?? null))
-      .catch(async () => {
-        try {
-          const refreshResult = await sdk.usersRefresh();
-          setUser(refreshResult.data ?? null);
-        } catch {
-          logout();
-          document.cookie = 'session=; path=/; max-age=0';
-          router.replace(Routes.LOGIN);
-        }
+      .catch(() => {
+        logout();
+        clearSessionCookie();
+        router.replace(Routes.LOGIN);
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
