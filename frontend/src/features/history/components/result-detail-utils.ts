@@ -2,6 +2,7 @@ import {
   AnswerStatus,
   type AnswerRead,
   type QuestionRead,
+  type RubricResultItem,
   QuestionType,
   type TestQuestionGroupRead,
   type TestRead,
@@ -28,6 +29,13 @@ export function buildExamItems(test: TestRead): ExamItem[] {
   return items.sort((a, b) => a.order - b.order);
 }
 
+function effectiveMet(item: RubricResultItem): boolean {
+  if (item.challengeResult != null && item.challengeResult?.met != null) {
+    return item.challengeResult.met;
+  }
+  return item.met;
+}
+
 export type QuestionScore = { label: string; pct: number };
 
 export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRead): QuestionScore | null {
@@ -38,7 +46,7 @@ export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRea
   if (question?.questionType === QuestionType.LONG_TEXT) {
     if (!answer.rubricResult || answer.rubricResult.length === 0) return null;
     const totalWeight = answer.rubricResult.reduce((sum, i) => sum + i.weight, 0);
-    const earnedWeight = answer.rubricResult.filter(i => i.met).reduce((sum, i) => sum + i.weight, 0);
+    const earnedWeight = answer.rubricResult.filter(effectiveMet).reduce((sum, i) => sum + i.weight, 0);
     const pct = totalWeight > 0 ? (earnedWeight / totalWeight) * 100 : 0;
     const earned = totalWeight > 0 ? (earnedWeight / totalWeight) * maxPoints : 0;
     return { label: `${earned.toFixed(2)}/${maxPoints.toFixed(2)}`, pct };

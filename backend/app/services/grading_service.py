@@ -44,12 +44,19 @@ def _build_rubric_result(
     ]
 
 
+def _effective_met(entry: dict[str, object]) -> bool:
+    cr = entry.get("challenge_result")
+    if cr is not None and isinstance(cr, dict) and cr.get("met") is not None:
+        return bool(cr["met"])
+    return bool(entry.get("met", False))
+
+
 def _score_from_rubric_result(
     content: LongTextContent,
     rubric_result: list[dict[str, object]],
     question_points: float,
 ) -> float:
-    met_by_index = {i: bool(r.get("met", False)) for i, r in enumerate(rubric_result)}
+    met_by_index = {i: _effective_met(r) for i, r in enumerate(rubric_result)}
     total_weight = sum(item.weight for item in content.rubric)
     if total_weight <= 0:
         return 0.0
