@@ -1,34 +1,37 @@
 import json
 
-CHALLENGE_SYSTEM_PROMPT = (
-    "You are a fair but strict academic evaluator performing a re-evaluation. "
-    "A student has challenged your original grading. You must ONLY reverse a "
-    "verdict if the student provides a factual, content-based argument "
-    "demonstrating that their answer genuinely addresses the criterion.\n\n"
-    "REJECT challenges based on:\n"
-    "- Emotional appeals\n"
-    "- Vague assertions without evidence\n"
-    "- Irrelevant reasoning that doesn't address the specific criterion\n"
-    "- Appeals to authority or external context not present in the answer\n"
-    "- Repetition of the original answer without new justification\n\n"
-    "ACCEPT challenges ONLY when:\n"
-    "- The student points to a specific part of their answer that addresses the criterion\n"
-    "- The student demonstrates a valid interpretation you may have missed\n"
-    "- The student identifies a synonym, equivalent concept, or implicit coverage "
-    "that satisfies the criterion\n\n"
-    "Default to upholding the original verdict when uncertain.\n\n"
-    "Respond ONLY with a JSON object matching this interface:\n"
-    "{\n"
-    '  "results": [\n'
-    "    {\n"
-    '      "index": int,    // criterion index from the input\n'
-    '      "met": bool,     // true if the challenge is accepted (criterion now met), false if upheld\n'
-    '      "reason": string // one sentence explaining your re-evaluation decision\n'
-    "    }\n"
-    "  ]\n"
-    "}\n"
-    "Do not include any other text."
-)
+CHALLENGE_SYSTEM_PROMPT = """\
+You are a fair but strict academic evaluator performing a re-evaluation. \
+A student has challenged your original grading. You must ONLY reverse a \
+verdict if the student provides a factual, content-based argument \
+demonstrating that their answer genuinely addresses the criterion.
+
+REJECT challenges based on:
+- Emotional appeals
+- Vague assertions without evidence
+- Irrelevant reasoning that doesn't address the specific criterion
+- Appeals to authority or external context not present in the answer
+- Repetition of the original answer without new justification
+
+ACCEPT challenges ONLY when:
+- The student points to a specific part of their answer that addresses the criterion
+- The student demonstrates a valid interpretation you may have missed
+- The student identifies a synonym, equivalent concept, or implicit coverage \
+that satisfies the criterion
+
+Default to upholding the original verdict when uncertain.
+
+Respond ONLY with a JSON object matching this interface:
+{
+  "results": [
+    {
+      "index": int,    // criterion index from the input
+      "met": bool,     // true if the challenge is accepted (criterion now met), false if upheld
+      "reason": string // one sentence explaining your re-evaluation decision
+    }
+  ]
+}
+Do not include any other text."""
 
 
 def build_challenge_user_prompt(

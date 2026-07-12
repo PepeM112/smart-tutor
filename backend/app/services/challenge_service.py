@@ -2,7 +2,11 @@ import copy
 import json
 import logging
 
+from anthropic import APIStatusError as AnthropicAPIError
+from anthropic import AuthenticationError as AnthropicAuthError
 from fastapi import HTTPException, status
+from openai import APIStatusError as OpenAIAPIError
+from openai import AuthenticationError as OpenAIAuthError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -18,17 +22,11 @@ from app.services.grading.prompts.challenge import (
     build_challenge_user_prompt,
 )
 from app.services.grading.prompts.grading import strip_code_fences
-from app.services.grading_service import _recalculate_test_result
+from app.services.grading.utils import effective_met
+from app.services.grading_service import recalculate_test_result
 from app.services.llm import get_llm_client
 
 logger = logging.getLogger("smarttutor.grading")
-
-
-def _effective_met(entry: dict[str, object]) -> bool:
-    cr = entry.get("challenge_result")
-    if cr is not None and isinstance(cr, dict) and cr.get("met") is not None:
-        return bool(cr["met"])
-    return bool(entry.get("met", False))
 
 
 def _validate_challenge_eligibility(
@@ -104,7 +102,7 @@ def challenge_answer(
 
     _validate_challenge_eligibility(answer, question, request, user_id)
 
-    rubric_result = list(answer.rubric_result)  # type: ignore[arg-type]
+    rubric_result = copy.deepcopy(answer.rubric_result or [])
     for criterion in request.criteria:
         idx = criterion.criterion_index
         rubric_result[idx] = {
@@ -223,7 +221,7 @@ def process_challenge(answer_id: str) -> None:
                 .scalar_one_or_none()
             )
             if test_result is not None:
-                _recalculate_test_result(db, test_result)
+                recalculate_test_result(db, test_result)
 
         db.commit()
 
@@ -235,17 +233,34 @@ def process_challenge(answer_id: str) -> None:
             len(pending_indices),
         )
 
-    except Exception:
-        logger.exception("Challenge processing failed for answer %s", answer_id)
+    except (AnthropicAuthError, OpenAIAuthError) as exc:
+        logger.error("Challenge failed for answer %s -- AUTH ERROR: %s", answer_id, exc)
         _mark_challenge_as_failed(db, answer_id)
-        db.rollback()
+    except (AnthropicAPIError, OpenAIAPIError) as exc:
+        logger.error(
+            "Challenge failed for answer %s -- API ERROR %d: %s",
+            answer_id,
+            exc.status_code,
+            exc.message,
+        )
+        _mark_challenge_as_failed(db, answer_id)
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        logger.exception(
+            "Challenge failed for answer %s -- PARSE ERROR: AI response was not valid JSON (%s)",
+            answer_id,
+            exc,
+        )
+        _mark_challenge_as_failed(db, answer_id)
+    except Exception:
+        logger.exception("Challenge failed for answer %s -- UNEXPECTED ERROR", answer_id)
+        _mark_challenge_as_failed(db, answer_id)
     finally:
         db.close()
 
 
 def _recalculate_answer_status(answer: Answer, content: LongTextContent) -> None:
     rubric_result = answer.rubric_result or []
-    met_count = sum(1 for i, entry in enumerate(rubric_result) if _effective_met(entry))
+    met_count = sum(1 for entry in rubric_result if effective_met(entry))
     if met_count == len(content.rubric):
         answer.status = int(AnswerStatus.CORRECT)
     elif met_count == 0:
