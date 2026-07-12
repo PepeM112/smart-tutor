@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 
-SECRET_KEY = os.getenv("SECRET_KEY", "insecure-dev-secret-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET", "insecure-dev-secret-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
@@ -24,8 +24,10 @@ def create_refresh_token(subject: str) -> str:
 
 
 def decode_token(token: str) -> str:
-    """Returns the subject (user ID) from a valid token. Raises JWTError on failure."""
+    """Returns the subject (user ID) from a valid access token. Raises JWTError on failure."""
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    if payload.get("type") != "access":
+        raise JWTError("Not an access token")
     sub: str | None = payload.get("sub")
     if sub is None:
         raise JWTError("Subject missing from token")

@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.core.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     REFRESH_TOKEN_EXPIRE_DAYS,
@@ -24,6 +25,9 @@ router = APIRouter()
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 
 
+_is_production = settings.environment == "production"
+
+
 def _set_auth_cookies(response: Response, user_id: str) -> None:
     access = create_access_token(user_id)
     refresh = create_refresh_token(user_id)
@@ -31,6 +35,7 @@ def _set_auth_cookies(response: Response, user_id: str) -> None:
         key="access_token",
         value=access,
         httponly=True,
+        secure=_is_production,
         samesite="lax",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
@@ -38,14 +43,15 @@ def _set_auth_cookies(response: Response, user_id: str) -> None:
         key="refresh_token",
         value=refresh,
         httponly=True,
+        secure=_is_production,
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
     )
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(key="access_token", httponly=True, samesite="lax")
-    response.delete_cookie(key="refresh_token", httponly=True, samesite="lax")
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
 
 
 @router.post("/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED)
