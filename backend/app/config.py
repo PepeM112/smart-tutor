@@ -7,4 +7,4 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file="./env", extra="ignore")
 
 
-settings = Settings()  # type: ignore - Pydantic's BaseSettings does not have a default constructor, but we know it will work with the provided env file.
+settings = Settings()

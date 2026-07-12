@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
@@ -24,7 +25,7 @@ class UserQuestionState(Base, CreatedAtMixin):
     ease_factor: Mapped[float] = mapped_column(Float, default=2.5)
     interval: Mapped[int] = mapped_column(Integer, default=0)
     repetitions: Mapped[int] = mapped_column(Integer, default=0)
-    next_review: Mapped[None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    next_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id])
     question: Mapped["Question"] = relationship(foreign_keys=[question_id])

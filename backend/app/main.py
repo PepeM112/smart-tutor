@@ -76,7 +76,7 @@ _grading_logger.propagate = False
 
 
 @app.get("/health")
-def health() -> dict:
+def health() -> dict[str, str]:
     return {"status": "ok"}
 
 

@@ -7,9 +7,9 @@ import {
   QuestionGroupType,
   QuestionType,
   type AnswerStatus,
-  type QuestionRead,
-  type TestQuestionGroupRead,
-  type TestRead,
+  type QuestionReadStripped,
+  type TestQuestionGroupReadStripped,
+  type TestReadStripped,
   type TestResultRead,
 } from '@/client';
 import { Button } from '@/components/ui/button';
@@ -25,10 +25,10 @@ import { cn } from '@/lib/utils';
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
 
 type ExamItem =
-  | { kind: 'question'; question: QuestionRead; order: number }
-  | { kind: 'group'; group: TestQuestionGroupRead; order: number };
+  | { kind: 'question'; question: QuestionReadStripped; order: number }
+  | { kind: 'group'; group: TestQuestionGroupReadStripped; order: number };
 
-function buildExamItems(test: TestRead): ExamItem[] {
+function buildExamItems(test: TestReadStripped): ExamItem[] {
   const items: ExamItem[] = [];
 
   for (const q of test.questions ?? []) {
@@ -43,7 +43,7 @@ function buildExamItems(test: TestRead): ExamItem[] {
 }
 
 type Props = {
-  test: TestRead;
+  test: TestReadStripped;
   onSubmit: (answers: Record<string, string>) => void;
   isSubmitting: boolean;
   result: TestResultRead | null;
@@ -211,7 +211,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
 // ---------------------------------------------------------------------------
 
 type VocabularyTableProps = {
-  questions: QuestionRead[];
+  questions: QuestionReadStripped[];
   answers: Record<string, string>;
   onTextChange: (id: string, value: string) => void;
   getAnswerStatus: (id: string) => AnswerStatus | null;
@@ -276,7 +276,7 @@ function VocabularyTable({
 // ---------------------------------------------------------------------------
 
 type QuestionCardProps = {
-  question: QuestionRead;
+  question: QuestionReadStripped;
   number?: number;
   pointsLabel?: number;
   answer: string;

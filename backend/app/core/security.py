@@ -11,7 +11,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode = {"sub": str(subject), "exp": expire}
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    token: str = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return token
 
 
 def decode_token(token: str) -> str:
