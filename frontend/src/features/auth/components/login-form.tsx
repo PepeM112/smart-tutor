@@ -16,6 +16,7 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { useAuthStore } from '../store/auth-store';
+import { setSessionCookie } from '../utils/session-cookie';
 
 export function LoginForm() {
   const router = useRouter();
@@ -35,8 +36,7 @@ export function LoginForm() {
       }),
     onSuccess: response => {
       setUser(response.data ?? null);
-      const isProduction = process.env.NODE_ENV === 'production';
-      document.cookie = `session=1; path=/; SameSite=Lax${isProduction ? '; Secure' : ''}`;
+      setSessionCookie();
       router.push(Routes.DASHBOARD);
       router.refresh();
     },
@@ -45,7 +45,7 @@ export function LoginForm() {
     },
   });
 
-  const handleSubmit = (e: { preventDefault(): void }) => {
+  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = e => {
     e.preventDefault();
     login();
   };

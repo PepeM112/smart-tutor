@@ -2,6 +2,7 @@ import {
   AnswerStatus,
   type AnswerRead,
   type QuestionRead,
+  type RubricResultItem,
   QuestionType,
   type TestQuestionGroupRead,
   type TestRead,
@@ -18,14 +19,18 @@ export type ExamItem =
   | { type: ExamItemType.GROUP; group: TestQuestionGroupRead; order: number };
 
 export function buildExamItems(test: TestRead): ExamItem[] {
-  const items: ExamItem[] = [];
-  for (const q of test.questions ?? []) {
-    items.push({ type: ExamItemType.QUESTION, question: q, order: q.order ?? 0 });
-  }
-  for (const g of test.questionGroups ?? []) {
-    items.push({ type: ExamItemType.GROUP, group: g, order: g.order ?? 0 });
-  }
+  const items: ExamItem[] = [
+    ...(test.questions ?? []).map(q => ({ type: ExamItemType.QUESTION as const, question: q, order: q.order ?? 0 })),
+    ...(test.questionGroups ?? []).map(g => ({ type: ExamItemType.GROUP as const, group: g, order: g.order ?? 0 })),
+  ];
   return items.sort((a, b) => a.order - b.order);
+}
+
+export function effectiveMet(item: RubricResultItem): boolean {
+  if (item.challengeResult != null && item.challengeResult.met != null) {
+    return item.challengeResult.met;
+  }
+  return item.met;
 }
 
 export type QuestionScore = { label: string; pct: number };
@@ -38,7 +43,7 @@ export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRea
   if (question?.questionType === QuestionType.LONG_TEXT) {
     if (!answer.rubricResult || answer.rubricResult.length === 0) return null;
     const totalWeight = answer.rubricResult.reduce((sum, i) => sum + i.weight, 0);
-    const earnedWeight = answer.rubricResult.filter(i => i.met).reduce((sum, i) => sum + i.weight, 0);
+    const earnedWeight = answer.rubricResult.filter(effectiveMet).reduce((sum, i) => sum + i.weight, 0);
     const pct = totalWeight > 0 ? (earnedWeight / totalWeight) * 100 : 0;
     const earned = totalWeight > 0 ? (earnedWeight / totalWeight) * maxPoints : 0;
     return { label: `${earned.toFixed(2)}/${maxPoints.toFixed(2)}`, pct };

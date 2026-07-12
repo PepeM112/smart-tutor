@@ -15,10 +15,10 @@ def get_review_questions(
         return [], False
 
     if mode == "practice":
-        questions = question_crud.list_random_for_user(db, user_id=current_user.id, limit=limit)
+        questions = list(question_crud.list_random_for_user(db, user_id=current_user.id, limit=limit))
         return questions, True
 
-    due = question_crud.list_due_for_review(db, user_id=current_user.id, limit=limit)
+    due = list(question_crud.list_due_for_review(db, user_id=current_user.id, limit=limit))
     remaining = limit - len(due)
 
     if remaining > 0:

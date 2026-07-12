@@ -21,6 +21,7 @@ from app.models.question import Question
 from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.correction import TestSubmission
+from app.schemas.question import MultipleChoiceContent, SimpleContent
 
 # ---------------------------------------------------------------------------
 # Levenshtein distance (pure Python, no external dependency)
@@ -126,14 +127,15 @@ def correct_question(user_answer: str, question: Question) -> AnswerStatus:
     Returns the AnswerStatus for this single question.
     """
     q_type = QuestionType(question.question_type)
-    content = question.content
+    raw: dict[str, object] = question.content or {}
 
     if q_type == QuestionType.SIMPLE:
-        valid_answers: list[str] = content.get("answers", [])
-        return correct_simple_question(user_answer, valid_answers)
+        parsed = SimpleContent.model_validate(raw)
+        return correct_simple_question(user_answer, parsed.answers)
 
     if q_type == QuestionType.MULTIPLE_CHOICE:
-        correct_indices: list[int] = content.get("correct_indices", [])
+        parsed_mc = MultipleChoiceContent.model_validate(raw)
+        correct_indices = parsed_mc.correct_indices
         # For MC, user_answer is a comma-separated list of selected indices
         try:
             selected = [int(i.strip()) for i in user_answer.split(",") if i.strip()]

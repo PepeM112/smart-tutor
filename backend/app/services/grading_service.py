@@ -15,6 +15,7 @@ from app.models.question import Question
 from app.models.test_result import TestResult
 from app.schemas.question import LongTextContent
 from app.services.grading import CriterionResult, get_grading_provider
+from app.services.grading.utils import effective_met
 
 logger = logging.getLogger("smarttutor.grading")
 
@@ -49,7 +50,7 @@ def _score_from_rubric_result(
     rubric_result: list[dict[str, object]],
     question_points: float,
 ) -> float:
-    met_by_index = {i: bool(r.get("met", False)) for i, r in enumerate(rubric_result)}
+    met_by_index = {i: effective_met(r) for i, r in enumerate(rubric_result)}
     total_weight = sum(item.weight for item in content.rubric)
     if total_weight <= 0:
         return 0.0
@@ -57,7 +58,7 @@ def _score_from_rubric_result(
     return question_points * (earned_weight / total_weight)
 
 
-def _recalculate_test_result(db: Session, test_result: TestResult) -> None:
+def recalculate_test_result(db: Session, test_result: TestResult) -> None:
     """Recompute TestResult aggregates from current Answer states."""
     answers: list[Answer] = list(test_result.answers)
     question_ids = [a.question_id for a in answers]
@@ -109,7 +110,7 @@ def _mark_all_pending_as_failed(db: Session, test_result_id: str) -> None:
         for answer in test_result.answers:
             if answer.status == int(AnswerStatus.PENDING):
                 answer.status = int(AnswerStatus.FAILED)
-        _recalculate_test_result(db, test_result)
+        recalculate_test_result(db, test_result)
         db.commit()
         logger.error("Marked all pending answers as FAILED for TestResult %s", test_result_id)
     except Exception:
@@ -163,7 +164,7 @@ def grade_pending_answers(test_result_id: str) -> None:
                 answer.rubric_result = _build_rubric_result(content, results)
 
                 met_count = sum(1 for r in results if r.met)
-                score = _score_from_rubric_result(content, answer.rubric_result, question.points)
+                score = _score_from_rubric_result(content, answer.rubric_result or [], question.points)
                 logger.info(
                     "Q%d/%d -> %s (%d/%d criteria met, %.2f/%.2f pts)",
                     idx,
@@ -203,7 +204,7 @@ def grade_pending_answers(test_result_id: str) -> None:
                 logger.exception("FAILED Q%d/%d -- UNEXPECTED ERROR", idx, total)
                 answer.status = int(AnswerStatus.FAILED)
 
-        _recalculate_test_result(db, test_result)
+        recalculate_test_result(db, test_result)
         db.commit()
 
         logger.info(

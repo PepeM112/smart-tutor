@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.enums import QuestionType
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.models.question import Question
@@ -26,7 +27,7 @@ def _get_owned_question_or_404(db: Session, *, question_id: str, current_user: U
 def update_question(db: Session, *, question_id: str, current_user: User, data: QuestionUpdate) -> Question:
     question = _get_owned_question_or_404(db, question_id=question_id, current_user=current_user)
     if data.content is not None and data.question_type is None:
-        _validate_content(question.question_type, data.content)
+        _validate_content(QuestionType(question.question_type), data.content)
     return question_crud.update(db, question=question, data=data)
 
 
@@ -45,4 +46,10 @@ def check_question(
     if update_srs:
         srs_state = record_answer(db, user_id=current_user.id, question_id=question_id, answer_status=answer_status)
 
-    return QuestionCheckResponse(status=answer_status, srs_state=srs_state, **get_correct_answer_fields(question))
+    answer_fields = get_correct_answer_fields(question)
+    return QuestionCheckResponse(
+        status=answer_status,
+        srs_state=srs_state,
+        correct_answers=answer_fields.get("correct_answers"),
+        correct_indices=answer_fields.get("correct_indices"),
+    )

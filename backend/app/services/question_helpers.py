@@ -1,5 +1,7 @@
 """Shared helpers for question content manipulation."""
 
+from typing import TypedDict
+
 from app.core.enums import QuestionGroupType, QuestionType
 from app.models.question import Question
 from app.models.test import Test
@@ -73,22 +75,22 @@ def build_stripped_test(test: Test) -> TestReadStripped:
     )
 
 
-def get_correct_answer_fields(question: Question) -> dict[str, list[str] | list[int]]:
-    """Extract correct-answer fields for the check response.
+class CorrectAnswerFields(TypedDict, total=False):
+    correct_answers: list[str]
+    correct_indices: list[int]
 
-    Returns a dict with ``correct_answers`` (for Simple) and/or
-    ``correct_indices`` (for MC), ready to unpack into
-    ``QuestionCheckResponse``.
-    """
+
+def get_correct_answer_fields(question: Question) -> CorrectAnswerFields:
+    """Extract correct-answer fields for the check response."""
     raw: dict[str, object] = question.content or {}
     q_type = QuestionType(question.question_type)
     if q_type == QuestionType.SIMPLE:
         parsed = SimpleContent.model_validate(raw)
-        return {"correct_answers": parsed.answers}
+        return CorrectAnswerFields(correct_answers=parsed.answers)
     if q_type == QuestionType.MULTIPLE_CHOICE:
         parsed_mc = MultipleChoiceContent.model_validate(raw)
-        return {
-            "correct_answers": [parsed_mc.options[i] for i in parsed_mc.correct_indices if i < len(parsed_mc.options)],
-            "correct_indices": parsed_mc.correct_indices,
-        }
-    return {}
+        return CorrectAnswerFields(
+            correct_answers=[parsed_mc.options[i] for i in parsed_mc.correct_indices if i < len(parsed_mc.options)],
+            correct_indices=parsed_mc.correct_indices,
+        )
+    return CorrectAnswerFields()

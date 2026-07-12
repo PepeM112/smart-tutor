@@ -27,7 +27,7 @@ export default function TakeTestPage({ params }: Props) {
     isError,
   } = useQuery({
     queryKey: ['tests', id, 'exam'],
-    queryFn: () => sdk.testsGet({ path: { test_id: id }, query: { strip_answers: true } }),
+    queryFn: () => sdk.testsGetExam({ path: { test_id: id } }),
   });
 
   const test = testResponse?.data;

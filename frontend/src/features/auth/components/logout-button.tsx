@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuthStore } from '@/features/auth/store/auth-store';
+import { clearSessionCookie } from '@/features/auth/utils/session-cookie';
+import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
@@ -17,9 +19,14 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
   const router = useRouter();
   const logout = useAuthStore(state => state.logout);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await sdk.usersLogout();
+    } catch {
+      // Best-effort — clear client state regardless
+    }
     logout();
-    document.cookie = 'session=; path=/; max-age=0';
+    clearSessionCookie();
     router.push(Routes.LOGIN);
     router.refresh();
   };

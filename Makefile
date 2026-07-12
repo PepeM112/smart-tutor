@@ -13,6 +13,7 @@ DOCKER_COMPOSE := docker-compose --env-file ${BACKEND_ENV}
 default: help
 
 up: ## Start all services (backend + frontend)
+	@cd $(FRONTEND_DIR) && npm install --silent
 	$(DOCKER_COMPOSE) up
 
 build: ## Build and start services in detached mode
@@ -126,6 +127,9 @@ format-branch-check: ## Check lint + format only files changed on current branch
 type-check: ## Run TypeScript type checking (frontend)
 	cd frontend && npx tsc --noEmit
 
+pyright: ## Run pyright type checking (backend)
+	$(DOCKER_COMPOSE) exec backend poetry run pyright app/
+
 # ==============================
 # Maintenance
 # ==============================
@@ -151,4 +155,4 @@ restart: ## Restart all services
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint format format-check format-branch format-branch-check type-check seed clean clean-fe clean-logs restart help
+.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint format format-check format-branch format-branch-check type-check pyright seed clean clean-fe clean-logs restart help

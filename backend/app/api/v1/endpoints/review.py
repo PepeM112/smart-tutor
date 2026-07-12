@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, TypeAlias
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -12,8 +12,8 @@ from app.services.question_helpers import build_stripped_question
 
 router = APIRouter()
 
-DbSession = Annotated[Session, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
+DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
+CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("/questions", response_model=ReviewResponse)
