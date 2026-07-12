@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Loader2, MessageSquareWarning, RotateCcw, ShieldCheck, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type AnswerRead, type RubricResultItem } from '@/client';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { sdk } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+
+import { effectiveMet } from './result-detail-utils';
 
 export function LongTextReview({ answer }: { answer?: AnswerRead }) {
   if (!answer) return null;
@@ -55,16 +57,26 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
     },
   });
 
-  const effectiveMetCount = items.filter(item => {
-    if (item.challengeResult != null && item.challengeResult.met != null) {
-      return item.challengeResult.met;
-    }
-    return item.met;
-  }).length;
+  const effectiveMetCount = items.filter(effectiveMet).length;
 
   const hasUnchallengedFailedCriteria = items.some(item => !item.met && item.challengeResult == null);
   const hasPendingChallenge = items.some(item => item.challengeResult != null && item.challengeResult.met == null);
   const canChallenge = hasUnchallengedFailedCriteria && !hasPendingChallenge;
+
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (hasPendingChallenge) {
+      wasPending.current = true;
+    } else if (wasPending.current) {
+      wasPending.current = false;
+      const overturned = items.filter(i => i.challengeResult?.met === true).length;
+      if (overturned > 0) {
+        toast.success(`Challenge resolved — ${overturned} ${overturned === 1 ? 'criterion' : 'criteria'} overturned`);
+      } else {
+        toast.info('Challenge resolved — original grading upheld');
+      }
+    }
+  }, [hasPendingChallenge, items]);
 
   const canSubmit =
     selectedCriteria.size > 0 && Array.from(selectedCriteria.values()).every(arg => arg.trim().length > 0);

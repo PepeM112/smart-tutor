@@ -19,18 +19,15 @@ export type ExamItem =
   | { type: ExamItemType.GROUP; group: TestQuestionGroupRead; order: number };
 
 export function buildExamItems(test: TestRead): ExamItem[] {
-  const items: ExamItem[] = [];
-  for (const q of test.questions ?? []) {
-    items.push({ type: ExamItemType.QUESTION, question: q, order: q.order ?? 0 });
-  }
-  for (const g of test.questionGroups ?? []) {
-    items.push({ type: ExamItemType.GROUP, group: g, order: g.order ?? 0 });
-  }
+  const items: ExamItem[] = [
+    ...(test.questions ?? []).map(q => ({ type: ExamItemType.QUESTION as const, question: q, order: q.order ?? 0 })),
+    ...(test.questionGroups ?? []).map(g => ({ type: ExamItemType.GROUP as const, group: g, order: g.order ?? 0 })),
+  ];
   return items.sort((a, b) => a.order - b.order);
 }
 
-function effectiveMet(item: RubricResultItem): boolean {
-  if (item.challengeResult != null && item.challengeResult?.met != null) {
+export function effectiveMet(item: RubricResultItem): boolean {
+  if (item.challengeResult != null && item.challengeResult.met != null) {
     return item.challengeResult.met;
   }
   return item.met;
