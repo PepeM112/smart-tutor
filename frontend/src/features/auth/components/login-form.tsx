@@ -36,7 +36,7 @@ export function LoginForm() {
     onSuccess: response => {
       setUser(response.data ?? null);
       const isProduction = process.env.NODE_ENV === 'production';
-      document.cookie = `session=1; path=/; SameSite=Lax${isProduction ? '; Secure' : ''}`;
+      document.cookie = `session=1; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax${isProduction ? '; Secure' : ''}`;
       router.push(Routes.DASHBOARD);
       router.refresh();
     },

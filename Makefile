@@ -13,6 +13,7 @@ DOCKER_COMPOSE := docker-compose --env-file ${BACKEND_ENV}
 default: help
 
 up: ## Start all services (backend + frontend)
+	@cd $(FRONTEND_DIR) && npm install --silent
 	$(DOCKER_COMPOSE) up
 
 build: ## Build and start services in detached mode

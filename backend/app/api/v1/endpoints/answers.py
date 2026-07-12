@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, TypeAlias
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
@@ -11,8 +11,8 @@ from app.services import challenge_service
 
 router = APIRouter()
 
-DbSession = Annotated[Session, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
+DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
+CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
 @router.post("/{answer_id}/challenge", response_model=AnswerRead)

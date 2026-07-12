@@ -1,13 +1,13 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, Loader2, MessageSquareWarning, RotateCcw, ShieldCheck, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Check, Loader2, RotateCcw, Scale, Send, ShieldCheck, Undo2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type AnswerRead, type RubricResultItem } from '@/client';
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip } from '@/components/ui/tooltip';
 import { sdk } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +78,20 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
     }
   }, [hasPendingChallenge, items]);
 
+  const exitChallengeMode = useCallback(() => {
+    setIsChallengeMode(false);
+    setSelectedCriteria(new Map());
+  }, []);
+
+  useEffect(() => {
+    if (!isChallengeMode) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') exitChallengeMode();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isChallengeMode, exitChallengeMode]);
+
   const canSubmit =
     selectedCriteria.size > 0 && Array.from(selectedCriteria.values()).every(arg => arg.trim().length > 0);
 
@@ -101,29 +115,59 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
     });
   }
 
+  const iconBtnClass = 'inline-flex items-center justify-center size-7 rounded-md transition-colors';
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">
           Rubric ({effectiveMetCount}/{items.length} criteria met)
         </p>
-        {canChallenge && !isChallengeMode && (
-          <Button variant="outline" size="xs" icon={MessageSquareWarning} onClick={() => setIsChallengeMode(true)}>
-            Challenge Grade
-          </Button>
-        )}
-        {isChallengeMode && (
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => {
-              setIsChallengeMode(false);
-              setSelectedCriteria(new Map());
-            }}
-          >
-            Cancel
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {isChallengeMode && (
+            <div className="flex items-center gap-1 animate-in fade-in-0 slide-in-from-right-3 duration-200">
+              <Tooltip content="Cancel">
+                <button
+                  className={cn(iconBtnClass, 'text-muted-foreground hover:bg-muted')}
+                  onClick={exitChallengeMode}
+                >
+                  <Undo2 className="size-4" />
+                </button>
+              </Tooltip>
+              <Tooltip content={canSubmit ? `Submit challenge (${selectedCriteria.size})` : 'Select criteria first'}>
+                <button
+                  className={cn(
+                    iconBtnClass,
+                    'bg-feedback-partial/15 text-feedback-partial hover:bg-feedback-partial/25',
+                    (!canSubmit || isSubmitting) && 'opacity-40 pointer-events-none'
+                  )}
+                  onClick={() => submitChallenge()}
+                  disabled={!canSubmit || isSubmitting}
+                >
+                  {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                </button>
+              </Tooltip>
+            </div>
+          )}
+          {!isChallengeMode && !hasPendingChallenge && (
+            <div className="animate-in fade-in-0 slide-in-from-left-3 duration-200">
+              <Tooltip content={canChallenge ? 'Challenge grade' : 'All criteria reviewed'}>
+                <button
+                  className={cn(
+                    iconBtnClass,
+                    canChallenge
+                      ? 'bg-feedback-partial/15 text-feedback-partial hover:bg-feedback-partial/25'
+                      : 'text-muted-foreground/40 cursor-not-allowed'
+                  )}
+                  onClick={canChallenge ? () => setIsChallengeMode(true) : undefined}
+                  disabled={!canChallenge}
+                >
+                  <Scale className="size-4" />
+                </button>
+              </Tooltip>
+            </div>
+          )}
+        </div>
       </div>
       <div className="space-y-1.5">
         {items.map((item, idx) => (
@@ -138,14 +182,6 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
           />
         ))}
       </div>
-      {isChallengeMode && (
-        <div className="flex items-center justify-end gap-2 pt-1">
-          <Button variant="default" size="sm" disabled={!canSubmit || isSubmitting} onClick={() => submitChallenge()}>
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-            Submit Challenge ({selectedCriteria.size})
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
@@ -203,27 +239,34 @@ function CriterionCard({
               <span className="text-muted-foreground ml-1.5 tabular-nums">({item.weight.toFixed(2)})</span>
             </p>
             {isOverturned && <ChallengeVerdict variant="overturned" />}
-            {isUpheld && <ChallengeVerdict variant="upheld" />}
             {isPending && <ChallengeVerdict variant="pending" />}
           </div>
-          {item.reason && !isOverturned && !isUpheld && (
-            <p className="text-xs text-muted-foreground italic">{item.reason}</p>
-          )}
+          {item.reason && <p className="text-xs text-muted-foreground italic">{item.reason}</p>}
           {(isOverturned || isUpheld) && cr?.reason && (
-            <p className="text-xs text-muted-foreground italic">{cr.reason}</p>
+            <>
+              <div className="border-t border-border/60 my-1" />
+              <div className="flex items-start gap-1.5">
+                <Scale className="size-3 text-feedback-partial shrink-0 mt-0.5" />
+                <p className="text-xs text-feedback-partial italic">{cr.reason}</p>
+              </div>
+            </>
           )}
         </div>
       </div>
       {isSelected && (
-        <div className="mt-2 ml-6" onClick={e => e.stopPropagation()}>
+        <div className="mt-4 ml-6" onClick={e => e.stopPropagation()}>
           <Textarea
             placeholder="Explain why your answer addresses this criterion..."
             value={argument}
             onChange={e => onArgumentChange(e.target.value)}
             rows={2}
-            maxLength={2000}
-            className="text-sm"
+            maxLength={500}
+            autoFocus
+            className="text-sm bg-background"
           />
+          <p className="text-[0.65rem] text-muted-foreground/60 text-right mt-0.5 tabular-nums">
+            {argument.length}/500
+          </p>
         </div>
       )}
     </div>
@@ -250,7 +293,7 @@ function CriterionIcon({
     return <RotateCcw className="size-4 text-feedback-partial shrink-0 mt-0.5" />;
   }
   if (isChallengeMode && isChallengeable) {
-    return <MessageSquareWarning className="size-4 text-muted-foreground shrink-0 mt-0.5" />;
+    return <Scale className="size-4 text-feedback-partial shrink-0 mt-0.5" />;
   }
   if (effectiveMet) {
     return <Check className="size-4 text-feedback-correct shrink-0 mt-0.5" />;
@@ -258,19 +301,12 @@ function CriterionIcon({
   return <X className="size-4 text-destructive shrink-0 mt-0.5" />;
 }
 
-function ChallengeVerdict({ variant }: { variant: 'overturned' | 'upheld' | 'pending' }) {
+function ChallengeVerdict({ variant }: { variant: 'overturned' | 'pending' }) {
   if (variant === 'overturned') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-feedback-correct-bg px-2 py-0.5 text-[0.65rem] font-medium text-feedback-correct ring-1 ring-feedback-correct-border shrink-0">
         <ShieldCheck className="size-3" />
         Overturned
-      </span>
-    );
-  }
-  if (variant === 'upheld') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-medium text-muted-foreground ring-1 ring-border shrink-0">
-        Upheld
       </span>
     );
   }

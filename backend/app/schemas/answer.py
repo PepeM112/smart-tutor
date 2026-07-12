@@ -20,7 +20,7 @@ class RubricResultItem(BaseSchema):
 
 class CriterionChallengeInput(BaseSchema):
     criterion_index: int = Field(..., ge=0)
-    argument: str = Field(..., min_length=1, max_length=2000)
+    argument: str = Field(..., min_length=1, max_length=500)
 
 
 class ChallengeRequest(BaseSchema):
