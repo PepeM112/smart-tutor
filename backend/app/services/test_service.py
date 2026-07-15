@@ -76,7 +76,13 @@ def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
     # On create there are no existing orders — only check for internal duplicates
     _validate_order_space(data.questions, data.question_groups, existing_orders=set())
 
-    test = test_crud.create(db, user_id=current_user.id, title=data.title, description=data.description)
+    test = test_crud.create(
+        db,
+        user_id=current_user.id,
+        title=data.title,
+        description=data.description,
+        source_note_id=data.source_note_id,
+    )
 
     if data.questions:
         question_crud.create_many(db, questions=data.questions, test_id=test.id)

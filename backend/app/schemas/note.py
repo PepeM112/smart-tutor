@@ -36,3 +36,7 @@ class NoteGenerate(BaseSchema):
     topic: str = Field(max_length=200)
     guidance: str | None = None
     length: NoteLength | None = None
+
+
+class NoteRefine(BaseSchema):
+    instructions: str = Field(..., min_length=1, max_length=2000)

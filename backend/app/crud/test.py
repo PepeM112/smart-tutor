@@ -31,8 +31,10 @@ def list_by_user(db: Session, *, user_id: str) -> list[Test]:
     return list(db.scalars(stmt).all())
 
 
-def create(db: Session, *, user_id: str, title: str, description: str | None) -> Test:
-    test = Test(user_id=user_id, title=title, description=description)
+def create(
+    db: Session, *, user_id: str, title: str, description: str | None, source_note_id: str | None = None
+) -> Test:
+    test = Test(user_id=user_id, title=title, description=description, source_note_id=source_note_id)
     db.add(test)
     db.flush()
     return test

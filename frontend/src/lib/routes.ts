@@ -8,6 +8,7 @@ export const Routes = {
 
   TESTS: '/tests',
   TEST_NEW: '/tests/new',
+  TEST_GENERATE_PREVIEW: '/tests/generate/preview',
   TEST_EDIT: (id: string) => `/tests/${id}/edit`,
   TEST_DETAIL: (id: string) => `/tests/${id}`,
 

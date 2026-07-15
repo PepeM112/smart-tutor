@@ -9,11 +9,13 @@ import { type NoteRead } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { GenerateTestDialog } from '@/features/tests/components/generate-test-dialog';
 import { sdk } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
 import { MarkdownRenderer } from './markdown-renderer';
 import { NoteEditor } from './note-editor';
+import { RefineNoteDialog } from './refine-note-dialog';
 import { TagInput } from './tag-input';
 
 type Props = {
@@ -44,6 +46,7 @@ export function NotePage({ noteId }: Props) {
 function NoteForm({ note }: { note: NoteRead }) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(true);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(note.title);
   const [description, setDescription] = useState(note.description ?? '');
   const [content, setContent] = useState(note.content ?? '');
@@ -77,65 +80,97 @@ function NoteForm({ note }: { note: NoteRead }) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)]">
-      <div className="flex items-start justify-between gap-4 pb-4">
-        <div className="space-y-3">
-          {isEditing ? (
-            <>
-              <Input
-                value={title}
-                onChange={e => {
-                  setTitle(e.target.value);
-                  markDirty();
-                }}
-                className="w-80 text-lg font-semibold"
-                placeholder="Note title"
-              />
-              <AutoTextarea
-                rows={2}
-                value={description}
-                onChange={e => {
-                  setDescription(e.target.value);
-                  markDirty();
-                }}
-                placeholder="Description (optional)"
-              />
-              <TagInput
-                tags={tags}
-                onChange={next => {
-                  setTags(next);
-                  markDirty();
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-              {description && <p className="text-sm text-muted-foreground">{description}</p>}
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.map(tag => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+      <div className="space-y-3 pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3 flex-1">
+            <div className="flex items-center gap-2">
+              {isEditingTitle ? (
+                <Input
+                  value={title}
+                  onChange={e => {
+                    setTitle(e.target.value);
+                    markDirty();
+                  }}
+                  onBlur={() => setIsEditingTitle(false)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') setIsEditingTitle(false);
+                  }}
+                  className="w-80 text-lg font-semibold"
+                  placeholder="Note title"
+                  autoFocus
+                />
+              ) : (
+                <>
+                  <h1 className="text-lg font-semibold text-foreground">{title || 'Untitled'}</h1>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setIsEditingTitle(true)}
+                    className="text-muted-foreground"
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                </>
               )}
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {isEditing && isDirty && (
-            <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
-              {isSaving ? 'Saving...' : 'Save'}
+            </div>
+            {isEditing && (
+              <>
+                <AutoTextarea
+                  rows={2}
+                  value={description}
+                  onChange={e => {
+                    setDescription(e.target.value);
+                    markDirty();
+                  }}
+                  placeholder="Description (optional)"
+                />
+                <TagInput
+                  tags={tags}
+                  onChange={next => {
+                    setTags(next);
+                    markDirty();
+                  }}
+                />
+              </>
+            )}
+            {!isEditing && (
+              <>
+                {description && <p className="text-sm text-muted-foreground">{description}</p>}
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.map(tag => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isEditing && isDirty && (
+              <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
+            )}
+            <RefineNoteDialog
+              noteId={note.id}
+              onRefined={newContent => {
+                setContent(newContent);
+                setIsDirty(false);
+              }}
+            />
+            <GenerateTestDialog noteId={note.id} noteTitle={note.title} />
+            <Button variant="outline" icon={isEditing ? Eye : Pencil} onClick={() => setIsEditing(!isEditing)}>
+              {isEditing ? 'View' : 'Edit'}
             </Button>
-          )}
-          <Button variant="outline" icon={isEditing ? Eye : Pencil} onClick={() => setIsEditing(!isEditing)}>
-            {isEditing ? 'View' : 'Edit'}
-          </Button>
+          </div>
         </div>
+        <hr className="border-border" />
       </div>
 
       <div className={cn('flex-1 min-h-0 overflow-hidden', !isEditing && 'rounded-lg border border-border bg-card')}>

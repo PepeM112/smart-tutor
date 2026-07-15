@@ -16,6 +16,7 @@ class TestBase(BaseSchema):
 class TestCreate(TestBase):
     questions: list[QuestionCreate] = []
     question_groups: list[TestQuestionGroupCreate] = []
+    source_note_id: str | None = None
 
 
 class TestUpdate(BaseSchema):
@@ -29,6 +30,7 @@ class TestRead(TestBase):
     id: str
     user_id: str
     status: TestStatus
+    source_note_id: str | None = None
     questions: list[QuestionRead] = []
     question_groups: list[TestQuestionGroupRead] = []
 

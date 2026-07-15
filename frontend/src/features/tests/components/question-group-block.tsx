@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 export type SimpleRow = {
   prompt: string;
@@ -25,9 +26,13 @@ type Props = {
   data: QuestionGroupData;
   onChange: (data: QuestionGroupData) => void;
   onRemove: () => void;
+  accepted?: boolean;
+  onToggleAccept?: () => void;
 };
 
-export function QuestionGroupBlock({ data, onChange, onRemove }: Props) {
+export function QuestionGroupBlock({ data, onChange, onRemove, accepted, onToggleAccept }: Props) {
+  const isPreview = accepted !== undefined;
+  const isRejected = isPreview && !accepted;
   const canRemoveRow = data.rows.length > 1;
 
   function updateRow(idx: number, patch: Partial<SimpleRow>) {
@@ -47,14 +52,14 @@ export function QuestionGroupBlock({ data, onChange, onRemove }: Props) {
   const isVocab = data.groupType === QuestionGroupType.VOCABULARY;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      {/* Title + points + delete button */}
+    <div className={cn('rounded-lg border border-border bg-card p-4 transition-opacity', isRejected && 'opacity-50')}>
       <div className="flex items-start gap-2 mb-3">
         <Input
           placeholder="Group title (optional)"
           value={data.title}
           onChange={e => onChange({ ...data, title: e.target.value })}
           className="flex-1"
+          disabled={isRejected}
         />
         <Input
           type="number"
@@ -64,74 +69,82 @@ export function QuestionGroupBlock({ data, onChange, onRemove }: Props) {
           onChange={e => onChange({ ...data, points: Number(e.target.value) })}
           className="w-20 shrink-0 text-center"
           title="Points"
+          disabled={isRejected}
         />
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onRemove}
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        {isPreview ? (
+          <Switch size="sm" checked={accepted} onCheckedChange={onToggleAccept} />
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onRemove}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        )}
       </div>
 
-      {/* Vocab mode toggle */}
-      <div className="flex items-center gap-2 mb-4">
-        <Switch
-          id="vocab-toggle"
-          checked={isVocab}
-          onCheckedChange={checked =>
-            onChange({
-              ...data,
-              groupType: checked ? QuestionGroupType.VOCABULARY : QuestionGroupType.UNKNOWN,
-            })
-          }
-        />
-        <Label htmlFor="vocab-toggle" className="text-sm text-muted-foreground cursor-pointer">
-          Vocabulary mode
-        </Label>
-      </div>
+      {!isRejected && (
+        <>
+          {!isPreview && (
+            <div className="flex items-center gap-2 mb-4">
+              <Switch
+                id="vocab-toggle"
+                checked={isVocab}
+                onCheckedChange={checked =>
+                  onChange({
+                    ...data,
+                    groupType: checked ? QuestionGroupType.VOCABULARY : QuestionGroupType.UNKNOWN,
+                  })
+                }
+              />
+              <Label htmlFor="vocab-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                Vocabulary mode
+              </Label>
+            </div>
+          )}
 
-      {/* Question rows */}
-      <div className="space-y-2">
-        {data.rows.map((row, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Input
-              placeholder="Prompt"
-              value={row.prompt}
-              onChange={e => updateRow(i, { prompt: e.target.value })}
-              className="flex-1"
-            />
-            <Input
-              placeholder="Answers (comma-separated)"
-              value={row.answers}
-              onChange={e => updateRow(i, { answers: e.target.value })}
-              className="flex-1"
-            />
-            {canRemoveRow && (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => removeRow(i)}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            )}
+          <div className="space-y-2">
+            {data.rows.map((row, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  placeholder="Prompt"
+                  value={row.prompt}
+                  onChange={e => updateRow(i, { prompt: e.target.value })}
+                  className="flex-1"
+                />
+                <Input
+                  placeholder="Answers (comma-separated)"
+                  value={row.answers}
+                  onChange={e => updateRow(i, { answers: e.target.value })}
+                  className="flex-1"
+                />
+                {canRemoveRow && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => removeRow(i)}
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Add row button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={addRow}
-        className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
-      >
-        <Plus className="size-3.5" />
-        Add
-      </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addRow}
+            className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+          >
+            <Plus className="size-3.5" />
+            Add
+          </Button>
+        </>
+      )}
     </div>
   );
 }

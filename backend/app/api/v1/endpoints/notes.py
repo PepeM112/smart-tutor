@@ -7,7 +7,7 @@ from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.note import Note
 from app.models.user import User
-from app.schemas.note import NoteCreate, NoteGenerate, NoteRead, NoteUpdate
+from app.schemas.note import NoteCreate, NoteGenerate, NoteRead, NoteRefine, NoteUpdate
 from app.services import note_service
 
 router = APIRouter()
@@ -34,6 +34,11 @@ def get(note_id: str, db: DbSession, current_user: CurrentUser) -> Note:
 @router.post("", response_model=NoteRead, status_code=status.HTTP_201_CREATED)
 def create(data: NoteCreate, db: DbSession, current_user: CurrentUser) -> Note:
     return note_service.create_note(db, current_user=current_user, data=data)
+
+
+@router.post("/{note_id}/refine", response_model=NoteRead)
+def refine(note_id: str, data: NoteRefine, db: DbSession, current_user: CurrentUser) -> Note:
+    return note_service.refine_note(db, note_id=note_id, current_user=current_user, data=data)
 
 
 @router.patch("/{note_id}", response_model=NoteRead)
