@@ -66,6 +66,11 @@ class AnthropicLLMClient(LLMClient):
                 f"Anthropic returned empty text (stop_reason={response.stop_reason}, usage={response.usage})"
             )
 
+        if response.stop_reason == "max_tokens":
+            logger.warning(
+                "Anthropic response truncated (max_tokens=%d, usage=%s)", max_tokens, response.usage
+            )
+
         return text
 
 
@@ -94,9 +99,13 @@ class OpenAILLMClient(LLMClient):
             ],
         )
 
-        text = (response.choices[0].message.content or "").strip()
+        choice = response.choices[0]
+        text = (choice.message.content or "").strip()
         if not text:
             raise ValueError("OpenAI returned empty text")
+
+        if choice.finish_reason == "length":
+            logger.warning("OpenAI response truncated (max_tokens=%d)", max_tokens)
 
         return text
 

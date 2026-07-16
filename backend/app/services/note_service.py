@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import NoteSource
+from app.core.enums import NoteLength, NoteSource
 from app.crud import note as note_crud
 from app.models.note import Note
 from app.models.user import User
@@ -14,7 +14,12 @@ from app.services.note_prompts import (
     build_note_refinement_user_prompt,
 )
 
-NOTE_MAX_TOKENS = 4096
+_NOTE_MAX_TOKENS: dict[int, int] = {
+    NoteLength.SHORT: 2048,
+    NoteLength.MEDIUM: 4096,
+    NoteLength.LONG: 8192,
+}
+_DEFAULT_MAX_TOKENS = 4096
 
 
 def list_notes(db: Session, *, current_user: User) -> list[Note]:
@@ -62,10 +67,12 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
         data.length,
     )
 
+    max_tokens = _NOTE_MAX_TOKENS.get(int(data.length), _DEFAULT_MAX_TOKENS) if data.length else _DEFAULT_MAX_TOKENS
+
     content = complete(
         system=NOTE_GENERATION_SYSTEM_PROMPT,
         user=user_prompt,
-        max_tokens=NOTE_MAX_TOKENS,
+        max_tokens=max_tokens,
     )
 
     note = note_crud.create(
@@ -97,7 +104,7 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
     refined_content = complete(
         system=NOTE_REFINEMENT_SYSTEM_PROMPT,
         user=user_prompt,
-        max_tokens=NOTE_MAX_TOKENS,
+        max_tokens=_DEFAULT_MAX_TOKENS,
     )
 
     return note_crud.update(
