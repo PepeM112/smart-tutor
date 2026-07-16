@@ -10,6 +10,8 @@ import logging
 import os
 from abc import ABC, abstractmethod
 
+from fastapi import HTTPException, status
+
 logger = logging.getLogger("smarttutor.llm")
 
 
@@ -120,3 +122,30 @@ def get_llm_client() -> LLMClient:
             raise ValueError(f"Unknown LLM provider: {name!r}. Available: {list(_CLIENTS)}")
         _INSTANCES[name] = cls()
     return _INSTANCES[name]
+
+
+def complete(*, system: str, user: str, max_tokens: int) -> str:
+    """Get the LLM client and call complete, wrapping errors into HTTPExceptions."""
+    try:
+        llm = get_llm_client()
+    except ValueError as exc:
+        logger.error("AI provider unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI service is not configured. Please contact the administrator.",
+        ) from exc
+
+    try:
+        return llm.complete(system=system, user=user, max_tokens=max_tokens)
+    except (ValueError, TypeError) as exc:
+        logger.error("AI provider returned unusable response: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI service returned an invalid response. Please try again.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error during LLM call")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI service encountered an error. Please try again later.",
+        ) from exc

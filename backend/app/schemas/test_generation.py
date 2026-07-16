@@ -14,7 +14,7 @@ class TestGenerationRequest(BaseSchema):
     question_count: int = Field(..., ge=5, le=30)
     question_types: list[QuestionType]
     difficulty: Literal["easy", "medium", "hard"]
-    guidance: str | None = None
+    guidance: str | None = Field(default=None, max_length=2000)
 
     @field_validator("question_types")
     @classmethod

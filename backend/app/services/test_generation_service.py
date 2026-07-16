@@ -14,8 +14,8 @@ from app.schemas.test_generation import (
     TestRefinementRequest,
 )
 from app.services.grading.prompts.grading import strip_code_fences
-from app.services.llm import get_llm_client
-from app.services.note_service import _get_owned_note_or_404
+from app.services.llm import complete
+from app.services.note_service import get_note
 from app.services.test_generation_prompts import (
     TEST_GENERATION_SYSTEM_PROMPT,
     build_refinement_user_prompt,
@@ -25,6 +25,7 @@ from app.services.test_generation_prompts import (
 
 logger = logging.getLogger("smarttutor.test_generation")
 
+# TODO: Might truncate 30-question MC tests. Test and bump to 8192 if it happens.
 GENERATION_MAX_TOKENS = 4096
 
 
@@ -164,22 +165,13 @@ def generate_test_questions(
     current_user: User,
     data: TestGenerationRequest,
 ) -> TestGenerationResponse:
-    note = _get_owned_note_or_404(db, note_id=data.note_id, current_user=current_user)
+    note = get_note(db, note_id=data.note_id, current_user=current_user)
 
     if not note.content or not note.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot generate questions from an empty note",
         )
-
-    try:
-        llm = get_llm_client()
-    except ValueError as exc:
-        logger.error("AI provider unavailable: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI service is not configured. Please contact the administrator.",
-        ) from exc
 
     user_prompt = build_test_generation_user_prompt(
         note_content=note.content,
@@ -190,7 +182,6 @@ def generate_test_questions(
     )
 
     questions = _call_and_validate(
-        llm=llm,
         user_prompt=user_prompt,
         requested_types=set(data.question_types),
     )
@@ -208,22 +199,13 @@ def refine_test_questions(
     current_user: User,
     data: TestRefinementRequest,
 ) -> TestGenerationResponse:
-    note = _get_owned_note_or_404(db, note_id=data.note_id, current_user=current_user)
+    note = get_note(db, note_id=data.note_id, current_user=current_user)
 
     if not note.content or not note.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot refine questions from an empty note",
         )
-
-    try:
-        llm = get_llm_client()
-    except ValueError as exc:
-        logger.error("AI provider unavailable: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI service is not configured. Please contact the administrator.",
-        ) from exc
 
     current_questions_json = json.dumps(
         {"questions": [_question_to_ai_dict(q) for q in data.current_questions]},
@@ -238,7 +220,6 @@ def refine_test_questions(
 
     requested_types = {q.question_type for q in data.current_questions}
     questions = _call_and_validate(
-        llm=llm,
         user_prompt=user_prompt,
         requested_types=requested_types,
     )
@@ -254,10 +235,12 @@ def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:
     """Convert a GeneratedQuestionPreview back to the AI's JSON format."""
     content: dict[str, object] = {}
     if q.question_type == QuestionType.SIMPLE:
-        assert isinstance(q.content, SimpleContent)
+        if not isinstance(q.content, SimpleContent):
+            raise ValueError(f"Expected SimpleContent for SIMPLE question, got {type(q.content).__name__}")
         content = {"answers": q.content.answers}
     elif q.question_type == QuestionType.MULTIPLE_CHOICE:
-        assert isinstance(q.content, MultipleChoiceContent)
+        if not isinstance(q.content, MultipleChoiceContent):
+            raise ValueError(f"Expected MultipleChoiceContent for MC question, got {type(q.content).__name__}")
         content = {
             "options": q.content.options,
             "correctIndices": q.content.correct_indices,
@@ -273,22 +256,19 @@ def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:
 
 def _call_and_validate(
     *,
-    llm: object,
     user_prompt: str,
     requested_types: set[QuestionType],
 ) -> list[GeneratedQuestionPreview]:
     """Call the LLM and validate the response. Retry once on validation failure."""
-    from app.services.llm import LLMClient
-
-    assert isinstance(llm, LLMClient)
-
-    raw = _call_llm(llm, user_prompt)
+    raw = complete(system=TEST_GENERATION_SYSTEM_PROMPT, user=user_prompt, max_tokens=GENERATION_MAX_TOKENS)
     questions, errors = _validate_generated_questions(raw, requested_types)
 
-    if errors and not questions:
+    if errors and questions:
+        logger.warning("Partial validation: %d valid, %d rejected: %s", len(questions), len(errors), errors)
+    elif errors and not questions:
         logger.warning("First attempt failed validation: %s. Retrying...", errors)
         retry_prompt = build_retry_user_prompt(user_prompt, errors)
-        raw = _call_llm(llm, retry_prompt)
+        raw = complete(system=TEST_GENERATION_SYSTEM_PROMPT, user=retry_prompt, max_tokens=GENERATION_MAX_TOKENS)
         questions, retry_errors = _validate_generated_questions(raw, requested_types)
 
         if retry_errors and not questions:
@@ -299,28 +279,3 @@ def _call_and_validate(
             )
 
     return questions
-
-
-def _call_llm(llm: object, user_prompt: str) -> str:
-    from app.services.llm import LLMClient
-
-    assert isinstance(llm, LLMClient)
-
-    try:
-        return llm.complete(
-            system=TEST_GENERATION_SYSTEM_PROMPT,
-            user=user_prompt,
-            max_tokens=GENERATION_MAX_TOKENS,
-        )
-    except (ValueError, TypeError) as exc:
-        logger.error("AI provider returned unusable response: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI service returned an invalid response. Please try again.",
-        ) from exc
-    except Exception as exc:
-        logger.exception("Unexpected error during test generation")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI service encountered an error. Please try again later.",
-        ) from exc

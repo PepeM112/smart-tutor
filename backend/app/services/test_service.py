@@ -11,7 +11,7 @@ from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_question_group import TestQuestionGroupCreate
 
 
-def _get_owned_test_or_404(db: Session, *, test_id: str, current_user: User) -> Test:
+def get_test(db: Session, *, test_id: str, current_user: User) -> Test:
     test = test_crud.get_by_id(db, id=test_id)
     if test is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
@@ -68,10 +68,6 @@ def list_tests(db: Session, *, current_user: User) -> list[Test]:
     return test_crud.list_by_user(db, user_id=current_user.id)
 
 
-def get_test(db: Session, *, test_id: str, current_user: User) -> Test:
-    return _get_owned_test_or_404(db, test_id=test_id, current_user=current_user)
-
-
 def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
     # On create there are no existing orders — only check for internal duplicates
     _validate_order_space(data.questions, data.question_groups, existing_orders=set())
@@ -99,7 +95,7 @@ def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
 
 
 def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpdate) -> Test:
-    test = _get_owned_test_or_404(db, test_id=test_id, current_user=current_user)
+    test = get_test(db, test_id=test_id, current_user=current_user)
 
     # Check incoming orders against what's already in the test
     _validate_order_space(data.questions, data.question_groups, existing_orders=_get_existing_orders(test))
@@ -119,5 +115,5 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
 
 
 def delete_test(db: Session, *, test_id: str, current_user: User) -> None:
-    test = _get_owned_test_or_404(db, test_id=test_id, current_user=current_user)
+    test = get_test(db, test_id=test_id, current_user=current_user)
     test_crud.delete(db, test=test)

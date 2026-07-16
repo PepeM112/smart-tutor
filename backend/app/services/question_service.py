@@ -13,7 +13,7 @@ from app.services.question_helpers import get_correct_answer_fields
 from app.services.srs_service import record_answer
 
 
-def _get_owned_question_or_404(db: Session, *, question_id: str, current_user: User) -> Question:
+def get_question(db: Session, *, question_id: str, current_user: User) -> Question:
     question = question_crud.get_by_id(db, id=question_id)
     if question is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
@@ -25,21 +25,21 @@ def _get_owned_question_or_404(db: Session, *, question_id: str, current_user: U
 
 
 def update_question(db: Session, *, question_id: str, current_user: User, data: QuestionUpdate) -> Question:
-    question = _get_owned_question_or_404(db, question_id=question_id, current_user=current_user)
+    question = get_question(db, question_id=question_id, current_user=current_user)
     if data.content is not None and data.question_type is None:
         _validate_content(QuestionType(question.question_type), data.content)
     return question_crud.update(db, question=question, data=data)
 
 
 def delete_question(db: Session, *, question_id: str, current_user: User) -> None:
-    question = _get_owned_question_or_404(db, question_id=question_id, current_user=current_user)
+    question = get_question(db, question_id=question_id, current_user=current_user)
     question_crud.delete(db, question=question)
 
 
 def check_question(
     db: Session, *, question_id: str, current_user: User, user_answer: str, update_srs: bool = True
 ) -> QuestionCheckResponse:
-    question = _get_owned_question_or_404(db, question_id=question_id, current_user=current_user)
+    question = get_question(db, question_id=question_id, current_user=current_user)
     answer_status = correct_question(user_answer, question)
 
     srs_state = None
