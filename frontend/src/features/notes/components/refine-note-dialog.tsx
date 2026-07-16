@@ -1,10 +1,11 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, WandSparkles } from 'lucide-react';
+import { WandSparkles } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { DialogLoading } from '@/components/shared/dialog-loading';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -61,13 +62,7 @@ export function RefineNoteDialog({ noteId, onRefined }: Props) {
         onEscapeKeyDown={isRefining ? e => e.preventDefault() : undefined}
       >
         {isRefining ? (
-          <div className="flex flex-col items-center justify-center gap-6 py-12">
-            <div className="relative">
-              <Loader2 className="size-10 animate-spin text-primary" />
-              <Sparkles className="absolute -top-1 -right-1 size-4 text-primary animate-pulse" />
-            </div>
-            <p className="text-sm font-medium text-foreground">Refining your notes…</p>
-          </div>
+          <DialogLoading title="Refining your notes…" />
         ) : (
           <>
             <DialogHeader>

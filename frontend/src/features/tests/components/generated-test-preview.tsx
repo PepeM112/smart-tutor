@@ -19,56 +19,19 @@ import { type MultipleChoiceQuestionData, MultipleChoiceQuestionBlock } from './
 import { type QuestionGroupData, QuestionGroupBlock } from './question-group-block';
 import { RefineTestDialog } from './refine-test-dialog';
 
-type PreviewItem = { kind: 'mc'; data: MultipleChoiceQuestionData } | { kind: 'group'; data: QuestionGroupData };
-
-function toPreviewItems(questions: GeneratedQuestionPreview[]): PreviewItem[] {
-  const items: PreviewItem[] = [];
-  const simpleQuestions = questions.filter(q => q.questionType === QuestionType.SIMPLE);
-  const mcQuestions = questions.filter(q => q.questionType === QuestionType.MULTIPLE_CHOICE);
-
-  mcQuestions.forEach(q => {
-    const content = q.content as MultipleChoiceContent;
-    items.push({
-      kind: 'mc',
-      data: {
-        type: QuestionType.MULTIPLE_CHOICE,
-        prompt: q.prompt,
-        choices: content.options.map((text, i) => ({
-          text,
-          isCorrect: content.correct_indices.includes(i),
-        })),
-        points: q.points ?? 1,
-      },
-    });
-  });
-
-  if (simpleQuestions.length > 0) {
-    items.push({
-      kind: 'group',
-      data: {
-        type: 'group',
-        groupType: QuestionGroupType.UNKNOWN,
-        title: '',
-        rows: simpleQuestions.map(q => {
-          const content = q.content as SimpleContent;
-          return {
-            prompt: q.prompt,
-            answers: content.answers,
-          };
-        }),
-        points: 1,
-      },
-    });
-  }
-
-  return items;
-}
+type PreviewItem =
+  | { id: string; kind: 'mc'; data: MultipleChoiceQuestionData }
+  | { id: string; kind: 'group'; data: QuestionGroupData };
 
 export function GeneratedTestPreview() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { questions: initialQuestions, sourceNoteId, sourceNoteTitle, hasData, clear } = useGenerationStore();
+  const initialQuestions = useGenerationStore(s => s.questions);
+  const sourceNoteId = useGenerationStore(s => s.sourceNoteId);
+  const sourceNoteTitle = useGenerationStore(s => s.sourceNoteTitle);
+  const hasData = useGenerationStore(s => s.hasData);
+  const clear = useGenerationStore(s => s.clear);
 
   const [items, setItems] = useState<PreviewItem[]>([]);
   const [accepted, setAccepted] = useState<boolean[]>([]);
@@ -122,11 +85,11 @@ export function GeneratedTestPreview() {
   }, []);
 
   const updateMcItem = useCallback((index: number, data: MultipleChoiceQuestionData) => {
-    setItems(prev => prev.map((item, i) => (i === index ? { kind: 'mc' as const, data } : item)));
+    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'mc' as const, data } : item)));
   }, []);
 
   const updateGroupItem = useCallback((index: number, data: QuestionGroupData) => {
-    setItems(prev => prev.map((item, i) => (i === index ? { kind: 'group' as const, data } : item)));
+    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'group' as const, data } : item)));
   }, []);
 
   const removeItem = useCallback((index: number) => {
@@ -309,7 +272,7 @@ export function GeneratedTestPreview() {
           if (item.kind === 'mc') {
             return (
               <MultipleChoiceQuestionBlock
-                key={i}
+                key={item.id}
                 data={item.data}
                 onChange={data => updateMcItem(i, data)}
                 onRemove={() => removeItem(i)}
@@ -320,7 +283,7 @@ export function GeneratedTestPreview() {
           }
           return (
             <QuestionGroupBlock
-              key={i}
+              key={item.id}
               data={item.data}
               onChange={data => updateGroupItem(i, data)}
               onRemove={() => removeItem(i)}
@@ -332,4 +295,49 @@ export function GeneratedTestPreview() {
       </div>
     </div>
   );
+}
+
+function toPreviewItems(questions: GeneratedQuestionPreview[]): PreviewItem[] {
+  const items: PreviewItem[] = [];
+  const simpleQuestions = questions.filter(q => q.questionType === QuestionType.SIMPLE);
+  const mcQuestions = questions.filter(q => q.questionType === QuestionType.MULTIPLE_CHOICE);
+
+  mcQuestions.forEach(q => {
+    const content = q.content as MultipleChoiceContent;
+    items.push({
+      id: crypto.randomUUID(),
+      kind: 'mc',
+      data: {
+        type: QuestionType.MULTIPLE_CHOICE,
+        prompt: q.prompt,
+        choices: content.options.map((text, i) => ({
+          text,
+          isCorrect: content.correct_indices.includes(i),
+        })),
+        points: q.points ?? 1,
+      },
+    });
+  });
+
+  if (simpleQuestions.length > 0) {
+    items.push({
+      id: crypto.randomUUID(),
+      kind: 'group',
+      data: {
+        type: 'group',
+        groupType: QuestionGroupType.UNKNOWN,
+        title: '',
+        rows: simpleQuestions.map(q => {
+          const content = q.content as SimpleContent;
+          return {
+            prompt: q.prompt,
+            answers: content.answers,
+          };
+        }),
+        points: 1,
+      },
+    });
+  }
+
+  return items;
 }

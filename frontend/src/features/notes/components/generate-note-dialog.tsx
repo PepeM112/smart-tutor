@@ -1,12 +1,13 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { NoteLength } from '@/client';
+import { DialogLoading } from '@/components/shared/dialog-loading';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -78,13 +79,7 @@ export function GenerateNoteDialog() {
         onEscapeKeyDown={isGenerating ? e => e.preventDefault() : undefined}
       >
         {isGenerating ? (
-          <div className="flex flex-col items-center justify-center gap-6 py-12">
-            <div className="relative">
-              <Loader2 className="size-10 animate-spin text-primary" />
-              <Sparkles className="absolute -top-1 -right-1 size-4 text-primary animate-pulse" />
-            </div>
-            <p className="text-sm font-medium text-foreground">Generating your notes…</p>
-          </div>
+          <DialogLoading title="Generating your notes…" />
         ) : (
           <>
             <DialogHeader>
