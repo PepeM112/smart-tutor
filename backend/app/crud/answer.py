@@ -19,9 +19,7 @@ def get_by_id_with_test_result(db: Session, *, id: str) -> Answer | None:
 
 def get_test_result_with_answers(db: Session, *, test_result_id: str) -> TestResult | None:
     return (
-        db.execute(
-            select(TestResult).options(joinedload(TestResult.answers)).where(TestResult.id == test_result_id)
-        )
+        db.execute(select(TestResult).options(joinedload(TestResult.answers)).where(TestResult.id == test_result_id))
         .unique()
         .scalar_one_or_none()
     )

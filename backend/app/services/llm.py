@@ -67,9 +67,7 @@ class AnthropicLLMClient(LLMClient):
             )
 
         if response.stop_reason == "max_tokens":
-            logger.warning(
-                "Anthropic response truncated (max_tokens=%d, usage=%s)", max_tokens, response.usage
-            )
+            logger.warning("Anthropic response truncated (max_tokens=%d, usage=%s)", max_tokens, response.usage)
 
         return text
 
