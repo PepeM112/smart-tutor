@@ -57,10 +57,7 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
       prompt: row.prompt,
       order: i,
       content: {
-        answers: row.answers
-          .split(',')
-          .map(a => a.trim())
-          .filter(Boolean),
+        answers: row.answers.filter(Boolean),
       },
     })),
   };
@@ -107,7 +104,7 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
       const content = q.content as { answers: string[] };
       return {
         prompt: q.prompt,
-        answers: (content.answers ?? []).join(', '),
+        answers: content.answers ?? [],
       } as SimpleRow;
     }),
     points: g.points ?? 1,

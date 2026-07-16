@@ -21,7 +21,7 @@ export function newQuestionGroup(): QuestionGroupData {
     type: 'group',
     groupType: QuestionGroupType.UNKNOWN,
     title: '',
-    rows: [{ prompt: '', answers: '' }],
+    rows: [{ prompt: '', answers: [''] }],
     points: 1,
   };
 }

@@ -53,7 +53,7 @@ function toPreviewItems(questions: GeneratedQuestionPreview[]): PreviewItem[] {
           const content = q.content as SimpleContent;
           return {
             prompt: q.prompt,
-            answers: content.answers.join(', '),
+            answers: content.answers,
           };
         }),
         points: 1,
@@ -167,10 +167,7 @@ export function GeneratedTestPreview() {
             prompt: row.prompt,
             points: item.data.points,
             content: {
-              answers: row.answers
-                .split(',')
-                .map(a => a.trim())
-                .filter(Boolean),
+              answers: row.answers.filter(Boolean),
             },
           });
         });
@@ -209,10 +206,7 @@ export function GeneratedTestPreview() {
             prompt: row.prompt,
             order: i,
             content: {
-              answers: row.answers
-                .split(',')
-                .map(a => a.trim())
-                .filter(Boolean),
+              answers: row.answers.filter(Boolean),
             },
           })),
         }));

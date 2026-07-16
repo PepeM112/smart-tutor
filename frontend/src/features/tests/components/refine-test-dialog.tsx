@@ -118,11 +118,12 @@ function RefiningState() {
   const [messageIndex, setMessageIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval>>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
       setIsTransitioning(true);
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setMessageIndex(prev => (prev + 1) % PROGRESS_MESSAGES.length);
         setIsTransitioning(false);
       }, 200);
@@ -130,6 +131,7 @@ function RefiningState() {
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
