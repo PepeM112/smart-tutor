@@ -5,7 +5,15 @@ import { useEffect, useState } from 'react';
 
 import type { buttonVariants } from '@/components/ui/button';
 import { Button } from '@/components/ui/button';
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
@@ -253,8 +261,17 @@ export default function SandboxPage() {
             </Tooltip>
           ))}
           <Tooltip content="Default trigger (? icon)" side="top" />
-          <Tooltip content={<span className="flex items-center gap-1.5"><Info className="size-3" /> Rich content</span>} side="top">
-            <Button variant="outline" size="sm">Rich</Button>
+          <Tooltip
+            content={
+              <span className="flex items-center gap-1.5">
+                <Info className="size-3" /> Rich content
+              </span>
+            }
+            side="top"
+          >
+            <Button variant="outline" size="sm">
+              Rich
+            </Button>
           </Tooltip>
         </div>
       </SandboxBlock>
@@ -263,13 +280,21 @@ export default function SandboxPage() {
       <SandboxBlock title="ConfirmDialog — variants">
         <div className="flex items-center gap-4">
           <ConfirmDialog
-            trigger={<Button variant="outline" size="sm">Basic confirm</Button>}
+            trigger={
+              <Button variant="outline" size="sm">
+                Basic confirm
+              </Button>
+            }
             title="Confirm action"
             description="Are you sure you want to proceed?"
             onConfirm={() => {}}
           />
           <ConfirmDialog
-            trigger={<Button variant="destructive" size="sm" icon={Trash2}>Delete item</Button>}
+            trigger={
+              <Button variant="destructive" size="sm" icon={Trash2}>
+                Delete item
+              </Button>
+            }
             title="Delete this item?"
             description="This action cannot be undone."
             confirmLabel="Delete"
@@ -278,7 +303,11 @@ export default function SandboxPage() {
             onConfirm={() => {}}
           />
           <ConfirmDialog
-            trigger={<Button variant="outline" size="sm">With content</Button>}
+            trigger={
+              <Button variant="outline" size="sm">
+                With content
+              </Button>
+            }
             title="Rename item"
             description="Enter a new name below."
             confirmLabel="Rename"
@@ -287,7 +316,11 @@ export default function SandboxPage() {
             <Input placeholder="New name…" />
           </ConfirmDialog>
           <ConfirmDialog
-            trigger={<Button variant="outline" size="sm">Disabled confirm</Button>}
+            trigger={
+              <Button variant="outline" size="sm">
+                Disabled confirm
+              </Button>
+            }
             title="Cannot proceed"
             description="The confirm button is disabled."
             disableConfirm
