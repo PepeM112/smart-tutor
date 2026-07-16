@@ -98,7 +98,7 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
     test = get_test(db, test_id=test_id, current_user=current_user)
 
     # Check incoming orders against what's already in the test
-    _validate_order_space(data.questions, data.question_groups, existing_orders=_get_existing_orders(test))
+    _validate_order_space(data.questions or [], data.question_groups or [], existing_orders=_get_existing_orders(test))
 
     if data.questions:
         question_crud.create_many(db, questions=data.questions, test_id=test.id)

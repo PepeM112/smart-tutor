@@ -22,8 +22,8 @@ class TestCreate(TestBase):
 class TestUpdate(BaseSchema):
     title: str | None = None
     description: str | None = None
-    questions: list[QuestionCreate] = []
-    question_groups: list[TestQuestionGroupCreate] = []
+    questions: list[QuestionCreate] | None = None
+    question_groups: list[TestQuestionGroupCreate] | None = None
 
 
 class TestRead(TestBase):

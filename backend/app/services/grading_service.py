@@ -1,23 +1,60 @@
 import json
 import logging
+from dataclasses import dataclass
+from typing import TypedDict
 
 from anthropic import APIStatusError as AnthropicAPIError
 from anthropic import AuthenticationError as AnthropicAuthError
 from openai import APIStatusError as OpenAIAPIError
 from openai import AuthenticationError as OpenAIAuthError
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
+from typing_extensions import NotRequired
 
 from app.core.enums import AnswerStatus, QuestionType
+from app.crud import answer as answer_crud
 from app.database import SessionLocal
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test_result import TestResult
-from app.schemas.question import LongTextContent
-from app.services.grading import CriterionResult, get_grading_provider
-from app.services.grading.utils import effective_met
+from app.schemas.question import LongTextContent, RubricItem
+from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
+from app.services.llm import get_llm_client
 
 logger = logging.getLogger("smarttutor.grading")
+
+
+class _RawCriterionDict(TypedDict):
+    index: int
+    met: bool
+    reason: NotRequired[str]
+
+
+@dataclass(frozen=True)
+class CriterionResult:
+    index: int
+    met: bool
+    reason: str = ""
+
+
+def grade(prompt: str, rubric: list[RubricItem], answer: str) -> list[CriterionResult]:
+    """Grade a long-text answer against a rubric via the configured LLM provider."""
+    llm = get_llm_client()
+    user_prompt = build_grading_user_prompt(prompt, rubric, answer)
+    raw_text = llm.complete(system=GRADING_SYSTEM_PROMPT, user=user_prompt, max_tokens=2048)
+    cleaned = strip_code_fences(raw_text)
+    data: dict[str, list[_RawCriterionDict]] = json.loads(cleaned)
+    return [
+        CriterionResult(index=item["index"], met=item["met"], reason=item.get("reason", "")) for item in data["results"]
+    ]
+
+
+def effective_met(entry: dict[str, object]) -> bool:
+    """Return the effective 'met' status, considering challenge overrides."""
+    cr = entry.get("challenge_result")
+    if cr is not None and isinstance(cr, dict) and cr.get("met") is not None:
+        return bool(cr["met"])
+    return bool(entry.get("met", False))
 
 
 def _determine_status(results: list[CriterionResult], rubric_size: int) -> AnswerStatus:
@@ -98,13 +135,7 @@ def recalculate_test_result(db: Session, test_result: TestResult) -> None:
 def _mark_all_pending_as_failed(db: Session, test_result_id: str) -> None:
     """Last-resort: mark every still-PENDING answer as FAILED so nothing stays in limbo."""
     try:
-        test_result = (
-            db.execute(
-                select(TestResult).options(joinedload(TestResult.answers)).where(TestResult.id == test_result_id)
-            )
-            .unique()
-            .scalar_one_or_none()
-        )
+        test_result = answer_crud.get_test_result_with_answers(db, test_result_id=test_result_id)
         if test_result is None:
             return
         for answer in test_result.answers:
@@ -122,15 +153,9 @@ def grade_pending_answers(test_result_id: str) -> None:
     """Background task: grade all PENDING long-text answers for a TestResult."""
     db = SessionLocal()
     try:
-        provider = get_grading_provider()
+        llm = get_llm_client()
 
-        test_result = (
-            db.execute(
-                select(TestResult).options(joinedload(TestResult.answers)).where(TestResult.id == test_result_id)
-            )
-            .unique()
-            .scalar_one_or_none()
-        )
+        test_result = answer_crud.get_test_result_with_answers(db, test_result_id=test_result_id)
 
         if test_result is None:
             logger.error("TestResult %s not found for grading", test_result_id)
@@ -153,11 +178,11 @@ def grade_pending_answers(test_result_id: str) -> None:
                 continue
 
             prompt_preview = question.prompt[:50] + ("..." if len(question.prompt) > 50 else "")
-            logger.info('Q%d/%d "%s" -> sending to %s', idx, total, prompt_preview, provider.name)
+            logger.info('Q%d/%d "%s" -> sending to %s', idx, total, prompt_preview, llm.name)
 
             try:
                 content = LongTextContent.model_validate(question.content)
-                results = provider.grade(question.prompt, content.rubric, answer.user_answer)
+                results = grade(question.prompt, content.rubric, answer.user_answer)
 
                 status = _determine_status(results, len(content.rubric))
                 answer.status = int(status)

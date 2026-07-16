@@ -7,23 +7,19 @@ from anthropic import AuthenticationError as AnthropicAuthError
 from fastapi import HTTPException, status
 from openai import APIStatusError as OpenAIAPIError
 from openai import AuthenticationError as OpenAIAuthError
-from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.core.enums import AnswerStatus, QuestionType
+from app.crud import answer as answer_crud
+from app.crud import question as question_crud
 from app.database import SessionLocal
 from app.models.answer import Answer
 from app.models.question import Question
-from app.models.test_result import TestResult
 from app.schemas.answer import ChallengeRequest
 from app.schemas.question import LongTextContent
-from app.services.grading.prompts.challenge import (
-    CHALLENGE_SYSTEM_PROMPT,
-    build_challenge_user_prompt,
-)
-from app.services.grading.prompts.grading import strip_code_fences
-from app.services.grading.utils import effective_met
-from app.services.grading_service import recalculate_test_result
+from app.services.challenge_prompts import CHALLENGE_SYSTEM_PROMPT, build_challenge_user_prompt
+from app.services.grading_prompts import strip_code_fences
+from app.services.grading_service import effective_met, recalculate_test_result
 from app.services.llm import get_llm_client
 
 logger = logging.getLogger("smarttutor.grading")
@@ -74,11 +70,16 @@ def _validate_challenge_eligibility(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Criterion {idx} is already marked as met",
             )
-        if entry.get("challenge_result") is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Criterion {idx} has already been challenged",
+        cr = entry.get("challenge_result")
+        if cr is not None:
+            is_transient_failure = (
+                isinstance(cr, dict) and cr.get("met") is False and cr.get("reason") == "Challenge processing failed"
             )
+            if not is_transient_failure:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Criterion {idx} has already been challenged",
+                )
 
 
 def challenge_answer(
@@ -88,15 +89,11 @@ def challenge_answer(
     request: ChallengeRequest,
     user_id: str,
 ) -> Answer:
-    answer = (
-        db.execute(select(Answer).options(joinedload(Answer.test_result)).where(Answer.id == answer_id))
-        .unique()
-        .scalar_one_or_none()
-    )
+    answer = answer_crud.get_by_id_with_test_result(db, id=answer_id)
     if answer is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Answer not found")
 
-    question = db.execute(select(Question).where(Question.id == answer.question_id)).scalar_one_or_none()
+    question = question_crud.get_by_id(db, id=answer.question_id)
     if question is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
 
@@ -124,12 +121,12 @@ def challenge_answer(
 def process_challenge(answer_id: str) -> None:
     db = SessionLocal()
     try:
-        answer = db.execute(select(Answer).where(Answer.id == answer_id)).scalar_one_or_none()
+        answer = answer_crud.get_by_id(db, id=answer_id)
         if answer is None:
             logger.error("Answer %s not found for challenge processing", answer_id)
             return
 
-        question = db.execute(select(Question).where(Question.id == answer.question_id)).scalar_one_or_none()
+        question = question_crud.get_by_id(db, id=answer.question_id)
         if question is None:
             logger.error("Question not found for answer %s", answer_id)
             return
@@ -211,17 +208,10 @@ def process_challenge(answer_id: str) -> None:
         if any_flipped:
             _recalculate_answer_status(answer, content)
 
-            test_result = (
-                db.execute(
-                    select(TestResult)
-                    .options(joinedload(TestResult.answers))
-                    .where(TestResult.id == answer.test_result_id)
-                )
-                .unique()
-                .scalar_one_or_none()
-            )
-            if test_result is not None:
-                recalculate_test_result(db, test_result)
+            if answer.test_result_id is not None:
+                test_result = answer_crud.get_test_result_with_answers(db, test_result_id=answer.test_result_id)
+                if test_result is not None:
+                    recalculate_test_result(db, test_result)
 
         db.commit()
 
@@ -271,7 +261,7 @@ def _recalculate_answer_status(answer: Answer, content: LongTextContent) -> None
 
 def _mark_challenge_as_failed(db: Session, answer_id: str) -> None:
     try:
-        answer = db.execute(select(Answer).where(Answer.id == answer_id)).scalar_one_or_none()
+        answer = answer_crud.get_by_id(db, id=answer_id)
         if answer is None:
             return
         rubric_result = copy.deepcopy(answer.rubric_result or [])

@@ -49,6 +49,7 @@ def build_stripped_question(question: Question) -> QuestionReadStripped:
         test_id=question.test_id,
         group_id=question.group_id,
         order=question.order,
+        points=question.points,
     )
 
 
@@ -68,6 +69,7 @@ def build_stripped_test(test: Test) -> TestReadStripped:
                 type=QuestionGroupType(g.type),
                 order=g.order,
                 title=g.title,
+                points=g.points,
                 questions=[build_stripped_question(q) for q in g.questions],
             )
             for g in test.question_groups

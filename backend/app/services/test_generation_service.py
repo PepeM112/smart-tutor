@@ -13,7 +13,7 @@ from app.schemas.test_generation import (
     TestGenerationResponse,
     TestRefinementRequest,
 )
-from app.services.grading.prompts.grading import strip_code_fences
+from app.services.grading_prompts import strip_code_fences
 from app.services.llm import complete
 from app.services.note_service import get_note
 from app.services.test_generation_prompts import (

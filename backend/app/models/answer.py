@@ -16,7 +16,7 @@ class Answer(Base, CreatedAtMixin):
     __tablename__ = "answer"
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
-    test_result_id: Mapped[str] = mapped_column(String(26), ForeignKey("test_result.id"), nullable=True)
+    test_result_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test_result.id"), nullable=True)
     question_id: Mapped[str] = mapped_column(String(26), ForeignKey("question.id"))
     user_answer: Mapped[str] = mapped_column(String)
     status: Mapped[int] = mapped_column(Integer, default=int(AnswerStatus.PENDING))
