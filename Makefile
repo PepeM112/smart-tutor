@@ -146,6 +146,10 @@ clean-fe: ## Remove Next.js build and cache folders
 	rm -rf frontend/.next
 	rm -rf frontend/.turbo
 
+clear-cache: ## Clear Turbopack dev cache and restart frontend (fixes SST corruption)
+	$(DOCKER_COMPOSE) exec frontend rm -rf /app/.next/dev/cache/turbopack
+	$(DOCKER_COMPOSE) restart frontend
+
 clean-logs: ## Remove docker logs (requires sudo/root)
 	@sudo find /var/lib/docker/containers -name "*.log" -delete 2>/dev/null || echo "Log cleanup failed (permissions?)"
 
@@ -155,4 +159,4 @@ restart: ## Restart all services
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint format format-check format-branch format-branch-check type-check pyright seed clean clean-fe clean-logs restart help
+.PHONY: up build down rebuild frontend-logs frontend-shell frontend-install frontend-gen logs shell test install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint format format-check format-branch format-branch-check type-check pyright seed clean clean-fe clear-cache clean-logs restart help

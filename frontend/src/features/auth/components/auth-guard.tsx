@@ -11,15 +11,9 @@ import { clearSessionCookie } from '../utils/session-cookie';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, setUser, logout, setLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, setUser, logout } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace(Routes.LOGIN);
-      return;
-    }
-
-    setLoading(true);
     sdk
       .usersMe()
       .then(res => setUser(res.data ?? null))
@@ -28,9 +22,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         clearSessionCookie();
         router.replace(Routes.LOGIN);
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setUser, logout, router]);
 
-  if (!isAuthenticated) return null;
+  if (isLoading || !isAuthenticated) return null;
 
   return <>{children}</>;
 }

@@ -30,3 +30,23 @@ def build_note_generation_user_prompt(
         parts.append(f"## Length\n{length_hint}")
 
     return "\n\n".join(parts)
+
+
+NOTE_REFINEMENT_SYSTEM_PROMPT = (
+    "You are a study-notes editor. You receive existing Markdown study notes and "
+    "user instructions for how to improve them. Return the COMPLETE updated Markdown — "
+    "keep unchanged sections as-is, modify what the user asks, and add new content "
+    "if requested. Output ONLY the Markdown content — no preamble, no closing remarks, "
+    "no code fences wrapping the entire output."
+)
+
+
+def build_note_refinement_user_prompt(
+    current_content: str,
+    instructions: str,
+) -> str:
+    return (
+        f"## Current Notes\n{current_content}\n\n"
+        f"## Instructions\n{instructions}\n\n"
+        f"Return the full updated notes as Markdown."
+    )

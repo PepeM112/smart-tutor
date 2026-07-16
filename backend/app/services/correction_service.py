@@ -15,13 +15,13 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import AnswerStatus, QuestionType
-from app.crud import test as test_crud
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.correction import TestSubmission
 from app.schemas.question import MultipleChoiceContent, SimpleContent
+from app.services.test_service import get_test
 
 # ---------------------------------------------------------------------------
 # Levenshtein distance (pure Python, no external dependency)
@@ -166,11 +166,7 @@ def correct_test(
     Grouped questions are scored at the group level: `group.points * (correct / total)`.
     PARTIAL answers earn 50% credit. PENDING answers are excluded from scoring.
     """
-    test = test_crud.get_by_id(db, id=test_id)
-    if test is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
-    if test.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    test = get_test(db, test_id=test_id, current_user=current_user)
 
     all_questions: list[Question] = list(test.questions)
     for group in test.question_groups:

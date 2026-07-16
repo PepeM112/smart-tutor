@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.dependencies.auth import get_current_user
+from app.models.answer import Answer
 from app.models.user import User
 from app.schemas.answer import AnswerRead, ChallengeRequest
 from app.services import challenge_service
@@ -22,7 +23,7 @@ def challenge(
     db: DbSession,
     current_user: CurrentUser,
     background_tasks: BackgroundTasks,
-) -> AnswerRead:
+) -> Answer:
     answer = challenge_service.challenge_answer(
         db,
         answer_id=answer_id,
@@ -30,4 +31,4 @@ def challenge(
         user_id=current_user.id,
     )
     background_tasks.add_task(challenge_service.process_challenge, answer.id)
-    return AnswerRead.model_validate(answer)
+    return answer

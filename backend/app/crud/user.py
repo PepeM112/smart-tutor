@@ -1,18 +1,19 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
 
 
-def get_by_id(db: Session, id: str) -> User | None:
-    return db.query(User).filter(User.id == id).first()
+def get_by_id(db: Session, *, id: str) -> User | None:
+    return db.scalars(select(User).where(User.id == id)).first()
 
 
-def get_by_email(db: Session, email: str) -> User | None:
-    return db.query(User).filter(User.email == email).first()
+def get_by_email(db: Session, *, email: str) -> User | None:
+    return db.scalars(select(User).where(User.email == email)).first()
 
 
-def get_by_username(db: Session, username: str) -> User | None:
-    return db.query(User).filter(User.username == username).first()
+def get_by_username(db: Session, *, username: str) -> User | None:
+    return db.scalars(select(User).where(User.username == username)).first()
 
 
 def create(db: Session, *, username: str, email: str, hashed_password: str) -> User:

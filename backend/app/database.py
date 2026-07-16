@@ -23,7 +23,7 @@ class Base(DeclarativeBase):
 
 # Neon requires SSL (usually in the connection string)
 # echo=True enables SQLAlchemy to log every SQL query to the console
-engine = create_engine(database_url, echo=True)
+engine = create_engine(database_url, echo=os.getenv("ENVIRONMENT", "development") == "development")
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

@@ -20,6 +20,9 @@ class Test(Base, CreatedAtMixin):
     description: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"))
     status: Mapped[TestStatus] = mapped_column(default=TestStatus.ACTIVE)
+    source_note_id: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("note.id", ondelete="SET NULL"), nullable=True, default=None
+    )
 
     questions: Mapped[list["Question"]] = relationship(back_populates="test", cascade="all, delete-orphan")
     question_groups: Mapped[list["TestQuestionGroup"]] = relationship(

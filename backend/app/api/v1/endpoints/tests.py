@@ -10,8 +10,9 @@ from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.correction import TestSubmission
 from app.schemas.test import TestCreate, TestRead, TestReadStripped, TestUpdate
+from app.schemas.test_generation import TestGenerationRequest, TestGenerationResponse, TestRefinementRequest
 from app.schemas.test_result import TestResultRead
-from app.services import correction_service, test_service
+from app.services import correction_service, test_generation_service, test_service
 from app.services.grading_service import grade_pending_answers
 from app.services.question_helpers import build_stripped_test
 
@@ -35,6 +36,16 @@ def get(test_id: str, db: DbSession, current_user: CurrentUser) -> Test:
 def get_exam(test_id: str, db: DbSession, current_user: CurrentUser) -> TestReadStripped:
     test = test_service.get_test(db, test_id=test_id, current_user=current_user)
     return build_stripped_test(test)
+
+
+@router.post("/generate", response_model=TestGenerationResponse)
+def generate(data: TestGenerationRequest, db: DbSession, current_user: CurrentUser) -> TestGenerationResponse:
+    return test_generation_service.generate_test_questions(db, current_user=current_user, data=data)
+
+
+@router.post("/generate/refine", response_model=TestGenerationResponse)
+def refine(data: TestRefinementRequest, db: DbSession, current_user: CurrentUser) -> TestGenerationResponse:
+    return test_generation_service.refine_test_questions(db, current_user=current_user, data=data)
 
 
 @router.post("", response_model=TestRead, status_code=status.HTTP_201_CREATED)
