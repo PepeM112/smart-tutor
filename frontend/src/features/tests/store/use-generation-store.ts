@@ -6,7 +6,6 @@ interface GenerationState {
   questions: GeneratedQuestionPreview[];
   sourceNoteId: string;
   sourceNoteTitle: string;
-  hasData: boolean;
   setResult: (questions: GeneratedQuestionPreview[], sourceNoteId: string, sourceNoteTitle: string) => void;
   clear: () => void;
 }
@@ -15,10 +14,8 @@ export const useGenerationStore = create<GenerationState>()(set => ({
   questions: [],
   sourceNoteId: '',
   sourceNoteTitle: '',
-  hasData: false,
 
-  setResult: (questions, sourceNoteId, sourceNoteTitle) =>
-    set({ questions, sourceNoteId, sourceNoteTitle, hasData: true }),
+  setResult: (questions, sourceNoteId, sourceNoteTitle) => set({ questions, sourceNoteId, sourceNoteTitle }),
 
-  clear: () => set({ questions: [], sourceNoteId: '', sourceNoteTitle: '', hasData: false }),
+  clear: () => set({ questions: [], sourceNoteId: '', sourceNoteTitle: '' }),
 }));

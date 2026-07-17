@@ -3,23 +3,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { QuickTestDialog } from '@/features/tests/components/quick-test-dialog';
 import { TestsTable } from '@/features/tests/components/tests-table';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 export default function TestsPage() {
-  const { set, reset } = useBreadcrumbStore();
+  useBreadcrumb('Tests');
   const router = useRouter();
-
-  useEffect(() => {
-    set('Tests');
-    return () => reset();
-  }, [set, reset]);
 
   const {
     data: tests,

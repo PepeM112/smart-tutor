@@ -1,7 +1,7 @@
 'use client';
 
 import { Info, Star, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type { buttonVariants } from '@/components/ui/button';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 
 import type { VariantProps } from 'class-variance-authority';
 
@@ -50,16 +50,11 @@ function StateLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function SandboxPage() {
-  const { set, reset } = useBreadcrumbStore();
+  useBreadcrumb('Sandbox');
   const [switchA, setSwitchA] = useState(false);
   const [switchB, setSwitchB] = useState(true);
   const [checkA, setCheckA] = useState(false);
   const [checkB, setCheckB] = useState(true);
-
-  useEffect(() => {
-    set('Sandbox');
-    return () => reset();
-  }, [set, reset]);
 
   return (
     <div className="space-y-6">

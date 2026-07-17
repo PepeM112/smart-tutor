@@ -1,15 +1,10 @@
-'use client';
-import { useEffect } from 'react';
-
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+import { SetBreadcrumb } from '@/components/breadcrumb';
 
 export default function SettingsPage() {
-  const { set, reset } = useBreadcrumbStore();
-
-  useEffect(() => {
-    set('Profile & Settings');
-    return () => reset();
-  }, [set, reset]);
-
-  return <p className="text-muted-foreground">Account settings and SRS preferences.</p>;
+  return (
+    <>
+      <SetBreadcrumb title="Profile & Settings" />
+      <p className="text-muted-foreground">Account settings and SRS preferences.</p>
+    </>
+  );
 }

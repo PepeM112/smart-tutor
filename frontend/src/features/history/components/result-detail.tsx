@@ -3,7 +3,7 @@
 import { ChevronsLeftRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { QuestionType, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
+import { AnswerStatus, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
 import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +38,13 @@ export default function ResultDetail({ result, test }: Props) {
     return map;
   }, [result.answers]);
 
-  const isPending = (result.pendingAnswers ?? 0) > 0;
+  const pendingAnswerIds = useMemo(() => {
+    const ids = new Set<string>();
+    (result.answers ?? []).forEach(a => {
+      if (a.status === AnswerStatus.PENDING) ids.add(a.questionId);
+    });
+    return ids;
+  }, [result.answers]);
 
   const itemNumbers = useMemo(() => items.map((_, idx) => idx + 1), [items]);
 
@@ -61,7 +67,7 @@ export default function ResultDetail({ result, test }: Props) {
                 answer={answerMap.get(question.id)}
                 number={itemNumbers[idx]}
                 isSelected={selectedItem?.type === ExamItemType.QUESTION && selectedItem.id === question.id}
-                disabled={question.questionType === QuestionType.LONG_TEXT && isPending}
+                disabled={pendingAnswerIds.has(question.id)}
                 onClick={() => setSelectedItem({ type: ExamItemType.QUESTION, id: question.id })}
               />
             );

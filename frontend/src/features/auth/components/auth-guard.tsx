@@ -11,7 +11,7 @@ import { clearSessionCookie } from '../utils/session-cookie';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, setUser, logout } = useAuthStore();
+  const { user, isLoading, setUser, logout } = useAuthStore();
 
   useEffect(() => {
     let ignore = false;
@@ -37,7 +37,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     };
   }, [setUser, logout, router]);
 
-  if (isLoading || !isAuthenticated) return null;
+  if (isLoading || !user) return null;
 
   return <>{children}</>;
 }

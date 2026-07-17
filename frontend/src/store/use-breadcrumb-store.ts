@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-interface BreadcrumbItem {
+export interface BreadcrumbItem {
   label: string;
   href?: string;
 }

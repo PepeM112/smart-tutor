@@ -207,7 +207,7 @@ function CriterionCard({
   const isUpheld = cr != null && cr.met === false;
   const isChallenged = cr != null;
 
-  const effectiveMet = isOverturned ? true : item.met;
+  const isMet = effectiveMet(item);
 
   const isChallengeable = isChallengeMode && !item.met && !isChallenged;
   const isDimmed = isChallengeMode && (item.met || isChallenged);
@@ -216,7 +216,7 @@ function CriterionCard({
     <div
       className={cn(
         'rounded-md border-l-[3px] px-3 py-2 transition-all',
-        effectiveMet ? 'border-l-feedback-correct bg-feedback-correct-bg' : 'border-l-destructive bg-feedback-wrong-bg',
+        isMet ? 'border-l-feedback-correct bg-feedback-correct-bg' : 'border-l-destructive bg-feedback-wrong-bg',
         isSelected && 'border-l-feedback-partial bg-feedback-partial-bg',
         isPending && 'border-l-feedback-partial animate-pulse',
         isDimmed && 'opacity-40',
@@ -226,7 +226,7 @@ function CriterionCard({
     >
       <div className="flex items-start gap-2">
         <CriterionIcon
-          effectiveMet={effectiveMet}
+          isMet={isMet}
           isPending={isPending}
           isSelected={isSelected}
           isChallengeMode={isChallengeMode}
@@ -274,13 +274,13 @@ function CriterionCard({
 }
 
 function CriterionIcon({
-  effectiveMet,
+  isMet,
   isPending,
   isSelected,
   isChallengeMode,
   isChallengeable,
 }: {
-  effectiveMet: boolean;
+  isMet: boolean;
   isPending: boolean;
   isSelected: boolean;
   isChallengeMode: boolean;
@@ -295,7 +295,7 @@ function CriterionIcon({
   if (isChallengeMode && isChallengeable) {
     return <Scale className="size-4 text-feedback-partial shrink-0 mt-0.5" />;
   }
-  if (effectiveMet) {
+  if (isMet) {
     return <Check className="size-4 text-feedback-correct shrink-0 mt-0.5" />;
   }
   return <X className="size-4 text-destructive shrink-0 mt-0.5" />;

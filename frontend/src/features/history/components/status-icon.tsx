@@ -3,20 +3,23 @@
 import { CircleAlert, CircleCheck, CircleX, Loader2 } from 'lucide-react';
 
 import { AnswerStatus } from '@/client';
+import { getStatusTextColor } from '@/features/history/utils/score-colors';
 import { cn } from '@/lib/utils';
+
+const STATUS_ICONS = {
+  [AnswerStatus.CORRECT]: CircleCheck,
+  [AnswerStatus.PARTIAL]: CircleAlert,
+  [AnswerStatus.WRONG]: CircleX,
+  [AnswerStatus.FAILED]: CircleX,
+} as const;
 
 export function StatusIcon({ status, className }: { status: AnswerStatus; className?: string }) {
   const base = cn('size-5 shrink-0', className);
-  switch (status) {
-    case AnswerStatus.CORRECT:
-      return <CircleCheck className={cn(base, 'text-feedback-correct')} />;
-    case AnswerStatus.PARTIAL:
-      return <CircleAlert className={cn(base, 'text-feedback-partial')} />;
-    case AnswerStatus.WRONG:
-      return <CircleX className={cn(base, 'text-destructive')} />;
-    case AnswerStatus.FAILED:
-      return <CircleX className={cn(base, 'text-destructive')} />;
-    default:
-      return <Loader2 className={cn(base, 'text-muted-foreground animate-spin')} />;
+  const Icon = STATUS_ICONS[status as keyof typeof STATUS_ICONS];
+
+  if (!Icon) {
+    return <Loader2 className={cn(base, 'text-muted-foreground animate-spin')} />;
   }
+
+  return <Icon className={cn(base, getStatusTextColor(status))} />;
 }

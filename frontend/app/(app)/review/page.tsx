@@ -2,22 +2,17 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Loader2, PartyPopper } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ReviewSession } from '@/features/review/components/review-session';
 import { REVIEW_BATCH_SIZE } from '@/features/review/helpers';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 export default function ReviewPage() {
-  const { set, reset } = useBreadcrumbStore();
+  useBreadcrumb('Review Now');
   const [mode, setMode] = useState<'review' | 'practice'>('review');
-
-  useEffect(() => {
-    set('Review Now');
-    return () => reset();
-  }, [set, reset]);
 
   const {
     data: response,

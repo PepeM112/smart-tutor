@@ -1,5 +1,6 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -32,22 +33,18 @@ export function ReviewSession({ initialQuestions, mode }: Props) {
   const [phase, setPhase] = useState<SessionPhase>('answering');
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
   const [results, setResults] = useState<CheckedQuestion[]>([]);
-  const [isChecking, setIsChecking] = useState(false);
-  const [isLoadingBatch, setIsLoadingBatch] = useState(false);
   const [exhausted, setExhausted] = useState(false);
 
   const currentQuestion = questions[currentIndex] ?? null;
 
-  const handleCheck = useCallback(async () => {
-    if (!currentQuestion || !answer.trim()) return;
-    setIsChecking(true);
-    try {
-      const response = await sdk.questionsCheck({
-        path: { question_id: currentQuestion.id },
-        body: { userAnswer: answer },
-      });
+  const { mutate: checkAnswer, isPending: isChecking } = useMutation({
+    mutationFn: ({ questionId, userAnswer }: { questionId: string; userAnswer: string }) =>
+      sdk.questionsCheck({
+        path: { question_id: questionId },
+        body: { userAnswer },
+      }),
+    onSuccess: (response, { userAnswer }) => {
       const data = response.data as QuestionCheckResponse;
-
       const result: CheckResult = {
         status: data.status,
         correctAnswers: data.correctAnswers,
@@ -55,14 +52,34 @@ export function ReviewSession({ initialQuestions, mode }: Props) {
         srsState: data.srsState ?? undefined,
       };
       setCheckResult(result);
-      setResults(prev => [...prev, { question: currentQuestion, userAnswer: answer, status: data.status }]);
+      setResults(prev => [...prev, { question: currentQuestion, userAnswer, status: data.status }]);
       setPhase('checked');
-    } catch {
-      toast.error('Failed to check answer. Please try again.');
-    } finally {
-      setIsChecking(false);
-    }
-  }, [currentQuestion, answer]);
+    },
+    onError: () => toast.error('Failed to check answer. Please try again.'),
+  });
+
+  const { mutate: loadNextBatch, isPending: isLoadingBatch } = useMutation({
+    mutationFn: () => sdk.reviewList({ query: { limit: REVIEW_BATCH_SIZE, mode } }),
+    onSuccess: response => {
+      const data = response.data;
+      if (!data || data.questions.length === 0) {
+        setExhausted(true);
+        return;
+      }
+      setQuestions(data.questions);
+      setCurrentIndex(0);
+      setAnswer('');
+      setCheckResult(null);
+      setResults([]);
+      setPhase('answering');
+    },
+    onError: () => toast.error('Failed to load next batch. Please try again.'),
+  });
+
+  const handleCheck = useCallback(() => {
+    if (!currentQuestion || !answer.trim()) return;
+    checkAnswer({ questionId: currentQuestion.id, userAnswer: answer });
+  }, [currentQuestion, answer, checkAnswer]);
 
   const handleNext = () => {
     if (currentIndex + 1 >= questions.length) {
@@ -75,39 +92,13 @@ export function ReviewSession({ initialQuestions, mode }: Props) {
     setPhase('answering');
   };
 
-  const handleContinue = async () => {
-    setIsLoadingBatch(true);
-    try {
-      const response = await sdk.reviewList({
-        query: { limit: REVIEW_BATCH_SIZE, mode },
-      });
-      const data = response.data;
-
-      if (!data || data.questions.length === 0) {
-        setExhausted(true);
-        return;
-      }
-
-      setQuestions(data.questions);
-      setCurrentIndex(0);
-      setAnswer('');
-      setCheckResult(null);
-      setResults([]);
-      setPhase('answering');
-    } catch {
-      toast.error('Failed to load next batch. Please try again.');
-    } finally {
-      setIsLoadingBatch(false);
-    }
-  };
-
   if (phase === 'batch-done') {
     return (
       <div className="space-y-4">
         <ProgressBar current={questions.length} total={questions.length} />
         <BatchSummary
           results={results}
-          onContinue={() => void handleContinue()}
+          onContinue={() => loadNextBatch()}
           isLoading={isLoadingBatch}
           exhausted={exhausted}
         />
@@ -124,7 +115,7 @@ export function ReviewSession({ initialQuestions, mode }: Props) {
         question={currentQuestion}
         answer={answer}
         onAnswerChange={setAnswer}
-        onCheck={() => void handleCheck()}
+        onCheck={handleCheck}
         isChecking={isChecking}
         checkResult={checkResult}
         onNext={handleNext}

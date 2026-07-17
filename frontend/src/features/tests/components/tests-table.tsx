@@ -14,6 +14,23 @@ import { getQuestionTypeInfo } from '@/features/tests/utils/question-icons';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
+type Props = {
+  data: TestRead[];
+};
+
+export function TestsTable({ data }: Props) {
+  const router = useRouter();
+
+  return (
+    <DataTable
+      columns={columns}
+      data={data}
+      emptyMessage="No tests yet. Create your first one!"
+      onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
+    />
+  );
+}
+
 function countByType(questions: QuestionRead[], type: QuestionType): number {
   return questions.filter(q => q.questionType === type).length;
 }
@@ -154,20 +171,3 @@ const columns: ColumnDef<TestRead, unknown>[] = [
     },
   },
 ];
-
-type Props = {
-  data: TestRead[];
-};
-
-export function TestsTable({ data }: Props) {
-  const router = useRouter();
-
-  return (
-    <DataTable
-      columns={columns}
-      data={data}
-      emptyMessage="No tests yet. Create your first one!"
-      onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
-    />
-  );
-}

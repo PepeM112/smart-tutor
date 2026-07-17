@@ -91,6 +91,10 @@ export function getUserAnswerDisplay(question: QuestionRead, userAnswer: string)
   return userAnswer || '(no answer)';
 }
 
+export function isAnswerWrong(status: AnswerStatus): boolean {
+  return status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
+}
+
 export function countCorrectInGroup(questions: QuestionRead[], answerMap: Map<string, AnswerRead>): number {
   return questions.reduce((sum, q) => {
     const status = answerMap.get(q.id)?.status;

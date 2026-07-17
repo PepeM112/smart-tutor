@@ -3,13 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { use, useEffect } from 'react';
+import { use } from 'react';
 import { toast } from 'sonner';
 
 import { ExamView } from '@/features/tests/components/exam-view';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -19,7 +19,6 @@ export default function TakeTestPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { set, reset } = useBreadcrumbStore();
 
   const {
     data: testResponse,
@@ -55,10 +54,7 @@ export default function TakeTestPage({ params }: Props) {
     },
   });
 
-  useEffect(() => {
-    set(test?.title ?? 'Take Test', [{ label: 'Tests', href: Routes.TESTS }], Routes.TESTS);
-    return () => reset();
-  }, [set, reset, test?.title]);
+  useBreadcrumb(test?.title ?? 'Take Test', [{ label: 'Tests', href: Routes.TESTS }], Routes.TESTS);
 
   if (isLoading) {
     return (

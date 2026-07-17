@@ -169,7 +169,6 @@ function NoteForm({ note }: { note: NoteRead }) {
               noteId={note.id}
               onRefined={newContent => {
                 setContent(newContent);
-                setIsDirty(false);
               }}
             />
             <GenerateTestDialog noteId={note.id} noteTitle={note.title} />

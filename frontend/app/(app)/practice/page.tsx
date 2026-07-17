@@ -1,18 +1,12 @@
 'use client';
 
 import { Dumbbell } from 'lucide-react';
-import { useEffect } from 'react';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 
 export default function PracticePage() {
-  const { set, reset } = useBreadcrumbStore();
-
-  useEffect(() => {
-    set('Practice');
-    return () => reset();
-  }, [set, reset]);
+  useBreadcrumb('Practice');
 
   return (
     <div className="flex items-center justify-center py-24">

@@ -2,13 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { use, useEffect } from 'react';
+import { use } from 'react';
 
 import ResultDetail from '@/features/history/components/result-detail';
 import { useTestResult } from '@/features/history/hooks/use-test-result';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -16,7 +16,7 @@ type Props = {
 
 export default function ResultDetailPage({ params }: Props) {
   const { id } = use(params);
-  const { set, reset } = useBreadcrumbStore();
+  useBreadcrumb('Test Result', [{ label: 'Test History', href: Routes.HISTORY }], Routes.HISTORY);
 
   const { data: resultResponse, isLoading: isLoadingResult, isError: isResultError } = useTestResult(id);
 
@@ -33,11 +33,6 @@ export default function ResultDetailPage({ params }: Props) {
   });
 
   const test = testResponse?.data;
-
-  useEffect(() => {
-    set('Test Result', [{ label: 'Test History', href: Routes.HISTORY }], Routes.HISTORY);
-    return () => reset();
-  }, [set, reset]);
 
   if (isLoadingResult || isLoadingTest) {
     return (
