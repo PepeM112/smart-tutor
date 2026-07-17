@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 
-import type { GeneratedQuestionPreview } from '@/client';
+import type { GeneratedQuestionPreviewInput } from '@/client';
 
 interface GenerationState {
-  questions: GeneratedQuestionPreview[];
+  questions: GeneratedQuestionPreviewInput[];
   sourceNoteId: string;
   sourceNoteTitle: string;
-  setResult: (questions: GeneratedQuestionPreview[], sourceNoteId: string, sourceNoteTitle: string) => void;
+  setResult: (questions: GeneratedQuestionPreviewInput[], sourceNoteId: string, sourceNoteTitle: string) => void;
   clear: () => void;
 }
 

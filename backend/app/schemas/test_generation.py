@@ -4,9 +4,9 @@ from pydantic import Field, field_validator
 
 from app.core.enums import QuestionType
 from app.schemas.base import BaseSchema
-from app.schemas.question import MultipleChoiceContent, SimpleContent
+from app.schemas.question import LongTextContent, MultipleChoiceContent, SimpleContent
 
-ALLOWED_TYPES = {QuestionType.SIMPLE, QuestionType.MULTIPLE_CHOICE}
+ALLOWED_TYPES = {QuestionType.SIMPLE, QuestionType.MULTIPLE_CHOICE, QuestionType.LONG_TEXT}
 
 
 class TestGenerationRequest(BaseSchema):
@@ -23,7 +23,9 @@ class TestGenerationRequest(BaseSchema):
             raise ValueError("At least one question type must be selected")
         invalid = set(v) - ALLOWED_TYPES
         if invalid:
-            raise ValueError(f"Unsupported question types: {invalid}. Only SIMPLE and MULTIPLE_CHOICE are supported")
+            raise ValueError(
+                f"Unsupported question types: {invalid}. Only SIMPLE, MULTIPLE_CHOICE and LONG_TEXT are supported"
+            )
         return v
 
 
@@ -31,7 +33,7 @@ class GeneratedQuestionPreview(BaseSchema):
     question_type: QuestionType
     prompt: str
     points: float = 1.0
-    content: SimpleContent | MultipleChoiceContent
+    content: SimpleContent | MultipleChoiceContent | LongTextContent
 
 
 class TestGenerationResponse(BaseSchema):
@@ -44,3 +46,10 @@ class TestRefinementRequest(BaseSchema):
     note_id: str
     current_questions: list[GeneratedQuestionPreview]
     instructions: str = Field(..., min_length=1, max_length=2000)
+
+
+class QuestionEditRequest(BaseSchema):
+    selected_indices: list[int] = Field(..., min_length=1)
+    all_questions: list[GeneratedQuestionPreview]
+    instructions: str = Field(..., min_length=1, max_length=2000)
+    note_content: str | None = None

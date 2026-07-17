@@ -30,13 +30,11 @@ type Props = {
   data: MultipleChoiceQuestionData;
   onChange: (data: MultipleChoiceQuestionData) => void;
   onRemove: () => void;
-  accepted?: boolean;
-  onToggleAccept?: () => void;
+  selected?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 };
 
-export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, accepted, onToggleAccept }: Props) {
-  const isPreview = accepted !== undefined;
-  const isRejected = isPreview && !accepted;
+export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
   const canRemoveChoice = data.choices.length > MIN_CHOICES;
   const canAddChoice = data.choices.length < MAX_CHOICES;
 
@@ -56,7 +54,10 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, accepted
   }
 
   return (
-    <div className={cn('rounded-lg border border-border bg-card p-4 transition-opacity', isRejected && 'opacity-50')}>
+    <div
+      onClick={onClick}
+      className={cn('cursor-pointer rounded-lg border border-border bg-card p-4', selected && 'ring-2 ring-primary')}
+    >
       <div className="flex items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
@@ -64,7 +65,6 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, accepted
           value={data.prompt}
           onChange={e => onChange({ ...data, prompt: e.target.value })}
           className="flex-1"
-          disabled={isRejected}
         />
         <Input
           type="number"
@@ -74,53 +74,48 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, accepted
           onChange={e => onChange({ ...data, points: Number(e.target.value) })}
           className="w-20 shrink-0 text-center"
           title="Points"
-          disabled={isRejected}
         />
-        <QuestionBlockAction onRemove={onRemove} accepted={accepted} onToggleAccept={onToggleAccept} />
+        <QuestionBlockAction onRemove={onRemove} />
       </div>
 
-      {!isRejected && (
-        <>
-          <div className="space-y-2">
-            {data.choices.map((choice, ci) => (
-              <div key={ci} className="flex items-center gap-2">
-                <Checkbox
-                  checked={choice.isCorrect}
-                  onCheckedChange={checked => updateChoice(ci, { isCorrect: checked === true })}
-                />
-                <AutoTextarea
-                  rows={1}
-                  placeholder={`Option ${ci + 1}`}
-                  value={choice.text}
-                  onChange={e => updateChoice(ci, { text: e.target.value })}
-                  className="flex-1"
-                />
-                {canRemoveChoice && (
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => removeChoice(ci)}
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                )}
-              </div>
-            ))}
+      <div className="space-y-2">
+        {data.choices.map((choice, ci) => (
+          <div key={ci} className="flex items-center gap-2">
+            <Checkbox
+              checked={choice.isCorrect}
+              onCheckedChange={checked => updateChoice(ci, { isCorrect: checked === true })}
+            />
+            <AutoTextarea
+              rows={1}
+              placeholder={`Option ${ci + 1}`}
+              value={choice.text}
+              onChange={e => updateChoice(ci, { text: e.target.value })}
+              className="flex-1"
+            />
+            {canRemoveChoice && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => removeChoice(ci)}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            )}
           </div>
+        ))}
+      </div>
 
-          {canAddChoice && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={addChoice}
-              className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
-            >
-              <Plus className="size-3.5" />
-              Add choice
-            </Button>
-          )}
-        </>
+      {canAddChoice && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={addChoice}
+          className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+        >
+          <Plus className="size-3.5" />
+          Add choice
+        </Button>
       )}
     </div>
   );

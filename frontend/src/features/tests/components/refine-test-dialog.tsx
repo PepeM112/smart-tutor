@@ -5,7 +5,7 @@ import { WandSparkles } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import type { GeneratedQuestionPreview } from '@/client';
+import type { GeneratedQuestionPreviewInput } from '@/client';
 import { DialogLoading } from '@/components/shared/dialog-loading';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,8 +31,8 @@ const PROGRESS_MESSAGES = [
 
 type Props = {
   noteId: string;
-  currentQuestions: GeneratedQuestionPreview[];
-  onRefined: (questions: GeneratedQuestionPreview[]) => void;
+  currentQuestions: GeneratedQuestionPreviewInput[];
+  onRefined: (questions: GeneratedQuestionPreviewInput[]) => void;
 };
 
 export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props) {

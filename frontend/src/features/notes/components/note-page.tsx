@@ -188,6 +188,7 @@ function NoteForm({ note }: { note: NoteRead }) {
               setContent(v);
               markDirty();
             }}
+            noteId={note.id}
           />
         ) : (
           <div className="h-full overflow-y-auto p-6">

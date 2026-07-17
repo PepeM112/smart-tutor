@@ -29,14 +29,12 @@ type Props = {
   data: QuestionGroupData;
   onChange: (data: QuestionGroupData) => void;
   onRemove: () => void;
-  accepted?: boolean;
-  onToggleAccept?: () => void;
+  selected?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 };
 
-export function QuestionGroupBlock({ data, onChange, onRemove, accepted, onToggleAccept }: Props) {
+export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick }: Props) {
   const vocabId = useId();
-  const isPreview = accepted !== undefined;
-  const isRejected = isPreview && !accepted;
   const canRemoveRow = data.rows.length > 1;
 
   function updateRow(idx: number, patch: Partial<SimpleRow>) {
@@ -73,14 +71,16 @@ export function QuestionGroupBlock({ data, onChange, onRemove, accepted, onToggl
   const isVocab = data.groupType === QuestionGroupType.VOCABULARY;
 
   return (
-    <div className={cn('rounded-lg border border-border bg-card p-4 transition-opacity', isRejected && 'opacity-50')}>
+    <div
+      onClick={onClick}
+      className={cn('cursor-pointer rounded-lg border border-border bg-card p-4', selected && 'ring-2 ring-primary')}
+    >
       <div className="flex items-start gap-2 mb-3">
         <Input
           placeholder="Group title (optional)"
           value={data.title}
           onChange={e => onChange({ ...data, title: e.target.value })}
           className="flex-1"
-          disabled={isRejected}
         />
         <Input
           type="number"
@@ -90,97 +90,90 @@ export function QuestionGroupBlock({ data, onChange, onRemove, accepted, onToggl
           onChange={e => onChange({ ...data, points: Number(e.target.value) })}
           className="w-20 shrink-0 text-center"
           title="Points"
-          disabled={isRejected}
         />
-        <QuestionBlockAction onRemove={onRemove} accepted={accepted} onToggleAccept={onToggleAccept} />
+        <QuestionBlockAction onRemove={onRemove} />
       </div>
 
-      {!isRejected && (
-        <>
-          {!isPreview && (
-            <div className="flex items-center gap-2 mb-4">
-              <Switch
-                id={vocabId}
-                checked={isVocab}
-                onCheckedChange={checked =>
-                  onChange({
-                    ...data,
-                    groupType: checked ? QuestionGroupType.VOCABULARY : QuestionGroupType.UNKNOWN,
-                  })
-                }
-              />
-              <Label htmlFor={vocabId} className="text-sm text-muted-foreground cursor-pointer">
-                Vocabulary mode
-              </Label>
-            </div>
-          )}
+      <div className="flex items-center gap-2 mb-4">
+        <Switch
+          id={vocabId}
+          checked={isVocab}
+          onCheckedChange={checked =>
+            onChange({
+              ...data,
+              groupType: checked ? QuestionGroupType.VOCABULARY : QuestionGroupType.UNKNOWN,
+            })
+          }
+        />
+        <Label htmlFor={vocabId} className="text-sm text-muted-foreground cursor-pointer">
+          Vocabulary mode
+        </Label>
+      </div>
 
-          <div className="space-y-3">
-            {data.rows.map((row, i) => (
-              <div key={i} className="space-y-1.5">
-                <div className="flex items-center gap-2">
+      <div className="space-y-3">
+        {data.rows.map((row, i) => (
+          <div key={i} className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Prompt"
+                value={row.prompt}
+                onChange={e => updateRow(i, { prompt: e.target.value })}
+                className="flex-1"
+              />
+              {canRemoveRow && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => removeRow(i)}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 pl-2">
+              {row.answers.map((answer, ai) => (
+                <div key={ai} className="flex items-center gap-1">
                   <Input
-                    placeholder="Prompt"
-                    value={row.prompt}
-                    onChange={e => updateRow(i, { prompt: e.target.value })}
-                    className="flex-1"
+                    placeholder={`Answer ${ai + 1}`}
+                    value={answer}
+                    onChange={e => updateAnswer(i, ai, e.target.value)}
+                    className="w-36"
                   />
-                  {canRemoveRow && (
+                  {row.answers.length > 1 && (
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      onClick={() => removeRow(i)}
+                      onClick={() => removeAnswer(i, ai)}
                       className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
-                      <Trash2 className="size-3.5" />
+                      <Trash2 className="size-3" />
                     </Button>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5 pl-2">
-                  {row.answers.map((answer, ai) => (
-                    <div key={ai} className="flex items-center gap-1">
-                      <Input
-                        placeholder={`Answer ${ai + 1}`}
-                        value={answer}
-                        onChange={e => updateAnswer(i, ai, e.target.value)}
-                        className="w-36"
-                      />
-                      {row.answers.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => removeAnswer(i, ai)}
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => addAnswer(i)}
-                    className="text-primary hover:bg-primary/10 hover:text-primary"
-                  >
-                    <Plus className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              ))}
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => addAnswer(i)}
+                className="text-primary hover:bg-primary/10 hover:text-primary"
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
           </div>
+        ))}
+      </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={addRow}
-            className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
-          >
-            <Plus className="size-3.5" />
-            Add
-          </Button>
-        </>
-      )}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={addRow}
+        className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+      >
+        <Plus className="size-3.5" />
+        Add
+      </Button>
     </div>
   );
 }

@@ -4,11 +4,12 @@ import logging
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import QuestionType
+from app.core.enums import LongTextLength, QuestionType
 from app.models.user import User
-from app.schemas.question import MultipleChoiceContent, SimpleContent
+from app.schemas.question import LongTextContent, MultipleChoiceContent, RubricItem, SimpleContent
 from app.schemas.test_generation import (
     GeneratedQuestionPreview,
+    QuestionEditRequest,
     TestGenerationRequest,
     TestGenerationResponse,
     TestRefinementRequest,
@@ -18,6 +19,7 @@ from app.services.llm import complete
 from app.services.note_service import get_note
 from app.services.test_generation_prompts import (
     TEST_GENERATION_SYSTEM_PROMPT,
+    build_question_edit_user_prompt,
     build_refinement_user_prompt,
     build_retry_user_prompt,
     build_test_generation_user_prompt,
@@ -73,7 +75,7 @@ def _validate_generated_questions(
         try:
             q_type = QuestionType[type_str]
         except (KeyError, ValueError):
-            errors.append(f"{prefix}: invalid type '{type_str}'. Must be SIMPLE or MULTIPLE_CHOICE")
+            errors.append(f"{prefix}: invalid type '{type_str}'. Must be SIMPLE, MULTIPLE_CHOICE or LONG_TEXT")
             continue
 
         if q_type not in requested_types:
@@ -142,10 +144,30 @@ def _validate_content(q_type: QuestionType, content: dict, prefix: str) -> list[
                 if invalid_indices:
                     errors.append(f"{prefix}: correctIndices {invalid_indices} out of range (0-{max_idx})")
 
+    elif q_type == QuestionType.LONG_TEXT:
+        length_limit = content.get("lengthLimit")
+        if not isinstance(length_limit, int) or length_limit not in (1, 2, 3):
+            errors.append(f"{prefix}: LONG_TEXT must have 'lengthLimit' of 1, 2, or 3")
+        rubric = content.get("rubric")
+        if not isinstance(rubric, list) or len(rubric) < 2:
+            errors.append(f"{prefix}: LONG_TEXT must have at least 2 rubric items")
+        elif not all(isinstance(r, dict) for r in rubric):
+            errors.append(f"{prefix}: rubric items must be objects")
+        else:
+            for j, item in enumerate(rubric):
+                point = item.get("point")
+                if not isinstance(point, str) or not point.strip():
+                    errors.append(f"{prefix}: rubric[{j}] must have a non-empty 'point'")
+                weight = item.get("weight")
+                if not isinstance(weight, int | float) or weight <= 0 or weight > 1:
+                    errors.append(f"{prefix}: rubric[{j}] weight must be between 0 and 1")
+
     return errors
 
 
-def _parse_content(q_type: QuestionType, content: dict) -> SimpleContent | MultipleChoiceContent | None:  # type: ignore[type-arg]
+def _parse_content(
+    q_type: QuestionType, content: dict
+) -> SimpleContent | MultipleChoiceContent | LongTextContent | None:
     """Parse validated content dict into the appropriate Pydantic model."""
     if q_type == QuestionType.SIMPLE:
         answers = [a.strip() for a in content["answers"]]
@@ -155,6 +177,18 @@ def _parse_content(q_type: QuestionType, content: dict) -> SimpleContent | Multi
         options = [o.strip() for o in content["options"]]
         correct_indices = content["correctIndices"]
         return MultipleChoiceContent(options=options, correct_indices=correct_indices)
+
+    if q_type == QuestionType.LONG_TEXT:
+        length_limit = LongTextLength(content["lengthLimit"])
+        rubric = [
+            RubricItem(
+                point=r["point"].strip(),
+                weight=float(r["weight"]),
+                category=r.get("category"),
+            )
+            for r in content["rubric"]
+        ]
+        return LongTextContent(length_limit=length_limit, rubric=rubric)
 
     return None
 
@@ -231,6 +265,51 @@ def refine_test_questions(
     )
 
 
+def edit_test_questions(
+    db: Session,
+    *,
+    current_user: User,
+    data: QuestionEditRequest,
+) -> TestGenerationResponse:
+    if not data.all_questions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No questions provided",
+        )
+
+    max_index = len(data.all_questions) - 1
+    invalid = [i for i in data.selected_indices if i < 0 or i > max_index]
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Selected indices out of range: {invalid}",
+        )
+
+    all_questions_json = json.dumps(
+        {"questions": [_question_to_ai_dict(q) for q in data.all_questions]},
+        indent=2,
+    )
+
+    user_prompt = build_question_edit_user_prompt(
+        all_questions_json=all_questions_json,
+        selected_indices=data.selected_indices,
+        instructions=data.instructions,
+        note_content=data.note_content,
+    )
+
+    requested_types = {q.question_type for q in data.all_questions}
+    questions = _call_and_validate(
+        user_prompt=user_prompt,
+        requested_types=requested_types,
+    )
+
+    return TestGenerationResponse(
+        questions=questions,
+        source_note_id="",
+        source_note_title="",
+    )
+
+
 def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:
     """Convert a GeneratedQuestionPreview back to the AI's JSON format."""
     content: dict[str, object] = {}
@@ -244,6 +323,13 @@ def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:
         content = {
             "options": q.content.options,
             "correctIndices": q.content.correct_indices,
+        }
+    elif q.question_type == QuestionType.LONG_TEXT:
+        if not isinstance(q.content, LongTextContent):
+            raise ValueError(f"Expected LongTextContent for LONG_TEXT question, got {type(q.content).__name__}")
+        content = {
+            "lengthLimit": int(q.content.length_limit),
+            "rubric": [{"point": r.point, "weight": r.weight, "category": r.category} for r in q.content.rubric],
         }
 
     return {

@@ -1,8 +1,13 @@
 import {
   QuestionGroupType,
   QuestionType,
+  type GeneratedQuestionPreviewInput,
+  type GeneratedQuestionPreviewOutput,
+  type LongTextContent,
+  type MultipleChoiceContent,
   type QuestionCreate,
   type QuestionRead,
+  type SimpleContent,
   type TestQuestionGroupCreate,
   type TestQuestionGroupRead,
 } from '@/client';
@@ -155,4 +160,131 @@ export function fromApiToEditorItems(
       return undefined;
     })
     .filter(it => it !== undefined);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Editor items <-> AI question-edit payload                         */
+/* ------------------------------------------------------------------ */
+
+function mcToPreviewInput(q: MultipleChoiceQuestionData): GeneratedQuestionPreviewInput {
+  return {
+    questionType: QuestionType.MULTIPLE_CHOICE,
+    prompt: q.prompt,
+    points: q.points,
+    content: {
+      options: q.choices.map(c => c.text),
+      correct_indices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
+    },
+  };
+}
+
+function longTextToPreviewInput(q: LongTextQuestionData): GeneratedQuestionPreviewInput {
+  return {
+    questionType: QuestionType.LONG_TEXT,
+    prompt: q.prompt,
+    points: q.points,
+    content: {
+      length_limit: q.lengthLimit,
+      rubric: q.criteria.map(c => ({
+        point: c.point,
+        weight: c.weight,
+        ...(c.category ? { category: c.category } : {}),
+      })),
+    },
+  };
+}
+
+/** One flattened AI-facing question, tagged with the editor block it came from. */
+export type FlatQuestionEntry = { blockIndex: number; question: GeneratedQuestionPreviewInput };
+
+/**
+ * Flattens editor items into individual questions for the AI edit request.
+ * A 'group' block expands into one entry per row, so each entry keeps track
+ * of the block it originated from (needed to translate block-level selection
+ * into the flat question indices the backend expects).
+ */
+export function flattenEditorItems(items: EditorItem[]): FlatQuestionEntry[] {
+  const result: FlatQuestionEntry[] = [];
+  items.forEach((item, blockIndex) => {
+    if (item.type === QuestionType.MULTIPLE_CHOICE) {
+      result.push({ blockIndex, question: mcToPreviewInput(item) });
+    } else if (item.type === QuestionType.LONG_TEXT) {
+      result.push({ blockIndex, question: longTextToPreviewInput(item) });
+    } else {
+      item.rows.forEach(row => {
+        result.push({
+          blockIndex,
+          question: {
+            questionType: QuestionType.SIMPLE,
+            prompt: row.prompt,
+            points: item.points,
+            content: { answers: row.answers.filter(Boolean) },
+          },
+        });
+      });
+    }
+  });
+  return result;
+}
+
+export function editorItemsToPreviewInputs(items: EditorItem[]): GeneratedQuestionPreviewInput[] {
+  return flattenEditorItems(items).map(entry => entry.question);
+}
+
+/**
+ * Converts the AI's flat question list back into editor blocks. Mirrors the
+ * grouping used when a test is first generated: one block per MC/Long Text
+ * question, and all SIMPLE questions collapsed into a single group block
+ * (the AI payload carries no group boundaries to restore).
+ */
+export function fromPreviewToEditorItems(questions: GeneratedQuestionPreviewOutput[]): EditorItem[] {
+  const items: EditorItem[] = [];
+
+  questions
+    .filter(q => q.questionType === QuestionType.MULTIPLE_CHOICE)
+    .forEach(q => {
+      const content = q.content as MultipleChoiceContent;
+      items.push({
+        type: QuestionType.MULTIPLE_CHOICE,
+        prompt: q.prompt,
+        choices: content.options.map((text, i) => ({
+          text,
+          isCorrect: content.correct_indices.includes(i),
+        })) as Choice[],
+        points: q.points ?? 1,
+      });
+    });
+
+  questions
+    .filter(q => q.questionType === QuestionType.LONG_TEXT)
+    .forEach(q => {
+      const content = q.content as LongTextContent;
+      items.push({
+        type: QuestionType.LONG_TEXT,
+        prompt: q.prompt,
+        lengthLimit: content.length_limit,
+        criteria: content.rubric.map(r => ({
+          point: r.point,
+          weight: r.weight,
+          category: r.category ?? '',
+        })) as Criterion[],
+        points: q.points ?? 1,
+      });
+    });
+
+  const simpleQuestions = questions.filter(q => q.questionType === QuestionType.SIMPLE);
+  if (simpleQuestions.length > 0) {
+    items.push({
+      type: 'group',
+      groupType: QuestionGroupType.UNKNOWN,
+      title: '',
+      rows: simpleQuestions.map(q => {
+        const content = q.content as SimpleContent;
+        return { prompt: q.prompt, answers: content.answers } as SimpleRow;
+      }),
+      points: 1,
+    });
+  }
+
+  return items;
 }

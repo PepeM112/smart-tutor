@@ -50,3 +50,26 @@ def build_note_refinement_user_prompt(
         f"## Instructions\n{instructions}\n\n"
         f"Return the full updated notes as Markdown."
     )
+
+
+NOTE_CHUNK_EDIT_SYSTEM_PROMPT = (
+    "You are a study-notes editor. You receive a section of Markdown study notes that "
+    "the user wants to modify, along with the full document for context. Apply the user's "
+    "instructions to the selected section ONLY. Return ONLY the replacement text for the "
+    "selected portion — no preamble, no explanation, no code fences wrapping the output. "
+    "Preserve the original Markdown formatting style (headings, lists, bold, etc.) unless "
+    "the user explicitly asks to change it."
+)
+
+
+def build_chunk_edit_user_prompt(
+    full_text: str,
+    selected_text: str,
+    instructions: str,
+) -> str:
+    return (
+        f"## Full Document (for context)\n{full_text}\n\n"
+        f"## Selected Section to Edit\n{selected_text}\n\n"
+        f"## Edit Instructions\n{instructions}\n\n"
+        f"Return ONLY the replacement text for the selected section."
+    )

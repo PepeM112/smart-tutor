@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -19,11 +19,18 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { AddQuestionDropdown } from '../add-question-dropdown';
+import { AiEditPopover } from '../ai-edit-popover';
 import { LongTextQuestionBlock } from '../long-text-question-block';
 import { MultipleChoiceQuestionBlock } from '../multiple-choice-question-block';
 import { QuestionGroupBlock } from '../question-group-block';
 
-import { groupToApiGroup, longTextToApiQuestion, mcToApiQuestion } from './converters';
+import {
+  editorItemsToPreviewInputs,
+  fromPreviewToEditorItems,
+  groupToApiGroup,
+  longTextToApiQuestion,
+  mcToApiQuestion,
+} from './converters';
 import { newLongText, newMultipleChoice, newQuestionGroup } from './helpers';
 
 import type { EditorItem } from './types';
@@ -43,6 +50,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [items, setItems] = useState<EditorItem[]>(initialItems);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const lastSelectedRef = useRef<number | null>(null);
 
   const { mutate: saveTest, isPending } = useMutation({
     mutationFn: () => {
@@ -87,6 +96,28 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
   });
 
+  const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
+    mutationFn: (instructions: string) => {
+      const allQuestions = editorItemsToPreviewInputs(items);
+
+      return sdk.testsEditQuestions({
+        body: {
+          selectedIndices: Array.from(selectedIndices),
+          allQuestions,
+          instructions,
+          noteContent: undefined,
+        },
+      });
+    },
+    onSuccess: res => {
+      if (!res.data) return;
+      setItems(fromPreviewToEditorItems(res.data.questions));
+      setSelectedIndices(new Set());
+      toast.success('Questions updated');
+    },
+    onError: () => toast.error('Failed to edit questions. Please try again.'),
+  });
+
   function addItem(type: 'group' | 'mc' | 'long') {
     const factories = { group: newQuestionGroup, mc: newMultipleChoice, long: newLongText };
     setItems(prev => [...prev, factories[type]()]);
@@ -98,6 +129,34 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   function removeItem(idx: number) {
     setItems(prev => prev.filter((_, i) => i !== idx));
+    setSelectedIndices(prev => {
+      const next = new Set<number>();
+      prev.forEach(i => {
+        if (i === idx) return;
+        next.add(i > idx ? i - 1 : i);
+      });
+      return next;
+    });
+  }
+
+  function handleBlockClick(index: number, e: React.MouseEvent) {
+    // Don't select when clicking on inputs/buttons/textareas inside the block
+    const target = e.target as HTMLElement;
+    if (target.closest('input, textarea, button, select, [role="checkbox"], [data-slot="switch"]')) return;
+
+    setSelectedIndices(prev => {
+      const next = new Set(prev);
+      if (e.shiftKey && lastSelectedRef.current !== null) {
+        const start = Math.min(lastSelectedRef.current, index);
+        const end = Math.max(lastSelectedRef.current, index);
+        for (let i = start; i <= end; i++) next.add(i);
+      } else {
+        if (next.has(index)) next.delete(index);
+        else next.add(index);
+      }
+      return next;
+    });
+    lastSelectedRef.current = index;
   }
 
   return (
@@ -112,8 +171,17 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
         />
       </div>
 
+      {selectedIndices.size > 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <AiEditPopover selectedCount={selectedIndices.size} isPending={isAiEditing} onSubmit={aiEdit} />
+        </div>
+      )}
+
       <div className="space-y-3 mb-4">
         {items.map((item, i) => {
+          const selected = selectedIndices.has(i);
+          const onClick = (e: React.MouseEvent) => handleBlockClick(i, e);
+
           if (item.type === 'group') {
             return (
               <QuestionGroupBlock
@@ -121,6 +189,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                 data={item}
                 onChange={data => updateItem(i, data)}
                 onRemove={() => removeItem(i)}
+                selected={selected}
+                onClick={onClick}
               />
             );
           }
@@ -131,6 +201,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                 data={item}
                 onChange={data => updateItem(i, data)}
                 onRemove={() => removeItem(i)}
+                selected={selected}
+                onClick={onClick}
               />
             );
           }
@@ -140,6 +212,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
               data={item}
               onChange={data => updateItem(i, data)}
               onRemove={() => removeItem(i)}
+              selected={selected}
+              onClick={onClick}
             />
           );
         })}
