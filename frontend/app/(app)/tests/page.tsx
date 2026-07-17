@@ -29,11 +29,8 @@ export default function TestsPage() {
         <p className="text-muted-foreground">Create and manage your question sets here.</p>
         <div className="flex items-center gap-2">
           <QuickTestDialog />
-          <Button size="lg" asChild>
-            <Link href={Routes.TEST_NEW}>
-              <Plus />
-              Create Test
-            </Link>
+          <Button size="lg" icon={Plus} asChild>
+            <Link href={Routes.TEST_NEW}>Create Test</Link>
           </Button>
         </div>
       </div>

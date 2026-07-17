@@ -31,11 +31,8 @@ export default function NotesPage() {
         <div className="flex items-center gap-2">
           <ImportNoteButton />
           <GenerateNoteDialog />
-          <Button size="lg" asChild>
-            <Link href={Routes.NOTE_NEW}>
-              <Plus />
-              New Note
-            </Link>
+          <Button size="lg" icon={Plus} asChild>
+            <Link href={Routes.NOTE_NEW}>New Note</Link>
           </Button>
         </div>
       </div>

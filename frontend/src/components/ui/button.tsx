@@ -67,8 +67,8 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }), size === 'lg' && Icon && 'pl-3')}
       {...props}
     >
-      {!asChild && Icon && <Icon />}
-      {children}
+      {Icon && <Icon />}
+      {asChild ? <Slot.Slottable>{children}</Slot.Slottable> : children}
     </Comp>
   );
 
