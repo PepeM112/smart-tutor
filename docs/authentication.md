@@ -17,9 +17,29 @@ SmartTutor uses JWT (JSON Web Tokens) with HTTP-only cookies for authentication.
 | Property  | Value                              |
 | --------- | ---------------------------------- |
 | Algorithm | HS256                              |
-| Expiry    | 24 hours                           |
+| Expiry    | 30-minute access token + 30-day refresh token |
 | Payload   | `{ sub: user_id, exp: timestamp }` |
 | Storage   | HTTP-only cookie                   |
+
+### Refresh Token Flow
+
+Authentication uses a dual-token strategy:
+
+| Token | Lifetime | Purpose |
+|-------|----------|---------|
+| Access token | 30 minutes | Authorizes API requests |
+| Refresh token | 30 days | Obtains new access tokens silently |
+
+Both tokens are stored as HTTP-only cookies. When the access token expires, the frontend's API client interceptor catches the 401 response and calls `POST /api/v1/users/refresh`. If the refresh token is still valid, a new access token is issued transparently — the original request is retried and the user sees no interruption.
+
+#### Endpoints
+
+- `POST /api/v1/users/refresh` — exchanges a valid refresh token for a new access token
+- `POST /api/v1/users/logout` — clears both cookies server-side
+
+#### Frontend Auth Guard
+
+The `AuthGuard` component wraps all protected pages. On mount, it always calls the `/me` endpoint to validate the session — it does not trust client-side state (e.g. rehydrated Zustand stores) as the source of truth. If `/me` fails and silent refresh also fails, the user is redirected to login.
 
 ### Protected Routes
 
@@ -38,6 +58,6 @@ The frontend determines if the user is logged in by calling a `/me` endpoint, no
 
 **Security:** HTTP-only cookies cannot be accessed by JavaScript, which eliminates an entire class of XSS (Cross-Site Scripting) attacks. If an attacker injects malicious JS into the page, they still can't steal the auth token.
 
-**Simplicity:** The browser handles cookie transmission automatically. No need to manually attach `Authorization` headers to every request, no token refresh logic in the frontend, no "where do I store this token" decision.
+**Simplicity:** The browser handles cookie transmission automatically. No need to manually attach `Authorization` headers to every request, no "where do I store this token" decision. Token refresh is handled transparently by the API client interceptor — application code doesn't deal with it.
 
 **Tradeoff:** The cookie approach requires `credentials: 'include'` in fetch calls and proper CORS configuration on the backend (`allow_credentials=True`). This is a one-time setup cost that pays for itself in security.

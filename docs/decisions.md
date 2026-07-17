@@ -153,3 +153,51 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Why standalone:** QuestionGroups exist for batch question patterns like vocabulary tables. An essay prompt with a multi-criterion rubric is a fundamentally different UX that doesn't benefit from grouping.
 
 **Why no SRS:** SRS requires instant grading to provide the immediate feedback that drives scheduling (CORRECT → longer interval, WRONG → shorter interval). Long Text grading is asynchronous (AI-dependent), so it can't participate in the review loop. The CRUD layer's `_reviewable_base_query` already filters Long Text out.
+
+---
+
+## Soft Delete Over Hard Delete
+
+**Decision:** Deleting a test sets `status = DELETED` rather than removing the row.
+
+**Why:** Hard delete would cascade to questions, answers, and test results — destroying the user's history. Soft delete preserves all related data while hiding the test from active use. The `TestStatus` enum (`ACTIVE`, `DELETED`) keeps the implementation simple, and all queries filter by status.
+
+---
+
+## Dual-Token Auth (Access + Refresh)
+
+**Decision:** Use short-lived access tokens (30 minutes) paired with long-lived refresh tokens (30 days), both as HTTP-only cookies.
+
+**Why:** Short access tokens limit the damage window if a token is somehow compromised. The refresh token allows seamless re-authentication — the user stays logged in for up to 30 days without re-entering credentials. The frontend's 401 interceptor handles token renewal transparently. Both tokens being HTTP-only maintains the XSS protection of the original single-token design.
+
+---
+
+## Shared LLM Client Abstraction
+
+**Decision:** All AI features go through a single `LLMClient` ABC in `services/llm.py`, with Anthropic and OpenAI implementations swappable via one env var (`AI_GRADING_PROVIDER`).
+
+**Why:** Four AI features (grading, challenge re-evaluation, note generation, test generation) all need LLM access. A shared abstraction avoids duplicating provider-specific code (API key validation, error handling, response parsing) across each feature. The singleton factory (`get_llm_client()`) ensures consistent provider selection. Each feature follows its own `*_service.py` + `*_prompts.py` pattern, calling `LLMClient.complete()` for the AI interaction.
+
+---
+
+## Strategy Pattern Tried and Reverted for Grading
+
+**Decision:** An early attempt at a `grading/` sub-package with a Strategy Pattern was removed in favor of flat `grading_service.py` + `grading_prompts.py`.
+
+**Why:** The Strategy Pattern introduced an abstraction layer (provider interface, factory, registry) that added complexity without benefit — the provider switching was already handled cleanly by `LLMClient`. The flat `*_service.py` + `*_prompts.py` convention is the project standard. Do not reintroduce a `grading/` sub-package.
+
+---
+
+## BackgroundTask + Poll for Async AI Operations
+
+**Decision:** AI-backed operations (grading, challenge re-evaluation) use FastAPI's `BackgroundTask` for async processing, with the frontend polling until completion.
+
+**Why:** LLM calls take 2–10+ seconds — too slow for a synchronous request. The pattern: create the record with a pending state, return the HTTP response immediately, fire a `BackgroundTask` to call the AI, update the record when done. The frontend polls every 3 seconds until the pending count reaches zero. This avoids WebSocket complexity while keeping the UX responsive.
+
+---
+
+## Challenge Verdicts Only Upgrade, Never Downgrade
+
+**Decision:** When a user challenges a grading criterion, the re-evaluation can only flip "not met" to "met", never the reverse.
+
+**Why:** The challenge flow is a user appeal, not a full re-grade. Allowing downgrades would create a perverse incentive — users would avoid challenging for fear of losing points they already earned. The one-directional rule makes challenges risk-free, encouraging users to engage with the feedback rather than accept it passively.

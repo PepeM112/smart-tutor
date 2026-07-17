@@ -42,15 +42,16 @@ Long Text questions cannot be auto-graded like Simple or MC — they require an 
 
 1. The user writes a free-text answer (up to the character limit defined by the question's length tier)
 2. On submission, the answer receives `PENDING` status — a `BackgroundTask` is fired to grade it asynchronously
-3. The grading service (`grading_service.py`) uses a **Strategy Pattern** to select the AI provider:
-   - `AnthropicGradingProvider` — Claude Haiku 4.5 (default)
-   - `OpenAIGradingProvider` — GPT-4o-mini
-   - Selected via `AI_GRADING_PROVIDER` env var
+3. The grading service (`grading_service.py`) calls the shared `LLMClient` (see `services/llm.py`) via `get_llm_client()`, which selects the provider based on `AI_GRADING_PROVIDER`:
+   - `anthropic` — Claude Haiku 4.5 (default)
+   - `openai` — GPT-4o-mini
 4. The AI receives: the question prompt, the rubric (criteria + weights), and the user's answer
 5. For each criterion, the AI returns `met: true/false` — stored in `Answer.rubric_result` as JSONB
 6. The question's score = sum of weights for met criteria, scaled by the question's point value
 7. After grading, `TestResult` aggregates (score, earned_points, pending_answers) are recalculated
 8. The frontend auto-polls the result every 3 seconds until `pendingAnswers` reaches 0
+
+If grading fails (missing API key, provider API error, unparseable AI response), the answer transitions to `FAILED` status. Errors are categorized (AUTH, API, PARSE, CONFIG) and logged. Failed answers are excluded from score calculation the same way PENDING answers are — they don't penalize the user.
 
 ### Rubric Scoring
 
@@ -81,8 +82,8 @@ Each graded Long Text answer stores its rubric result in `Answer.rubric_result` 
 
 ```json
 [
-  {"point": "Mentions Caesar crossing the Rubicon", "met": true, "weight": 0.15},
-  {"point": "Notes Pompey's assassination in Egypt", "met": false, "weight": 0.05}
+  {"point": "Mentions Caesar crossing the Rubicon", "met": true, "weight": 0.15, "reason": "The answer explicitly references Caesar's crossing of the Rubicon in 49 BC."},
+  {"point": "Notes Pompey's assassination in Egypt", "met": false, "weight": 0.05, "reason": "No mention of Pompey's fate in Egypt."}
 ]
 ```
 
@@ -109,6 +110,7 @@ Every graded answer gets one of these statuses:
 | PARTIAL | Close but not exact (Simple only: 1 edit away, word >= 3 chars) |
 | WRONG   | Not close enough                                                |
 | PENDING | Not yet graded — awaiting AI evaluation (Long Text only)        |
+| FAILED  | AI grading failed (provider error, parse error, missing API key). Terminal — will not retry automatically. (Long Text only) |
 
 ## What the User Sees After Checking
 
@@ -121,3 +123,46 @@ After the answer is graded, the response includes:
 - The question's `explanation` field (if set)
 
 For Long Text questions with `PENDING` status, the response indicates the answer is queued for AI review. Once graded, the rubric breakdown (which criteria were met) is available in `Answer.rubricResult` on the frontend.
+
+## Challenge / Re-evaluation
+
+Users can dispute AI grading results on Long Text questions. If the AI marked a criterion as not met, the user can challenge it by writing an argument explaining why their answer should satisfy that criterion.
+
+### Flow
+
+1. User views a graded Long Text answer and sees criteria marked as not met
+2. User selects one or more failed criteria to challenge, writing an argument for each
+3. All challenges for one answer are submitted together (`POST /api/v1/answers/{id}/challenge`)
+4. The challenge is validated synchronously, then a BackgroundTask processes the AI re-evaluation
+5. The AI receives the original question, rubric, user's answer, original verdicts, and the user's arguments
+6. For each challenged criterion, the AI returns a new `met` verdict with reasoning
+7. If any criterion flips to met, the answer's status and score are recalculated, cascading up to the TestResult
+
+### Rules
+
+- Only criteria currently marked as **not met** can be challenged
+- Each criterion can only be challenged **once** (409 Conflict on retry, unless the prior attempt failed)
+- Challenges can only **upgrade** verdicts (not met → met), never downgrade
+- The AI prompt is deliberately strict and anti-abuse: it rejects emotional appeals and vague assertions, requiring the user to reference specific content in their answer
+
+### Score Recalculation
+
+When a challenge flips a criterion, the system uses `effective_met()` — a helper that returns the challenge verdict if present, otherwise the original verdict. This ensures score computation is consistent whether viewing the original grading or a post-challenge state. If the overall answer status changes (e.g., PARTIAL → CORRECT), the TestResult aggregates (score, earned_points) are recalculated.
+
+### Rubric Result After Challenge
+
+Each challenged criterion gains a `challenge_result` sub-object:
+
+```json
+{
+  "point": "Mentions Caesar crossing the Rubicon",
+  "met": false,
+  "weight": 0.15,
+  "reason": "No explicit mention found.",
+  "challenge_result": {
+    "argument": "I referenced 'crossing the river boundary into Roman territory in 49 BC' which is the Rubicon crossing.",
+    "met": true,
+    "reason": "The answer does reference the Rubicon crossing, albeit indirectly."
+  }
+}
+```
