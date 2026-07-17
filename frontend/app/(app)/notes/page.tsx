@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { GenerateNoteDialog } from '@/features/notes/components/generate-note-dialog';
@@ -14,7 +14,6 @@ import { Routes } from '@/lib/routes';
 
 export default function NotesPage() {
   useBreadcrumb('Notes');
-  const router = useRouter();
 
   const {
     data: notes,
@@ -32,8 +31,11 @@ export default function NotesPage() {
         <div className="flex items-center gap-2">
           <ImportNoteButton />
           <GenerateNoteDialog />
-          <Button size="lg" icon={Plus} onClick={() => router.push(Routes.NOTE_NEW)}>
-            New Note
+          <Button size="lg" asChild>
+            <Link href={Routes.NOTE_NEW}>
+              <Plus />
+              New Note
+            </Link>
           </Button>
         </div>
       </div>

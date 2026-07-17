@@ -34,21 +34,6 @@ const SIZES: ButtonSize[] = ['xs', 'sm', 'default', 'lg', 'icon-xs', 'icon-sm', 
 const ICON_SIZES: ButtonSize[] = ['icon-xs', 'icon-sm', 'icon', 'icon-lg'];
 const isIconSize = (size: ButtonSize) => ICON_SIZES.includes(size);
 
-function SandboxBlock({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
-      <div className="px-5 py-3 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-      </div>
-      <div className="p-5">{children}</div>
-    </div>
-  );
-}
-
-function StateLabel({ children }: { children: React.ReactNode }) {
-  return <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{children}</span>;
-}
-
 export default function SandboxPage() {
   useBreadcrumb('Sandbox');
   const [switchA, setSwitchA] = useState(false);
@@ -343,4 +328,19 @@ export default function SandboxPage() {
       </SandboxBlock>
     </div>
   );
+}
+
+function SandboxBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-foreground/10">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  );
+}
+
+function StateLabel({ children }: { children: React.ReactNode }) {
+  return <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{children}</span>;
 }

@@ -30,112 +30,6 @@ type Props = {
   isLast: boolean;
 };
 
-function StatusIcon({ status }: { status: AnswerStatus }) {
-  switch (status) {
-    case AnswerStatus.CORRECT:
-      return <CheckCircle2 className="size-5 text-feedback-correct shrink-0" />;
-    case AnswerStatus.PARTIAL:
-      return <AlertTriangle className="size-5 text-feedback-partial shrink-0" />;
-    case AnswerStatus.WRONG:
-      return <XCircle className="size-5 text-destructive shrink-0" />;
-    default:
-      return null;
-  }
-}
-
-function MultipleChoiceInput({
-  options,
-  answer,
-  onToggle,
-}: {
-  options: string[];
-  answer: string;
-  onToggle: (index: number) => void;
-}) {
-  const selected = answer ? answer.split(',').map(Number) : [];
-
-  return (
-    <div className="space-y-2">
-      {options.map((option, idx) => {
-        const checked = selected.includes(idx);
-        return (
-          <div
-            key={idx}
-            className={cn(
-              'flex items-center gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors',
-              checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
-            )}
-            onClick={() => onToggle(idx)}
-          >
-            <Checkbox id={`review-opt-${idx}`} checked={checked} onCheckedChange={() => onToggle(idx)} />
-            <Label
-              htmlFor={`review-opt-${idx}`}
-              className="text-sm cursor-pointer flex-1"
-              onClick={e => e.preventDefault()}
-            >
-              {option}
-            </Label>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function MultipleChoiceReview({
-  options,
-  answer,
-  correctIndices,
-}: {
-  options: string[];
-  answer: string;
-  correctIndices: number[];
-}) {
-  const selectedSet = new Set(
-    answer
-      ? answer
-          .split(',')
-          .map(s => parseInt(s.trim(), 10))
-          .filter(n => !isNaN(n))
-      : []
-  );
-  const correctSet = new Set(correctIndices);
-
-  return (
-    <div className="space-y-1.5">
-      {options.map((option, idx) => {
-        const isSelected = selectedSet.has(idx);
-        const isCorrect = correctSet.has(idx);
-
-        let bg = '';
-        let Icon = Circle;
-        let iconColor = 'text-muted-foreground/40';
-
-        if (isSelected && isCorrect) {
-          bg = 'bg-feedback-correct-bg';
-          Icon = CheckCircle2;
-          iconColor = 'text-feedback-correct';
-        } else if (!isSelected && isCorrect) {
-          bg = 'bg-feedback-partial-bg';
-          Icon = MinusCircle;
-          iconColor = 'text-feedback-partial';
-        } else if (isSelected && !isCorrect) {
-          bg = 'bg-feedback-wrong-bg';
-          Icon = XCircle;
-          iconColor = 'text-destructive';
-        }
-
-        return (
-          <div key={idx} className={cn('flex items-center gap-2 rounded-md px-3 py-2', bg)}>
-            <Icon className={cn('size-4 shrink-0', iconColor)} />
-            <span className="text-sm">{option}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export function QuestionReview({
   question,
   answer,
@@ -245,5 +139,111 @@ export function QuestionReview({
         </div>
       )}
     </>
+  );
+}
+
+function StatusIcon({ status }: { status: AnswerStatus }) {
+  switch (status) {
+    case AnswerStatus.CORRECT:
+      return <CheckCircle2 className="size-5 text-feedback-correct shrink-0" />;
+    case AnswerStatus.PARTIAL:
+      return <AlertTriangle className="size-5 text-feedback-partial shrink-0" />;
+    case AnswerStatus.WRONG:
+      return <XCircle className="size-5 text-destructive shrink-0" />;
+    default:
+      return null;
+  }
+}
+
+function MultipleChoiceInput({
+  options,
+  answer,
+  onToggle,
+}: {
+  options: string[];
+  answer: string;
+  onToggle: (index: number) => void;
+}) {
+  const selected = answer ? answer.split(',').map(Number) : [];
+
+  return (
+    <div className="space-y-2">
+      {options.map((option, idx) => {
+        const checked = selected.includes(idx);
+        return (
+          <div
+            key={idx}
+            className={cn(
+              'flex items-center gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors',
+              checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
+            )}
+            onClick={() => onToggle(idx)}
+          >
+            <Checkbox id={`review-opt-${idx}`} checked={checked} onCheckedChange={() => onToggle(idx)} />
+            <Label
+              htmlFor={`review-opt-${idx}`}
+              className="text-sm cursor-pointer flex-1"
+              onClick={e => e.preventDefault()}
+            >
+              {option}
+            </Label>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MultipleChoiceReview({
+  options,
+  answer,
+  correctIndices,
+}: {
+  options: string[];
+  answer: string;
+  correctIndices: number[];
+}) {
+  const selectedSet = new Set(
+    answer
+      ? answer
+          .split(',')
+          .map(s => parseInt(s.trim(), 10))
+          .filter(n => !isNaN(n))
+      : []
+  );
+  const correctSet = new Set(correctIndices);
+
+  return (
+    <div className="space-y-1.5">
+      {options.map((option, idx) => {
+        const isSelected = selectedSet.has(idx);
+        const isCorrect = correctSet.has(idx);
+
+        let bg = '';
+        let Icon = Circle;
+        let iconColor = 'text-muted-foreground/40';
+
+        if (isSelected && isCorrect) {
+          bg = 'bg-feedback-correct-bg';
+          Icon = CheckCircle2;
+          iconColor = 'text-feedback-correct';
+        } else if (!isSelected && isCorrect) {
+          bg = 'bg-feedback-partial-bg';
+          Icon = MinusCircle;
+          iconColor = 'text-feedback-partial';
+        } else if (isSelected && !isCorrect) {
+          bg = 'bg-feedback-wrong-bg';
+          Icon = XCircle;
+          iconColor = 'text-destructive';
+        }
+
+        return (
+          <div key={idx} className={cn('flex items-center gap-2 rounded-md px-3 py-2', bg)}>
+            <Icon className={cn('size-4 shrink-0', iconColor)} />
+            <span className="text-sm">{option}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }

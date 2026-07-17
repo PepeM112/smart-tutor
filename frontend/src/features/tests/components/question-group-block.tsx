@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
+import { QuestionBlockAction } from './question-block-action';
+
 export type SimpleRow = {
   prompt: string;
   answers: string[];
@@ -90,18 +92,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, accepted, onToggl
           title="Points"
           disabled={isRejected}
         />
-        {isPreview ? (
-          <Switch size="sm" checked={accepted} onCheckedChange={onToggleAccept} />
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onRemove}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        )}
+        <QuestionBlockAction onRemove={onRemove} accepted={accepted} onToggleAccept={onToggleAccept} />
       </div>
 
       {!isRejected && (

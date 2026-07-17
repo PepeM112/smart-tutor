@@ -10,6 +10,23 @@ import { Button } from '@/components/ui/button';
 import { getScoreBadgeClasses } from '@/features/history/utils/score-colors';
 import { Routes } from '@/lib/routes';
 
+type Props = {
+  data: TestResultListItem[];
+};
+
+export function HistoryTable({ data }: Props) {
+  const router = useRouter();
+
+  return (
+    <DataTable
+      columns={columns}
+      data={data}
+      emptyMessage="No test history yet. Take your first test!"
+      onRowClick={row => router.push(Routes.RESULT_DETAIL(row.id))}
+    />
+  );
+}
+
 function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString(undefined, {
     year: 'numeric',
@@ -88,20 +105,3 @@ const columns: ColumnDef<TestResultListItem, unknown>[] = [
     },
   },
 ];
-
-type Props = {
-  data: TestResultListItem[];
-};
-
-export function HistoryTable({ data }: Props) {
-  const router = useRouter();
-
-  return (
-    <DataTable
-      columns={columns}
-      data={data}
-      emptyMessage="No test history yet. Take your first test!"
-      onRowClick={row => router.push(Routes.RESULT_DETAIL(row.id))}
-    />
-  );
-}

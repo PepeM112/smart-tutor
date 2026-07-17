@@ -28,20 +28,6 @@ type ExamItem =
   | { kind: 'question'; question: QuestionReadStripped; order: number }
   | { kind: 'group'; group: TestQuestionGroupReadStripped; order: number };
 
-function buildExamItems(test: TestReadStripped): ExamItem[] {
-  const items: ExamItem[] = [];
-
-  for (const q of test.questions ?? []) {
-    items.push({ kind: 'question', question: q, order: q.order ?? 0 });
-  }
-
-  for (const g of test.questionGroups ?? []) {
-    items.push({ kind: 'group', group: g, order: g.order ?? 0 });
-  }
-
-  return items.sort((a, b) => a.order - b.order);
-}
-
 type Props = {
   test: TestReadStripped;
   onSubmit: (answers: Record<string, string>) => void;
@@ -204,6 +190,20 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
       )}
     </div>
   );
+}
+
+function buildExamItems(test: TestReadStripped): ExamItem[] {
+  const items: ExamItem[] = [];
+
+  for (const q of test.questions ?? []) {
+    items.push({ kind: 'question', question: q, order: q.order ?? 0 });
+  }
+
+  for (const g of test.questionGroups ?? []) {
+    items.push({ kind: 'group', group: g, order: g.order ?? 0 });
+  }
+
+  return items.sort((a, b) => a.order - b.order);
 }
 
 // ---------------------------------------------------------------------------

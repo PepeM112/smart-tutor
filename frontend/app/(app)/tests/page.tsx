@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { QuickTestDialog } from '@/features/tests/components/quick-test-dialog';
@@ -13,7 +13,6 @@ import { Routes } from '@/lib/routes';
 
 export default function TestsPage() {
   useBreadcrumb('Tests');
-  const router = useRouter();
 
   const {
     data: tests,
@@ -30,8 +29,11 @@ export default function TestsPage() {
         <p className="text-muted-foreground">Create and manage your question sets here.</p>
         <div className="flex items-center gap-2">
           <QuickTestDialog />
-          <Button size="lg" icon={Plus} onClick={() => router.push(Routes.TEST_NEW)}>
-            Create Test
+          <Button size="lg" asChild>
+            <Link href={Routes.TEST_NEW}>
+              <Plus />
+              Create Test
+            </Link>
           </Button>
         </div>
       </div>
