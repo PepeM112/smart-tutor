@@ -18,11 +18,15 @@ export default function ResultDetailPage({ params }: Props) {
   const { id } = use(params);
   const { set, reset } = useBreadcrumbStore();
 
-  const { data: resultResponse, isLoading: isLoadingResult } = useTestResult(id);
+  const { data: resultResponse, isLoading: isLoadingResult, isError: isResultError } = useTestResult(id);
 
   const result = resultResponse?.data;
 
-  const { data: testResponse, isLoading: isLoadingTest } = useQuery({
+  const {
+    data: testResponse,
+    isLoading: isLoadingTest,
+    isError: isTestError,
+  } = useQuery({
     queryKey: ['tests', result?.testId],
     queryFn: () => sdk.testsGet({ path: { test_id: result!.testId } }),
     enabled: !!result?.testId,
@@ -41,6 +45,10 @@ export default function ResultDetailPage({ params }: Props) {
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  if (isResultError || isTestError) {
+    return <p className="text-muted-foreground">Failed to load test result. Please try again.</p>;
   }
 
   if (!result || !test) {

@@ -22,7 +22,11 @@ export default function NotesPage() {
     return () => reset();
   }, [set, reset]);
 
-  const { data: notes, isLoading } = useQuery({
+  const {
+    data: notes,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['notes'],
     queryFn: () => sdk.notesList(),
   });
@@ -44,6 +48,8 @@ export default function NotesPage() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
+      ) : isError ? (
+        <p className="text-muted-foreground">Failed to load notes. Please try again.</p>
       ) : (
         <NotesList data={notes?.data ?? []} />
       )}

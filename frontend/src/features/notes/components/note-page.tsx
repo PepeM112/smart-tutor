@@ -23,7 +23,11 @@ type Props = {
 };
 
 export function NotePage({ noteId }: Props) {
-  const { data: note, isLoading } = useQuery({
+  const {
+    data: note,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['notes', noteId],
     queryFn: () => sdk.notesGet({ path: { note_id: noteId } }),
   });
@@ -34,6 +38,10 @@ export function NotePage({ noteId }: Props) {
         <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <p className="text-muted-foreground">Failed to load note. Please try again.</p>;
   }
 
   if (!note?.data) {

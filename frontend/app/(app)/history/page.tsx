@@ -16,7 +16,11 @@ export default function HistoryPage() {
     return () => reset();
   }, [set, reset]);
 
-  const { data: results, isLoading } = useQuery({
+  const {
+    data: results,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['results'],
     queryFn: () => sdk.resultsList(),
   });
@@ -31,6 +35,8 @@ export default function HistoryPage() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
+      ) : isError ? (
+        <p className="text-muted-foreground">Failed to load results. Please try again.</p>
       ) : (
         <HistoryTable data={results?.data ?? []} />
       )}

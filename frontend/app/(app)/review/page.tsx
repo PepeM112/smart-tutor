@@ -19,7 +19,11 @@ export default function ReviewPage() {
     return () => reset();
   }, [set, reset]);
 
-  const { data: response, isLoading } = useQuery({
+  const {
+    data: response,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['review', 'questions', mode],
     queryFn: () => sdk.reviewList({ query: { limit: REVIEW_BATCH_SIZE, mode } }),
   });
@@ -32,6 +36,14 @@ export default function ReviewPage() {
     return (
       <div className="flex items-center justify-center py-24">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <p className="text-muted-foreground">Failed to load review questions. Please try again.</p>
       </div>
     );
   }

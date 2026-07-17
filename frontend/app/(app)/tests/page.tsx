@@ -21,7 +21,11 @@ export default function TestsPage() {
     return () => reset();
   }, [set, reset]);
 
-  const { data: tests, isLoading } = useQuery({
+  const {
+    data: tests,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['tests'],
     queryFn: () => sdk.testsList(),
   });
@@ -42,6 +46,8 @@ export default function TestsPage() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
+      ) : isError ? (
+        <p className="text-muted-foreground">Failed to load tests. Please try again.</p>
       ) : (
         <TestsTable data={tests?.data ?? []} />
       )}
