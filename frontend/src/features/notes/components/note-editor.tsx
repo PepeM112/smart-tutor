@@ -1,14 +1,15 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { ChevronsLeftRight, WandSparkles } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { WandSparkles, X } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { Textarea } from '@/components/ui/textarea';
 import { useResizableSplit } from '@/hooks/use-resizable-split';
+import { useTextHighlight } from '@/hooks/use-text-highlight';
 import { sdk } from '@/lib/api-client';
 
 import { MarkdownRenderer } from './markdown-renderer';
@@ -27,6 +28,16 @@ const WRAP_CHARS: Record<string, string> = { '*': '*', '`': '`', '~': '~~' };
 type SelectionTrigger = { text: string; top: number; left: number };
 type DiffState = { selectedText: string; editedText: string };
 
+const MOCK_DIFF: DiffState = {
+  selectedText:
+    'Romanesque architecture emerged in the 6th century and flourished from approximately 1000 to 1150 CE across Europe. It represents a significant transition from the classical traditions of Rome and Early Christian styles toward the later Gothic period. The term "Romanesque" was coined in the 19th century by French historian Charles de Caumont to describe the architecture\'s derivation from Roman building traditions, though it evolved distinctly beyond its origins.',
+  editedText:
+    "Romanesque architecture emerged in the 6th century and flourished from approximately 1000 to 1150 CE across Europe, becoming one of the most influential architectural movements of the medieval period. It represents a significant transition from the classical traditions of Rome and Early Christian styles toward the later Gothic period, serving as a crucial bridge between antiquity and the High Middle Ages. The term \"Romanesque\" was coined in the 19th century by French historian Charles de Caumont to describe the architecture's derivation from Roman building traditions, though it evolved distinctly beyond its origins into a unique aesthetic that reflected the political, religious, and social conditions of medieval Europe. This period witnessed the construction of some of Europe's most iconic structures, from vast cathedrals to fortified abbey churches, each showcasing regional variations while sharing common structural and decorative principles. The style's enduring legacy extends beyond its own era, influencing subsequent architectural movements and continuing to define the medieval landscape of Europe today.",
+};
+
+// Change to [] to disable mock
+const INITIAL_DIFFS: DiffState[] = [MOCK_DIFF];
+
 export function NoteEditor({ content, onChange, noteId }: Props) {
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(SPLIT_KEY, DEFAULT_RATIO);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -36,15 +47,20 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   const [selectionTrigger, setSelectionTrigger] = useState<SelectionTrigger | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
-  const [diff, setDiff] = useState<DiffState | null>(null);
+  const [diffs, setDiffs] = useState<DiffState[]>(INITIAL_DIFFS);
+  const [activeDiffIndex, setActiveDiffIndex] = useState<number | null>(INITIAL_DIFFS.length > 0 ? 0 : null);
 
   const popoverOpenRef = useRef(popoverOpen);
-  const diffRef = useRef(diff);
 
   useEffect(() => {
     popoverOpenRef.current = popoverOpen;
-    diffRef.current = diff;
-  }, [popoverOpen, diff]);
+  }, [popoverOpen]);
+
+  const highlightTexts = useMemo(() => diffs.map(d => d.selectedText), [diffs]);
+  const handleHighlightClick = useCallback((index: number) => setActiveDiffIndex(index), []);
+  useTextHighlight(previewRef, highlightTexts, activeDiffIndex, handleHighlightClick);
+
+  const activeDiff = activeDiffIndex !== null ? diffs[activeDiffIndex] : null;
 
   useLayoutEffect(() => {
     if (pendingSelection.current && textareaRef.current) {
@@ -58,7 +74,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     if (!noteId) return;
 
     function handleSelectionChange() {
-      if (popoverOpenRef.current || diffRef.current) return;
+      if (popoverOpenRef.current) return;
 
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !sel.anchorNode || !previewRef.current?.contains(sel.anchorNode)) {
@@ -88,6 +104,11 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     }
   }
 
+  function removeDiff(index: number) {
+    setDiffs(prev => prev.filter((_, i) => i !== index));
+    setActiveDiffIndex(null);
+  }
+
   const { mutate: editChunk, isPending: isSubmittingEdit } = useMutation({
     mutationFn: async () => {
       if (!noteId || !selectionTrigger) return null;
@@ -99,7 +120,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     },
     onSuccess: data => {
       if (!data || !selectionTrigger) return;
-      setDiff({ selectedText: selectionTrigger.text, editedText: data.editedText });
+      setDiffs(prev => [...prev, { selectedText: selectionTrigger.text, editedText: data.editedText }]);
       setPopoverOpen(false);
       setSelectionTrigger(null);
       setInstructions('');
@@ -108,15 +129,15 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   });
 
   function handleAcceptDiff() {
-    if (!diff) return;
-    const idx = content.indexOf(diff.selectedText);
+    if (activeDiffIndex === null || !activeDiff) return;
+    const idx = content.indexOf(activeDiff.selectedText);
     if (idx === -1) {
       toast.error('Could not locate the original text — it may have changed.');
-      setDiff(null);
+      removeDiff(activeDiffIndex);
       return;
     }
-    onChange(content.slice(0, idx) + diff.editedText + content.slice(idx + diff.selectedText.length));
-    setDiff(null);
+    onChange(content.slice(0, idx) + activeDiff.editedText + content.slice(idx + activeDiff.selectedText.length));
+    removeDiff(activeDiffIndex);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -153,11 +174,6 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         className="min-w-0 overflow-y-auto scrollbar-none rounded-lg border border-border bg-card p-6"
         style={{ flex: splitRatio }}
       >
-        {diff && (
-          <div className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-xs text-foreground">
-            Review AI edit in the right panel
-          </div>
-        )}
         {content ? (
           <MarkdownRenderer content={content} />
         ) : (
@@ -167,33 +183,47 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
 
       {/* Divider */}
       <div
-        className="shrink-0 relative flex items-center justify-center w-12 cursor-col-resize"
+        className="shrink-0 relative flex items-center justify-center w-5 mx-2 cursor-col-resize"
         onMouseDown={handleDividerMouseDown}
         onDoubleClick={resetRatio}
       >
         <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-        <div className="relative z-10 flex items-center justify-center w-6 h-10 rounded-full border border-border bg-background text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronsLeftRight className="size-5" />
-        </div>
+        <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
       </div>
 
       {/* Editor panel / diff review panel */}
       <div className="min-w-0 overflow-hidden rounded-lg border border-border" style={{ flex: 1 - splitRatio }}>
-        {diff ? (
-          <div className="flex h-full flex-col">
-            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none bg-muted p-4">
-              <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Original</p>
-              <MarkdownRenderer content={diff.selectedText} />
+        {activeDiff ? (
+          <div className="flex h-full flex-col bg-card p-4">
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <h3 className="text-sm font-semibold text-foreground">Changes</h3>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setActiveDiffIndex(null)}
+                className="text-muted-foreground"
+              >
+                <X className="size-4" />
+              </Button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none border-t border-border bg-primary/10 p-4">
-              <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">AI Edit</p>
-              <MarkdownRenderer content={diff.editedText} />
+
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">Old</p>
+            <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
+              <MarkdownRenderer content={activeDiff.selectedText} />
             </div>
-            <div className="flex items-center justify-end gap-2 border-t border-border p-3">
-              <Button variant="outline" onClick={() => setDiff(null)}>
+
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">New</p>
+            <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
+              <MarkdownRenderer content={activeDiff.editedText} />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => removeDiff(activeDiffIndex!)}>
                 Cancel
               </Button>
-              <Button onClick={handleAcceptDiff}>Accept</Button>
+              <Button size="sm" onClick={handleAcceptDiff}>
+                Accept
+              </Button>
             </div>
           </div>
         ) : (
