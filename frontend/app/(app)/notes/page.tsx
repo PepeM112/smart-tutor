@@ -2,27 +2,24 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { GenerateNoteDialog } from '@/features/notes/components/generate-note-dialog';
 import { ImportNoteButton } from '@/features/notes/components/import-note-button';
 import { NotesList } from '@/features/notes/components/notes-list';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 export default function NotesPage() {
-  const { set, reset } = useBreadcrumbStore();
-  const router = useRouter();
+  useBreadcrumb('Notes');
 
-  useEffect(() => {
-    set('Notes');
-    return () => reset();
-  }, [set, reset]);
-
-  const { data: notes, isLoading } = useQuery({
+  const {
+    data: notes,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['notes'],
     queryFn: () => sdk.notesList(),
   });
@@ -34,8 +31,11 @@ export default function NotesPage() {
         <div className="flex items-center gap-2">
           <ImportNoteButton />
           <GenerateNoteDialog />
-          <Button size="lg" icon={Plus} onClick={() => router.push(Routes.NOTE_NEW)}>
-            New Note
+          <Button size="lg" asChild>
+            <Link href={Routes.NOTE_NEW}>
+              <Plus />
+              New Note
+            </Link>
           </Button>
         </div>
       </div>
@@ -44,6 +44,8 @@ export default function NotesPage() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
+      ) : isError ? (
+        <p className="text-muted-foreground">Failed to load notes. Please try again.</p>
       ) : (
         <NotesList data={notes?.data ?? []} />
       )}

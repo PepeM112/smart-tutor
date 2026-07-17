@@ -12,7 +12,11 @@ type Props = {
 };
 
 export function TestEditor({ testId }: Props) {
-  const { data: existing, isLoading } = useQuery({
+  const {
+    data: existing,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['tests', testId],
     queryFn: () => sdk.testsGet({ path: { test_id: testId! } }),
     enabled: !!testId,
@@ -22,7 +26,15 @@ export function TestEditor({ testId }: Props) {
     return <p className="text-muted-foreground">Loading…</p>;
   }
 
+  if (testId && isError) {
+    return <p className="text-muted-foreground">Failed to load test. Please try again.</p>;
+  }
+
   const test = existing?.data;
+
+  if (testId && !test) {
+    return <p className="text-muted-foreground">Test not found.</p>;
+  }
 
   return (
     <TestEditorForm

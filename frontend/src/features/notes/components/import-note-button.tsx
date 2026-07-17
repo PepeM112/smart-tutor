@@ -15,7 +15,7 @@ export function ImportNoteButton() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { mutate: createNote } = useMutation({
+  const { mutate: createNote, isPending: isImporting } = useMutation({
     mutationFn: (vars: { title: string; content: string }) =>
       sdk.notesCreate({ body: { title: vars.title, content: vars.content } }),
     onSuccess: res => {
@@ -44,9 +44,16 @@ export function ImportNoteButton() {
 
   return (
     <>
-      <input ref={fileRef} type="file" accept=".md,.markdown" className="hidden" onChange={handleFileChange} />
-      <Button variant="outline" size="lg" icon={Upload} onClick={() => fileRef.current?.click()}>
-        Import
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".md,.markdown"
+        className="hidden"
+        onChange={handleFileChange}
+        disabled={isImporting}
+      />
+      <Button variant="outline" size="lg" icon={Upload} onClick={() => fileRef.current?.click()} disabled={isImporting}>
+        {isImporting ? 'Importing…' : 'Import'}
       </Button>
     </>
   );

@@ -30,7 +30,7 @@ export function GeneratedTestPreview() {
   const initialQuestions = useGenerationStore(s => s.questions);
   const sourceNoteId = useGenerationStore(s => s.sourceNoteId);
   const sourceNoteTitle = useGenerationStore(s => s.sourceNoteTitle);
-  const hasData = useGenerationStore(s => s.hasData);
+  const hasData = useGenerationStore(s => s.questions.length > 0);
   const clear = useGenerationStore(s => s.clear);
 
   const [items, setItems] = useState<PreviewItem[]>([]);

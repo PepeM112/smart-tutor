@@ -4,10 +4,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
+import { type BreadcrumbItem, useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+
+export function SetBreadcrumb({ title, crumbs, back }: { title: string; crumbs?: BreadcrumbItem[]; back?: string }) {
+  useBreadcrumb(title, crumbs, back);
+  return null;
+}
 
 export function Breadcrumb() {
-  const { title, crumbs, back } = useBreadcrumbStore();
+  const title = useBreadcrumbStore(s => s.title);
+  const crumbs = useBreadcrumbStore(s => s.crumbs);
+  const back = useBreadcrumbStore(s => s.back);
   const router = useRouter();
 
   if (!title) return null;

@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
 
+import { QuestionBlockAction } from './question-block-action';
+
 export type Criterion = {
   point: string;
   weight: number;
@@ -23,60 +25,6 @@ export type LongTextQuestionData = {
   criteria: Criterion[];
   points: number;
 };
-
-function CategoryInput({
-  value,
-  onChange,
-  suggestions,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  suggestions: string[];
-}) {
-  const [open, setOpen] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const filtered = useMemo(() => {
-    if (!value) return suggestions.slice(0, 5);
-    const lower = value.toLowerCase();
-    return suggestions.filter(s => s.toLowerCase().includes(lower) && s !== value).slice(0, 5);
-  }, [value, suggestions]);
-
-  const showDropdown = open && filtered.length > 0;
-
-  return (
-    <div className="relative w-32 shrink-0">
-      <Input
-        placeholder="Category"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => {
-          timeoutRef.current = setTimeout(() => setOpen(false), 150);
-        }}
-        className="w-full"
-      />
-      {showDropdown && (
-        <div className="absolute top-full left-0 z-10 mt-1 w-full rounded-md border border-border bg-popover py-1 shadow-md">
-          {filtered.map(s => (
-            <button
-              key={s}
-              type="button"
-              className="w-full px-2 py-1 text-left text-sm hover:bg-accent truncate"
-              onMouseDown={() => {
-                if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                onChange(s);
-                setOpen(false);
-              }}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 type Props = {
   data: LongTextQuestionData;
@@ -137,14 +85,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove }: Props) {
           className="w-20 shrink-0 text-center"
           title="Points"
         />
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onRemove}
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        <QuestionBlockAction onRemove={onRemove} />
       </div>
 
       {/* Rubric criteria */}
@@ -200,6 +141,60 @@ export function LongTextQuestionBlock({ data, onChange, onRemove }: Props) {
         <Plus className="size-3.5" />
         Add criterion
       </Button>
+    </div>
+  );
+}
+
+function CategoryInput({
+  value,
+  onChange,
+  suggestions,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  suggestions: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filtered = useMemo(() => {
+    if (!value) return suggestions.slice(0, 5);
+    const lower = value.toLowerCase();
+    return suggestions.filter(s => s.toLowerCase().includes(lower) && s !== value).slice(0, 5);
+  }, [value, suggestions]);
+
+  const showDropdown = open && filtered.length > 0;
+
+  return (
+    <div className="relative w-32 shrink-0">
+      <Input
+        placeholder="Category"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          timeoutRef.current = setTimeout(() => setOpen(false), 150);
+        }}
+        className="w-full"
+      />
+      {showDropdown && (
+        <div className="absolute top-full left-0 z-10 mt-1 w-full rounded-md border border-border bg-popover py-1 shadow-md">
+          {filtered.map(s => (
+            <button
+              key={s}
+              type="button"
+              className="w-full px-2 py-1 text-left text-sm hover:bg-accent truncate"
+              onMouseDown={() => {
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                onChange(s);
+                setOpen(false);
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

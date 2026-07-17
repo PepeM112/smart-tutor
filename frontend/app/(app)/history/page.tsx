@@ -2,21 +2,19 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { useEffect } from 'react';
 
 import { HistoryTable } from '@/features/history/components/history-table';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 export default function HistoryPage() {
-  const { set, reset } = useBreadcrumbStore();
+  useBreadcrumb('Test History');
 
-  useEffect(() => {
-    set('Test History');
-    return () => reset();
-  }, [set, reset]);
-
-  const { data: results, isLoading } = useQuery({
+  const {
+    data: results,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['results'],
     queryFn: () => sdk.resultsList(),
   });
@@ -31,6 +29,8 @@ export default function HistoryPage() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
+      ) : isError ? (
+        <p className="text-muted-foreground">Failed to load results. Please try again.</p>
       ) : (
         <HistoryTable data={results?.data ?? []} />
       )}

@@ -137,6 +137,7 @@ export function fromApiToEditorItems(
           type: QuestionGroupType.UNKNOWN,
           order: q.order ?? 0,
           title: null,
+          points: q.points ?? 1,
           questions: [q],
         };
         acc.push({ order: q.order ?? 0, kind: 'group', data: syntheticGroup });

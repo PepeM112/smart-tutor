@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 import { LongTextReview } from './long-text-review';
 import { MultipleChoiceReview } from './multiple-choice-review';
-import { getCorrectAnswer, getUserAnswerDisplay } from './result-detail-utils';
+import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong } from './result-detail-utils';
 
 export function QuestionDetailPanel({
   question,
@@ -45,7 +45,7 @@ export function QuestionDetailPanel({
 
 function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
   const status = answer?.status ?? AnswerStatus.UNKNOWN;
-  const isWrong = status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
+  const isWrong = isAnswerWrong(status);
   const correctAnswer = getCorrectAnswer(question);
 
   return (

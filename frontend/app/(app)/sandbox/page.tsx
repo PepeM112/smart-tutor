@@ -1,7 +1,7 @@
 'use client';
 
 import { Info, Star, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type { buttonVariants } from '@/components/ui/button';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 
 import type { VariantProps } from 'class-variance-authority';
 
@@ -34,32 +34,12 @@ const SIZES: ButtonSize[] = ['xs', 'sm', 'default', 'lg', 'icon-xs', 'icon-sm', 
 const ICON_SIZES: ButtonSize[] = ['icon-xs', 'icon-sm', 'icon', 'icon-lg'];
 const isIconSize = (size: ButtonSize) => ICON_SIZES.includes(size);
 
-function SandboxBlock({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
-      <div className="px-5 py-3 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-      </div>
-      <div className="p-5">{children}</div>
-    </div>
-  );
-}
-
-function StateLabel({ children }: { children: React.ReactNode }) {
-  return <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{children}</span>;
-}
-
 export default function SandboxPage() {
-  const { set, reset } = useBreadcrumbStore();
+  useBreadcrumb('Sandbox');
   const [switchA, setSwitchA] = useState(false);
   const [switchB, setSwitchB] = useState(true);
   const [checkA, setCheckA] = useState(false);
   const [checkB, setCheckB] = useState(true);
-
-  useEffect(() => {
-    set('Sandbox');
-    return () => reset();
-  }, [set, reset]);
 
   return (
     <div className="space-y-6">
@@ -348,4 +328,19 @@ export default function SandboxPage() {
       </SandboxBlock>
     </div>
   );
+}
+
+function SandboxBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-foreground/10">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  );
+}
+
+function StateLabel({ children }: { children: React.ReactNode }) {
+  return <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{children}</span>;
 }

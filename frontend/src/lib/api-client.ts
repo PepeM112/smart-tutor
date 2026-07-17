@@ -12,30 +12,42 @@ client.setConfig({
   throwOnError: true,
 });
 
-let isRefreshing = false;
+let refreshPromise: Promise<void> | null = null;
 
-client.interceptors.response.use(async response => {
-  if (response.status === 401 && !isRefreshing) {
-    const url = new URL(response.url);
-    if (url.pathname.endsWith('/refresh') || url.pathname.endsWith('/login')) {
-      return response;
-    }
+client.interceptors.response.use(async (response, request, options) => {
+  if (response.status !== 401) return response;
 
-    isRefreshing = true;
-    try {
-      const refreshResult = await sdk.usersRefresh();
-      if (refreshResult.data) {
-        useAuthStore.getState().setUser(refreshResult.data);
+  const url = new URL(response.url);
+  if (url.pathname.endsWith('/refresh') || url.pathname.endsWith('/login')) {
+    return response;
+  }
+
+  refreshPromise ??= sdk
+    .usersRefresh()
+    .then(result => {
+      if (result.data) {
+        useAuthStore.getState().setUser(result.data);
       }
-    } catch {
+    })
+    .catch(() => {
       useAuthStore.getState().logout();
       clearSessionCookie();
       window.location.href = Routes.LOGIN;
-    } finally {
-      isRefreshing = false;
-    }
-  }
-  return response;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  await refreshPromise;
+
+  // Retry with a fresh Request — the original's body stream was already consumed
+  return fetch(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: options.body as BodyInit | undefined,
+    credentials: 'include',
+    redirect: 'follow',
+  });
 });
 
 export { client, sdk, types };

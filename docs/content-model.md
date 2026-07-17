@@ -12,9 +12,13 @@ User
            └── Question (grouped)
 ```
 
-A **Test** is a named collection of questions (e.g. "Spanish Vocabulary Chapter 3"). Tests belong to a single user and are never shared.
+A **Test** is a named collection of questions (e.g. "Spanish Vocabulary Chapter 3"). Tests belong to a single user and are never shared. A test can optionally track its origin via `source_note_id` — a reference to the Note it was generated from (see [AI Test Generation](test-generation.md)). This is `null` for manually-created tests.
 
 A **QuestionGroup** is an organizational layer within a test. It groups related questions under a shared title and type. The main use case is vocabulary: a group titled "Translate to Spanish" with type `VOCABULARY` containing multiple translation questions. Groups and standalone questions share the same order space within a test, so a test's content can interleave individual questions and groups. Each group has a `points` value (default 1.0) that determines its weight in exam scoring.
+
+### Soft Delete
+
+Tests use soft delete. Each test has a `status` field (`ACTIVE` or `DELETED`). Deleting a test sets its status to `DELETED` rather than removing the row. All queries (listing, fetching, SRS review) filter by `ACTIVE` status, so deleted tests are invisible but recoverable.
 
 ## Question Types
 
@@ -100,6 +104,12 @@ Every question has two optional text fields:
 
 - **hint**: shown to the user *before* they answer (e.g. "Think about irregular verbs")
 - **explanation**: shown *after* they answer, regardless of correctness (e.g. "Ir is the most common translation")
+
+## Notes
+
+Notes are a separate content type — standalone Markdown documents for study material. They are not part of the Test/Question hierarchy but can be used as source material for AI test generation (see [AI Test Generation](test-generation.md)).
+
+For full details, see [Study Notes](study-notes.md).
 
 ## Answer Stripping
 

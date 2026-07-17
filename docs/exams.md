@@ -10,7 +10,7 @@ An exam is a formal, full-test experience. The user selects a specific test, ans
 2. All questions in the test are served (with answers stripped)
 3. User answers each question
 4. User submits all answers at once as a `TestSubmission`
-5. Backend grades every answer, creates a `TestResult` with individual `Answer` records
+5. Backend grades every answer, creates a `TestResult` with individual `Answer` records. Long Text answers receive `PENDING` status for async AI grading; if grading fails, they transition to `FAILED`.
 6. Score is calculated using weighted points: `(earned_points / graded_points) * 100`
 
 ## How Exams Differ From Reviews
@@ -70,6 +70,10 @@ Legacy results (created before weighted scoring) have `total_points = 0`. The fr
 ## Question Groups in Exams
 
 When grading a test submission, the backend collects questions from both the test's standalone questions and all question groups within the test. Standalone questions are scored individually; grouped questions are scored at the group level (see Weighted Scoring above).
+
+## Soft Delete and Exams
+
+Soft-deleted tests (status = `DELETED`) no longer appear in the test listing, so users cannot start new exams on them. Existing results for a deleted test remain in the history and can still be viewed.
 
 ## Long Text Questions in Exams
 

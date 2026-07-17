@@ -1,15 +1,10 @@
-'use client';
-import { useEffect } from 'react';
-
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+import { SetBreadcrumb } from '@/components/breadcrumb';
 
 export default function StatsPage() {
-  const { set, reset } = useBreadcrumbStore();
-
-  useEffect(() => {
-    set('Progress Stats');
-    return () => reset();
-  }, [set, reset]);
-
-  return <p className="text-muted-foreground">Charts and streaks will be displayed here.</p>;
+  return (
+    <>
+      <SetBreadcrumb title="Progress Stats" />
+      <p className="text-muted-foreground">Charts and streaks will be displayed here.</p>
+    </>
+  );
 }

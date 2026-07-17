@@ -13,6 +13,7 @@ import {
 } from '@/features/history/utils/score-colors';
 import { cn } from '@/lib/utils';
 
+import { NumberedScoreRow } from './numbered-score-row';
 import { computeQuestionScore } from './result-detail-utils';
 
 export function CompactQuestionCard({
@@ -94,15 +95,7 @@ export function CompactGroupCard({
       onClick={onClick}
     >
       <CardContent className="p-0">
-        <div className="flex items-start justify-between gap-2">
-          <p className="font-medium">
-            <span className="text-muted-foreground mr-1.5">{number}.</span>
-            {title}
-          </p>
-          <span className={cn('text-sm font-semibold tabular-nums shrink-0', getScoreTextColor(pct))}>
-            {correctCount.toFixed(2)}/{totalCount.toFixed(2)}
-          </span>
-        </div>
+        <NumberedScoreRow number={number} title={title} correctCount={correctCount} totalCount={totalCount} />
       </CardContent>
     </Card>
   );

@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, use } from 'react';
+import { use } from 'react';
 
 import { TestEditor } from '@/features/tests/components/test-editor';
+import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { Routes } from '@/lib/routes';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -11,12 +11,7 @@ type Props = {
 
 export default function EditTestPage({ params }: Props) {
   const { id } = use(params);
-  const { set, reset } = useBreadcrumbStore();
-
-  useEffect(() => {
-    set('Edit Test', [{ label: 'Tests', href: Routes.TESTS }], Routes.TESTS);
-    return () => reset();
-  }, [set, reset]);
+  useBreadcrumb('Edit Test', [{ label: 'Tests', href: Routes.TESTS }], Routes.TESTS);
 
   return <TestEditor testId={id} />;
 }
