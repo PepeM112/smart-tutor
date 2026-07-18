@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
+import { ThemePicker } from '@/features/settings/components/theme-picker';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 
 import type { VariantProps } from 'class-variance-authority';
@@ -44,6 +45,11 @@ export default function SandboxPage() {
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground">Component playground — not for production.</p>
+
+      {/* ── Theme Picker ── */}
+      <SandboxBlock title="Theme — color palette">
+        <ThemePicker />
+      </SandboxBlock>
 
       {/* ── Buttons ── */}
       <SandboxBlock title="Button — variant × size">

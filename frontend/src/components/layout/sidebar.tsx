@@ -69,22 +69,22 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'relative flex flex-col h-full bg-secondary border-r border-border shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out',
+        'relative flex flex-col h-full bg-sidebar border-r border-sidebar-border shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out',
         collapsed ? 'w-15' : 'w-64'
       )}
     >
       {/* Header */}
       <div
         className={cn(
-          'flex items-center border-b border-border px-3 py-3.5',
+          'flex items-center border-b border-sidebar-border px-3 py-3.5',
           collapsed ? 'justify-center' : 'justify-between'
         )}
       >
-        {!collapsed && <span className="text-sm font-semibold text-foreground truncate">SmartTutor</span>}
+        {!collapsed && <span className="text-sm font-semibold text-sidebar-foreground truncate">SmartTutor</span>}
         <button
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+          className="flex items-center justify-center size-7 rounded-md text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors shrink-0"
         >
           {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -95,7 +95,7 @@ export function Sidebar() {
         {sections.map(section => (
           <div key={section.label}>
             {!collapsed && (
-              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
                 {section.label}
               </p>
             )}
@@ -110,7 +110,7 @@ export function Sidebar() {
                       <span
                         title={collapsed ? `${item.label} (Coming soon)` : undefined}
                         className={cn(
-                          'flex items-center gap-3 rounded-lg text-sm cursor-not-allowed opacity-40 text-muted-foreground py-2',
+                          'flex items-center gap-3 rounded-lg text-sm cursor-not-allowed opacity-40 text-sidebar-muted py-2',
                           collapsed ? 'justify-center px-0' : 'px-3'
                         )}
                       >
@@ -118,7 +118,7 @@ export function Sidebar() {
                         {!collapsed && (
                           <>
                             <span className="truncate flex-1">{item.label}</span>
-                            <span className="text-[10px] font-medium bg-muted-foreground/20 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[10px] font-medium bg-sidebar-accent px-1.5 py-0.5 rounded-full">
                               Soon
                             </span>
                           </>
@@ -135,8 +135,8 @@ export function Sidebar() {
                       title={collapsed ? item.label : undefined}
                       className={cn(
                         'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
-                        'text-foreground/70 hover:bg-muted hover:text-foreground',
-                        isActive && 'bg-primary/10 text-primary',
+                        'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                        isActive && 'bg-sidebar-accent text-sidebar-foreground',
                         collapsed ? 'justify-center px-0' : 'px-3'
                       )}
                     >
@@ -152,14 +152,14 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom — settings + logout */}
-      <div className="border-t border-border px-2 py-3 space-y-0.5">
+      <div className="border-t border-sidebar-border px-2 py-3 space-y-0.5">
         <Link
           href={Routes.SETTINGS}
           title={collapsed ? 'Profile & Settings' : undefined}
           className={cn(
             'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
-            'text-foreground/60 hover:bg-muted hover:text-foreground',
-            pathname === Routes.SETTINGS && 'bg-primary/10 text-primary',
+            'text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+            pathname === Routes.SETTINGS && 'bg-sidebar-accent text-sidebar-foreground',
             collapsed ? 'justify-center px-0' : 'px-3'
           )}
         >
