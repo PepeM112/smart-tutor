@@ -23,7 +23,7 @@ export function DataTable<T>({ columns, data, emptyMessage = 'No data found.', o
   const isEmpty = rows.length === 0;
 
   return (
-    <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
+    <div className="rounded-xl ring-1 ring-primary/90 bg-card overflow-hidden">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map(hg => (

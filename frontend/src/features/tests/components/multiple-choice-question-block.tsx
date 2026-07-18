@@ -57,7 +57,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
     <div
       onClick={onClick}
       className={cn(
-        'cursor-pointer rounded-lg border border-border bg-card p-4',
+        'cursor-pointer rounded-xl border border-primary/90 bg-card p-4',
         selected && 'bg-accent ring-1 ring-primary'
       )}
     >

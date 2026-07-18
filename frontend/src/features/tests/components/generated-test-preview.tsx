@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Columns2, Pencil, Rows3, RotateCcw } from 'lucide-react';
+import { Columns2, Pencil, Rows3, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -226,14 +226,14 @@ export function GeneratedTestPreview() {
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             onClick={() => setColumns(c => (c === 1 ? 2 : 1))}
             tooltip={columns === 1 ? '2-column layout' : '1-column layout'}
           >
-            {columns === 1 ? <Columns2 className="size-4" /> : <Rows3 className="size-4" />}
+            {columns === 1 ? <Columns2 className="size-5" /> : <Rows3 className="size-5" />}
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={handleRegenerate} tooltip="Reset to original generation">
-            <RotateCcw className="size-4" />
+          <Button variant="ghost" size="icon" onClick={handleRegenerate} tooltip="Reset to original generation">
+            <RotateCcw className="size-5" />
           </Button>
           {selectedIndices.size > 0 && (
             <AiEditPopover selectedCount={selectedIndices.size} isPending={isAiEditing} onSubmit={aiEdit} />
@@ -244,7 +244,7 @@ export function GeneratedTestPreview() {
             onRefined={handleRefined}
           />
           <Button
-            icon={Check}
+            size="lg"
             onClick={() => createTest()}
             disabled={items.length === 0 || !testTitle.trim() || isCreating}
           >

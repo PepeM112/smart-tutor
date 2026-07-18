@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
+import { ThemePicker } from '@/features/settings/components/theme-picker';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 
 import type { VariantProps } from 'class-variance-authority';
@@ -44,6 +45,11 @@ export default function SandboxPage() {
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground">Component playground — not for production.</p>
+
+      {/* ── Theme Picker ── */}
+      <SandboxBlock title="Theme — color palette">
+        <ThemePicker />
+      </SandboxBlock>
 
       {/* ── Buttons ── */}
       <SandboxBlock title="Button — variant × size">
@@ -332,8 +338,8 @@ export default function SandboxPage() {
 
 function SandboxBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
-      <div className="px-5 py-3 border-b border-foreground/10">
+    <div className="rounded-xl ring-1 ring-primary/90 bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-primary/90">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
       <div className="p-5">{children}</div>

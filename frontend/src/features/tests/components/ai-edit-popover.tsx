@@ -31,7 +31,7 @@ export function AiEditPopover({ selectedCount, isPending, onSubmit }: Props) {
   return (
     <FloatingCard open={open} onOpenChange={isPending ? undefined : setOpen}>
       <FloatingCardTrigger asChild>
-        <Button variant="outline" icon={WandSparkles}>
+        <Button variant="outline" size="lg" icon={WandSparkles}>
           AI Edit
         </Button>
       </FloatingCardTrigger>
