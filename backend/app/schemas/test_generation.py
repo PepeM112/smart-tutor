@@ -38,8 +38,9 @@ class GeneratedQuestionPreview(BaseSchema):
 
 class TestGenerationResponse(BaseSchema):
     questions: list[GeneratedQuestionPreview]
-    source_note_id: str
-    source_note_title: str
+    source_note_id: str | None = None
+    source_note_title: str | None = None
+    warning: str | None = None
 
 
 class TestRefinementRequest(BaseSchema):
