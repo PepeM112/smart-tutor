@@ -14,6 +14,7 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
+import { useBlockSelection } from '../hooks/use-block-selection';
 import { useGenerationStore } from '../store/use-generation-store';
 
 import { AiEditPopover } from './ai-edit-popover';
@@ -21,6 +22,9 @@ import { type LongTextQuestionData, LongTextQuestionBlock } from './long-text-qu
 import { type MultipleChoiceQuestionData, MultipleChoiceQuestionBlock } from './multiple-choice-question-block';
 import { type QuestionGroupData, QuestionGroupBlock } from './question-group-block';
 import { RefineTestDialog } from './refine-test-dialog';
+import { flattenEditorItems, groupToApiGroup, longTextToApiQuestion, mcToApiQuestion } from './test-editor/converters';
+
+import type { EditorItem } from './test-editor/types';
 
 type PreviewItem =
   | { id: string; kind: 'mc'; data: MultipleChoiceQuestionData }
@@ -40,7 +44,7 @@ export function GeneratedTestPreview() {
   const [items, setItems] = useState<PreviewItem[]>([]);
   const [testTitle, setTestTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
   const [columns, setColumns] = useState<1 | 2>(1);
 
   const { data: noteData } = useQuery({
@@ -70,18 +74,6 @@ export function GeneratedTestPreview() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasData, items.length]);
 
-  function handleBlockClick(index: number, e: React.MouseEvent) {
-    const target = e.target as HTMLElement;
-    if (target.closest('input, textarea, button, select, [role="checkbox"], [data-slot="switch"]')) return;
-
-    setSelectedIndices(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  }
-
   const updateMcItem = useCallback((index: number, data: MultipleChoiceQuestionData) => {
     setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'mc' as const, data } : item)));
   }, []);
@@ -94,86 +86,33 @@ export function GeneratedTestPreview() {
     setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'long_text' as const, data } : item)));
   }, []);
 
-  const removeItem = useCallback((index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index));
-    setSelectedIndices(prev => {
-      const next = new Set<number>();
-      prev.forEach(i => {
-        if (i === index) return;
-        next.add(i > index ? i - 1 : i);
-      });
-      return next;
-    });
-  }, []);
+  const removeItem = useCallback(
+    (index: number) => {
+      setItems(prev => prev.filter((_, i) => i !== index));
+      removeAndReindex(index);
+    },
+    [removeAndReindex]
+  );
 
-  const handleRefined = useCallback((refined: GeneratedQuestionPreviewInput[]) => {
-    const previewItems = toPreviewItems(refined);
-    setItems(previewItems);
-    setSelectedIndices(new Set());
-  }, []);
+  const handleRefined = useCallback(
+    (refined: GeneratedQuestionPreviewInput[]) => {
+      const previewItems = toPreviewItems(refined);
+      setItems(previewItems);
+      clearSelection();
+    },
+    [clearSelection]
+  );
 
   const handleRegenerate = useCallback(() => {
     const previewItems = toPreviewItems(initialQuestions);
     setItems(previewItems);
-    setSelectedIndices(new Set());
+    clearSelection();
     toast.success('Questions reset to original generation');
-  }, [initialQuestions]);
+  }, [initialQuestions, clearSelection]);
 
-  // Flat AI-facing question list, each entry tagged with the block (item) it
-  // came from. A 'group' block expands into one entry per row, so block-level
-  // selection has to be translated into these flat indices before they're
-  // sent to the backend (which validates indices against this flat array).
-  const flatEntries = useMemo((): { blockIndex: number; question: GeneratedQuestionPreviewInput }[] => {
-    const result: { blockIndex: number; question: GeneratedQuestionPreviewInput }[] = [];
-    items.forEach((item, blockIndex) => {
-      if (item.kind === 'mc') {
-        result.push({
-          blockIndex,
-          question: {
-            questionType: QuestionType.MULTIPLE_CHOICE,
-            prompt: item.data.prompt,
-            points: item.data.points,
-            content: {
-              options: item.data.choices.map(c => c.text),
-              correctIndices: item.data.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
-            },
-          },
-        });
-      } else if (item.kind === 'long_text') {
-        result.push({
-          blockIndex,
-          question: {
-            questionType: QuestionType.LONG_TEXT,
-            prompt: item.data.prompt,
-            points: item.data.points,
-            content: {
-              lengthLimit: item.data.lengthLimit,
-              rubric: item.data.criteria.map(c => ({
-                point: c.point,
-                weight: c.weight,
-                ...(c.category ? { category: c.category } : {}),
-              })),
-            },
-          },
-        });
-      } else {
-        item.data.rows.forEach(row => {
-          result.push({
-            blockIndex,
-            question: {
-              questionType: QuestionType.SIMPLE,
-              prompt: row.prompt,
-              points: item.data.points,
-              content: {
-                answers: row.answers.filter(Boolean),
-              },
-            },
-          });
-        });
-      }
-    });
-    return result;
-  }, [items]);
+  const editorItems = useMemo((): EditorItem[] => items.map(i => i.data), [items]);
+
+  const flatEntries = useMemo(() => flattenEditorItems(editorItems), [editorItems]);
 
   const currentQuestionsForRefine = useMemo(
     (): GeneratedQuestionPreviewInput[] => flatEntries.map(entry => entry.question),
@@ -182,58 +121,24 @@ export function GeneratedTestPreview() {
 
   const { mutate: createTest, isPending: isCreating } = useMutation({
     mutationFn: () => {
-      let orderIndex = 0;
+      const standaloneQuestions = editorItems.flatMap((item, idx) => {
+        if (item.type === QuestionType.MULTIPLE_CHOICE) return [mcToApiQuestion(item, idx)];
+        if (item.type === QuestionType.LONG_TEXT) return [longTextToApiQuestion(item, idx)];
+        return [];
+      });
 
-      const standaloneQuestions = items
-        .filter((it): it is PreviewItem & { kind: 'mc' } => it.kind === 'mc')
-        .map(it => ({
-          questionType: QuestionType.MULTIPLE_CHOICE,
-          prompt: it.data.prompt,
-          order: orderIndex++,
-          points: it.data.points,
-          content: {
-            options: it.data.choices.map(c => c.text),
-            correctIndices: it.data.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
-          },
-        }));
-
-      const longTextQuestions = items
-        .filter((it): it is PreviewItem & { kind: 'long_text' } => it.kind === 'long_text')
-        .map(it => ({
-          questionType: QuestionType.LONG_TEXT,
-          prompt: it.data.prompt,
-          order: orderIndex++,
-          points: it.data.points,
-          content: {
-            lengthLimit: it.data.lengthLimit,
-            rubric: it.data.criteria.map(c => ({
-              point: c.point,
-              weight: c.weight,
-              ...(c.category ? { category: c.category } : {}),
-            })),
-          },
-        }));
-
-      const questionGroups = items
-        .filter((it): it is PreviewItem & { kind: 'group' } => it.kind === 'group')
-        .map(it => ({
-          order: orderIndex++,
-          title: it.data.title || sourceNoteTitle,
-          points: it.data.points,
-          questions: it.data.rows.map((row, i) => ({
-            questionType: QuestionType.SIMPLE,
-            prompt: row.prompt,
-            order: i,
-            content: {
-              answers: row.answers.filter(Boolean),
-            },
-          })),
-        }));
+      const questionGroups = editorItems.flatMap((item, idx) => {
+        if (item.type !== QuestionType.MULTIPLE_CHOICE && item.type !== QuestionType.LONG_TEXT) {
+          const group = groupToApiGroup(item, idx);
+          return [{ ...group, title: group.title || sourceNoteTitle }];
+        }
+        return [];
+      });
 
       return sdk.testsCreate({
         body: {
           title: testTitle.trim(),
-          questions: [...standaloneQuestions, ...longTextQuestions],
+          questions: standaloneQuestions,
           questionGroups,
           sourceNoteId,
         },
@@ -270,7 +175,7 @@ export function GeneratedTestPreview() {
     onSuccess: res => {
       if (!res.data) return;
       setItems(toPreviewItems(res.data.questions));
-      setSelectedIndices(new Set());
+      clearSelection();
       toast.success('Questions updated');
     },
     onError: () => toast.error('Failed to edit questions. Please try again.'),
@@ -351,7 +256,7 @@ export function GeneratedTestPreview() {
       <div className={cn('gap-3', columns === 2 ? 'grid grid-cols-2' : 'flex flex-col')}>
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
-          const onClick = (e: React.MouseEvent) => handleBlockClick(i, e);
+          const onClick = (e: React.MouseEvent) => toggleSelection(i, e);
 
           if (item.kind === 'mc') {
             return (

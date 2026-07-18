@@ -43,6 +43,10 @@
   --color-feedback-wrong-bg: #fef2f2;
   --color-feedback-wrong-border: #fecaca;
 
+  /* AI highlight */
+  --color-highlight-ai: var(--highlight-ai);
+  --color-highlight-ai-active: var(--highlight-ai-active);
+
   /* Borders */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -86,6 +90,10 @@
   --input: #e2e8f0;
   --ring: #3b82f6;
 
+  /* AI highlight */
+  --highlight-ai: rgba(253, 240, 195, 1);
+  --highlight-ai-active: rgba(255, 200, 170, 1);
+
   /* Big border radius */
   --radius: 1rem;
 }
@@ -110,6 +118,8 @@
   --color-feedback-partial-border: oklch(35% 0.08 80deg);
   --color-feedback-wrong-bg: oklch(26% 0.06 25deg);
   --color-feedback-wrong-border: oklch(35% 0.08 25deg);
+  --highlight-ai: oklch(45% 0.08 80deg);
+  --highlight-ai-active: oklch(50% 0.1 55deg);
 }
 
 @layer base {

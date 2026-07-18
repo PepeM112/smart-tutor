@@ -1,7 +1,7 @@
 'use client';
 
 import { Eye, Pencil } from 'lucide-react';
-import { forwardRef, useImperativeHandle, useRef, useState, type KeyboardEvent } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState, type KeyboardEvent } from 'react';
 import { type Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -66,13 +66,24 @@ type Props = {
   onChange?: (content: string) => void;
   readOnly?: boolean;
   className?: string;
+  onViewContainerChange?: (el: HTMLDivElement | null) => void;
 };
 
 export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(
-  function MarkdownRendererV2({ content, onChange, readOnly, className }, ref) {
+  function MarkdownRendererV2({ content, onChange, readOnly, className, onViewContainerChange }, ref) {
     const viewRef = useRef<HTMLDivElement>(null);
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const canToggle = !readOnly && !!onChange;
+
+    const viewCallbackRef = useCallback(
+      (el: HTMLDivElement | null) => {
+        viewRef.current = el;
+        onViewContainerChange?.(el);
+      },
+      [onViewContainerChange],
+    );
+
+    const isViewMode = mode === 'view' || !canToggle;
 
     useImperativeHandle(ref, () => ({
       get viewContainer() {
@@ -123,9 +134,9 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(
           </div>
         )}
 
-        {mode === 'view' || !canToggle ? (
+        {isViewMode ? (
           <div
-            ref={viewRef}
+            ref={viewCallbackRef}
             className="h-full overflow-y-auto scrollbar-none p-6"
           >
             {content ? (

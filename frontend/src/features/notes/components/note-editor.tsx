@@ -15,7 +15,7 @@ import { sdk } from '@/lib/api-client';
 import { getMarkdownRangeFromSelection } from '../utils/markdown-selection';
 
 import { MarkdownRenderer } from './markdown-renderer';
-import { MarkdownRendererV2, type MarkdownRendererV2Handle } from './markdown-renderer-v2';
+import { MarkdownRendererV2 } from './markdown-renderer-v2';
 
 type Props = {
   content: string;
@@ -29,6 +29,8 @@ const DEFAULT_RATIO = 0.5;
 type SelectionTrigger = {
   plainText: string;
   markdown: string;
+  markdownStart: number;
+  markdownEnd: number;
   top: number;
   left: number;
 };
@@ -36,11 +38,12 @@ type SelectionTrigger = {
 type DiffState = {
   selectedText: string;
   originalMarkdown: string;
+  markdownStart: number;
+  markdownEnd: number;
   editedText: string;
 };
 
 export function NoteEditor({ content, onChange, noteId }: Props) {
-  const rendererRef = useRef<MarkdownRendererV2Handle>(null);
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(SPLIT_KEY, DEFAULT_RATIO);
 
@@ -55,17 +58,8 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     popoverOpenRef.current = popoverOpen;
   }, [popoverOpen]);
 
-  // Keep viewContainerRef in sync with the renderer's internal ref
-  useEffect(() => {
-    const check = () => {
-      const container = rendererRef.current?.viewContainer ?? null;
-      if (container !== viewContainerRef.current) {
-        viewContainerRef.current = container;
-      }
-    };
-    check();
-    const id = setInterval(check, 200);
-    return () => clearInterval(id);
+  const handleViewContainerChange = useCallback((el: HTMLDivElement | null) => {
+    viewContainerRef.current = el;
   }, []);
 
   const highlightTexts = useMemo(() => diffs.map(d => d.selectedText), [diffs]);
@@ -83,7 +77,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     function commitSelection() {
       if (popoverOpenRef.current) return;
 
-      const container = rendererRef.current?.viewContainer;
+      const container = viewContainerRef.current;
       if (!container) return;
 
       const sel = window.getSelection();
@@ -110,6 +104,8 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       setSelectionTrigger({
         plainText,
         markdown: range.markdown,
+        markdownStart: range.start,
+        markdownEnd: range.end,
         top: lastRect.top + lastRect.height / 2,
         left: lastRect.right,
       });
@@ -129,13 +125,17 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       if (!sel || sel.isCollapsed) setSelectionTrigger(null);
     }
 
+    const container = viewContainerRef.current;
+
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('keyup', handleKeyUp);
     document.addEventListener('selectionchange', handleSelectionChange);
+    container?.addEventListener('scroll', commitSelection, { passive: true });
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('keyup', handleKeyUp);
       document.removeEventListener('selectionchange', handleSelectionChange);
+      container?.removeEventListener('scroll', commitSelection);
     };
   }, [noteId, content]);
 
@@ -174,6 +174,8 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         {
           selectedText: selectionTrigger.plainText,
           originalMarkdown: selectionTrigger.markdown,
+          markdownStart: selectionTrigger.markdownStart,
+          markdownEnd: selectionTrigger.markdownEnd,
           editedText: data.editedText,
         },
       ]);
@@ -186,15 +188,13 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
 
   function handleAcceptDiff() {
     if (activeDiffIndex === null || !activeDiff) return;
-    const idx = content.indexOf(activeDiff.originalMarkdown);
-    if (idx === -1) {
+    const { markdownStart, markdownEnd, originalMarkdown, editedText } = activeDiff;
+    if (content.slice(markdownStart, markdownEnd) !== originalMarkdown) {
       toast.error('Could not locate the original text — it may have changed.');
       removeDiff(activeDiffIndex);
       return;
     }
-    onChange(
-      content.slice(0, idx) + activeDiff.editedText + content.slice(idx + activeDiff.originalMarkdown.length),
-    );
+    onChange(content.slice(0, markdownStart) + editedText + content.slice(markdownEnd));
     removeDiff(activeDiffIndex);
   }
 
@@ -207,11 +207,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         className="min-w-0 overflow-hidden rounded-lg border border-border bg-card"
         style={{ flex: hasDiffPanel ? splitRatio : 1 }}
       >
-        <MarkdownRendererV2
-          ref={rendererRef}
-          content={content}
-          onChange={onChange}
-        />
+        <MarkdownRendererV2 content={content} onChange={onChange} onViewContainerChange={handleViewContainerChange} />
       </div>
 
       {/* Divider — only when diff panel is open */}
@@ -228,10 +224,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
 
       {/* Diff review panel — only when a diff is active */}
       {hasDiffPanel && (
-        <div
-          className="min-w-0 overflow-hidden rounded-lg border border-border"
-          style={{ flex: 1 - splitRatio }}
-        >
+        <div className="min-w-0 overflow-hidden rounded-lg border border-border" style={{ flex: 1 - splitRatio }}>
           <div className="flex h-full flex-col bg-card p-4">
             <div className="flex items-center justify-between mb-3 shrink-0">
               <h3 className="text-sm font-semibold text-foreground">Changes</h3>
@@ -256,7 +249,11 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
             </div>
 
             <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}
+              >
                 Cancel
               </Button>
               <Button size="sm" onClick={handleAcceptDiff}>
@@ -269,7 +266,15 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
 
       {/* Floating AI edit trigger */}
       {selectionTrigger && (
-        <div style={{ position: 'fixed', top: selectionTrigger.top, left: selectionTrigger.left + 6, zIndex: 50, transform: 'translateY(-50%)' }}>
+        <div
+          style={{
+            position: 'fixed',
+            top: selectionTrigger.top,
+            left: selectionTrigger.left + 6,
+            zIndex: 50,
+            transform: 'translateY(-50%)',
+          }}
+        >
           <FloatingCard open={popoverOpen} onOpenChange={handleOpenChange}>
             <FloatingCardTrigger asChild>
               <Button size="icon" icon={WandSparkles} tooltip="Edit with AI" />

@@ -57,6 +57,7 @@ function NoteForm({ note }: { note: NoteRead }) {
   const [content, setContent] = useState(note.content ?? '');
   const [tags, setTags] = useState<string[]>(note.tags ?? []);
   const [isDirty, setIsDirty] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -166,6 +167,7 @@ function NoteForm({ note }: { note: NoteRead }) {
               noteId={note.id}
               onRefined={newContent => {
                 setContent(newContent);
+                setEditorKey(k => k + 1);
               }}
             />
             <GenerateTestDialog noteId={note.id} noteTitle={note.title} />
@@ -175,6 +177,7 @@ function NoteForm({ note }: { note: NoteRead }) {
 
       <div className="flex-1 min-h-0 overflow-hidden">
         <NoteEditor
+          key={editorKey}
           content={content}
           onChange={v => {
             setContent(v);

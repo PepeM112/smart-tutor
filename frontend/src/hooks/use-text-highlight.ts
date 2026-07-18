@@ -30,18 +30,17 @@ const STYLE_ID = 'ai-edit-highlight-styles';
 
 const HIGHLIGHT_CSS = `
 mark[data-ai-highlight] {
-  background-color: rgba(253, 240, 195);
+  background-color: var(--highlight-ai);
   cursor: pointer;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   line-height: inherit;
   padding: 3px 5px;
   margin: 0 -5px;
-  text-align: justify;
 }
 mark[data-ai-highlight][data-hover],
 mark[data-ai-highlight][data-active] {
-  background-color: rgba(255, 200, 170);
+  background-color: var(--highlight-ai-active);
 }
 `;
 
@@ -244,8 +243,9 @@ export function useTextHighlight(
   const textsKey = JSON.stringify(texts);
 
   useLayoutEffect(() => {
-    marksMapRef.current.forEach(marks => removeHighlights(marks));
-    marksMapRef.current.clear();
+    const marksMap = marksMapRef.current;
+    marksMap.forEach(marks => removeHighlights(marks));
+    marksMap.clear();
 
     const container = containerRef.current;
     if (!container || texts.length === 0) return;
@@ -267,12 +267,12 @@ export function useTextHighlight(
       const segments = getSegments(nodes, start, end);
       const groupMarks: HTMLElement[] = [];
       applyHighlights(segments, index, groupMarks, () => onClickRef.current(index));
-      marksMapRef.current.set(index, groupMarks);
+      marksMap.set(index, groupMarks);
     }
 
     return () => {
-      marksMapRef.current.forEach(marks => removeHighlights(marks));
-      marksMapRef.current.clear();
+      marksMap.forEach(marks => removeHighlights(marks));
+      marksMap.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- textsKey is the stable serialization of texts
   }, [textsKey, containerRef]);

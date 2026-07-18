@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
+import { useBlockSelection } from '../../hooks/use-block-selection';
 import { AddQuestionDropdown } from '../add-question-dropdown';
 import { AiEditPopover } from '../ai-edit-popover';
 import { LongTextQuestionBlock } from '../long-text-question-block';
@@ -50,9 +51,9 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [items, setItems] = useState<EditorItem[]>(initialItems);
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
 
-  const { mutate: saveTest, isPending } = useMutation({
+  const { mutate: saveTest, isPending: isSaving } = useMutation({
     mutationFn: () => {
       const standaloneQuestions: QuestionCreate[] = [];
       const questionGroups: TestQuestionGroupCreate[] = [];
@@ -111,7 +112,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     onSuccess: res => {
       if (!res.data) return;
       setItems(fromPreviewToEditorItems(res.data.questions));
-      setSelectedIndices(new Set());
+      clearSelection();
       toast.success('Questions updated');
     },
     onError: () => toast.error('Failed to edit questions. Please try again.'),
@@ -128,26 +129,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   function removeItem(idx: number) {
     setItems(prev => prev.filter((_, i) => i !== idx));
-    setSelectedIndices(prev => {
-      const next = new Set<number>();
-      prev.forEach(i => {
-        if (i === idx) return;
-        next.add(i > idx ? i - 1 : i);
-      });
-      return next;
-    });
-  }
-
-  function handleBlockClick(index: number, e: React.MouseEvent) {
-    const target = e.target as HTMLElement;
-    if (target.closest('input, textarea, button, select, [role="checkbox"], [data-slot="switch"]')) return;
-
-    setSelectedIndices(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
+    removeAndReindex(idx);
   }
 
   return (
@@ -171,7 +153,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       <div className="space-y-3 mb-4">
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
-          const onClick = (e: React.MouseEvent) => handleBlockClick(i, e);
+          const onClick = (e: React.MouseEvent) => toggleSelection(i, e);
 
           if (item.type === 'group') {
             return (
@@ -213,8 +195,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       <AddQuestionDropdown onSelect={addItem} />
 
       <div className="mt-8">
-        <Button size="lg" disabled={!title.trim() || isPending} onClick={() => saveTest()}>
-          {isPending ? 'Saving…' : 'Save Test'}
+        <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
+          {isSaving ? 'Saving…' : 'Save Test'}
         </Button>
       </div>
     </div>
