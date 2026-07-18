@@ -1,7 +1,8 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/api-client';
@@ -12,55 +13,51 @@ import { clearSessionCookie } from '../utils/session-cookie';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const user = useAuthStore(s => s.user);
-  const isLoading = useAuthStore(s => s.isLoading);
   const setUser = useAuthStore(s => s.setUser);
   const logout = useAuthStore(s => s.logout);
+  const didRedirect = useRef(false);
 
-  const [fetchError, setFetchError] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const res = await sdk.usersMe();
+      // Sync to Zustand so non-query consumers (sidebar, etc.) can read the user
+      setUser(res.data ?? null);
+      return res;
+    },
+    retry: (failureCount, err) => {
+      const status = (err as { status?: number })?.status;
+      if (status === 401 || status === 403) return false;
+      return failureCount < 2;
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+  });
 
-  useEffect(() => {
-    let ignore = false;
+  const user = data?.data ?? null;
 
-    sdk
-      .usersMe()
-      .then(res => {
-        if (!ignore) setUser(res.data ?? null);
-      })
-      .catch((err: unknown) => {
-        if (ignore) return;
+  // Handle auth errors — redirect to login on 401/403
+  if (isError && !didRedirect.current) {
+    const status = (error as { status?: number })?.status;
+    if (status === 401 || status === 403) {
+      didRedirect.current = true;
+      logout();
+      clearSessionCookie();
+      router.replace(Routes.LOGIN);
+      return null;
+    }
 
-        const status = (err as { status?: number })?.status;
-        if (status === 401 || status === 403) {
-          logout();
-          clearSessionCookie();
-          router.replace(Routes.LOGIN);
-        } else {
-          setFetchError(true);
-          // Resolve loading — trust cached user from localStorage if available
-          setUser(useAuthStore.getState().user ?? null);
-        }
-      });
+    // Non-auth error (network blip, 500) — trust cached user if available
+    const cachedUser = useAuthStore.getState().user;
+    if (cachedUser) {
+      return <>{children}</>;
+    }
 
-    return () => {
-      ignore = true;
-    };
-  }, [setUser, logout, router, retryKey]);
-
-  if (fetchError && !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-muted-foreground">Could not connect to the server.</p>
-          <Button
-            onClick={() => {
-              setFetchError(false);
-              setRetryKey(k => k + 1);
-            }}
-          >
-            Try again
-          </Button>
+          <Button onClick={() => window.location.reload()}>Try again</Button>
         </div>
       </div>
     );
