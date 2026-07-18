@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 
-export function useAutoResize() {
+export function useAutoResize(value?: string) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   const resize = useCallback(() => {
@@ -14,7 +14,7 @@ export function useAutoResize() {
 
   useEffect(() => {
     resize();
-  }, [resize]);
+  }, [resize, value]);
 
   return { ref, resize };
 }

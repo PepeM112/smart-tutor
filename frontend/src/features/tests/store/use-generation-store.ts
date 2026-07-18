@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 
-import type { GeneratedQuestionPreview } from '@/client';
+import type { GeneratedQuestionPreviewInput } from '@/client';
 
 interface GenerationState {
-  questions: GeneratedQuestionPreview[];
+  questions: GeneratedQuestionPreviewInput[];
   sourceNoteId: string;
   sourceNoteTitle: string;
-  setResult: (questions: GeneratedQuestionPreview[], sourceNoteId: string, sourceNoteTitle: string) => void;
+  setResult: (questions: GeneratedQuestionPreviewInput[], sourceNoteId?: string | null, sourceNoteTitle?: string | null) => void;
   clear: () => void;
 }
 
@@ -15,7 +15,7 @@ export const useGenerationStore = create<GenerationState>()(set => ({
   sourceNoteId: '',
   sourceNoteTitle: '',
 
-  setResult: (questions, sourceNoteId, sourceNoteTitle) => set({ questions, sourceNoteId, sourceNoteTitle }),
+  setResult: (questions, sourceNoteId, sourceNoteTitle) => set({ questions, sourceNoteId: sourceNoteId ?? '', sourceNoteTitle: sourceNoteTitle ?? '' }),
 
   clear: () => set({ questions: [], sourceNoteId: '', sourceNoteTitle: '' }),
 }));

@@ -1,27 +1,35 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, Pencil, RotateCcw } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Check, Columns2, Pencil, Rows3, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import type { GeneratedQuestionPreview, MultipleChoiceContent, SimpleContent } from '@/client';
+import type { GeneratedQuestionPreviewInput, LongTextContent, MultipleChoiceContent, SimpleContent } from '@/client';
 import { QuestionGroupType, QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
+import { cn } from '@/lib/utils';
 
+import { useBlockSelection } from '../hooks/use-block-selection';
 import { useGenerationStore } from '../store/use-generation-store';
 
+import { AiEditPopover } from './ai-edit-popover';
+import { type LongTextQuestionData, LongTextQuestionBlock } from './long-text-question-block';
 import { type MultipleChoiceQuestionData, MultipleChoiceQuestionBlock } from './multiple-choice-question-block';
 import { type QuestionGroupData, QuestionGroupBlock } from './question-group-block';
 import { RefineTestDialog } from './refine-test-dialog';
+import { flattenEditorItems, groupToApiGroup, longTextToApiQuestion, mcToApiQuestion } from './test-editor/converters';
+
+import type { EditorItem } from './test-editor/types';
 
 type PreviewItem =
   | { id: string; kind: 'mc'; data: MultipleChoiceQuestionData }
-  | { id: string; kind: 'group'; data: QuestionGroupData };
+  | { id: string; kind: 'group'; data: QuestionGroupData }
+  | { id: string; kind: 'long_text'; data: LongTextQuestionData };
 
 export function GeneratedTestPreview() {
   const router = useRouter();
@@ -34,9 +42,17 @@ export function GeneratedTestPreview() {
   const clear = useGenerationStore(s => s.clear);
 
   const [items, setItems] = useState<PreviewItem[]>([]);
-  const [accepted, setAccepted] = useState<boolean[]>([]);
   const [testTitle, setTestTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
+  const [columns, setColumns] = useState<1 | 2>(1);
+
+  const { data: noteData } = useQuery({
+    queryKey: ['notes', sourceNoteId],
+    queryFn: () => sdk.notesGet({ path: { note_id: sourceNoteId } }),
+    enabled: !!sourceNoteId,
+  });
+  const noteContent = noteData?.data?.content ?? undefined;
 
   useEffect(() => {
     if (!hasData) {
@@ -45,7 +61,6 @@ export function GeneratedTestPreview() {
     }
     const previewItems = toPreviewItems(initialQuestions);
     setItems(previewItems);
-    setAccepted(previewItems.map(() => true));
     setTestTitle(`Test from ${sourceNoteTitle}`);
   }, [hasData, initialQuestions, sourceNoteTitle, router]);
 
@@ -59,31 +74,6 @@ export function GeneratedTestPreview() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasData, items.length]);
 
-  const acceptedCount = useMemo(() => accepted.filter(Boolean).length, [accepted]);
-  const allAccepted = acceptedCount === items.length;
-
-  const acceptedByType = useMemo(() => {
-    let mc = 0;
-    let simple = 0;
-    items.forEach((item, i) => {
-      if (!accepted[i]) return;
-      if (item.kind === 'mc') mc++;
-      else simple += item.data.rows.length;
-    });
-    return { mc, simple };
-  }, [items, accepted]);
-
-  const toggleAll = useCallback(() => {
-    setAccepted(prev => {
-      const allOn = prev.every(Boolean);
-      return prev.map(() => !allOn);
-    });
-  }, []);
-
-  const toggleAccept = useCallback((index: number) => {
-    setAccepted(prev => prev.map((v, i) => (i === index ? !v : v)));
-  }, []);
-
   const updateMcItem = useCallback((index: number, data: MultipleChoiceQuestionData) => {
     setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'mc' as const, data } : item)));
   }, []);
@@ -92,87 +82,58 @@ export function GeneratedTestPreview() {
     setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'group' as const, data } : item)));
   }, []);
 
-  const removeItem = useCallback((index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index));
-    setAccepted(prev => prev.filter((_, i) => i !== index));
+  const updateLongTextItem = useCallback((index: number, data: LongTextQuestionData) => {
+    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'long_text' as const, data } : item)));
   }, []);
 
-  const handleRefined = useCallback((refined: GeneratedQuestionPreview[]) => {
-    const previewItems = toPreviewItems(refined);
-    setItems(previewItems);
-    setAccepted(previewItems.map(() => true));
-  }, []);
+  const removeItem = useCallback(
+    (index: number) => {
+      setItems(prev => prev.filter((_, i) => i !== index));
+      removeAndReindex(index);
+    },
+    [removeAndReindex]
+  );
+
+  const handleRefined = useCallback(
+    (refined: GeneratedQuestionPreviewInput[]) => {
+      const previewItems = toPreviewItems(refined);
+      setItems(previewItems);
+      clearSelection();
+    },
+    [clearSelection]
+  );
 
   const handleRegenerate = useCallback(() => {
     const previewItems = toPreviewItems(initialQuestions);
     setItems(previewItems);
-    setAccepted(previewItems.map(() => true));
+    clearSelection();
     toast.success('Questions reset to original generation');
-  }, [initialQuestions]);
+  }, [initialQuestions, clearSelection]);
 
-  const currentQuestionsForRefine = useMemo((): GeneratedQuestionPreview[] => {
-    const result: GeneratedQuestionPreview[] = [];
-    items.forEach(item => {
-      if (item.kind === 'mc') {
-        result.push({
-          questionType: QuestionType.MULTIPLE_CHOICE,
-          prompt: item.data.prompt,
-          points: item.data.points,
-          content: {
-            options: item.data.choices.map(c => c.text),
-            correct_indices: item.data.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
-          },
-        });
-      } else {
-        item.data.rows.forEach(row => {
-          result.push({
-            questionType: QuestionType.SIMPLE,
-            prompt: row.prompt,
-            points: item.data.points,
-            content: {
-              answers: row.answers.filter(Boolean),
-            },
-          });
-        });
-      }
-    });
-    return result;
-  }, [items]);
+  const editorItems = useMemo((): EditorItem[] => items.map(i => i.data), [items]);
+
+  const flatEntries = useMemo(() => flattenEditorItems(editorItems), [editorItems]);
+
+  const currentQuestionsForRefine = useMemo(
+    (): GeneratedQuestionPreviewInput[] => flatEntries.map(entry => entry.question),
+    [flatEntries]
+  );
 
   const { mutate: createTest, isPending: isCreating } = useMutation({
     mutationFn: () => {
-      const acceptedItems = items.filter((_, i) => accepted[i]);
+      const standaloneQuestions = editorItems.flatMap((item, idx) => {
+        if (item.type === QuestionType.MULTIPLE_CHOICE) return [mcToApiQuestion(item, idx)];
+        if (item.type === QuestionType.LONG_TEXT) return [longTextToApiQuestion(item, idx)];
+        return [];
+      });
 
-      let orderIndex = 0;
-
-      const standaloneQuestions = acceptedItems
-        .filter((it): it is PreviewItem & { kind: 'mc' } => it.kind === 'mc')
-        .map(it => ({
-          questionType: QuestionType.MULTIPLE_CHOICE,
-          prompt: it.data.prompt,
-          order: orderIndex++,
-          points: it.data.points,
-          content: {
-            options: it.data.choices.map(c => c.text),
-            correct_indices: it.data.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
-          },
-        }));
-
-      const questionGroups = acceptedItems
-        .filter((it): it is PreviewItem & { kind: 'group' } => it.kind === 'group')
-        .map(it => ({
-          order: orderIndex++,
-          title: it.data.title || sourceNoteTitle,
-          points: it.data.points,
-          questions: it.data.rows.map((row, i) => ({
-            questionType: QuestionType.SIMPLE,
-            prompt: row.prompt,
-            order: i,
-            content: {
-              answers: row.answers.filter(Boolean),
-            },
-          })),
-        }));
+      const questionGroups = editorItems.flatMap((item, idx) => {
+        if (item.type !== QuestionType.MULTIPLE_CHOICE && item.type !== QuestionType.LONG_TEXT) {
+          const group = groupToApiGroup(item, idx);
+          return [{ ...group, title: group.title || sourceNoteTitle }];
+        }
+        return [];
+      });
 
       return sdk.testsCreate({
         body: {
@@ -196,6 +157,30 @@ export function GeneratedTestPreview() {
     onError: () => toast.error('Failed to create test'),
   });
 
+  const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
+    mutationFn: (instructions: string) => {
+      const selectedFlatIndices = flatEntries
+        .map((entry, flatIndex) => (selectedIndices.has(entry.blockIndex) ? flatIndex : -1))
+        .filter(flatIndex => flatIndex !== -1);
+
+      return sdk.testsEditQuestions({
+        body: {
+          selectedIndices: selectedFlatIndices,
+          allQuestions: currentQuestionsForRefine,
+          instructions,
+          noteContent,
+        },
+      });
+    },
+    onSuccess: res => {
+      if (!res.data) return;
+      setItems(toPreviewItems(res.data.questions));
+      clearSelection();
+      toast.success('Questions updated');
+    },
+    onError: () => toast.error('Failed to edit questions. Please try again.'),
+  });
+
   if (!hasData) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -204,13 +189,8 @@ export function GeneratedTestPreview() {
     );
   }
 
-  const countParts: string[] = [];
-  if (acceptedByType.mc > 0) countParts.push(`${acceptedByType.mc} MC`);
-  if (acceptedByType.simple > 0) countParts.push(`${acceptedByType.simple} Simple`);
-  const countSummary = countParts.length > 0 ? ` (${countParts.join(', ')})` : '';
-
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3 flex-1">
           <div className="flex items-center gap-2">
@@ -239,19 +219,25 @@ export function GeneratedTestPreview() {
               </>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-muted-foreground">
-              {acceptedCount} of {items.length} accepted{countSummary}
-            </p>
-            <Button variant="ghost" size="sm" onClick={toggleAll} className="text-xs h-6 px-2">
-              {allAccepted ? 'Deselect all' : 'Select all'}
-            </Button>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {items.length} question{items.length === 1 ? '' : 's'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setColumns(c => (c === 1 ? 2 : 1))}
+            tooltip={columns === 1 ? '2-column layout' : '1-column layout'}
+          >
+            {columns === 1 ? <Columns2 className="size-4" /> : <Rows3 className="size-4" />}
+          </Button>
           <Button variant="ghost" size="icon-sm" onClick={handleRegenerate} tooltip="Reset to original generation">
             <RotateCcw className="size-4" />
           </Button>
+          {selectedIndices.size > 0 && (
+            <AiEditPopover selectedCount={selectedIndices.size} isPending={isAiEditing} onSubmit={aiEdit} />
+          )}
           <RefineTestDialog
             noteId={sourceNoteId}
             currentQuestions={currentQuestionsForRefine}
@@ -260,15 +246,18 @@ export function GeneratedTestPreview() {
           <Button
             icon={Check}
             onClick={() => createTest()}
-            disabled={acceptedCount === 0 || !testTitle.trim() || isCreating}
+            disabled={items.length === 0 || !testTitle.trim() || isCreating}
           >
             {isCreating ? 'Creating…' : 'Create Test'}
           </Button>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className={cn('gap-3', columns === 2 ? 'grid grid-cols-2' : 'flex flex-col')}>
         {items.map((item, i) => {
+          const selected = selectedIndices.has(i);
+          const onClick = (e: React.MouseEvent) => toggleSelection(i, e);
+
           if (item.kind === 'mc') {
             return (
               <MultipleChoiceQuestionBlock
@@ -276,8 +265,20 @@ export function GeneratedTestPreview() {
                 data={item.data}
                 onChange={data => updateMcItem(i, data)}
                 onRemove={() => removeItem(i)}
-                accepted={accepted[i]}
-                onToggleAccept={() => toggleAccept(i)}
+                selected={selected}
+                onClick={onClick}
+              />
+            );
+          }
+          if (item.kind === 'long_text') {
+            return (
+              <LongTextQuestionBlock
+                key={item.id}
+                data={item.data}
+                onChange={data => updateLongTextItem(i, data)}
+                onRemove={() => removeItem(i)}
+                selected={selected}
+                onClick={onClick}
               />
             );
           }
@@ -287,8 +288,8 @@ export function GeneratedTestPreview() {
               data={item.data}
               onChange={data => updateGroupItem(i, data)}
               onRemove={() => removeItem(i)}
-              accepted={accepted[i]}
-              onToggleAccept={() => toggleAccept(i)}
+              selected={selected}
+              onClick={onClick}
             />
           );
         })}
@@ -297,10 +298,11 @@ export function GeneratedTestPreview() {
   );
 }
 
-function toPreviewItems(questions: GeneratedQuestionPreview[]): PreviewItem[] {
+function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem[] {
   const items: PreviewItem[] = [];
   const simpleQuestions = questions.filter(q => q.questionType === QuestionType.SIMPLE);
   const mcQuestions = questions.filter(q => q.questionType === QuestionType.MULTIPLE_CHOICE);
+  const longTextQuestions = questions.filter(q => q.questionType === QuestionType.LONG_TEXT);
 
   mcQuestions.forEach(q => {
     const content = q.content as MultipleChoiceContent;
@@ -312,9 +314,28 @@ function toPreviewItems(questions: GeneratedQuestionPreview[]): PreviewItem[] {
         prompt: q.prompt,
         choices: content.options.map((text, i) => ({
           text,
-          isCorrect: content.correct_indices.includes(i),
+          isCorrect: content.correctIndices.includes(i),
         })),
         points: q.points ?? 1,
+      },
+    });
+  });
+
+  longTextQuestions.forEach(q => {
+    const content = q.content as LongTextContent;
+    items.push({
+      id: crypto.randomUUID(),
+      kind: 'long_text',
+      data: {
+        type: QuestionType.LONG_TEXT,
+        prompt: q.prompt,
+        lengthLimit: content.lengthLimit ?? 2,
+        criteria: (content.rubric ?? []).map(r => ({
+          point: r.point,
+          weight: r.weight,
+          category: r.category ?? '',
+        })),
+        points: q.points ?? 2,
       },
     });
   });

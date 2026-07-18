@@ -7,6 +7,7 @@ import type { QuestionType } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
 
@@ -30,9 +31,11 @@ type Props = {
   data: LongTextQuestionData;
   onChange: (data: LongTextQuestionData) => void;
   onRemove: () => void;
+  selected?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 };
 
-export function LongTextQuestionBlock({ data, onChange, onRemove }: Props) {
+export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
   function updateCriterion(idx: number, patch: Partial<Criterion>) {
     const updated = data.criteria.map((c, i) => (i === idx ? { ...c, ...patch } : c));
     onChange({ ...data, criteria: updated });
@@ -55,7 +58,13 @@ export function LongTextQuestionBlock({ data, onChange, onRemove }: Props) {
   );
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div
+      onClick={onClick}
+      className={cn(
+        'cursor-pointer rounded-lg border border-border bg-card p-4',
+        selected && 'bg-accent ring-1 ring-primary'
+      )}
+    >
       {/* Prompt + length tier + delete */}
       <div className="flex items-start gap-2 mb-4">
         <AutoTextarea

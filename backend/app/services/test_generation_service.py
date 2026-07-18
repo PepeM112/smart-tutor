@@ -1,14 +1,16 @@
 import json
 import logging
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import QuestionType
+from app.core.enums import LongTextLength, QuestionType
 from app.models.user import User
-from app.schemas.question import MultipleChoiceContent, SimpleContent
+from app.schemas.question import LongTextContent, MultipleChoiceContent, RubricItem, SimpleContent
 from app.schemas.test_generation import (
     GeneratedQuestionPreview,
+    QuestionEditRequest,
     TestGenerationRequest,
     TestGenerationResponse,
     TestRefinementRequest,
@@ -18,6 +20,7 @@ from app.services.llm import complete
 from app.services.note_service import get_note
 from app.services.test_generation_prompts import (
     TEST_GENERATION_SYSTEM_PROMPT,
+    build_question_edit_user_prompt,
     build_refinement_user_prompt,
     build_retry_user_prompt,
     build_test_generation_user_prompt,
@@ -25,8 +28,19 @@ from app.services.test_generation_prompts import (
 
 logger = logging.getLogger("smarttutor.test_generation")
 
-# TODO: Might truncate 30-question MC tests. Test and bump to 8192 if it happens.
-GENERATION_MAX_TOKENS = 4096
+_BASE_TOKENS_PER_QUESTION = 200
+_LONG_TEXT_EXTRA_TOKENS = 300
+_MIN_GENERATION_TOKENS = 4096
+
+
+def _estimate_max_tokens(
+    question_count: int,
+    question_types: set[QuestionType],
+) -> int:
+    per_q = _BASE_TOKENS_PER_QUESTION
+    if QuestionType.LONG_TEXT in question_types:
+        per_q += _LONG_TEXT_EXTRA_TOKENS
+    return max(_MIN_GENERATION_TOKENS, question_count * per_q)
 
 
 def _validate_generated_questions(
@@ -73,7 +87,7 @@ def _validate_generated_questions(
         try:
             q_type = QuestionType[type_str]
         except (KeyError, ValueError):
-            errors.append(f"{prefix}: invalid type '{type_str}'. Must be SIMPLE or MULTIPLE_CHOICE")
+            errors.append(f"{prefix}: invalid type '{type_str}'. Must be SIMPLE, MULTIPLE_CHOICE or LONG_TEXT")
             continue
 
         if q_type not in requested_types:
@@ -111,7 +125,7 @@ def _validate_generated_questions(
     return questions, errors
 
 
-def _validate_content(q_type: QuestionType, content: dict, prefix: str) -> list[str]:  # type: ignore[type-arg]
+def _validate_content(q_type: QuestionType, content: dict[str, Any], prefix: str) -> list[str]:
     """Validate content dict for a specific question type. Returns list of errors."""
     errors: list[str] = []
 
@@ -142,10 +156,41 @@ def _validate_content(q_type: QuestionType, content: dict, prefix: str) -> list[
                 if invalid_indices:
                     errors.append(f"{prefix}: correctIndices {invalid_indices} out of range (0-{max_idx})")
 
+    elif q_type == QuestionType.LONG_TEXT:
+        length_limit = content.get("lengthLimit")
+        if not isinstance(length_limit, int) or length_limit not in (1, 2, 3):
+            errors.append(f"{prefix}: LONG_TEXT must have 'lengthLimit' of 1, 2, or 3")
+        rubric = content.get("rubric")
+        if not isinstance(rubric, list) or len(rubric) < 2:
+            errors.append(f"{prefix}: LONG_TEXT must have at least 2 rubric items")
+        elif not all(isinstance(r, dict) for r in rubric):
+            errors.append(f"{prefix}: rubric items must be objects")
+        else:
+            snapped_weights: list[float] = []
+            for j, item in enumerate(rubric):
+                point = item.get("point")
+                if not isinstance(point, str) or not point.strip():
+                    errors.append(f"{prefix}: rubric[{j}] must have a non-empty 'point'")
+                weight = item.get("weight")
+                if not isinstance(weight, int | float) or weight <= 0 or weight > 1:
+                    errors.append(f"{prefix}: rubric[{j}] weight must be between 0 and 1")
+                else:
+                    snapped = round(round(float(weight) / 0.05) * 0.05, 2)
+                    if snapped <= 0:
+                        errors.append(f"{prefix}: rubric[{j}] weight {weight} is too small (rounds to 0)")
+                    else:
+                        snapped_weights.append(snapped)
+            if snapped_weights and not errors:
+                total = sum(snapped_weights)
+                if total < 0.95 or total > 1.05:
+                    errors.append(f"{prefix}: rubric weights sum to {total:.2f}, expected ~1.0")
+
     return errors
 
 
-def _parse_content(q_type: QuestionType, content: dict) -> SimpleContent | MultipleChoiceContent | None:  # type: ignore[type-arg]
+def _parse_content(
+    q_type: QuestionType, content: dict[str, Any]
+) -> SimpleContent | MultipleChoiceContent | LongTextContent | None:
     """Parse validated content dict into the appropriate Pydantic model."""
     if q_type == QuestionType.SIMPLE:
         answers = [a.strip() for a in content["answers"]]
@@ -155,6 +200,18 @@ def _parse_content(q_type: QuestionType, content: dict) -> SimpleContent | Multi
         options = [o.strip() for o in content["options"]]
         correct_indices = content["correctIndices"]
         return MultipleChoiceContent(options=options, correct_indices=correct_indices)
+
+    if q_type == QuestionType.LONG_TEXT:
+        length_limit = LongTextLength(content["lengthLimit"])
+        rubric = [
+            RubricItem(
+                point=r["point"].strip(),
+                weight=round(round(float(r["weight"]) / 0.05) * 0.05, 2),
+                category=r.get("category"),
+            )
+            for r in content["rubric"]
+        ]
+        return LongTextContent(length_limit=length_limit, rubric=rubric)
 
     return None
 
@@ -181,15 +238,19 @@ def generate_test_questions(
         guidance=data.guidance,
     )
 
-    questions = _call_and_validate(
+    requested_types = set(data.question_types)
+    result = _call_and_validate(
         user_prompt=user_prompt,
-        requested_types=set(data.question_types),
+        requested_types=requested_types,
+        max_tokens=_estimate_max_tokens(data.question_count, requested_types),
+        expected_count=data.question_count,
     )
 
     return TestGenerationResponse(
-        questions=questions,
+        questions=result.questions,
         source_note_id=note.id,
         source_note_title=note.title,
+        warning=result.warning,
     )
 
 
@@ -218,16 +279,65 @@ def refine_test_questions(
         instructions=data.instructions,
     )
 
-    requested_types = {q.question_type for q in data.current_questions}
-    questions = _call_and_validate(
+    expected = len(data.current_questions)
+    result = _call_and_validate(
         user_prompt=user_prompt,
-        requested_types=requested_types,
+        requested_types=set(QuestionType),
+        max_tokens=_estimate_max_tokens(expected, set(QuestionType)),
+        expected_count=expected,
     )
 
     return TestGenerationResponse(
-        questions=questions,
+        questions=result.questions,
         source_note_id=note.id,
         source_note_title=note.title,
+        warning=result.warning,
+    )
+
+
+def edit_test_questions(
+    db: Session,
+    *,
+    current_user: User,
+    data: QuestionEditRequest,
+) -> TestGenerationResponse:
+    if not data.all_questions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No questions provided",
+        )
+
+    max_index = len(data.all_questions) - 1
+    invalid = [i for i in data.selected_indices if i < 0 or i > max_index]
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Selected indices out of range: {invalid}",
+        )
+
+    all_questions_json = json.dumps(
+        {"questions": [_question_to_ai_dict(q) for q in data.all_questions]},
+        indent=2,
+    )
+
+    user_prompt = build_question_edit_user_prompt(
+        all_questions_json=all_questions_json,
+        selected_indices=data.selected_indices,
+        instructions=data.instructions,
+        note_content=data.note_content,
+    )
+
+    expected = len(data.all_questions)
+    result = _call_and_validate(
+        user_prompt=user_prompt,
+        requested_types=set(QuestionType),
+        max_tokens=_estimate_max_tokens(expected, set(QuestionType)),
+        expected_count=expected,
+    )
+
+    return TestGenerationResponse(
+        questions=result.questions,
+        warning=result.warning,
     )
 
 
@@ -245,6 +355,13 @@ def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:
             "options": q.content.options,
             "correctIndices": q.content.correct_indices,
         }
+    elif q.question_type == QuestionType.LONG_TEXT:
+        if not isinstance(q.content, LongTextContent):
+            raise ValueError(f"Expected LongTextContent for LONG_TEXT question, got {type(q.content).__name__}")
+        content = {
+            "lengthLimit": int(q.content.length_limit),
+            "rubric": [{"point": r.point, "weight": r.weight, "category": r.category} for r in q.content.rubric],
+        }
 
     return {
         "type": q.question_type.name,
@@ -254,13 +371,21 @@ def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:
     }
 
 
+class _GenerationResult:
+    def __init__(self, questions: list[GeneratedQuestionPreview], warning: str | None = None) -> None:
+        self.questions = questions
+        self.warning = warning
+
+
 def _call_and_validate(
     *,
     user_prompt: str,
     requested_types: set[QuestionType],
-) -> list[GeneratedQuestionPreview]:
+    max_tokens: int = _MIN_GENERATION_TOKENS,
+    expected_count: int | None = None,
+) -> _GenerationResult:
     """Call the LLM and validate the response. Retry once on validation failure."""
-    raw = complete(system=TEST_GENERATION_SYSTEM_PROMPT, user=user_prompt, max_tokens=GENERATION_MAX_TOKENS)
+    raw = complete(system=TEST_GENERATION_SYSTEM_PROMPT, user=user_prompt, max_tokens=max_tokens)
     questions, errors = _validate_generated_questions(raw, requested_types)
 
     if errors and questions:
@@ -268,7 +393,7 @@ def _call_and_validate(
     elif errors and not questions:
         logger.warning("First attempt failed validation: %s. Retrying...", errors)
         retry_prompt = build_retry_user_prompt(user_prompt, errors)
-        raw = complete(system=TEST_GENERATION_SYSTEM_PROMPT, user=retry_prompt, max_tokens=GENERATION_MAX_TOKENS)
+        raw = complete(system=TEST_GENERATION_SYSTEM_PROMPT, user=retry_prompt, max_tokens=max_tokens)
         questions, retry_errors = _validate_generated_questions(raw, requested_types)
 
         if retry_errors and not questions:
@@ -278,4 +403,9 @@ def _call_and_validate(
                 detail="AI generated invalid questions after retry. Please try again.",
             )
 
-    return questions
+    warning = None
+    if expected_count and len(questions) < expected_count:
+        warning = f"Requested {expected_count} questions but only {len(questions)} were generated"
+        logger.warning(warning)
+
+    return _GenerationResult(questions=questions, warning=warning)

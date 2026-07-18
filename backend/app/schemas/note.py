@@ -40,3 +40,13 @@ class NoteGenerate(BaseSchema):
 
 class NoteRefine(BaseSchema):
     instructions: str = Field(..., min_length=1, max_length=2000)
+
+
+class NoteChunkEdit(BaseSchema):
+    full_text: str = Field(..., min_length=1)
+    selected_text: str = Field(..., min_length=1)
+    instructions: str = Field(..., min_length=1, max_length=2000)
+
+
+class NoteChunkEditResponse(BaseSchema):
+    edited_text: str

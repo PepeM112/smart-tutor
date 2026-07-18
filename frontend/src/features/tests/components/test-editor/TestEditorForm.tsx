@@ -18,12 +18,20 @@ import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
+import { useBlockSelection } from '../../hooks/use-block-selection';
 import { AddQuestionDropdown } from '../add-question-dropdown';
+import { AiEditPopover } from '../ai-edit-popover';
 import { LongTextQuestionBlock } from '../long-text-question-block';
 import { MultipleChoiceQuestionBlock } from '../multiple-choice-question-block';
 import { QuestionGroupBlock } from '../question-group-block';
 
-import { groupToApiGroup, longTextToApiQuestion, mcToApiQuestion } from './converters';
+import {
+  editorItemsToPreviewInputs,
+  fromPreviewToEditorItems,
+  groupToApiGroup,
+  longTextToApiQuestion,
+  mcToApiQuestion,
+} from './converters';
 import { newLongText, newMultipleChoice, newQuestionGroup } from './helpers';
 
 import type { EditorItem } from './types';
@@ -43,8 +51,9 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [items, setItems] = useState<EditorItem[]>(initialItems);
+  const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
 
-  const { mutate: saveTest, isPending } = useMutation({
+  const { mutate: saveTest, isPending: isSaving } = useMutation({
     mutationFn: () => {
       const standaloneQuestions: QuestionCreate[] = [];
       const questionGroups: TestQuestionGroupCreate[] = [];
@@ -87,6 +96,28 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
   });
 
+  const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
+    mutationFn: (instructions: string) => {
+      const allQuestions = editorItemsToPreviewInputs(items);
+
+      return sdk.testsEditQuestions({
+        body: {
+          selectedIndices: Array.from(selectedIndices),
+          allQuestions,
+          instructions,
+          noteContent: undefined,
+        },
+      });
+    },
+    onSuccess: res => {
+      if (!res.data) return;
+      setItems(fromPreviewToEditorItems(res.data.questions));
+      clearSelection();
+      toast.success('Questions updated');
+    },
+    onError: () => toast.error('Failed to edit questions. Please try again.'),
+  });
+
   function addItem(type: 'group' | 'mc' | 'long') {
     const factories = { group: newQuestionGroup, mc: newMultipleChoice, long: newLongText };
     setItems(prev => [...prev, factories[type]()]);
@@ -98,10 +129,11 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   function removeItem(idx: number) {
     setItems(prev => prev.filter((_, i) => i !== idx));
+    removeAndReindex(idx);
   }
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <div className="space-y-3 mb-6">
         <Input className="w-1/2" placeholder="Test name" value={title} onChange={e => setTitle(e.target.value)} />
         <AutoTextarea
@@ -112,8 +144,17 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
         />
       </div>
 
+      {selectedIndices.size > 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <AiEditPopover selectedCount={selectedIndices.size} isPending={isAiEditing} onSubmit={aiEdit} />
+        </div>
+      )}
+
       <div className="space-y-3 mb-4">
         {items.map((item, i) => {
+          const selected = selectedIndices.has(i);
+          const onClick = (e: React.MouseEvent) => toggleSelection(i, e);
+
           if (item.type === 'group') {
             return (
               <QuestionGroupBlock
@@ -121,6 +162,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                 data={item}
                 onChange={data => updateItem(i, data)}
                 onRemove={() => removeItem(i)}
+                selected={selected}
+                onClick={onClick}
               />
             );
           }
@@ -131,6 +174,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                 data={item}
                 onChange={data => updateItem(i, data)}
                 onRemove={() => removeItem(i)}
+                selected={selected}
+                onClick={onClick}
               />
             );
           }
@@ -140,6 +185,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
               data={item}
               onChange={data => updateItem(i, data)}
               onRemove={() => removeItem(i)}
+              selected={selected}
+              onClick={onClick}
             />
           );
         })}
@@ -148,8 +195,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       <AddQuestionDropdown onSelect={addItem} />
 
       <div className="mt-8">
-        <Button size="lg" disabled={!title.trim() || isPending} onClick={() => saveTest()}>
-          {isPending ? 'Saving…' : 'Save Test'}
+        <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
+          {isSaving ? 'Saving…' : 'Save Test'}
         </Button>
       </div>
     </div>

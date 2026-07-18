@@ -10,7 +10,12 @@ from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.correction import TestSubmission
 from app.schemas.test import TestCreate, TestRead, TestReadStripped, TestUpdate
-from app.schemas.test_generation import TestGenerationRequest, TestGenerationResponse, TestRefinementRequest
+from app.schemas.test_generation import (
+    QuestionEditRequest,
+    TestGenerationRequest,
+    TestGenerationResponse,
+    TestRefinementRequest,
+)
 from app.schemas.test_result import TestResultRead
 from app.services import correction_service, test_generation_service, test_service
 from app.services.grading_service import grade_pending_answers
@@ -46,6 +51,11 @@ def generate(data: TestGenerationRequest, db: DbSession, current_user: CurrentUs
 @router.post("/generate/refine", response_model=TestGenerationResponse)
 def refine(data: TestRefinementRequest, db: DbSession, current_user: CurrentUser) -> TestGenerationResponse:
     return test_generation_service.refine_test_questions(db, current_user=current_user, data=data)
+
+
+@router.post("/generate/edit-questions", response_model=TestGenerationResponse)
+def edit_questions(data: QuestionEditRequest, db: DbSession, current_user: CurrentUser) -> TestGenerationResponse:
+    return test_generation_service.edit_test_questions(db, current_user=current_user, data=data)
 
 
 @router.post("", response_model=TestRead, status_code=status.HTTP_201_CREATED)

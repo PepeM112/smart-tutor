@@ -5,11 +5,13 @@ from app.core.enums import NoteLength, NoteSource
 from app.crud import note as note_crud
 from app.models.note import Note
 from app.models.user import User
-from app.schemas.note import NoteCreate, NoteGenerate, NoteRefine, NoteUpdate
+from app.schemas.note import NoteChunkEdit, NoteChunkEditResponse, NoteCreate, NoteGenerate, NoteRefine, NoteUpdate
 from app.services.llm import complete
 from app.services.note_prompts import (
+    NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
     NOTE_GENERATION_SYSTEM_PROMPT,
     NOTE_REFINEMENT_SYSTEM_PROMPT,
+    build_chunk_edit_user_prompt,
     build_note_generation_user_prompt,
     build_note_refinement_user_prompt,
 )
@@ -112,3 +114,21 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
         note=note,
         data=NoteUpdate(content=refined_content),
     )
+
+
+def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: NoteChunkEdit) -> NoteChunkEditResponse:
+    get_note(db, note_id=note_id, current_user=current_user)
+
+    user_prompt = build_chunk_edit_user_prompt(
+        full_text=data.full_text,
+        selected_text=data.selected_text,
+        instructions=data.instructions,
+    )
+
+    edited_text = complete(
+        system=NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
+        user=user_prompt,
+        max_tokens=_DEFAULT_MAX_TOKENS,
+    )
+
+    return NoteChunkEditResponse(edited_text=edited_text)

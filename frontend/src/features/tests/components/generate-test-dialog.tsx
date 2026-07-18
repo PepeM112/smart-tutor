@@ -52,6 +52,7 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
   const [questionCount, setQuestionCount] = useState(10);
   const [includeSimple, setIncludeSimple] = useState(true);
   const [includeMC, setIncludeMC] = useState(true);
+  const [includeLongText, setIncludeLongText] = useState(false);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [guidance, setGuidance] = useState('');
 
@@ -63,6 +64,7 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
       const questionTypes: QuestionType[] = [];
       if (includeSimple) questionTypes.push(QuestionType.SIMPLE);
       if (includeMC) questionTypes.push(QuestionType.MULTIPLE_CHOICE);
+      if (includeLongText) questionTypes.push(QuestionType.LONG_TEXT);
 
       return sdk.testsGenerate({
         body: {
@@ -84,7 +86,7 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
     onError: () => toast.error('Failed to generate questions. Please try again.'),
   });
 
-  const hasTypeSelected = includeSimple || includeMC;
+  const hasTypeSelected = includeSimple || includeMC || includeLongText;
   const isCountValid = questionCount >= 5 && questionCount <= 30;
   const canGenerate = hasTypeSelected && isCountValid && !isGenerating;
 
@@ -92,6 +94,7 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
     setQuestionCount(10);
     setIncludeSimple(true);
     setIncludeMC(true);
+    setIncludeLongText(false);
     setDifficulty('medium');
     setGuidance('');
   }
@@ -142,6 +145,10 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox checked={includeMC} onCheckedChange={v => setIncludeMC(v === true)} />
                     <span className="text-sm">Multiple Choice</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox checked={includeLongText} onCheckedChange={v => setIncludeLongText(v === true)} />
+                    <span className="text-sm">Long Text (AI-graded essay)</span>
                   </label>
                 </div>
                 {!hasTypeSelected && <p className="text-xs text-destructive">Select at least one question type</p>}

@@ -1,8 +1,10 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useRef } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
@@ -11,31 +13,55 @@ import { clearSessionCookie } from '../utils/session-cookie';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, isLoading, setUser, logout } = useAuthStore();
+  const setUser = useAuthStore(s => s.setUser);
+  const logout = useAuthStore(s => s.logout);
+  const didRedirect = useRef(false);
 
-  useEffect(() => {
-    let ignore = false;
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const res = await sdk.usersMe();
+      // Sync to Zustand so non-query consumers (sidebar, etc.) can read the user
+      setUser(res.data ?? null);
+      return res;
+    },
+    retry: (failureCount, err) => {
+      const status = (err as { status?: number })?.status;
+      if (status === 401 || status === 403) return false;
+      return failureCount < 2;
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+  });
 
-    sdk
-      .usersMe()
-      .then(res => {
-        if (!ignore) setUser(res.data ?? null);
-      })
-      .catch((err: unknown) => {
-        if (ignore) return;
+  const user = data?.data ?? null;
 
-        const status = (err as { status?: number })?.status;
-        if (status === 401 || status === 403) {
-          logout();
-          clearSessionCookie();
-          router.replace(Routes.LOGIN);
-        }
-      });
+  // Handle auth errors — redirect to login on 401/403
+  if (isError && !didRedirect.current) {
+    const status = (error as { status?: number })?.status;
+    if (status === 401 || status === 403) {
+      didRedirect.current = true;
+      logout();
+      clearSessionCookie();
+      router.replace(Routes.LOGIN);
+      return null;
+    }
 
-    return () => {
-      ignore = true;
-    };
-  }, [setUser, logout, router]);
+    // Non-auth error (network blip, 500) — trust cached user if available
+    const cachedUser = useAuthStore.getState().user;
+    if (cachedUser) {
+      return <>{children}</>;
+    }
+
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Could not connect to the server.</p>
+          <Button onClick={() => window.location.reload()}>Try again</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !user) return null;
 

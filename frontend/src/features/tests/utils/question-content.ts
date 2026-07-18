@@ -12,7 +12,7 @@ export function isMCContent(content: unknown): content is MultipleChoiceContent 
     typeof content === 'object' &&
     'options' in content &&
     Array.isArray(content.options) &&
-    'correct_indices' in content &&
-    Array.isArray(content.correct_indices)
+    'correctIndices' in content &&
+    Array.isArray(content.correctIndices)
   );
 }
