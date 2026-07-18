@@ -338,8 +338,8 @@ export default function SandboxPage() {
 
 function SandboxBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden">
-      <div className="px-5 py-3 border-b border-foreground/10">
+    <div className="rounded-xl ring-1 ring-primary/90 bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-primary/90">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
       <div className="p-5">{children}</div>

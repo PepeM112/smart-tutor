@@ -134,14 +134,19 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   return (
     <div>
-      <div className="space-y-3 mb-6">
-        <Input className="w-1/2" placeholder="Test name" value={title} onChange={e => setTitle(e.target.value)} />
-        <AutoTextarea
-          rows={2}
-          placeholder="Description (optional)"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-        />
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div className="space-y-3 flex-1">
+          <Input className="w-1/2" placeholder="Test name" value={title} onChange={e => setTitle(e.target.value)} />
+          <AutoTextarea
+            rows={2}
+            placeholder="Description (optional)"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+          />
+        </div>
+        <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
+          {isSaving ? 'Saving…' : 'Save Test'}
+        </Button>
       </div>
 
       {selectedIndices.size > 0 && (
@@ -193,12 +198,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       </div>
 
       <AddQuestionDropdown onSelect={addItem} />
-
-      <div className="mt-8">
-        <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-          {isSaving ? 'Saving…' : 'Save Test'}
-        </Button>
-      </div>
     </div>
   );
 }

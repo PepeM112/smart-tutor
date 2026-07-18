@@ -1,8 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Check, Pencil, Save, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
@@ -58,6 +58,23 @@ function NoteForm({ note }: { note: NoteRead }) {
   const [tags, setTags] = useState<string[]>(note.tags ?? []);
   const [isDirty, setIsDirty] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
+  const headerSnapshot = useRef({ title: '', description: '', tags: [] as string[] });
+
+  function startEditingHeader() {
+    headerSnapshot.current = { title, description, tags: [...tags] };
+    setIsEditingHeader(true);
+  }
+
+  function confirmHeader() {
+    setIsEditingHeader(false);
+  }
+
+  function cancelHeader() {
+    setTitle(headerSnapshot.current.title);
+    setDescription(headerSnapshot.current.description);
+    setTags(headerSnapshot.current.tags);
+    setIsEditingHeader(false);
+  }
 
   useEffect(() => {
     if (!isDirty) return;
@@ -89,38 +106,30 @@ function NoteForm({ note }: { note: NoteRead }) {
       <div className="space-y-3 pb-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-3 flex-1">
-            <div className="flex items-center gap-2">
-              {isEditingHeader ? (
-                <Input
-                  value={title}
-                  onChange={e => {
-                    setTitle(e.target.value);
-                    markDirty();
-                  }}
-                  onBlur={() => setIsEditingHeader(false)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') setIsEditingHeader(false);
-                  }}
-                  className="w-80 text-lg font-semibold"
-                  placeholder="Note title"
-                  autoFocus
-                />
-              ) : (
-                <>
-                  <h1 className="text-lg font-semibold text-foreground">{title || 'Untitled'}</h1>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setIsEditingHeader(true)}
-                    className="text-muted-foreground"
-                  >
-                    <Pencil className="size-3.5" />
+            {isEditingHeader ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={title}
+                    onChange={e => {
+                      setTitle(e.target.value);
+                      markDirty();
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') confirmHeader();
+                      if (e.key === 'Escape') cancelHeader();
+                    }}
+                    className="w-80 text-lg font-semibold"
+                    placeholder="Note title"
+                    autoFocus
+                  />
+                  <Button variant="secondary" size="icon" onClick={confirmHeader}>
+                    <Check className="size-4" />
                   </Button>
-                </>
-              )}
-            </div>
-            {isEditingHeader && (
-              <>
+                  <Button variant="secondary" size="icon" onClick={cancelHeader} className="text-muted-foreground">
+                    <X className="size-4" />
+                  </Button>
+                </div>
                 <AutoTextarea
                   rows={2}
                   value={description}
@@ -137,7 +146,14 @@ function NoteForm({ note }: { note: NoteRead }) {
                     markDirty();
                   }}
                 />
-              </>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-semibold text-foreground">{title || 'Untitled'}</h1>
+                <Button variant="ghost" size="icon-sm" onClick={startEditingHeader} className="text-muted-foreground">
+                  <Pencil className="size-3.5" />
+                </Button>
+              </div>
             )}
             {!isEditingHeader && (
               <>

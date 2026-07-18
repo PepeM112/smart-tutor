@@ -102,7 +102,7 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
   return (
     <Dialog open={open} onOpenChange={isGenerating ? undefined : setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" icon={Sparkles}>
+        <Button variant="outline" size="lg" icon={Sparkles}>
           Generate Test
         </Button>
       </DialogTrigger>

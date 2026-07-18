@@ -61,7 +61,7 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
   return (
     <Dialog open={open} onOpenChange={isRefining ? undefined : setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" icon={WandSparkles}>
+        <Button variant="outline" size="lg" icon={WandSparkles}>
           Refine with AI
         </Button>
       </DialogTrigger>

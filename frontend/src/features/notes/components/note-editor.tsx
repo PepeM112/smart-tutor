@@ -204,7 +204,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     <div ref={containerRef} className="flex h-full gap-0">
       {/* Main pane: MarkdownRendererV2 (view/edit toggle built in) */}
       <div
-        className="min-w-0 overflow-hidden rounded-lg border border-border bg-card"
+        className="min-w-0 overflow-hidden rounded-xl border border-primary/90 bg-card"
         style={{ flex: hasDiffPanel ? splitRatio : 1 }}
       >
         <MarkdownRendererV2 content={content} onChange={onChange} onViewContainerChange={handleViewContainerChange} />
