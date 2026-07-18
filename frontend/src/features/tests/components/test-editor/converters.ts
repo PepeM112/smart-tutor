@@ -29,7 +29,7 @@ export function mcToApiQuestion(q: MultipleChoiceQuestionData, order: number): Q
     points: q.points,
     content: {
       options: q.choices.map(c => c.text),
-      correct_indices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
+      correctIndices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
     },
   };
 }
@@ -41,7 +41,7 @@ export function longTextToApiQuestion(q: LongTextQuestionData, order: number): Q
     order,
     points: q.points,
     content: {
-      length_limit: q.lengthLimit,
+      lengthLimit: q.lengthLimit,
       rubric: q.criteria.map(c => ({
         point: c.point,
         weight: c.weight,
@@ -73,24 +73,24 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
 /* ------------------------------------------------------------------ */
 
 function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
-  const content = q.content as { options: string[]; correct_indices: number[] };
+  const content = q.content as { options: string[]; correctIndices: number[] };
   return {
     type: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
     choices: (content.options ?? []).map((text, i) => ({
       text,
-      isCorrect: (content.correct_indices ?? []).includes(i),
+      isCorrect: (content.correctIndices ?? []).includes(i),
     })) as Choice[],
     points: q.points ?? 1,
   };
 }
 
 function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
-  const content = q.content as { length_limit: number; rubric: { point: string; weight: number; category?: string }[] };
+  const content = q.content as { lengthLimit: number; rubric: { point: string; weight: number; category?: string }[] };
   return {
     type: QuestionType.LONG_TEXT,
     prompt: q.prompt,
-    lengthLimit: content.length_limit ?? 2,
+    lengthLimit: content.lengthLimit ?? 2,
     criteria: (content.rubric ?? []).map(r => ({
       point: r.point,
       weight: r.weight,
@@ -173,7 +173,7 @@ function mcToPreviewInput(q: MultipleChoiceQuestionData): GeneratedQuestionPrevi
     points: q.points,
     content: {
       options: q.choices.map(c => c.text),
-      correct_indices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
+      correctIndices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
     },
   };
 }
@@ -184,7 +184,7 @@ function longTextToPreviewInput(q: LongTextQuestionData): GeneratedQuestionPrevi
     prompt: q.prompt,
     points: q.points,
     content: {
-      length_limit: q.lengthLimit,
+      lengthLimit: q.lengthLimit,
       rubric: q.criteria.map(c => ({
         point: c.point,
         weight: c.weight,
@@ -249,7 +249,7 @@ export function fromPreviewToEditorItems(questions: GeneratedQuestionPreviewOutp
         prompt: q.prompt,
         choices: content.options.map((text, i) => ({
           text,
-          isCorrect: content.correct_indices.includes(i),
+          isCorrect: content.correctIndices.includes(i),
         })) as Choice[],
         points: q.points ?? 1,
       });
@@ -262,7 +262,7 @@ export function fromPreviewToEditorItems(questions: GeneratedQuestionPreviewOutp
       items.push({
         type: QuestionType.LONG_TEXT,
         prompt: q.prompt,
-        lengthLimit: content.length_limit,
+        lengthLimit: content.lengthLimit,
         criteria: content.rubric.map(r => ({
           point: r.point,
           weight: r.weight,

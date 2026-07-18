@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 
 from app.core.enums import LongTextLength, QuestionType
 from app.schemas.base import BaseSchema
@@ -6,22 +6,22 @@ from app.schemas.base import BaseSchema
 # --- Content sub-models ---
 
 
-class RubricItem(BaseModel):
+class RubricItem(BaseSchema):
     point: str = Field(..., description="The concept or fact the user must mention")
     weight: float = Field(..., ge=0.0, le=1.0, description="Score contribution (0.0 to 1.0)")
     category: str | None = Field(default=None, description="Optional grouping label (e.g. 'Key Events')")
 
 
-class SimpleContent(BaseModel):
+class SimpleContent(BaseSchema):
     answers: list[str]
 
 
-class MultipleChoiceContent(BaseModel):
+class MultipleChoiceContent(BaseSchema):
     options: list[str] = Field(..., min_length=2, max_length=6)
     correct_indices: list[int]
 
 
-class LongTextContent(BaseModel):
+class LongTextContent(BaseSchema):
     length_limit: LongTextLength
     rubric: list[RubricItem] = Field(..., min_length=1)
 
@@ -44,16 +44,16 @@ QuestionContent = SimpleContent | MultipleChoiceContent | LongTextContent
 # --- Stripped content (answer fields optional, used when answers are hidden) ---
 
 
-class SimpleContentStripped(BaseModel):
+class SimpleContentStripped(BaseSchema):
     answers: list[str] | None = None
 
 
-class MultipleChoiceContentStripped(BaseModel):
+class MultipleChoiceContentStripped(BaseSchema):
     options: list[str] = Field(..., min_length=2, max_length=6)
     correct_indices: list[int] | None = None
 
 
-class LongTextContentStripped(BaseModel):
+class LongTextContentStripped(BaseSchema):
     length_limit: LongTextLength
     rubric: list[RubricItem] | None = None
 

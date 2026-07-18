@@ -63,8 +63,8 @@ export function getCorrectAnswer(question: QuestionRead): string {
     return content.answers.join(', ');
   }
   if (question.questionType === QuestionType.MULTIPLE_CHOICE && isMCContent(content)) {
-    return content.correct_indices
-      .map(i => content.options[i])
+    return content.correctIndices
+      .map((i: number) => content.options[i])
       .filter(Boolean)
       .join(', ');
   }

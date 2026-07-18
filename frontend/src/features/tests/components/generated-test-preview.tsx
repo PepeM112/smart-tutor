@@ -135,7 +135,7 @@ export function GeneratedTestPreview() {
             points: item.data.points,
             content: {
               options: item.data.choices.map(c => c.text),
-              correct_indices: item.data.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
+              correctIndices: item.data.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
             },
           },
         });
@@ -147,7 +147,7 @@ export function GeneratedTestPreview() {
             prompt: item.data.prompt,
             points: item.data.points,
             content: {
-              length_limit: item.data.lengthLimit,
+              lengthLimit: item.data.lengthLimit,
               rubric: item.data.criteria.map(c => ({
                 point: c.point,
                 weight: c.weight,
@@ -193,7 +193,7 @@ export function GeneratedTestPreview() {
           points: it.data.points,
           content: {
             options: it.data.choices.map(c => c.text),
-            correct_indices: it.data.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
+            correctIndices: it.data.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
           },
         }));
 
@@ -205,7 +205,7 @@ export function GeneratedTestPreview() {
           order: orderIndex++,
           points: it.data.points,
           content: {
-            length_limit: it.data.lengthLimit,
+            lengthLimit: it.data.lengthLimit,
             rubric: it.data.criteria.map(c => ({
               point: c.point,
               weight: c.weight,
@@ -409,7 +409,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
         prompt: q.prompt,
         choices: content.options.map((text, i) => ({
           text,
-          isCorrect: content.correct_indices.includes(i),
+          isCorrect: content.correctIndices.includes(i),
         })),
         points: q.points ?? 1,
       },
@@ -424,7 +424,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
       data: {
         type: QuestionType.LONG_TEXT,
         prompt: q.prompt,
-        lengthLimit: content.length_limit ?? 2,
+        lengthLimit: content.lengthLimit ?? 2,
         criteria: (content.rubric ?? []).map(r => ({
           point: r.point,
           weight: r.weight,

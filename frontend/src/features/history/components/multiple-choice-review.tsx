@@ -12,7 +12,7 @@ export function MultipleChoiceReview({ question, userAnswer }: { question: Quest
   const { content } = question;
   if (!isMCContent(content)) return null;
 
-  const correctIndices = new Set(content.correct_indices);
+  const correctIndices = new Set(content.correctIndices);
   const selectedIndices = new Set(parseSelectedIndices(userAnswer));
 
   return (
