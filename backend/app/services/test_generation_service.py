@@ -183,7 +183,7 @@ def _parse_content(
         rubric = [
             RubricItem(
                 point=r["point"].strip(),
-                weight=float(r["weight"]),
+                weight=round(round(float(r["weight"]) / 0.05) * 0.05, 2),
                 category=r.get("category"),
             )
             for r in content["rubric"]

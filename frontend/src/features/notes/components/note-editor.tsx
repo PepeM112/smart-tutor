@@ -2,7 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { WandSparkles, X } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,10 @@ import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { useTextHighlight } from '@/hooks/use-text-highlight';
 import { sdk } from '@/lib/api-client';
 
+import { getMarkdownRangeFromSelection } from '../utils/markdown-selection';
+
 import { MarkdownRenderer } from './markdown-renderer';
+import { MarkdownRendererV2, type MarkdownRendererV2Handle } from './markdown-renderer-v2';
 
 type Props = {
   content: string;
@@ -23,78 +26,120 @@ type Props = {
 const SPLIT_KEY = 'note-editor-split-ratio';
 const DEFAULT_RATIO = 0.5;
 
-const WRAP_CHARS: Record<string, string> = { '*': '*', '`': '`', '~': '~~' };
-
-type SelectionTrigger = { text: string; top: number; left: number };
-type DiffState = { selectedText: string; editedText: string };
-
-const MOCK_DIFF: DiffState = {
-  selectedText:
-    'Romanesque architecture emerged in the 6th century and flourished from approximately 1000 to 1150 CE across Europe. It represents a significant transition from the classical traditions of Rome and Early Christian styles toward the later Gothic period. The term "Romanesque" was coined in the 19th century by French historian Charles de Caumont to describe the architecture\'s derivation from Roman building traditions, though it evolved distinctly beyond its origins.',
-  editedText:
-    "Romanesque architecture emerged in the 6th century and flourished from approximately 1000 to 1150 CE across Europe, becoming one of the most influential architectural movements of the medieval period. It represents a significant transition from the classical traditions of Rome and Early Christian styles toward the later Gothic period, serving as a crucial bridge between antiquity and the High Middle Ages. The term \"Romanesque\" was coined in the 19th century by French historian Charles de Caumont to describe the architecture's derivation from Roman building traditions, though it evolved distinctly beyond its origins into a unique aesthetic that reflected the political, religious, and social conditions of medieval Europe. This period witnessed the construction of some of Europe's most iconic structures, from vast cathedrals to fortified abbey churches, each showcasing regional variations while sharing common structural and decorative principles. The style's enduring legacy extends beyond its own era, influencing subsequent architectural movements and continuing to define the medieval landscape of Europe today.",
+type SelectionTrigger = {
+  plainText: string;
+  markdown: string;
+  top: number;
+  left: number;
 };
 
-// Change to [] to disable mock
-const INITIAL_DIFFS: DiffState[] = [MOCK_DIFF];
+type DiffState = {
+  selectedText: string;
+  originalMarkdown: string;
+  editedText: string;
+};
 
 export function NoteEditor({ content, onChange, noteId }: Props) {
+  const rendererRef = useRef<MarkdownRendererV2Handle>(null);
+  const viewContainerRef = useRef<HTMLDivElement | null>(null);
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(SPLIT_KEY, DEFAULT_RATIO);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const pendingSelection = useRef<{ start: number; end: number } | null>(null);
 
   const [selectionTrigger, setSelectionTrigger] = useState<SelectionTrigger | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
-  const [diffs, setDiffs] = useState<DiffState[]>(INITIAL_DIFFS);
-  const [activeDiffIndex, setActiveDiffIndex] = useState<number | null>(INITIAL_DIFFS.length > 0 ? 0 : null);
+  const [diffs, setDiffs] = useState<DiffState[]>([]);
+  const [activeDiffIndex, setActiveDiffIndex] = useState<number | null>(null);
 
   const popoverOpenRef = useRef(popoverOpen);
-
   useEffect(() => {
     popoverOpenRef.current = popoverOpen;
   }, [popoverOpen]);
 
+  // Keep viewContainerRef in sync with the renderer's internal ref
+  useEffect(() => {
+    const check = () => {
+      const container = rendererRef.current?.viewContainer ?? null;
+      if (container !== viewContainerRef.current) {
+        viewContainerRef.current = container;
+      }
+    };
+    check();
+    const id = setInterval(check, 200);
+    return () => clearInterval(id);
+  }, []);
+
   const highlightTexts = useMemo(() => diffs.map(d => d.selectedText), [diffs]);
   const handleHighlightClick = useCallback((index: number) => setActiveDiffIndex(index), []);
-  useTextHighlight(previewRef, highlightTexts, activeDiffIndex, handleHighlightClick);
+  useTextHighlight(viewContainerRef, highlightTexts, activeDiffIndex, handleHighlightClick);
 
   const activeDiff = activeDiffIndex !== null ? diffs[activeDiffIndex] : null;
+  const hasDiffPanel = activeDiff !== null;
 
-  useLayoutEffect(() => {
-    if (pendingSelection.current && textareaRef.current) {
-      textareaRef.current.selectionStart = pendingSelection.current.start;
-      textareaRef.current.selectionEnd = pendingSelection.current.end;
-      pendingSelection.current = null;
-    }
-  });
+  // ── Selection detection ─────────────────────────────────────────
 
   useEffect(() => {
     if (!noteId) return;
 
-    function handleSelectionChange() {
+    function commitSelection() {
       if (popoverOpenRef.current) return;
 
+      const container = rendererRef.current?.viewContainer;
+      if (!container) return;
+
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.anchorNode || !previewRef.current?.contains(sel.anchorNode)) {
+      if (!sel || sel.isCollapsed || !sel.anchorNode || !container.contains(sel.anchorNode)) {
         setSelectionTrigger(null);
         return;
       }
 
-      const text = sel.toString().trim();
-      if (!text) {
+      const plainText = sel.toString().trim();
+      if (!plainText) {
         setSelectionTrigger(null);
         return;
       }
 
-      const rect = sel.getRangeAt(0).getBoundingClientRect();
-      setSelectionTrigger({ text, top: rect.bottom, left: rect.right });
+      const range = getMarkdownRangeFromSelection(container, content);
+      if (!range) {
+        setSelectionTrigger(null);
+        return;
+      }
+
+      const rects = sel.getRangeAt(0).getClientRects();
+      const lastRect = rects[rects.length - 1];
+      if (!lastRect) return;
+      setSelectionTrigger({
+        plainText,
+        markdown: range.markdown,
+        top: lastRect.top + lastRect.height / 2,
+        left: lastRect.right,
+      });
     }
 
+    function handleMouseUp() {
+      requestAnimationFrame(commitSelection);
+    }
+
+    function handleKeyUp(e: KeyboardEvent) {
+      if (e.key === 'Shift') commitSelection();
+    }
+
+    function handleSelectionChange() {
+      if (popoverOpenRef.current) return;
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) setSelectionTrigger(null);
+    }
+
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keyup', handleKeyUp);
     document.addEventListener('selectionchange', handleSelectionChange);
-    return () => document.removeEventListener('selectionchange', handleSelectionChange);
-  }, [noteId]);
+    return () => {
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keyup', handleKeyUp);
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [noteId, content]);
+
+  // ── Handlers ────────────────────────────────────────────────────
 
   function handleOpenChange(open: boolean) {
     setPopoverOpen(open);
@@ -114,13 +159,24 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       if (!noteId || !selectionTrigger) return null;
       const res = await sdk.notesEditChunk({
         path: { note_id: noteId },
-        body: { fullText: content, selectedText: selectionTrigger.text, instructions },
+        body: {
+          fullText: content,
+          selectedText: selectionTrigger.markdown,
+          instructions,
+        },
       });
       return res.data;
     },
     onSuccess: data => {
       if (!data || !selectionTrigger) return;
-      setDiffs(prev => [...prev, { selectedText: selectionTrigger.text, editedText: data.editedText }]);
+      setDiffs(prev => [
+        ...prev,
+        {
+          selectedText: selectionTrigger.plainText,
+          originalMarkdown: selectionTrigger.markdown,
+          editedText: data.editedText,
+        },
+      ]);
       setPopoverOpen(false);
       setSelectionTrigger(null);
       setInstructions('');
@@ -130,70 +186,52 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
 
   function handleAcceptDiff() {
     if (activeDiffIndex === null || !activeDiff) return;
-    const idx = content.indexOf(activeDiff.selectedText);
+    const idx = content.indexOf(activeDiff.originalMarkdown);
     if (idx === -1) {
       toast.error('Could not locate the original text — it may have changed.');
       removeDiff(activeDiffIndex);
       return;
     }
-    onChange(content.slice(0, idx) + activeDiff.editedText + content.slice(idx + activeDiff.selectedText.length));
+    onChange(
+      content.slice(0, idx) + activeDiff.editedText + content.slice(idx + activeDiff.originalMarkdown.length),
+    );
     removeDiff(activeDiffIndex);
   }
 
-  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    const { selectionStart, selectionEnd, value } = e.currentTarget;
-
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const spaces = '    ';
-      onChange(value.slice(0, selectionStart) + spaces + value.slice(selectionEnd));
-      pendingSelection.current = {
-        start: selectionStart + spaces.length,
-        end: selectionStart + spaces.length,
-      };
-      return;
-    }
-
-    const wrap = WRAP_CHARS[e.key];
-    if (wrap && selectionStart !== selectionEnd) {
-      e.preventDefault();
-      const selected = value.slice(selectionStart, selectionEnd);
-      onChange(value.slice(0, selectionStart) + wrap + selected + wrap + value.slice(selectionEnd));
-      pendingSelection.current = {
-        start: selectionStart + wrap.length,
-        end: selectionEnd + wrap.length,
-      };
-    }
-  }
+  // ── Render ──────────────────────────────────────────────────────
 
   return (
     <div ref={containerRef} className="flex h-full gap-0">
-      {/* Preview panel */}
+      {/* Main pane: MarkdownRendererV2 (view/edit toggle built in) */}
       <div
-        ref={previewRef}
-        className="min-w-0 overflow-y-auto scrollbar-none rounded-lg border border-border bg-card p-6"
-        style={{ flex: splitRatio }}
+        className="min-w-0 overflow-hidden rounded-lg border border-border bg-card"
+        style={{ flex: hasDiffPanel ? splitRatio : 1 }}
       >
-        {content ? (
-          <MarkdownRenderer content={content} />
-        ) : (
-          <p className="text-sm text-muted-foreground/50 italic">Preview will appear here...</p>
-        )}
+        <MarkdownRendererV2
+          ref={rendererRef}
+          content={content}
+          onChange={onChange}
+        />
       </div>
 
-      {/* Divider */}
-      <div
-        className="shrink-0 relative flex items-center justify-center w-5 mx-2 cursor-col-resize"
-        onMouseDown={handleDividerMouseDown}
-        onDoubleClick={resetRatio}
-      >
-        <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-        <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
-      </div>
+      {/* Divider — only when diff panel is open */}
+      {hasDiffPanel && (
+        <div
+          className="shrink-0 relative flex items-center justify-center w-5 mx-2 cursor-col-resize"
+          onMouseDown={handleDividerMouseDown}
+          onDoubleClick={resetRatio}
+        >
+          <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
+          <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
+        </div>
+      )}
 
-      {/* Editor panel / diff review panel */}
-      <div className="min-w-0 overflow-hidden rounded-lg border border-border" style={{ flex: 1 - splitRatio }}>
-        {activeDiff ? (
+      {/* Diff review panel — only when a diff is active */}
+      {hasDiffPanel && (
+        <div
+          className="min-w-0 overflow-hidden rounded-lg border border-border"
+          style={{ flex: 1 - splitRatio }}
+        >
           <div className="flex h-full flex-col bg-card p-4">
             <div className="flex items-center justify-between mb-3 shrink-0">
               <h3 className="text-sm font-semibold text-foreground">Changes</h3>
@@ -209,7 +247,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
 
             <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">Old</p>
             <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
-              <MarkdownRenderer content={activeDiff.selectedText} />
+              <MarkdownRenderer content={activeDiff.originalMarkdown} />
             </div>
 
             <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">New</p>
@@ -218,7 +256,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
             </div>
 
             <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => removeDiff(activeDiffIndex!)}>
+              <Button variant="outline" size="sm" onClick={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}>
                 Cancel
               </Button>
               <Button size="sm" onClick={handleAcceptDiff}>
@@ -226,25 +264,15 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
               </Button>
             </div>
           </div>
-        ) : (
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={e => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Start writing in Markdown..."
-            className="w-full h-full resize-none scrollbar-none bg-transparent p-6 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-            spellCheck={false}
-          />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Floating AI edit trigger */}
       {selectionTrigger && (
-        <div style={{ position: 'fixed', top: selectionTrigger.top + 8, left: selectionTrigger.left, zIndex: 50 }}>
+        <div style={{ position: 'fixed', top: selectionTrigger.top, left: selectionTrigger.left + 6, zIndex: 50, transform: 'translateY(-50%)' }}>
           <FloatingCard open={popoverOpen} onOpenChange={handleOpenChange}>
             <FloatingCardTrigger asChild>
-              <Button size="icon-sm" icon={WandSparkles} tooltip="Edit with AI" />
+              <Button size="icon" icon={WandSparkles} tooltip="Edit with AI" />
             </FloatingCardTrigger>
             <FloatingCardContent align="start" className="w-72 space-y-3">
               <Textarea

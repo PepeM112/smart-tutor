@@ -1,9 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Pencil, RotateCcw } from 'lucide-react';
+import { Check, Columns2, Pencil, Rows3, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { GeneratedQuestionPreviewInput, LongTextContent, MultipleChoiceContent, SimpleContent } from '@/client';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
+import { cn } from '@/lib/utils';
 
 import { useGenerationStore } from '../store/use-generation-store';
 
@@ -40,7 +41,7 @@ export function GeneratedTestPreview() {
   const [testTitle, setTestTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
-  const lastSelectedRef = useRef<number | null>(null);
+  const [columns, setColumns] = useState<1 | 2>(1);
 
   const { data: noteData } = useQuery({
     queryKey: ['notes', sourceNoteId],
@@ -70,23 +71,15 @@ export function GeneratedTestPreview() {
   }, [hasData, items.length]);
 
   function handleBlockClick(index: number, e: React.MouseEvent) {
-    // Don't select when clicking on inputs/buttons/textareas inside the block
     const target = e.target as HTMLElement;
     if (target.closest('input, textarea, button, select, [role="checkbox"], [data-slot="switch"]')) return;
 
     setSelectedIndices(prev => {
       const next = new Set(prev);
-      if (e.shiftKey && lastSelectedRef.current !== null) {
-        const start = Math.min(lastSelectedRef.current, index);
-        const end = Math.max(lastSelectedRef.current, index);
-        for (let i = start; i <= end; i++) next.add(i);
-      } else {
-        if (next.has(index)) next.delete(index);
-        else next.add(index);
-      }
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
-    lastSelectedRef.current = index;
   }
 
   const updateMcItem = useCallback((index: number, data: MultipleChoiceQuestionData) => {
@@ -292,7 +285,7 @@ export function GeneratedTestPreview() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3 flex-1">
           <div className="flex items-center gap-2">
@@ -326,6 +319,14 @@ export function GeneratedTestPreview() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setColumns(c => (c === 1 ? 2 : 1))}
+            tooltip={columns === 1 ? '2-column layout' : '1-column layout'}
+          >
+            {columns === 1 ? <Columns2 className="size-4" /> : <Rows3 className="size-4" />}
+          </Button>
           <Button variant="ghost" size="icon-sm" onClick={handleRegenerate} tooltip="Reset to original generation">
             <RotateCcw className="size-4" />
           </Button>
@@ -347,7 +348,7 @@ export function GeneratedTestPreview() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className={cn('gap-3', columns === 2 ? 'grid grid-cols-2' : 'flex flex-col')}>
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
           const onClick = (e: React.MouseEvent) => handleBlockClick(i, e);

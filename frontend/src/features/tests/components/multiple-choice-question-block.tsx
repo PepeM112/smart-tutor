@@ -56,7 +56,10 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
   return (
     <div
       onClick={onClick}
-      className={cn('cursor-pointer rounded-lg border border-border bg-card p-4', selected && 'ring-2 ring-primary')}
+      className={cn(
+        'cursor-pointer rounded-lg border border-border bg-card p-4',
+        selected && 'bg-accent ring-1 ring-primary'
+      )}
     >
       <div className="flex items-start gap-2 mb-4">
         <AutoTextarea

@@ -37,6 +37,7 @@ mark[data-ai-highlight] {
   line-height: inherit;
   padding: 3px 5px;
   margin: 0 -5px;
+  text-align: justify;
 }
 mark[data-ai-highlight][data-hover],
 mark[data-ai-highlight][data-active] {

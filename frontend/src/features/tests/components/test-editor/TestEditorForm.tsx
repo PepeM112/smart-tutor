@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -51,7 +51,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [description, setDescription] = useState(initialDescription);
   const [items, setItems] = useState<EditorItem[]>(initialItems);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
-  const lastSelectedRef = useRef<number | null>(null);
 
   const { mutate: saveTest, isPending } = useMutation({
     mutationFn: () => {
@@ -140,27 +139,19 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   }
 
   function handleBlockClick(index: number, e: React.MouseEvent) {
-    // Don't select when clicking on inputs/buttons/textareas inside the block
     const target = e.target as HTMLElement;
     if (target.closest('input, textarea, button, select, [role="checkbox"], [data-slot="switch"]')) return;
 
     setSelectedIndices(prev => {
       const next = new Set(prev);
-      if (e.shiftKey && lastSelectedRef.current !== null) {
-        const start = Math.min(lastSelectedRef.current, index);
-        const end = Math.max(lastSelectedRef.current, index);
-        for (let i = start; i <= end; i++) next.add(i);
-      } else {
-        if (next.has(index)) next.delete(index);
-        else next.add(index);
-      }
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
-    lastSelectedRef.current = index;
   }
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <div className="space-y-3 mb-6">
         <Input className="w-1/2" placeholder="Test name" value={title} onChange={e => setTitle(e.target.value)} />
         <AutoTextarea

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, Pencil, Save } from 'lucide-react';
+import { Pencil, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -11,9 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GenerateTestDialog } from '@/features/tests/components/generate-test-dialog';
 import { sdk } from '@/lib/api-client';
-import { cn } from '@/lib/utils';
 
-import { MarkdownRenderer } from './markdown-renderer';
 import { NoteEditor } from './note-editor';
 import { RefineNoteDialog } from './refine-note-dialog';
 import { TagInput } from './tag-input';
@@ -53,8 +51,7 @@ export function NotePage({ noteId }: Props) {
 
 function NoteForm({ note }: { note: NoteRead }) {
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(true);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [title, setTitle] = useState(note.title);
   const [description, setDescription] = useState(note.description ?? '');
   const [content, setContent] = useState(note.content ?? '');
@@ -92,16 +89,16 @@ function NoteForm({ note }: { note: NoteRead }) {
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-3 flex-1">
             <div className="flex items-center gap-2">
-              {isEditingTitle ? (
+              {isEditingHeader ? (
                 <Input
                   value={title}
                   onChange={e => {
                     setTitle(e.target.value);
                     markDirty();
                   }}
-                  onBlur={() => setIsEditingTitle(false)}
+                  onBlur={() => setIsEditingHeader(false)}
                   onKeyDown={e => {
-                    if (e.key === 'Enter') setIsEditingTitle(false);
+                    if (e.key === 'Enter') setIsEditingHeader(false);
                   }}
                   className="w-80 text-lg font-semibold"
                   placeholder="Note title"
@@ -113,7 +110,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => setIsEditingTitle(true)}
+                    onClick={() => setIsEditingHeader(true)}
                     className="text-muted-foreground"
                   >
                     <Pencil className="size-3.5" />
@@ -121,7 +118,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                 </>
               )}
             </div>
-            {isEditing && (
+            {isEditingHeader && (
               <>
                 <AutoTextarea
                   rows={2}
@@ -141,7 +138,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                 />
               </>
             )}
-            {!isEditing && (
+            {!isEditingHeader && (
               <>
                 {description && <p className="text-sm text-muted-foreground">{description}</p>}
                 {tags.length > 0 && (
@@ -160,7 +157,7 @@ function NoteForm({ note }: { note: NoteRead }) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {isEditing && isDirty && (
+            {isDirty && (
               <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
                 {isSaving ? 'Saving...' : 'Save'}
               </Button>
@@ -172,35 +169,19 @@ function NoteForm({ note }: { note: NoteRead }) {
               }}
             />
             <GenerateTestDialog noteId={note.id} noteTitle={note.title} />
-            <Button variant="outline" icon={isEditing ? Eye : Pencil} onClick={() => setIsEditing(!isEditing)}>
-              {isEditing ? 'View' : 'Edit'}
-            </Button>
           </div>
         </div>
-        <hr className="border-border" />
       </div>
 
-      <div className={cn('flex-1 min-h-0 overflow-hidden', !isEditing && 'rounded-lg border border-border bg-card')}>
-        {isEditing ? (
-          <NoteEditor
-            content={content}
-            onChange={v => {
-              setContent(v);
-              markDirty();
-            }}
-            noteId={note.id}
-          />
-        ) : (
-          <div className="h-full overflow-y-auto p-6">
-            {content ? (
-              <MarkdownRenderer content={content} />
-            ) : (
-              <p className="text-sm text-muted-foreground/50 italic">
-                This note is empty. Click Edit to start writing.
-              </p>
-            )}
-          </div>
-        )}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <NoteEditor
+          content={content}
+          onChange={v => {
+            setContent(v);
+            markDirty();
+          }}
+          noteId={note.id}
+        />
       </div>
     </div>
   );

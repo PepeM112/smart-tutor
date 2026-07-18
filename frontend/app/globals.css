@@ -142,6 +142,9 @@
 }
 
 /* Markdown rendering styles */
+.markdown-body {
+  text-align: justify;
+}
 .markdown-body h1 {
   font-size: 1.5rem;
   font-weight: 700;
@@ -213,6 +216,7 @@
 .markdown-body pre code {
   padding: 0;
   background: none;
+  color: inherit;
 }
 
 .markdown-body pre:has(> div) {
