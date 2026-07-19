@@ -23,14 +23,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
 
-const PROGRESS_MESSAGES = [
-  'Reading your instructions…',
-  'Reviewing current questions…',
-  'Applying your changes…',
-  'Refining question quality…',
-  'Wrapping up…',
-];
-
 type Props = {
   noteId: string;
   currentQuestions: GeneratedQuestionPreviewInput[];
@@ -39,6 +31,13 @@ type Props = {
 
 export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props) {
   const t = useTranslations('test_generation');
+  const PROGRESS_MESSAGES = [
+    t('refine_progress_reading'),
+    t('refine_progress_reviewing'),
+    t('refine_progress_applying'),
+    t('refine_progress_refining'),
+    t('refine_progress_wrapping'),
+  ];
   const tNotesAi = useTranslations('notes_ai');
   const tCommon = useTranslations('common');
   const tSettings = useTranslations('settings');
@@ -97,7 +96,7 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
                 <Label htmlFor="refine-instructions">{tNotesAi('instructions')}</Label>
                 <Textarea
                   id="refine-instructions"
-                  placeholder='e.g. "Change question 3 to ask about dates instead. Add 2 more multiple choice questions about chapter 5. Make the distractors harder."'
+                  placeholder={t('refine_placeholder')}
                   value={instructions}
                   onChange={e => setInstructions(e.target.value)}
                   rows={5}

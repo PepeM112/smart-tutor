@@ -34,7 +34,7 @@ export function AddQuestionDropdown({ onSelect }: Props) {
       <DropdownMenuContent align="start" className="w-48">
         {(
           [
-            { addType: 'group' as const, questionType: QuestionType.SIMPLE, label: 'Simple questions' },
+            { addType: 'group' as const, questionType: QuestionType.SIMPLE, label: t('simple_questions') },
             {
               addType: 'mc' as const,
               questionType: QuestionType.MULTIPLE_CHOICE,

@@ -54,7 +54,6 @@ function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number 
 
 function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
   const t = useTranslations('tests');
-  const tCommon = useTranslations('common');
 
   return [
     {
@@ -127,7 +126,7 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
                 e.stopPropagation();
                 router.push(Routes.TEST_EDIT(row.original.id));
               }}
-              aria-label={`Edit ${row.original.title}`}
+              aria-label={tCommon('edit')}
             >
               <Pencil className="size-4" />
             </Button>
@@ -140,7 +139,7 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
                 void navigator.clipboard.writeText(row.original.id);
                 toast.success(tCommon('copied'));
               }}
-              aria-label={`Copy ID of ${row.original.title}`}
+              aria-label={t('copy_id')}
             >
               <Copy className="size-4" />
             </Button>
@@ -152,7 +151,7 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
                 e.stopPropagation();
                 router.push(Routes.TEST_DETAIL(row.original.id));
               }}
-              aria-label={`Take test ${row.original.title}`}
+              aria-label={t('take_test_action')}
             >
               <Dumbbell className="size-4" />
             </Button>
@@ -164,7 +163,7 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
                   tooltip={tCommon('delete')}
                   onClick={e => e.stopPropagation()}
                   disabled={isDeleting}
-                  aria-label={`Delete ${row.original.title}`}
+                  aria-label={tCommon('delete')}
                 >
                   <Trash2 className="size-4" />
                 </Button>

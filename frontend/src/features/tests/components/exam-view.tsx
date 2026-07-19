@@ -5,9 +5,12 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import {
+  LongTextLength,
   QuestionGroupType,
   QuestionType,
   type AnswerStatus,
+  type LongTextContentStripped,
+  type MultipleChoiceContentStripped,
   type QuestionReadStripped,
   type TestQuestionGroupReadStripped,
   type TestReadStripped,
@@ -310,12 +313,14 @@ function QuestionCard({
   nested,
 }: QuestionCardProps) {
   const t = useTranslations('exam');
-  const content = question.content as Record<string, unknown> | undefined;
+  const content = question.content;
   const isSimple = question.questionType === QuestionType.SIMPLE;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isLongText = question.questionType === QuestionType.LONG_TEXT;
   const longTextTier = isLongText
-    ? (LONG_TEXT_LENGTH_TIERS.find(t => t.value === (content?.length_limit as number)) ?? LONG_TEXT_LENGTH_TIERS[1])
+    ? (LONG_TEXT_LENGTH_TIERS.find(
+        tier => tier.value === (content as LongTextContentStripped | undefined)?.lengthLimit
+      ) ?? LONG_TEXT_LENGTH_TIERS[1])
     : null;
 
   const wrapper = (children: React.ReactNode) =>
@@ -357,7 +362,7 @@ function QuestionCard({
       {/* Multiple choice checkboxes */}
       {isMC && content && (
         <div className="space-y-2">
-          {((content.options ?? []) as string[]).map((option, idx) => {
+          {((content as MultipleChoiceContentStripped).options ?? []).map((option, idx) => {
             const selected = answer ? answer.split(',').map(Number) : [];
             const checked = selected.includes(idx);
             return (
@@ -389,7 +394,9 @@ function QuestionCard({
               }
             }}
             disabled={disabled}
-            rows={longTextTier.value === 1 ? 4 : longTextTier.value === 2 ? 10 : 20}
+            rows={
+              longTextTier.value === LongTextLength.SHORT ? 4 : longTextTier.value === LongTextLength.MEDIUM ? 10 : 20
+            }
           />
           <p className="text-xs text-muted-foreground text-right">
             {answer.length} / {longTextTier.limit}

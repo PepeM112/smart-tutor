@@ -1,8 +1,10 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { useCallback, useTransition } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useTransition } from 'react';
+import { toast } from 'sonner';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -18,29 +20,26 @@ const LANGUAGES = [
 export function LanguageSection() {
   const t = useTranslations('settings');
   const router = useRouter();
+  const currentLocale = useLocale();
   const [isPending, startTransition] = useTransition();
   const setUser = useAuthStore(s => s.setUser);
 
-  const currentLocale =
-    typeof document !== 'undefined'
-      ? (document.cookie
-          .split('; ')
-          .find(c => c.startsWith('locale='))
-          ?.split('=')[1] ?? 'en')
-      : 'en';
-
-  const setLocale = useCallback(
-    (locale: string) => {
+  const { mutate: updateLocale } = useMutation({
+    mutationFn: async (locale: string) => {
       document.cookie = `locale=${locale};path=/;max-age=31536000`;
-      void sdk.usersUpdateMe({ body: { locale } }).then(result => {
-        if (result.data) setUser(result.data);
-      });
+      const result = await sdk.usersUpdateMe({ body: { locale } });
+      return result.data!;
+    },
+    onSuccess: updatedUser => {
+      setUser(updatedUser);
       startTransition(() => {
         router.refresh();
       });
     },
-    [router, setUser]
-  );
+    onError: () => {
+      toast.error(t('failed_to_save'));
+    },
+  });
 
   return (
     <Card>
@@ -54,7 +53,7 @@ export function LanguageSection() {
           {LANGUAGES.map(({ value, labelKey, flag }) => (
             <button
               key={value}
-              onClick={() => setLocale(value)}
+              onClick={() => updateLocale(value)}
               className={cn(
                 'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
                 currentLocale === value

@@ -268,7 +268,13 @@
     "two_column_layout": "2-column layout",
     "one_column_layout": "1-column layout",
     "reset_to_original": "Reset to original generation",
-    "create_test": "Create Test"
+    "create_test": "Create Test",
+    "refine_progress_reading": "Reading your instructions…",
+    "refine_progress_reviewing": "Reviewing current questions…",
+    "refine_progress_applying": "Applying your changes…",
+    "refine_progress_refining": "Refining question quality…",
+    "refine_progress_wrapping": "Wrapping up…",
+    "refine_placeholder": "e.g. \"Change question 3 to ask about dates instead. Add 2 more multiple choice questions about chapter 5. Make the distractors harder.\""
   },
   "test_editor": {
     "question_prompt": "Question prompt",
@@ -291,7 +297,8 @@
     "short_chars": "Short (~500 chars)",
     "medium_chars": "Medium (~1800 chars)",
     "long_chars": "Long (~5000 chars)",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "simple_questions": "Simple questions"
   },
   "history": {
     "title": "Test History",
@@ -313,7 +320,9 @@
     "pending_ai_review": "pending AI review",
     "column_question": "Question",
     "column_your_answer": "Your answer",
-    "pts": "pts"
+    "pts": "pts",
+    "view_details": "View details",
+    "pending_questions": "{count, plural, one {# question} other {# questions}} pending AI review"
   },
   "challenge": {
     "challenge_grade": "Challenge grade",

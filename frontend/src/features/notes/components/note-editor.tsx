@@ -64,6 +64,11 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     popoverOpenRef.current = popoverOpen;
   }, [popoverOpen]);
 
+  const contentRef = useRef(content);
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+
   const handleViewContainerChange = useCallback((el: HTMLDivElement | null) => {
     viewContainerRef.current = el;
   }, []);
@@ -98,7 +103,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         return;
       }
 
-      const range = getMarkdownRangeFromSelection(container, content);
+      const range = getMarkdownRangeFromSelection(container, contentRef.current);
       if (!range) {
         setSelectionTrigger(null);
         return;
@@ -143,7 +148,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       document.removeEventListener('selectionchange', handleSelectionChange);
       container?.removeEventListener('scroll', commitSelection);
     };
-  }, [noteId, content]);
+  }, [noteId]);
 
   // ── Handlers ────────────────────────────────────────────────────
 

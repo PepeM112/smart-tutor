@@ -43,8 +43,8 @@ export function GeneratedTestPreview() {
   const hasData = useGenerationStore(s => s.questions.length > 0);
   const clear = useGenerationStore(s => s.clear);
 
-  const [items, setItems] = useState<PreviewItem[]>([]);
-  const [testTitle, setTestTitle] = useState('');
+  const [items, setItems] = useState<PreviewItem[]>(() => toPreviewItems(initialQuestions));
+  const [testTitle, setTestTitle] = useState(() => t('test_from_note', { noteTitle: sourceNoteTitle }));
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
   const [columns, setColumns] = useState<1 | 2>(1);
@@ -57,14 +57,8 @@ export function GeneratedTestPreview() {
   const noteContent = noteData?.data?.content ?? undefined;
 
   useEffect(() => {
-    if (!hasData) {
-      router.replace(Routes.NOTES);
-      return;
-    }
-    const previewItems = toPreviewItems(initialQuestions);
-    setItems(previewItems);
-    setTestTitle(t('test_from_note', { noteTitle: sourceNoteTitle }));
-  }, [hasData, initialQuestions, sourceNoteTitle, router]);
+    if (!hasData) router.replace(Routes.NOTES);
+  }, [hasData, router]);
 
   // beforeunload guard
   useEffect(() => {
@@ -110,7 +104,7 @@ export function GeneratedTestPreview() {
     setItems(previewItems);
     clearSelection();
     toast.success(t('reset_original'));
-  }, [initialQuestions, clearSelection]);
+  }, [initialQuestions, clearSelection, t]);
 
   const editorItems = useMemo((): EditorItem[] => items.map(i => i.data), [items]);
 
@@ -221,9 +215,7 @@ export function GeneratedTestPreview() {
               </>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {t('questions_count', { count: items.length })}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('questions_count', { count: items.length })}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button

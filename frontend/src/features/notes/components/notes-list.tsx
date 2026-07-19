@@ -67,7 +67,6 @@ function formatDate(date: Date): string {
 
 function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
   const t = useTranslations('notes');
-  const tCommon = useTranslations('common');
 
   return [
     {
@@ -121,7 +120,7 @@ function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
                 e.stopPropagation();
                 router.push(Routes.NOTE_DETAIL(row.original.id));
               }}
-              aria-label={`Edit ${row.original.title}`}
+              aria-label={tCommon('edit')}
             >
               <Pencil className="size-4" />
             </Button>
@@ -134,7 +133,7 @@ function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
                 downloadMarkdown(row.original.title, row.original.content ?? '');
                 toast.success(tCommon('downloaded'));
               }}
-              aria-label={`Export ${row.original.title}`}
+              aria-label={tCommon('export')}
             >
               <Download className="size-4" />
             </Button>
@@ -146,7 +145,7 @@ function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
                   tooltip={tCommon('delete')}
                   onClick={e => e.stopPropagation()}
                   disabled={isDeleting}
-                  aria-label={`Delete ${row.original.title}`}
+                  aria-label={tCommon('delete')}
                 >
                   <Trash2 className="size-4" />
                 </Button>

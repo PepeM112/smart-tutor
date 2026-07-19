@@ -24,7 +24,7 @@ export function ScoreBanner({ result, testTitle }: { result: TestResultRead; tes
         {pending > 0 && (
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
-            {pending} question{pending === 1 ? '' : 's'} {t('pending_ai_review')}
+            {t('pending_questions', { count: pending })}
           </p>
         )}
       </div>

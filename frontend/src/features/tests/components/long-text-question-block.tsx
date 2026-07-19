@@ -2,7 +2,7 @@
 
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { QuestionType } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
@@ -169,6 +169,8 @@ function CategoryInput({
   const t = useTranslations('test_editor');
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current) }, []);
 
   const filtered = useMemo(() => {
     if (!value) return suggestions.slice(0, 5);

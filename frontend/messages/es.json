@@ -268,7 +268,13 @@
     "two_column_layout": "Diseño de 2 columnas",
     "one_column_layout": "Diseño de 1 columna",
     "reset_to_original": "Restablecer a la generación original",
-    "create_test": "Crear Test"
+    "create_test": "Crear Test",
+    "refine_progress_reading": "Leyendo tus instrucciones…",
+    "refine_progress_reviewing": "Revisando las preguntas actuales…",
+    "refine_progress_applying": "Aplicando tus cambios…",
+    "refine_progress_refining": "Mejorando la calidad de las preguntas…",
+    "refine_progress_wrapping": "Terminando…",
+    "refine_placeholder": "Ej. \"Cambia la pregunta 3 para que pregunte sobre fechas. Añade 2 preguntas de opción múltiple sobre el capítulo 5. Haz los distractores más difíciles.\""
   },
   "test_editor": {
     "question_prompt": "Enunciado de la pregunta",
@@ -291,7 +297,8 @@
     "short_chars": "Corto (~500 chars)",
     "medium_chars": "Medio (~1800 chars)",
     "long_chars": "Largo (~5000 chars)",
-    "unknown": "Desconocido"
+    "unknown": "Desconocido",
+    "simple_questions": "Preguntas simples"
   },
   "history": {
     "title": "Historial de Tests",
@@ -313,7 +320,9 @@
     "pending_ai_review": "pendiente de revisión IA",
     "column_question": "Pregunta",
     "column_your_answer": "Tu respuesta",
-    "pts": "pts"
+    "pts": "pts",
+    "view_details": "Ver detalles",
+    "pending_questions": "{count, plural, one {# pregunta} other {# preguntas}} pendiente de revisión IA"
   },
   "challenge": {
     "challenge_grade": "Impugnar nota",

@@ -18,17 +18,6 @@ import { SrsSection } from './srs-section';
 
 import type { SettingsForm } from '../types';
 
-function formFromUser(user: UserRead): SettingsForm {
-  return {
-    displayName: user.displayName ?? '',
-    aiProvider: user.aiProvider ?? null,
-    anthropicApiKey: '',
-    openaiApiKey: '',
-    dailyReviewLimit: user.dailyReviewLimit != null ? String(user.dailyReviewLimit) : '',
-    initialEaseFactor: String(user.initialEaseFactor ?? 2.5),
-  };
-}
-
 export function SettingsPage() {
   const t = useTranslations('settings');
   const tc = useTranslations('common');
@@ -36,7 +25,7 @@ export function SettingsPage() {
   const setUser = useAuthStore(s => s.setUser);
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<SettingsForm>(() => formFromUser(user!));
+  const [form, setForm] = useState<SettingsForm>(() => formFromUser(user));
   const [dirty, setDirty] = useState(false);
 
   const hasAnthropicKey = user?.hasAnthropicKey ?? false;
@@ -134,4 +123,15 @@ export function SettingsPage() {
       </div>
     </div>
   );
+}
+
+function formFromUser(user: UserRead | null): SettingsForm {
+  return {
+    displayName: user?.displayName ?? '',
+    aiProvider: user?.aiProvider ?? null,
+    anthropicApiKey: '',
+    openaiApiKey: '',
+    dailyReviewLimit: user?.dailyReviewLimit != null ? String(user.dailyReviewLimit) : '',
+    initialEaseFactor: String(user?.initialEaseFactor ?? 2.5),
+  };
 }

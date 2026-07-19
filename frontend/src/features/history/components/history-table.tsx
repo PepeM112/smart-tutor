@@ -96,12 +96,12 @@ function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef
             <Button
               variant="ghost"
               size="icon-lg"
-              tooltip="View details"
+              tooltip={t('view_details')}
               onClick={e => {
                 e.stopPropagation();
                 router.push(Routes.RESULT_DETAIL(row.original.id));
               }}
-              aria-label="View result details"
+              aria-label={t('view_details')}
             >
               <Eye className="size-4" />
             </Button>
