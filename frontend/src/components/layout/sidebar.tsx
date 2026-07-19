@@ -13,9 +13,9 @@ import {
   RefreshCw,
   Settings,
 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { LogoutButton } from '@/features/auth/components/logout-button';

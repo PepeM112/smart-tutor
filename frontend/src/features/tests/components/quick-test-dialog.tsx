@@ -1,8 +1,8 @@
 'use client';
 
 import { Zap } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';

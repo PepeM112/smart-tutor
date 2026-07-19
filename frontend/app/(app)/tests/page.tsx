@@ -2,8 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { QuickTestDialog } from '@/features/tests/components/quick-test-dialog';
