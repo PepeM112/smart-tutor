@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Bot, Download, Pencil, Trash2, User } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -18,13 +19,15 @@ type Props = {
 };
 
 export function NotesList({ data }: Props) {
+  const t = useTranslations('notes');
   const router = useRouter();
+  const columns = useNotesColumns();
 
   return (
     <DataTable
       columns={columns}
       data={data}
-      emptyMessage="No notes yet. Create your first one!"
+      emptyMessage={t('no_notes_yet')}
       onRowClick={row => router.push(Routes.NOTE_DETAIL(row.id))}
     />
   );
@@ -41,9 +44,10 @@ function downloadMarkdown(title: string, content: string) {
 }
 
 function SourceBadge({ source }: { source: NoteSource }) {
+  const t = useTranslations('notes');
   const isAI = source === NoteSource.AI_GENERATED;
   const Icon = isAI ? Bot : User;
-  const label = isAI ? 'AI' : 'Manual';
+  const label = isAI ? t('source_ai') : t('source_manual');
 
   return (
     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -61,94 +65,101 @@ function formatDate(date: Date): string {
   });
 }
 
-const columns: ColumnDef<NoteRead, unknown>[] = [
-  {
-    accessorKey: 'title',
-    header: 'Title',
-    cell: ({ row }) => {
-      const { title, description } = row.original;
-      const preview = description && description.length > 80 ? `${description.slice(0, 80)}...` : description;
-      return (
-        <div className="min-w-0">
-          <p className="font-medium text-foreground truncate">{title}</p>
-          {preview && <p className="mt-0.5 text-xs text-muted-foreground max-w-xs">{preview}</p>}
-        </div>
-      );
-    },
-  },
-  {
-    id: 'source',
-    header: 'Source',
-    cell: ({ row }) => <SourceBadge source={row.original.source} />,
-  },
-  {
-    id: 'updated',
-    header: 'Updated',
-    cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.updatedAt)}</span>,
-  },
-  {
-    id: 'actions',
-    header: '',
-    cell: function ActionsCell({ row }) {
-      const router = useRouter();
-      const queryClient = useQueryClient();
-      const { mutate: deleteNote, isPending: isDeleting } = useMutation({
-        mutationFn: () => sdk.notesDelete({ path: { note_id: row.original.id } }),
-        onSuccess: () => {
-          void queryClient.invalidateQueries({ queryKey: ['notes'] });
-          toast.success('Note deleted');
-        },
-        onError: () => toast.error('Failed to delete note'),
-      });
+function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
+  const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
 
-      return (
-        <div className="flex justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            tooltip="Edit"
-            onClick={e => {
-              e.stopPropagation();
-              router.push(Routes.NOTE_DETAIL(row.original.id));
-            }}
-            aria-label={`Edit ${row.original.title}`}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            tooltip="Export"
-            onClick={e => {
-              e.stopPropagation();
-              downloadMarkdown(row.original.title, row.original.content ?? '');
-              toast.success('Downloaded');
-            }}
-            aria-label={`Export ${row.original.title}`}
-          >
-            <Download className="size-4" />
-          </Button>
-          <ConfirmDialog
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon-lg"
-                tooltip="Delete"
-                onClick={e => e.stopPropagation()}
-                disabled={isDeleting}
-                aria-label={`Delete ${row.original.title}`}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            }
-            title="Delete note"
-            description={`Are you sure you want to delete "${row.original.title}"? This action cannot be undone.`}
-            confirmLabel="Delete"
-            confirmClassName="bg-destructive text-white hover:bg-destructive/90"
-            onConfirm={() => deleteNote()}
-          />
-        </div>
-      );
+  return [
+    {
+      accessorKey: 'title',
+      header: t('column_title'),
+      cell: ({ row }) => {
+        const { title, description } = row.original;
+        const preview = description && description.length > 80 ? `${description.slice(0, 80)}...` : description;
+        return (
+          <div className="min-w-0">
+            <p className="font-medium text-foreground truncate">{title}</p>
+            {preview && <p className="mt-0.5 text-xs text-muted-foreground max-w-xs">{preview}</p>}
+          </div>
+        );
+      },
     },
-  },
-];
+    {
+      id: 'source',
+      header: t('column_source'),
+      cell: ({ row }) => <SourceBadge source={row.original.source} />,
+    },
+    {
+      id: 'updated',
+      header: t('column_updated'),
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.updatedAt)}</span>,
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: function ActionsCell({ row }) {
+        const t = useTranslations('notes');
+        const tCommon = useTranslations('common');
+        const router = useRouter();
+        const queryClient = useQueryClient();
+        const { mutate: deleteNote, isPending: isDeleting } = useMutation({
+          mutationFn: () => sdk.notesDelete({ path: { note_id: row.original.id } }),
+          onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['notes'] });
+            toast.success(t('note_deleted'));
+          },
+          onError: () => toast.error(t('failed_to_delete')),
+        });
+
+        return (
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              tooltip={tCommon('edit')}
+              onClick={e => {
+                e.stopPropagation();
+                router.push(Routes.NOTE_DETAIL(row.original.id));
+              }}
+              aria-label={`Edit ${row.original.title}`}
+            >
+              <Pencil className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              tooltip={tCommon('export')}
+              onClick={e => {
+                e.stopPropagation();
+                downloadMarkdown(row.original.title, row.original.content ?? '');
+                toast.success(tCommon('downloaded'));
+              }}
+              aria-label={`Export ${row.original.title}`}
+            >
+              <Download className="size-4" />
+            </Button>
+            <ConfirmDialog
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon-lg"
+                  tooltip={tCommon('delete')}
+                  onClick={e => e.stopPropagation()}
+                  disabled={isDeleting}
+                  aria-label={`Delete ${row.original.title}`}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              }
+              title={t('delete_note')}
+              description={t('delete_note_confirm', { title: row.original.title })}
+              confirmLabel={tCommon('delete')}
+              confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+              onConfirm={() => deleteNote()}
+            />
+          </div>
+        );
+      },
+    },
+  ];
+}

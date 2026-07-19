@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -44,6 +45,7 @@ type Props = {
 };
 
 export function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: Props) {
+  const t = useTranslations('tests');
   const router = useRouter();
   const queryClient = useQueryClient();
   const isEdit = !!testId;
@@ -87,12 +89,12 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
-      toast.success(isEdit ? 'Test updated' : 'Test created');
+      toast.success(isEdit ? t('test_updated') : t('test_created'));
       router.push(Routes.TESTS);
       router.refresh();
     },
     onError: () => {
-      toast.error(isEdit ? 'Error updating test' : 'Error creating test');
+      toast.error(isEdit ? t('error_updating') : t('error_creating'));
     },
   });
 
@@ -113,9 +115,9 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       if (!res.data) return;
       setItems(fromPreviewToEditorItems(res.data.questions));
       clearSelection();
-      toast.success('Questions updated');
+      toast.success(t('questions_updated'));
     },
-    onError: () => toast.error('Failed to edit questions. Please try again.'),
+    onError: () => toast.error(t('failed_to_edit_questions')),
   });
 
   function addItem(type: 'group' | 'mc' | 'long') {
@@ -136,16 +138,16 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     <div>
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="space-y-3 flex-1">
-          <Input className="w-1/2" placeholder="Test name" value={title} onChange={e => setTitle(e.target.value)} />
+          <Input className="w-1/2" placeholder={t('test_name')} value={title} onChange={e => setTitle(e.target.value)} />
           <AutoTextarea
             rows={2}
-            placeholder="Description (optional)"
+            placeholder={t('description_optional')}
             value={description}
             onChange={e => setDescription(e.target.value)}
           />
         </div>
         <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-          {isSaving ? 'Saving…' : 'Save Test'}
+          {isSaving ? t('saving') : t('save_test')}
         </Button>
       </div>
 

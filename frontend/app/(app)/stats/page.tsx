@@ -1,10 +1,14 @@
+import { getTranslations } from 'next-intl/server';
+
 import { SetBreadcrumb } from '@/components/breadcrumb';
 
-export default function StatsPage() {
+export default async function StatsPage() {
+  const t = await getTranslations('stats');
+
   return (
     <>
-      <SetBreadcrumb title="Progress Stats" />
-      <p className="text-muted-foreground">Charts and streaks will be displayed here.</p>
+      <SetBreadcrumb title={t('title')} />
+      <p className="text-muted-foreground">{t('placeholder')}</p>
     </>
   );
 }

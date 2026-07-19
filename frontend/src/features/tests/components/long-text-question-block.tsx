@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useRef, useState } from 'react';
 
 import type { QuestionType } from '@/client';
@@ -36,6 +37,8 @@ type Props = {
 };
 
 export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
+  const t = useTranslations('test_editor');
+
   function updateCriterion(idx: number, patch: Partial<Criterion>) {
     const updated = data.criteria.map((c, i) => (i === idx ? { ...c, ...patch } : c));
     onChange({ ...data, criteria: updated });
@@ -69,7 +72,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
       <div className="flex items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
-          placeholder="Question prompt (e.g. 'Describe the main events of the Roman Civil War')"
+          placeholder={`${t('question_prompt')} (${t('question_prompt_example')})`}
           value={data.prompt}
           onChange={e => onChange({ ...data, prompt: e.target.value })}
           className="flex-1"
@@ -92,7 +95,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
           value={data.points}
           onChange={e => onChange({ ...data, points: Number(e.target.value) })}
           className="w-20 shrink-0 text-center"
-          title="Points"
+          title={t('points')}
         />
         <QuestionBlockAction onRemove={onRemove} />
       </div>
@@ -100,7 +103,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
       {/* Rubric criteria */}
       <div className="space-y-2">
         <p className="text-sm font-medium text-muted-foreground">
-          Rubric criteria <span className="font-normal">(total: {totalWeight.toFixed(2)})</span>
+          {t('rubric_criteria', { total: totalWeight.toFixed(2) })}
         </p>
 
         {data.criteria.map((criterion, ci) => (
@@ -112,7 +115,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
             />
             <AutoTextarea
               rows={1}
-              placeholder="What the student must mention..."
+              placeholder={t('criterion_placeholder')}
               value={criterion.point}
               onChange={e => updateCriterion(ci, { point: e.target.value })}
               className="flex-1"
@@ -148,7 +151,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
       >
         <Plus className="size-3.5" />
-        Add criterion
+        {t('add_criterion')}
       </Button>
     </div>
   );
@@ -163,6 +166,7 @@ function CategoryInput({
   onChange: (value: string) => void;
   suggestions: string[];
 }) {
+  const t = useTranslations('test_editor');
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -177,7 +181,7 @@ function CategoryInput({
   return (
     <div className="relative w-32 shrink-0">
       <Input
-        placeholder="Category"
+        placeholder={t('category')}
         value={value}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setOpen(true)}

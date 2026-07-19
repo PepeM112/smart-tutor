@@ -1,6 +1,7 @@
 'use client';
 
 import { Eye, Pencil } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState, type KeyboardEvent } from 'react';
 import { type Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
@@ -71,6 +72,7 @@ type Props = {
 
 export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(
   function MarkdownRendererV2({ content, onChange, readOnly, className, onViewContainerChange }, ref) {
+    const t = useTranslations('notes');
     const viewRef = useRef<HTMLDivElement>(null);
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const canToggle = !readOnly && !!onChange;
@@ -126,7 +128,7 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(
               variant="ghost"
               size="icon-sm"
               onClick={() => setMode(m => (m === 'view' ? 'edit' : 'view'))}
-              tooltip={mode === 'view' ? 'Edit markdown' : 'Preview'}
+              tooltip={mode === 'view' ? t('edit_markdown') : t('preview')}
               className="text-muted-foreground"
             >
               {mode === 'view' ? <Pencil className="size-4" /> : <Eye className="size-4" />}
@@ -150,7 +152,7 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(
                 </ReactMarkdown>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground/50 italic">Start writing in Markdown...</p>
+              <p className="text-sm text-muted-foreground/50 italic">{t('start_writing')}</p>
             )}
           </div>
         ) : (
@@ -158,7 +160,7 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(
             value={content}
             onChange={e => onChange?.(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Start writing in Markdown..."
+            placeholder={t('start_writing')}
             className="w-full h-full resize-none scrollbar-none bg-transparent p-6 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
             spellCheck={false}
             autoFocus

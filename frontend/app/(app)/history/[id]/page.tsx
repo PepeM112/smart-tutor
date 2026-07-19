@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { use } from 'react';
 
 import ResultDetail from '@/features/history/components/result-detail';
@@ -16,7 +17,8 @@ type Props = {
 
 export default function ResultDetailPage({ params }: Props) {
   const { id } = use(params);
-  useBreadcrumb('Test Result', [{ label: 'Test History', href: Routes.HISTORY }], Routes.HISTORY);
+  const t = useTranslations('history');
+  useBreadcrumb(t('test_result'), [{ label: t('title'), href: Routes.HISTORY }], Routes.HISTORY);
 
   const { data: resultResponse, isLoading: isLoadingResult, isError: isResultError } = useTestResult(id);
 
@@ -43,11 +45,11 @@ export default function ResultDetailPage({ params }: Props) {
   }
 
   if (isResultError || isTestError) {
-    return <p className="text-muted-foreground">Failed to load test result. Please try again.</p>;
+    return <p className="text-muted-foreground">{t('failed_to_load_result')}</p>;
   }
 
   if (!result || !test) {
-    return <p className="text-muted-foreground">Test result not found.</p>;
+    return <p className="text-muted-foreground">{t('result_not_found')}</p>;
   }
 
   return <ResultDetail result={result} test={test} />;

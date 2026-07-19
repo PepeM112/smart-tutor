@@ -2,6 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { Eye, EyeOff } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -16,6 +17,7 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 export function SignupForm() {
+  const t = useTranslations('auth');
   const [form, setForm] = useState<UserCreate>({ username: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -27,12 +29,12 @@ export function SignupForm() {
   } = useMutation({
     mutationFn: () => sdk.usersSignup({ body: form }),
     onSuccess: () => {
-      toast.success('Account created successfully');
+      toast.success(t('account_created'));
       router.push(Routes.LOGIN);
       router.refresh();
     },
     onError: () => {
-      toast.error('Error creating account');
+      toast.error(t('error_creating_account'));
     },
   });
 
@@ -44,13 +46,13 @@ export function SignupForm() {
   return (
     <Card className="w-full">
       <CardHeader className="text-center pb-2">
-        <CardTitle className="text-3xl font-bold py-2">Sign up</CardTitle>
-        <p className="text-sm text-muted-foreground">Create your account to start learning</p>
+        <CardTitle className="text-3xl font-bold py-2">{t('sign_up')}</CardTitle>
+        <p className="text-sm text-muted-foreground">{t('create_your_account')}</p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">{t('username')}</Label>
             <Input
               id="username"
               value={form.username}
@@ -60,7 +62,7 @@ export function SignupForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('email')}</Label>
             <Input
               id="email"
               type="email"
@@ -71,7 +73,7 @@ export function SignupForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t('password')}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -85,25 +87,25 @@ export function SignupForm() {
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('hide_password') : t('show_password')}
               >
                 {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
               </button>
             </div>
           </div>
 
-          {signinError && <p className="text-sm text-destructive">Could not create account. Please try again.</p>}
+          {signinError && <p className="text-sm text-destructive">{t('could_not_create_account')}</p>}
 
           <Button type="submit" disabled={isSigningIn} className="w-full py-5 font-semibold mt-6">
-            {isSigningIn ? 'Creating account…' : 'Create account'}
+            {isSigningIn ? t('creating_account') : t('create_account')}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          Already have an account?{' '}
+          {t('already_have_account')}{' '}
           <Link href={Routes.LOGIN} className="text-primary font-bold underline">
-            Log in
+            {t('log_in')}
           </Link>
         </p>
       </CardFooter>

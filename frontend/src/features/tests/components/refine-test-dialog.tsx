@@ -2,6 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { WandSparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
 
 const PROGRESS_MESSAGES = [
@@ -36,6 +38,11 @@ type Props = {
 };
 
 export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props) {
+  const t = useTranslations('test_generation');
+  const tNotesAi = useTranslations('notes_ai');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
+  const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
 
@@ -53,16 +60,22 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
       onRefined(res.data.questions);
       setOpen(false);
       setInstructions('');
-      toast.success('Questions refined successfully');
+      toast.success(t('questions_refined'));
     },
-    onError: () => toast.error('Failed to refine questions. Please try again.'),
+    onError: () => toast.error(t('failed_to_refine')),
   });
 
   return (
     <Dialog open={open} onOpenChange={isRefining ? undefined : setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="lg" icon={WandSparkles}>
-          Refine with AI
+        <Button
+          variant="outline"
+          size="lg"
+          icon={WandSparkles}
+          disabled={!aiAvailable}
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : undefined}
+        >
+          {t('refine_with_ai')}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -71,19 +84,17 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
         onEscapeKeyDown={isRefining ? e => e.preventDefault() : undefined}
       >
         {isRefining ? (
-          <DialogLoading title="Refining your questions…" messages={PROGRESS_MESSAGES} />
+          <DialogLoading title={t('refining_questions')} messages={PROGRESS_MESSAGES} />
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Refine Questions with AI</DialogTitle>
-              <DialogDescription>
-                Tell the AI what to change. It will update the current questions based on your instructions.
-              </DialogDescription>
+              <DialogTitle>{t('refine_questions_title')}</DialogTitle>
+              <DialogDescription>{t('refine_description')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="refine-instructions">Instructions</Label>
+                <Label htmlFor="refine-instructions">{tNotesAi('instructions')}</Label>
                 <Textarea
                   id="refine-instructions"
                   placeholder='e.g. "Change question 3 to ask about dates instead. Add 2 more multiple choice questions about chapter 5. Make the distractors harder."'
@@ -93,16 +104,16 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                {currentQuestions.length} questions will be sent to the AI for refinement.
+                {t('questions_sent', { count: currentQuestions.length })}
               </p>
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button onClick={() => refine()} disabled={!instructions.trim()} icon={WandSparkles}>
-                Refine
+                {tCommon('refine')}
               </Button>
             </DialogFooter>
           </>

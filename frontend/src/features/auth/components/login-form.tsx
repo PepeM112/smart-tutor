@@ -2,6 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { Eye, EyeOff } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -20,6 +21,7 @@ import { setSessionCookie } from '../utils/session-cookie';
 
 export function LoginForm() {
   const router = useRouter();
+  const t = useTranslations('auth');
 
   const [form, setForm] = useState<BodyUsersLogin>({ username: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +43,7 @@ export function LoginForm() {
       router.refresh();
     },
     onError: () => {
-      toast.error('Invalid username or password');
+      toast.error(t('invalid_credentials_toast'));
     },
   });
 
@@ -53,13 +55,13 @@ export function LoginForm() {
   return (
     <Card className="w-full">
       <CardHeader className="text-center pb-2">
-        <CardTitle className="text-3xl font-bold py-2">Log in</CardTitle>
-        <p className="text-sm text-muted-foreground">Welcome back — pick up where you left off</p>
+        <CardTitle className="text-3xl font-bold py-2">{t('log_in')}</CardTitle>
+        <p className="text-sm text-muted-foreground">{t('welcome_back')}</p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('email')}</Label>
             <Input
               id="email"
               value={form.username}
@@ -69,7 +71,7 @@ export function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t('password')}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -83,25 +85,25 @@ export function LoginForm() {
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('hide_password') : t('show_password')}
               >
                 {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
               </button>
             </div>
           </div>
 
-          {loginError && <p className="text-sm text-destructive">Invalid email or password.</p>}
+          {loginError && <p className="text-sm text-destructive">{t('invalid_credentials')}</p>}
 
           <Button type="submit" disabled={isLoggingIn} className="w-full py-5 font-semibold mt-6">
-            {isLoggingIn ? 'Logging in…' : 'Log in'}
+            {isLoggingIn ? t('logging_in') : t('log_in')}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          Don&apos;t have an account?{' '}
+          {t('dont_have_account')}{' '}
           <Link href={Routes.SIGNUP} className="text-primary font-bold underline">
-            Sign up
+            {t('sign_up')}
           </Link>
         </p>
       </CardFooter>

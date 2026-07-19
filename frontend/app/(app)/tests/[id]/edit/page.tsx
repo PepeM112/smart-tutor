@@ -1,4 +1,5 @@
 'use client';
+import { useTranslations } from 'next-intl';
 import { use } from 'react';
 
 import { TestEditor } from '@/features/tests/components/test-editor';
@@ -11,7 +12,8 @@ type Props = {
 
 export default function EditTestPage({ params }: Props) {
   const { id } = use(params);
-  useBreadcrumb('Edit Test', [{ label: 'Tests', href: Routes.TESTS }], Routes.TESTS);
+  const t = useTranslations('tests');
+  useBreadcrumb(t('edit_test'), [{ label: t('title'), href: Routes.TESTS }], Routes.TESTS);
 
   return <TestEditor testId={id} />;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { useTranslations } from 'next-intl';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -11,7 +12,10 @@ type Props<T> = {
   onRowClick?: (row: T) => void;
 };
 
-export function DataTable<T>({ columns, data, emptyMessage = 'No data found.', onRowClick }: Props<T>) {
+export function DataTable<T>({ columns, data, emptyMessage, onRowClick }: Props<T>) {
+  const t = useTranslations('common');
+  const finalEmptyMessage = emptyMessage ?? t('no_data_found');
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
@@ -40,7 +44,7 @@ export function DataTable<T>({ columns, data, emptyMessage = 'No data found.', o
           {isEmpty ? (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                {emptyMessage}
+                {finalEmptyMessage}
               </TableCell>
             </TableRow>
           ) : (

@@ -73,3 +73,9 @@ class NoteLength(NamedIntEnum):
     SHORT = 1
     MEDIUM = 2
     LONG = 3
+
+
+class AiProvider(NamedIntEnum):
+    UNKNOWN = 0
+    ANTHROPIC = 1
+    OPENAI = 2

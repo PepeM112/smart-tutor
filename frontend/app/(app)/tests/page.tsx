@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,8 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 export default function TestsPage() {
-  useBreadcrumb('Tests');
+  const t = useTranslations('tests');
+  useBreadcrumb(t('title'));
 
   const {
     data: tests,
@@ -26,11 +28,11 @@ export default function TestsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
-        <p className="text-muted-foreground">Create and manage your question sets here.</p>
+        <p className="text-muted-foreground">{t('subtitle')}</p>
         <div className="flex items-center gap-2">
           <QuickTestDialog />
           <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.TEST_NEW}>Create Test</Link>
+            <Link href={Routes.TEST_NEW}>{t('create_test')}</Link>
           </Button>
         </div>
       </div>
@@ -40,7 +42,7 @@ export default function TestsPage() {
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : isError ? (
-        <p className="text-muted-foreground">Failed to load tests. Please try again.</p>
+        <p className="text-muted-foreground">{t('failed_to_load')}</p>
       ) : (
         <TestsTable data={tests?.data ?? []} />
       )}

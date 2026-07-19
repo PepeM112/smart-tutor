@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { AnswerStatus, type AnswerRead, type QuestionRead } from '@/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -14,15 +16,17 @@ export function VocabularyReviewTable({
   questions: QuestionRead[];
   answerMap: Map<string, AnswerRead>;
 }) {
+  const t = useTranslations('history');
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">#</TableHead>
-          <TableHead>Question</TableHead>
-          <TableHead>Your answer</TableHead>
-          <TableHead>Correct answer</TableHead>
-          <TableHead className="w-32 text-right">Result</TableHead>
+          <TableHead>{t('column_question')}</TableHead>
+          <TableHead>{t('column_your_answer')}</TableHead>
+          <TableHead>{t('correct_answer')}</TableHead>
+          <TableHead className="w-32 text-right">{t('column_result')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -39,7 +43,7 @@ export function VocabularyReviewTable({
               </TableCell>
               <TableCell>
                 <span className={cn(isWrong && 'line-through text-muted-foreground')}>
-                  {answer ? getUserAnswerDisplay(q, answer.userAnswer) : '(no answer)'}
+                  {answer ? getUserAnswerDisplay(q, answer.userAnswer) : t('no_answer')}
                 </span>
               </TableCell>
               <TableCell>

@@ -6,7 +6,7 @@ from app.crud import note as note_crud
 from app.models.note import Note
 from app.models.user import User
 from app.schemas.note import NoteChunkEdit, NoteChunkEditResponse, NoteCreate, NoteGenerate, NoteRefine, NoteUpdate
-from app.services.llm import complete
+from app.services.llm import complete_for_user
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
     NOTE_GENERATION_SYSTEM_PROMPT,
@@ -71,9 +71,10 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
 
     max_tokens = _NOTE_MAX_TOKENS.get(int(data.length), _DEFAULT_MAX_TOKENS) if data.length else _DEFAULT_MAX_TOKENS
 
-    content = complete(
+    content = complete_for_user(
+        user=current_user,
         system=NOTE_GENERATION_SYSTEM_PROMPT,
-        user=user_prompt,
+        user_prompt=user_prompt,
         max_tokens=max_tokens,
     )
 
@@ -103,9 +104,10 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
         instructions=data.instructions,
     )
 
-    refined_content = complete(
+    refined_content = complete_for_user(
+        user=current_user,
         system=NOTE_REFINEMENT_SYSTEM_PROMPT,
-        user=user_prompt,
+        user_prompt=user_prompt,
         max_tokens=_DEFAULT_MAX_TOKENS,
     )
 
@@ -125,9 +127,10 @@ def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: Note
         instructions=data.instructions,
     )
 
-    edited_text = complete(
+    edited_text = complete_for_user(
+        user=current_user,
         system=NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
-        user=user_prompt,
+        user_prompt=user_prompt,
         max_tokens=_DEFAULT_MAX_TOKENS,
     )
 

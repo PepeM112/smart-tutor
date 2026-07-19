@@ -2,6 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -22,24 +23,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { useGenerationStore } from '../store/use-generation-store';
 
 const DIFFICULTY_OPTIONS = [
-  { value: 'easy' as const, label: 'Easy' },
-  { value: 'medium' as const, label: 'Medium' },
-  { value: 'hard' as const, label: 'Hard' },
-];
-
-const PROGRESS_MESSAGES = [
-  'Reading your notes…',
-  'Analyzing key concepts…',
-  'Crafting questions…',
-  'Fine-tuning difficulty…',
-  'Reviewing question quality…',
-  'Almost there…',
+  { value: 'easy' as const, labelKey: 'difficulty_easy' as const },
+  { value: 'medium' as const, labelKey: 'difficulty_medium' as const },
+  { value: 'hard' as const, labelKey: 'difficulty_hard' as const },
 ];
 
 type Props = {
@@ -48,6 +41,18 @@ type Props = {
 };
 
 export function GenerateTestDialog({ noteId, noteTitle }: Props) {
+  const t = useTranslations('test_generation');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
+  const aiAvailable = useAiAvailable();
+  const PROGRESS_MESSAGES = [
+    t('progress_reading'),
+    t('progress_analyzing'),
+    t('progress_crafting'),
+    t('progress_tuning'),
+    t('progress_reviewing'),
+    t('progress_almost'),
+  ];
   const [open, setOpen] = useState(false);
   const [questionCount, setQuestionCount] = useState(10);
   const [includeSimple, setIncludeSimple] = useState(true);
@@ -83,7 +88,7 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
       resetForm();
       router.push(Routes.TEST_GENERATE_PREVIEW);
     },
-    onError: () => toast.error('Failed to generate questions. Please try again.'),
+    onError: () => toast.error(t('failed_to_generate')),
   });
 
   const hasTypeSelected = includeSimple || includeMC || includeLongText;
@@ -102,8 +107,14 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
   return (
     <Dialog open={open} onOpenChange={isGenerating ? undefined : setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="lg" icon={Sparkles}>
-          Generate Test
+        <Button
+          variant="outline"
+          size="lg"
+          icon={Sparkles}
+          disabled={!aiAvailable}
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : undefined}
+        >
+          {t('generate_test')}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -112,17 +123,17 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
         onEscapeKeyDown={isGenerating ? e => e.preventDefault() : undefined}
       >
         {isGenerating ? (
-          <DialogLoading title="Generating your test…" messages={PROGRESS_MESSAGES} />
+          <DialogLoading title={t('generating_test')} messages={PROGRESS_MESSAGES} />
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Generate Test from Notes</DialogTitle>
-              <DialogDescription>AI will create practice questions from &quot;{noteTitle}&quot;.</DialogDescription>
+              <DialogTitle>{t('generate_from_notes')}</DialogTitle>
+              <DialogDescription>{t('generate_from_notes_desc', { noteTitle })}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-5 py-4">
               <div className="space-y-2">
-                <Label htmlFor="question-count">Number of Questions (5–30)</Label>
+                <Label htmlFor="question-count">{t('number_of_questions')}</Label>
                 <Input
                   id="question-count"
                   type="number"
@@ -132,30 +143,30 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
                   onChange={e => setQuestionCount(Number(e.target.value))}
                   aria-invalid={!isCountValid || undefined}
                 />
-                {!isCountValid && <p className="text-xs text-destructive">Must be between 5 and 30</p>}
+                {!isCountValid && <p className="text-xs text-destructive">{t('must_be_between')}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label>Question Types</Label>
+                <Label>{t('question_types')}</Label>
                 <div className="flex flex-col gap-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox checked={includeSimple} onCheckedChange={v => setIncludeSimple(v === true)} />
-                    <span className="text-sm">Simple (type an answer)</span>
+                    <span className="text-sm">{t('simple_type')}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox checked={includeMC} onCheckedChange={v => setIncludeMC(v === true)} />
-                    <span className="text-sm">Multiple Choice</span>
+                    <span className="text-sm">{t('multiple_choice')}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox checked={includeLongText} onCheckedChange={v => setIncludeLongText(v === true)} />
-                    <span className="text-sm">Long Text (AI-graded essay)</span>
+                    <span className="text-sm">{t('long_text_type')}</span>
                   </label>
                 </div>
-                {!hasTypeSelected && <p className="text-xs text-destructive">Select at least one question type</p>}
+                {!hasTypeSelected && <p className="text-xs text-destructive">{t('select_at_least_one')}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label>Difficulty</Label>
+                <Label>{t('difficulty')}</Label>
                 <div className="flex gap-2">
                   {DIFFICULTY_OPTIONS.map(opt => (
                     <Button
@@ -165,17 +176,17 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
                       size="sm"
                       onClick={() => setDifficulty(opt.value)}
                     >
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </Button>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="guidance">Additional Guidance</Label>
+                <Label htmlFor="guidance">{t('additional_guidance')}</Label>
                 <Textarea
                   id="guidance"
-                  placeholder="e.g. Focus on dates, include trick questions, avoid definitions..."
+                  placeholder={t('guidance_placeholder')}
                   value={guidance}
                   onChange={e => setGuidance(e.target.value)}
                   rows={3}
@@ -185,10 +196,10 @@ export function GenerateTestDialog({ noteId, noteTitle }: Props) {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button onClick={() => generate()} disabled={!canGenerate} icon={Sparkles}>
-                Generate
+                {tCommon('generate')}
               </Button>
             </DialogFooter>
           </>

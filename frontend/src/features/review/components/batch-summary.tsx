@@ -1,4 +1,7 @@
+'use client';
+
 import { Loader2, RefreshCw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { AnswerStatus } from '@/client';
 import { Button } from '@/components/ui/button';
@@ -17,6 +20,8 @@ export function BatchSummary({
   isLoading: boolean;
   exhausted: boolean;
 }) {
+  const t = useTranslations('review');
+  const tCommon = useTranslations('common');
   const correct = results.filter(r => r.status === AnswerStatus.CORRECT).length;
   const partial = results.filter(r => r.status === AnswerStatus.PARTIAL).length;
   const wrong = results.filter(r => r.status === AnswerStatus.WRONG).length;
@@ -34,19 +39,14 @@ export function BatchSummary({
     <div className="flex flex-col items-center justify-center gap-8 py-12">
       <div className={cn('w-full max-w-md rounded-xl border p-6 text-center', bannerColor)}>
         <p className="text-3xl font-bold">{score.toFixed(0)}%</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          {correct} correct{partial > 0 && `, ${partial} partial`}
-          {wrong > 0 && `, ${wrong} wrong`} out of {total}
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">{t('correct', { correct, partial, wrong, total })}</p>
       </div>
 
       {exhausted ? (
-        <p className="text-sm text-muted-foreground">
-          You&apos;ve reviewed all available questions. Add more tests to keep going!
-        </p>
+        <p className="text-sm text-muted-foreground">{t('all_reviewed')}</p>
       ) : (
         <Button size="lg" icon={isLoading ? Loader2 : RefreshCw} onClick={onContinue} disabled={isLoading}>
-          {isLoading ? 'Loading...' : 'Keep Reviewing'}
+          {isLoading ? tCommon('loading') : t('keep_reviewing')}
         </Button>
       )}
     </div>

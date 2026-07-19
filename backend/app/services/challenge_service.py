@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.enums import AnswerStatus, QuestionType
 from app.crud import answer as answer_crud
 from app.crud import question as question_crud
+from app.crud import user as user_crud
 from app.database import SessionLocal
 from app.models.answer import Answer
 from app.models.question import Question
@@ -20,7 +21,7 @@ from app.schemas.question import LongTextContent
 from app.services.challenge_prompts import CHALLENGE_SYSTEM_PROMPT, build_challenge_user_prompt
 from app.services.grading_prompts import strip_code_fences
 from app.services.grading_service import effective_met, recalculate_test_result
-from app.services.llm import get_llm_client
+from app.services.llm import get_user_llm_client
 
 logger = logging.getLogger("smarttutor.grading")
 
@@ -131,6 +132,20 @@ def process_challenge(answer_id: str) -> None:
             logger.error("Question not found for answer %s", answer_id)
             return
 
+        if answer.test_result_id is None:
+            logger.error("Answer %s has no associated test result", answer_id)
+            return
+
+        test_result = answer_crud.get_test_result_with_answers(db, test_result_id=answer.test_result_id)
+        if test_result is None:
+            logger.error("Test result not found for answer %s", answer_id)
+            return
+
+        user = user_crud.get_by_id(db, id=test_result.user_id)
+        if user is None:
+            logger.error("User not found for answer %s", answer_id)
+            return
+
         rubric_result: list[dict[str, object]] = copy.deepcopy(answer.rubric_result or [])
         pending_indices = [
             i
@@ -178,7 +193,7 @@ def process_challenge(answer_id: str) -> None:
             len(pending_indices),
         )
 
-        llm = get_llm_client()
+        llm = get_user_llm_client(user)
         raw_response = llm.complete(system=CHALLENGE_SYSTEM_PROMPT, user=user_prompt, max_tokens=2048)
         cleaned = strip_code_fences(raw_response)
         parsed = json.loads(cleaned)

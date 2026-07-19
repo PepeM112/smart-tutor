@@ -55,13 +55,20 @@ def apply_sm2(
     )
 
 
-def record_answer(db: Session, *, user_id: str, question_id: str, answer_status: AnswerStatus) -> SRSStateResponse:
+def record_answer(
+    db: Session,
+    *,
+    user_id: str,
+    question_id: str,
+    answer_status: AnswerStatus,
+    initial_ease_factor: float = 2.5,
+) -> SRSStateResponse:
     """Orchestrate SRS state update: get-or-create state, apply SM-2, persist."""
     quality = SM2_QUALITY_MAP.get(answer_status, 1)
     state = uqs_crud.get_by_user_and_question(db, user_id=user_id, question_id=question_id)
 
     if state is None:
-        result = apply_sm2(quality=quality)
+        result = apply_sm2(quality=quality, ease_factor=initial_ease_factor)
         state = uqs_crud.create(
             db,
             user_id=user_id,

@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages } from 'next-intl/server';
 
 import { FontSizeProvider } from '@/components/font-size-provider';
 import { Providers } from '@/components/providers';
@@ -35,20 +37,25 @@ export default async function RootLayout({
   const theme = cookieStore.get(THEME_COOKIE)?.value;
   const fontSize = cookieStore.get(FONT_SIZE_COOKIE)?.value as FontSizeId | undefined;
   const fontSizeStyle = fontSize ? { fontSize: getFontSizeValue(fontSize) } : undefined;
+  const locale = await getLocale();
+  const messages = await getMessages();
 
   return (
     <html
-      lang="en"
+      lang={locale}
       {...(theme ? { 'data-theme': theme } : {})}
       style={fontSizeStyle}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider>
-          <FontSizeProvider>
-            <Providers>{children}</Providers>
-          </FontSizeProvider>
-        </ThemeProvider>
+        <NextIntlClientProvider messages={messages}>
+          <ThemeProvider>
+            <FontSizeProvider>
+              <Providers>{children}</Providers>
+            </FontSizeProvider>
+          </ThemeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

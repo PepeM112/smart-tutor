@@ -1,10 +1,12 @@
 'use client';
 
 import { Check, Loader2, RotateCcw, Scale, Send, ShieldCheck, Undo2, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { type AnswerRead, type RubricResultItem } from '@/client';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
+import { useAiAvailable } from '@/hooks/use-ai-available';
 import { cn } from '@/lib/utils';
 
 import { useChallengeMode } from '../hooks/use-challenge-mode';
@@ -12,12 +14,14 @@ import { useChallengeMode } from '../hooks/use-challenge-mode';
 import { effectiveMet } from './result-detail-utils';
 
 export function LongTextReview({ answer }: { answer?: AnswerRead }) {
+  const tChallenge = useTranslations('challenge');
+
   if (!answer) return null;
 
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm text-muted-foreground mb-1">Your answer:</p>
+        <p className="text-sm text-muted-foreground mb-1">{tChallenge('your_answer')}</p>
         <p className="text-sm whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.userAnswer}</p>
       </div>
       {answer.rubricResult && answer.rubricResult.length > 0 && (
@@ -28,6 +32,10 @@ export function LongTextReview({ answer }: { answer?: AnswerRead }) {
 }
 
 function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answerId: string }) {
+  const tChallenge = useTranslations('challenge');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
+  const aiAvailable = useAiAvailable();
   const {
     isChallengeMode,
     enterChallengeMode,
@@ -49,12 +57,12 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">
-          Rubric ({effectiveMetCount}/{items.length} criteria met)
+          {tChallenge('rubric', { met: `${effectiveMetCount}/${items.length}` })}
         </p>
         <div className="flex items-center gap-1">
           {isChallengeMode && (
             <div className="flex items-center gap-1 animate-in fade-in-0 slide-in-from-right-3 duration-200">
-              <Tooltip content="Cancel">
+              <Tooltip content={tCommon('cancel')}>
                 <button
                   className={cn(iconBtnClass, 'text-muted-foreground hover:bg-muted')}
                   onClick={exitChallengeMode}
@@ -62,7 +70,13 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
                   <Undo2 className="size-4" />
                 </button>
               </Tooltip>
-              <Tooltip content={canSubmit ? `Submit challenge (${selectedCriteria.size})` : 'Select criteria first'}>
+              <Tooltip
+                content={
+                  canSubmit
+                    ? `${tChallenge('submit_challenge')} (${selectedCriteria.size})`
+                    : tChallenge('select_criteria_first')
+                }
+              >
                 <button
                   className={cn(
                     iconBtnClass,
@@ -79,16 +93,24 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
           )}
           {!isChallengeMode && !hasPendingChallenge && (
             <div className="animate-in fade-in-0 slide-in-from-left-3 duration-200">
-              <Tooltip content={canChallenge ? 'Challenge grade' : 'All criteria reviewed'}>
+              <Tooltip
+                content={
+                  !aiAvailable
+                    ? tSettings('ai_not_configured')
+                    : canChallenge
+                      ? tChallenge('challenge_grade')
+                      : tChallenge('all_criteria_reviewed')
+                }
+              >
                 <button
                   className={cn(
                     iconBtnClass,
-                    canChallenge
+                    canChallenge && aiAvailable
                       ? 'bg-feedback-partial/15 text-feedback-partial hover:bg-feedback-partial/25'
                       : 'text-muted-foreground/40 cursor-not-allowed'
                   )}
-                  onClick={canChallenge ? enterChallengeMode : undefined}
-                  disabled={!canChallenge}
+                  onClick={canChallenge && aiAvailable ? enterChallengeMode : undefined}
+                  disabled={!canChallenge || !aiAvailable}
                 >
                   <Scale className="size-4" />
                 </button>
@@ -129,6 +151,7 @@ function CriterionCard({
   onToggle: () => void;
   onArgumentChange: (value: string) => void;
 }) {
+  const tChallenge = useTranslations('challenge');
   const cr = item.challengeResult;
   const isPending = cr != null && cr.met == null;
   const isOverturned = cr != null && cr.met === true;
@@ -184,7 +207,7 @@ function CriterionCard({
       {isSelected && (
         <div className="mt-4 ml-6" onClick={e => e.stopPropagation()}>
           <Textarea
-            placeholder="Explain why your answer addresses this criterion..."
+            placeholder={tChallenge('explain_criterion')}
             value={argument}
             onChange={e => onArgumentChange(e.target.value)}
             rows={2}
@@ -230,18 +253,20 @@ function CriterionIcon({
 }
 
 function ChallengeVerdict({ variant }: { variant: 'overturned' | 'pending' }) {
+  const tChallenge = useTranslations('challenge');
+
   if (variant === 'overturned') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-feedback-correct-bg px-2 py-0.5 text-[0.65rem] font-medium text-feedback-correct ring-1 ring-feedback-correct-border shrink-0">
         <ShieldCheck className="size-3" />
-        Overturned
+        {tChallenge('overturned')}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-feedback-partial-bg px-2 py-0.5 text-[0.65rem] font-medium text-feedback-partial ring-1 ring-feedback-partial-border shrink-0">
       <Loader2 className="size-3 animate-spin" />
-      Re-evaluating
+      {tChallenge('re_evaluating')}
     </span>
   );
 }

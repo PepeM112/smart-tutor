@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { use } from 'react';
 
 import { NotePage } from '@/features/notes/components/note-page';
@@ -12,7 +13,8 @@ type Props = {
 
 export default function NoteDetailRoutePage({ params }: Props) {
   const { id } = use(params);
-  useBreadcrumb('Note', [{ label: 'Notes', href: Routes.NOTES }], Routes.NOTES);
+  const t = useTranslations('notes');
+  useBreadcrumb(t('note'), [{ label: t('title'), href: Routes.NOTES }], Routes.NOTES);
 
   return <NotePage noteId={id} />;
 }
