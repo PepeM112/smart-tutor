@@ -18,10 +18,9 @@ from app.database import SessionLocal
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test_result import TestResult
-from app.models.user import User
 from app.schemas.question import LongTextContent, RubricItem
 from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
-from app.services.llm import get_user_llm_client
+from app.services.llm import LLMClient, get_user_llm_client
 
 logger = logging.getLogger("smarttutor.grading")
 
@@ -39,11 +38,10 @@ class CriterionResult:
     reason: str = ""
 
 
-def grade(user: User, prompt: str, rubric: list[RubricItem], answer: str) -> list[CriterionResult]:
-    """Grade a long-text answer against a rubric via the user's configured LLM provider."""
-    llm = get_user_llm_client(user)
+def grade(llm: LLMClient, prompt: str, rubric: list[RubricItem], answer: str) -> list[CriterionResult]:
+    """Grade a long-text answer against a rubric via the provided LLM client."""
     user_prompt = build_grading_user_prompt(prompt, rubric, answer)
-    raw_text = llm.complete(system=GRADING_SYSTEM_PROMPT, user=user_prompt, max_tokens=2048)
+    raw_text = llm.complete(system=GRADING_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
     cleaned = strip_code_fences(raw_text)
     data: dict[str, list[_RawCriterionDict]] = json.loads(cleaned)
     return [
@@ -189,7 +187,7 @@ def grade_pending_answers(test_result_id: str) -> None:
 
             try:
                 content = LongTextContent.model_validate(question.content)
-                results = grade(user, question.prompt, content.rubric, answer.user_answer)
+                results = grade(llm, question.prompt, content.rubric, answer.user_answer)
 
                 status = _determine_status(results, len(content.rubric))
                 answer.status = int(status)

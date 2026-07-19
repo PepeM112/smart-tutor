@@ -16,7 +16,7 @@ class User(Base, CreatedAtMixin):
     hashed_password: Mapped[str] = mapped_column(String)
     display_name: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     locale: Mapped[str] = mapped_column(String(5), default="en")
-    theme: Mapped[str] = mapped_column(String(10), default="system")
+    theme: Mapped[str] = mapped_column(String(20), default="system")
     ai_provider: Mapped[AiProvider | None] = mapped_column(nullable=True, default=None)
     encrypted_anthropic_key: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     encrypted_openai_key: Mapped[str | None] = mapped_column(String, nullable=True, default=None)

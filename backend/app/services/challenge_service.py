@@ -194,7 +194,7 @@ def process_challenge(answer_id: str) -> None:
         )
 
         llm = get_user_llm_client(user)
-        raw_response = llm.complete(system=CHALLENGE_SYSTEM_PROMPT, user=user_prompt, max_tokens=2048)
+        raw_response = llm.complete(system=CHALLENGE_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
         cleaned = strip_code_fences(raw_response)
         parsed = json.loads(cleaned)
         results: list[dict[str, object]] = parsed["results"]

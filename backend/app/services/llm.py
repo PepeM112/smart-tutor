@@ -29,7 +29,7 @@ class LLMClient(ABC):
     def name(self) -> str: ...
 
     @abstractmethod
-    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
         """Send a system + user message pair and return the raw text response."""
         ...
 
@@ -49,14 +49,14 @@ class AnthropicLLMClient(LLMClient):
     def name(self) -> str:
         return f"Anthropic ({self.MODEL})"
 
-    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
         from anthropic.types import TextBlock
 
         response = self._client.messages.create(
             model=self.MODEL,
             max_tokens=max_tokens,
             system=system,
-            messages=[{"role": "user", "content": user}],
+            messages=[{"role": "user", "content": user_prompt}],
         )
 
         if not response.content:
@@ -95,13 +95,13 @@ class OpenAILLMClient(LLMClient):
     def name(self) -> str:
         return f"OpenAI ({self.MODEL})"
 
-    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
         response = self._client.chat.completions.create(
             model=self.MODEL,
             max_tokens=max_tokens,
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user", "content": user},
+                {"role": "user", "content": user_prompt},
             ],
         )
 
@@ -161,19 +161,10 @@ def get_user_llm_client(user: User) -> LLMClient:
     raise ValueError(f"Unknown AI provider: {provider}")
 
 
-def complete(*, system: str, user: str, max_tokens: int) -> str:
-    """Get the LLM client and call complete, wrapping errors into HTTPExceptions."""
+def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens: int) -> str:
+    """Execute a completion call, wrapping provider errors into HTTPExceptions."""
     try:
-        llm = get_llm_client()
-    except ValueError as exc:
-        logger.error("AI provider unavailable: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI service is not configured. Please contact the administrator.",
-        ) from exc
-
-    try:
-        return llm.complete(system=system, user=user, max_tokens=max_tokens)
+        return llm.complete(system=system, user_prompt=user_prompt, max_tokens=max_tokens)
     except (ValueError, TypeError) as exc:
         logger.error("AI provider returned unusable response: %s", exc)
         raise HTTPException(
@@ -186,6 +177,20 @@ def complete(*, system: str, user: str, max_tokens: int) -> str:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI service encountered an error. Please try again later.",
         ) from exc
+
+
+def complete(*, system: str, user_prompt: str, max_tokens: int) -> str:
+    """Get the LLM client and call complete, wrapping errors into HTTPExceptions."""
+    try:
+        llm = get_llm_client()
+    except ValueError as exc:
+        logger.error("AI provider unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI service is not configured. Please contact the administrator.",
+        ) from exc
+
+    return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
 
 
 def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: int) -> str:
@@ -199,17 +204,4 @@ def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: 
             detail="AI is not configured. Please add your API key in Settings.",
         ) from exc
 
-    try:
-        return llm.complete(system=system, user=user_prompt, max_tokens=max_tokens)
-    except (ValueError, TypeError) as exc:
-        logger.error("AI provider returned unusable response: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI service returned an invalid response. Please try again.",
-        ) from exc
-    except Exception as exc:
-        logger.exception("Unexpected error during LLM call")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI service encountered an error. Please try again later.",
-        ) from exc
+    return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)

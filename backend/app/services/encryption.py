@@ -11,7 +11,12 @@ def _get_fernet() -> Fernet:
         key = os.environ.get("ENCRYPTION_KEY")
         if not key:
             raise RuntimeError("ENCRYPTION_KEY environment variable is not set")
-        _fernet = Fernet(key.encode())
+        try:
+            _fernet = Fernet(key.encode())
+        except (ValueError, Exception) as exc:
+            raise RuntimeError(
+                "ENCRYPTION_KEY is not a valid Fernet key (must be 32 url-safe base64-encoded bytes)"
+            ) from exc
     return _fernet
 
 
