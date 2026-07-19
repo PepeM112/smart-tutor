@@ -267,7 +267,8 @@
     "applying": "Applying…",
     "two_column_layout": "2-column layout",
     "one_column_layout": "1-column layout",
-    "reset_to_original": "Reset to original generation"
+    "reset_to_original": "Reset to original generation",
+    "create_test": "Create Test"
   },
   "test_editor": {
     "question_prompt": "Question prompt",
@@ -372,6 +373,12 @@
     "failed_to_save": "Failed to save settings",
     "ai_not_configured": "AI is not configured. Add your API key in Settings to use this feature.",
     "model_claude_haiku": "Claude Haiku 4.5",
-    "model_gpt4o_mini": "GPT-4o Mini"
+    "model_gpt4o_mini": "GPT-4o Mini",
+    "theme_label": "Theme",
+    "theme_description": "Choose a color palette for the interface.",
+    "theme_light_group": "Light",
+    "theme_dark_group": "Dark",
+    "font_size_label": "Font Size",
+    "font_size_description": "Adjust the interface text size."
   }
 }

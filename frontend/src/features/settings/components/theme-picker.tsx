@@ -1,6 +1,7 @@
 'use client';
 
 import { Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type ThemePreview } from '@/lib/themes';
@@ -39,17 +40,18 @@ function ThemeCard({ theme, isActive, onSelect }: { theme: ThemePreview; isActiv
 }
 
 export function ThemePicker() {
+  const t = useTranslations('settings');
   const { themeId, setTheme } = useTheme();
 
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">Theme</h3>
-        <p className="text-xs text-muted-foreground">Choose a color palette for the interface.</p>
+        <h3 className="text-sm font-semibold text-foreground">{t('theme_label')}</h3>
+        <p className="text-xs text-muted-foreground">{t('theme_description')}</p>
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Light</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('theme_light_group')}</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {lightThemes.map(theme => (
             <ThemeCard
@@ -63,7 +65,7 @@ export function ThemePicker() {
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dark</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('theme_dark_group')}</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {darkThemes.map(theme => (
             <ThemeCard

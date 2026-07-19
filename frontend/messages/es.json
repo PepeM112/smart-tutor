@@ -267,7 +267,8 @@
     "applying": "Aplicando…",
     "two_column_layout": "Diseño de 2 columnas",
     "one_column_layout": "Diseño de 1 columna",
-    "reset_to_original": "Restablecer a la generación original"
+    "reset_to_original": "Restablecer a la generación original",
+    "create_test": "Crear Test"
   },
   "test_editor": {
     "question_prompt": "Enunciado de la pregunta",
@@ -372,6 +373,12 @@
     "failed_to_save": "Error al guardar los ajustes",
     "ai_not_configured": "La IA no está configurada. Añade tu clave API en Ajustes para usar esta función.",
     "model_claude_haiku": "Claude Haiku 4.5",
-    "model_gpt4o_mini": "GPT-4o Mini"
+    "model_gpt4o_mini": "GPT-4o Mini",
+    "theme_label": "Tema",
+    "theme_description": "Elige una paleta de colores para la interfaz.",
+    "theme_light_group": "Claro",
+    "theme_dark_group": "Oscuro",
+    "font_size_label": "Tamaño de fuente",
+    "font_size_description": "Ajusta el tamaño del texto de la interfaz."
   }
 }
