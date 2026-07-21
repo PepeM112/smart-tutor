@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 import type { GeneratedQuestionPreviewInput, LongTextContent, MultipleChoiceContent, SimpleContent } from '@/client';
 import { QuestionGroupType, QuestionType } from '@/client';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
@@ -178,11 +179,7 @@ export function GeneratedTestPreview() {
   });
 
   if (!hasData) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (

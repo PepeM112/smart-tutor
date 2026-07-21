@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -17,9 +17,9 @@ import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 import { useBlockSelection } from '../../hooks/use-block-selection';
 import { AddQuestionDropdown } from '../add-question-dropdown';
@@ -51,7 +51,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
-  const setActions = useBreadcrumbStore(s => s.setActions);
   const isEdit = !!testId;
 
   const [title, setTitle] = useState(initialTitle);
@@ -138,18 +137,11 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     removeAndReindex(idx);
   }
 
-  useEffect(() => {
-    if (!isDesktop) {
-      setActions(
-        <Button disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-          {isSaving ? t('saving') : t('save_test')}
-        </Button>
-      );
-      return () => setActions(undefined);
-    }
-    setActions(undefined);
-    return () => setActions(undefined);
-  }, [isDesktop, title, isSaving, saveTest, setActions, t]);
+  useMobileBreadcrumbActions(
+    <Button disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
+      {isSaving ? t('saving') : t('save_test')}
+    </Button>
+  );
 
   return (
     <div>

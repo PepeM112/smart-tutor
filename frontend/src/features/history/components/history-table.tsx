@@ -10,6 +10,7 @@ import type { TestResultListItem } from '@/client';
 import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { getScoreBadgeClasses } from '@/features/history/utils/score-colors';
+import { formatDate, formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -44,24 +45,6 @@ export function HistoryTable({ data }: Props) {
       expandable={false}
     />
   );
-}
-
-function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatShortDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 function ScoreBadge({ score }: { score: number }) {

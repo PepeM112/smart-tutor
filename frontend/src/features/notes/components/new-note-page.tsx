@@ -11,9 +11,9 @@ import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 import { NoteEditor } from './note-editor';
 import { TagInput } from './tag-input';
@@ -23,7 +23,6 @@ export function NewNotePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
-  const setActions = useBreadcrumbStore(s => s.setActions);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
@@ -53,17 +52,11 @@ export function NewNotePage() {
     onError: () => toast.error(t('failed_to_create')),
   });
 
-  useEffect(() => {
-    if (!isDesktop) {
-      setActions(
-        <Button icon={Save} onClick={() => createNote()} disabled={!title.trim() || isCreating}>
-          {isCreating ? t('creating') : t('create')}
-        </Button>
-      );
-      return () => setActions(undefined);
-    }
-    setActions(undefined);
-  }, [isDesktop, title, isCreating, createNote, setActions, t]);
+  useMobileBreadcrumbActions(
+    <Button icon={Save} onClick={() => createNote()} disabled={!title.trim() || isCreating}>
+      {isCreating ? t('creating') : t('create')}
+    </Button>
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)]">

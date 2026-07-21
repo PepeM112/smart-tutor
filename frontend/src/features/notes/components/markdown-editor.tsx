@@ -69,7 +69,7 @@ type Props = {
   onModeChange?: (mode: 'view' | 'edit') => void;
 };
 
-export function MarkdownRendererV2({
+export function MarkdownEditor({
   content,
   onChange,
   readOnly,

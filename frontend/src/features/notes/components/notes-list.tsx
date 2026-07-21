@@ -13,6 +13,7 @@ import { DataTable, type MobileAction } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/api-client';
+import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -112,14 +113,6 @@ function SourceBadge({ source }: { source: NoteSource }) {
   );
 }
 
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
 type ColumnDeps = {
   deleteNote: (id: string) => void;
   isDeleting: boolean;
@@ -153,7 +146,9 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
     {
       id: 'updated',
       header: t('column_updated'),
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.updatedAt)}</span>,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{formatShortDate(row.original.updatedAt)}</span>
+      ),
     },
     {
       id: 'actions',

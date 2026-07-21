@@ -18,8 +18,8 @@ import { sdk } from '@/lib/api-client';
 
 import { getMarkdownRangeFromSelection } from '../utils/markdown-selection';
 
+import { MarkdownEditor } from './markdown-editor';
 import { MarkdownRenderer } from './markdown-renderer';
-import { MarkdownRendererV2 } from './markdown-renderer-v2';
 
 type Props = {
   content: string;
@@ -261,7 +261,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         className="min-w-0 overflow-hidden rounded-xl border border-primary/90 bg-card"
         style={{ flex: isDesktop && hasDiffPanel ? splitRatio : 1 }}
       >
-        <MarkdownRendererV2
+        <MarkdownEditor
           content={content}
           onChange={onChange}
           readOnly={!isDesktop}
@@ -293,12 +293,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
               </Button>
             </div>
             <div className="flex-1 min-h-0">
-              <MarkdownRendererV2
-                content={content}
-                onChange={onChange}
-                mode={drawerMode}
-                onModeChange={setDrawerMode}
-              />
+              <MarkdownEditor content={content} onChange={onChange} mode={drawerMode} onModeChange={setDrawerMode} />
             </div>
           </DrawerContent>
         </Drawer>

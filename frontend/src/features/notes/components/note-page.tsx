@@ -8,12 +8,13 @@ import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GenerateTestDialog } from '@/features/tests/components/generate-test-dialog';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
 import { sdk } from '@/lib/api-client';
-import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 import { NoteEditor } from './note-editor';
 import { RefineNoteDialog } from './refine-note-dialog';
@@ -35,11 +36,7 @@ export function NotePage({ noteId }: Props) {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (isError) {
@@ -58,7 +55,6 @@ function NoteForm({ note }: { note: NoteRead }) {
   const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
-  const setActions = useBreadcrumbStore(s => s.setActions);
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [title, setTitle] = useState(note.title);
   const [description, setDescription] = useState(note.description ?? '');
@@ -108,21 +104,13 @@ function NoteForm({ note }: { note: NoteRead }) {
     setIsDirty(true);
   }
 
-  // On mobile, put Save in the breadcrumb actions slot
-  useEffect(() => {
-    if (!isDesktop && isDirty) {
-      setActions(
-        <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
-          {isSaving ? t('saving') : tCommon('save')}
-        </Button>
-      );
-      return () => setActions(undefined);
-    }
-    if (!isDesktop) {
-      setActions(undefined);
-    }
-    return () => setActions(undefined);
-  }, [isDesktop, isDirty, isSaving, title, save, setActions, t, tCommon]);
+  useMobileBreadcrumbActions(
+    isDirty ? (
+      <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
+        {isSaving ? t('saving') : tCommon('save')}
+      </Button>
+    ) : undefined
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)]">
