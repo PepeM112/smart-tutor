@@ -5,10 +5,11 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { Bot, Download, Pencil, Trash2, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { NoteSource, type NoteRead } from '@/client';
-import { DataTable } from '@/components/shared/data-table';
+import { DataTable, type MobileAction } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/api-client';
@@ -20,8 +21,59 @@ type Props = {
 
 export function NotesList({ data }: Props) {
   const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
   const router = useRouter();
+  const queryClient = useQueryClient();
   const columns = useNotesColumns();
+
+  const { mutate: deleteNote } = useMutation({
+    mutationFn: (id: string) => sdk.notesDelete({ path: { note_id: id } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast.success(t('note_deleted'));
+    },
+    onError: () => toast.error(t('failed_to_delete')),
+  });
+
+  const renderPreview = useCallback((note: NoteRead) => {
+    const preview =
+      note.description && note.description.length > 80 ? `${note.description.slice(0, 80)}...` : note.description;
+    return (
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{note.title}</p>
+        {preview && <p className="mt-0.5 text-xs text-muted-foreground truncate">{preview}</p>}
+      </div>
+    );
+  }, []);
+
+  const renderActions = useCallback(
+    (note: NoteRead): MobileAction[] => [
+      {
+        label: tCommon('edit'),
+        icon: Pencil,
+        onClick: () => router.push(Routes.NOTE_DETAIL(note.id)),
+      },
+      {
+        label: tCommon('export'),
+        icon: Download,
+        onClick: () => {
+          downloadMarkdown(note.title, note.content ?? '');
+          toast.success(tCommon('downloaded'));
+        },
+      },
+      {
+        label: tCommon('delete'),
+        icon: Trash2,
+        variant: 'destructive',
+        onClick: () => deleteNote(note.id),
+        confirm: {
+          title: t('delete_note'),
+          description: t('delete_note_confirm', { title: note.title }),
+        },
+      },
+    ],
+    [t, tCommon, router, deleteNote]
+  );
 
   return (
     <DataTable
@@ -29,6 +81,9 @@ export function NotesList({ data }: Props) {
       data={data}
       emptyMessage={t('no_notes_yet')}
       onRowClick={row => router.push(Routes.NOTE_DETAIL(row.id))}
+      renderPreview={renderPreview}
+      expandable={false}
+      renderActions={renderActions}
     />
   );
 }
@@ -142,6 +197,7 @@ function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
                 <Button
                   variant="ghost"
                   size="icon-lg"
+                  className="text-destructive hover:text-destructive"
                   tooltip={tCommon('delete')}
                   onClick={e => e.stopPropagation()}
                   disabled={isDeleting}

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { AiProvider } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -91,14 +92,18 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
               </button>
             </div>
             {hasAnthropicKey && (
-              <Button
-                variant="destructive"
-                size="icon-sm"
-                onClick={() => removeKey('anthropic')}
-                tooltip={t('remove_key')}
-              >
-                <X className="size-3.5" />
-              </Button>
+              <ConfirmDialog
+                trigger={
+                  <Button variant="destructive" size="icon-sm" tooltip={t('remove_key')}>
+                    <X className="size-3.5" />
+                  </Button>
+                }
+                title={t('remove_key_title')}
+                description={t('remove_key_confirm')}
+                confirmLabel={t('remove_key')}
+                confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+                onConfirm={() => removeKey('anthropic')}
+              />
             )}
           </div>
         </div>
@@ -134,14 +139,18 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
               </button>
             </div>
             {hasOpenaiKey && (
-              <Button
-                variant="destructive"
-                size="icon-sm"
-                onClick={() => removeKey('openai')}
-                tooltip={t('remove_key')}
-              >
-                <X className="size-3.5" />
-              </Button>
+              <ConfirmDialog
+                trigger={
+                  <Button variant="destructive" size="icon-sm" tooltip={t('remove_key')}>
+                    <X className="size-3.5" />
+                  </Button>
+                }
+                title={t('remove_key_title')}
+                description={t('remove_key_confirm')}
+                confirmLabel={t('remove_key')}
+                confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+                onConfirm={() => removeKey('openai')}
+              />
             )}
           </div>
         </div>

@@ -5,10 +5,11 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { Copy, Dumbbell, Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
-import { DataTable } from '@/components/shared/data-table';
+import { DataTable, type MobileAction } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { getQuestionTypeInfo } from '@/features/tests/utils/question-icons';
@@ -21,8 +22,74 @@ type Props = {
 
 export function TestsTable({ data }: Props) {
   const t = useTranslations('tests');
+  const tCommon = useTranslations('common');
   const router = useRouter();
+  const queryClient = useQueryClient();
   const columns = useTestsColumns();
+
+  const { mutate: deleteTest } = useMutation({
+    mutationFn: (id: string) => sdk.testsDelete({ path: { test_id: id } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['tests'] });
+      toast.success(t('test_deleted'));
+    },
+    onError: () => toast.error(t('failed_to_delete')),
+  });
+
+  const renderPreview = useCallback((test: TestRead) => {
+    const questions = test.questions ?? [];
+    const simple = countByType(questions, QuestionType.SIMPLE);
+    const mc = countByType(questions, QuestionType.MULTIPLE_CHOICE);
+    const longText = countByType(questions, QuestionType.LONG_TEXT);
+
+    return (
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{test.title}</p>
+        {test.description && <p className="mt-0.5 text-xs text-muted-foreground truncate">{test.description}</p>}
+        {questions.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <QuestionTypeBadge type={QuestionType.SIMPLE} count={simple} />
+            <QuestionTypeBadge type={QuestionType.MULTIPLE_CHOICE} count={mc} />
+            <QuestionTypeBadge type={QuestionType.LONG_TEXT} count={longText} />
+          </div>
+        )}
+      </div>
+    );
+  }, []);
+
+  const renderActions = useCallback(
+    (test: TestRead): MobileAction[] => [
+      {
+        label: tCommon('edit'),
+        icon: Pencil,
+        onClick: () => router.push(Routes.TEST_EDIT(test.id)),
+      },
+      {
+        label: t('copy_id'),
+        icon: Copy,
+        onClick: () => {
+          void navigator.clipboard.writeText(test.id);
+          toast.success(tCommon('copied'));
+        },
+      },
+      {
+        label: t('take_test_action'),
+        icon: Dumbbell,
+        onClick: () => router.push(Routes.TEST_DETAIL(test.id)),
+      },
+      {
+        label: tCommon('delete'),
+        icon: Trash2,
+        variant: 'destructive',
+        onClick: () => deleteTest(test.id),
+        confirm: {
+          title: t('delete_test'),
+          description: t('delete_test_confirm', { title: test.title }),
+        },
+      },
+    ],
+    [t, tCommon, router, deleteTest]
+  );
 
   return (
     <DataTable
@@ -30,6 +97,8 @@ export function TestsTable({ data }: Props) {
       data={data}
       emptyMessage={t('no_tests_yet')}
       onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
+      renderPreview={renderPreview}
+      renderActions={renderActions}
     />
   );
 }
@@ -146,6 +215,7 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
             <Button
               variant="ghost"
               size="icon-lg"
+              className="text-amber-500 hover:text-amber-500"
               tooltip={t('take_test_action')}
               onClick={e => {
                 e.stopPropagation();
@@ -160,6 +230,7 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
                 <Button
                   variant="ghost"
                   size="icon-lg"
+                  className="text-destructive hover:text-destructive"
                   tooltip={tCommon('delete')}
                   onClick={e => e.stopPropagation()}
                   disabled={isDeleting}
