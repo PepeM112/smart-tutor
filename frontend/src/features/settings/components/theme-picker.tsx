@@ -1,6 +1,7 @@
 'use client';
 
 import { Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type ThemePreview } from '@/lib/themes';
@@ -10,6 +11,48 @@ const DARK_THEMES = new Set(['midnight', 'carbon', 'neon', 'noir']);
 
 const lightThemes = themes.filter(t => !DARK_THEMES.has(t.id));
 const darkThemes = themes.filter(t => DARK_THEMES.has(t.id));
+
+export function ThemePicker() {
+  const t = useTranslations('settings');
+  const { themeId, setTheme } = useTheme();
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">{t('theme_label')}</h3>
+        <p className="text-xs text-muted-foreground">{t('theme_description')}</p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('theme_light_group')}</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {lightThemes.map(theme => (
+            <ThemeCard
+              key={theme.id}
+              theme={theme}
+              isActive={themeId === theme.id}
+              onSelect={() => setTheme(theme.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('theme_dark_group')}</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {darkThemes.map(theme => (
+            <ThemeCard
+              key={theme.id}
+              theme={theme}
+              isActive={themeId === theme.id}
+              onSelect={() => setTheme(theme.id)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ThemeCard({ theme, isActive, onSelect }: { theme: ThemePreview; isActive: boolean; onSelect: () => void }) {
   return (
@@ -35,46 +78,5 @@ function ThemeCard({ theme, isActive, onSelect }: { theme: ThemePreview; isActiv
         {isActive && <Check className="size-3.5 text-primary" />}
       </div>
     </button>
-  );
-}
-
-export function ThemePicker() {
-  const { themeId, setTheme } = useTheme();
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">Theme</h3>
-        <p className="text-xs text-muted-foreground">Choose a color palette for the interface.</p>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Light</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {lightThemes.map(theme => (
-            <ThemeCard
-              key={theme.id}
-              theme={theme}
-              isActive={themeId === theme.id}
-              onSelect={() => setTheme(theme.id)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dark</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {darkThemes.map(theme => (
-            <ThemeCard
-              key={theme.id}
-              theme={theme}
-              isActive={themeId === theme.id}
-              onSelect={() => setTheme(theme.id)}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { QuestionType } from '@/client';
 import { Button } from '@/components/ui/button';
@@ -19,20 +20,27 @@ type Props = {
 };
 
 export function AddQuestionDropdown({ onSelect }: Props) {
+  const t = useTranslations('test_editor');
+  const tTestGeneration = useTranslations('test_generation');
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline">
           <Plus data-icon="inline-start" />
-          Add question
+          {t('add_question')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
         {(
           [
-            { addType: 'group' as const, questionType: QuestionType.SIMPLE, label: 'Simple questions' },
-            { addType: 'mc' as const, questionType: QuestionType.MULTIPLE_CHOICE, label: 'Multiple Choice' },
-            { addType: 'long' as const, questionType: QuestionType.LONG_TEXT, label: 'Long Text' },
+            { addType: 'group' as const, questionType: QuestionType.SIMPLE, label: t('simple_questions') },
+            {
+              addType: 'mc' as const,
+              questionType: QuestionType.MULTIPLE_CHOICE,
+              label: tTestGeneration('multiple_choice'),
+            },
+            { addType: 'long' as const, questionType: QuestionType.LONG_TEXT, label: t('long_text') },
           ] as const
         ).map(({ addType, questionType, label }) => {
           const { icon: Icon } = getQuestionTypeInfo(questionType);

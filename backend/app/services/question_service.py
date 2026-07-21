@@ -44,7 +44,13 @@ def check_question(
 
     srs_state = None
     if update_srs:
-        srs_state = record_answer(db, user_id=current_user.id, question_id=question_id, answer_status=answer_status)
+        srs_state = record_answer(
+            db,
+            user_id=current_user.id,
+            question_id=question_id,
+            answer_status=answer_status,
+            initial_ease_factor=current_user.initial_ease_factor,
+        )
 
     answer_fields = get_correct_answer_fields(question)
     return QuestionCheckResponse(

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Save, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export function NotePage({ noteId }: Props) {
+  const t = useTranslations('notes');
   const {
     data: note,
     isLoading,
@@ -39,17 +41,19 @@ export function NotePage({ noteId }: Props) {
   }
 
   if (isError) {
-    return <p className="text-muted-foreground">Failed to load note. Please try again.</p>;
+    return <p className="text-muted-foreground">{t('failed_to_load_note')}</p>;
   }
 
   if (!note?.data) {
-    return <p className="text-muted-foreground">Note not found.</p>;
+    return <p className="text-muted-foreground">{t('note_not_found')}</p>;
   }
 
   return <NoteForm key={note.data.id} note={note.data} />;
 }
 
 function NoteForm({ note }: { note: NoteRead }) {
+  const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [title, setTitle] = useState(note.title);
@@ -91,10 +95,10 @@ function NoteForm({ note }: { note: NoteRead }) {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success('Note saved');
+      toast.success(t('note_saved'));
       setIsDirty(false);
     },
-    onError: () => toast.error('Failed to save note'),
+    onError: () => toast.error(t('failed_to_save')),
   });
 
   function markDirty() {
@@ -120,7 +124,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                       if (e.key === 'Escape') cancelHeader();
                     }}
                     className="w-80 text-lg font-semibold"
-                    placeholder="Note title"
+                    placeholder={t('note_title')}
                     autoFocus
                   />
                   <Button variant="secondary" size="icon" onClick={confirmHeader}>
@@ -137,7 +141,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                     setDescription(e.target.value);
                     markDirty();
                   }}
-                  placeholder="Description (optional)"
+                  placeholder={t('description_optional')}
                 />
                 <TagInput
                   tags={tags}
@@ -149,7 +153,7 @@ function NoteForm({ note }: { note: NoteRead }) {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-foreground">{title || 'Untitled'}</h1>
+                <h1 className="text-lg font-semibold text-foreground">{title || t('untitled')}</h1>
                 <Button variant="ghost" size="icon-sm" onClick={startEditingHeader} className="text-muted-foreground">
                   <Pencil className="size-3.5" />
                 </Button>
@@ -176,7 +180,7 @@ function NoteForm({ note }: { note: NoteRead }) {
           <div className="flex items-center gap-2">
             {isDirty && (
               <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
-                {isSaving ? 'Saving...' : 'Save'}
+                {isSaving ? t('saving') : tCommon('save')}
               </Button>
             )}
             <RefineNoteDialog

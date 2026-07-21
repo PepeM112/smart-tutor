@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -6,6 +7,7 @@ import type { RubricResultItem } from '@/client';
 import { sdk } from '@/lib/api-client';
 
 export function useChallengeMode(items: RubricResultItem[], answerId: string) {
+  const t = useTranslations('challenge');
   const [isChallengeMode, setIsChallengeMode] = useState(false);
   const [selectedCriteria, setSelectedCriteria] = useState<Map<number, string>>(new Map());
   const queryClient = useQueryClient();
@@ -22,14 +24,14 @@ export function useChallengeMode(items: RubricResultItem[], answerId: string) {
         },
       }),
     onSuccess: () => {
-      toast.success('Challenge submitted — re-evaluating...');
+      toast.success(t('challenge_submitted'));
       setIsChallengeMode(false);
       setSelectedCriteria(new Map());
       void queryClient.invalidateQueries({ queryKey: ['results'] });
     },
     onError: (error: Error & { status?: number; body?: { detail?: string } }) => {
       const detail = error.body?.detail ?? error.message;
-      toast.error(`Challenge failed: ${detail}`);
+      toast.error(t('challenge_failed', { error: detail }));
     },
   });
 
@@ -46,12 +48,12 @@ export function useChallengeMode(items: RubricResultItem[], answerId: string) {
       wasPending.current = false;
       const overturned = items.filter(i => i.challengeResult?.met === true).length;
       if (overturned > 0) {
-        toast.success(`Challenge resolved — ${overturned} ${overturned === 1 ? 'criterion' : 'criteria'} overturned`);
+        toast.success(t('challenge_overturned', { count: overturned }));
       } else {
-        toast.info('Challenge resolved — original grading upheld');
+        toast.info(t('challenge_upheld'));
       }
     }
-  }, [hasPendingChallenge, items]);
+  }, [hasPendingChallenge, items, t]);
 
   const exitChallengeMode = useCallback(() => {
     setIsChallengeMode(false);

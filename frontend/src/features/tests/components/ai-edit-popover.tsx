@@ -1,11 +1,13 @@
 'use client';
 
 import { WandSparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { Textarea } from '@/components/ui/textarea';
+import { useAiAvailable } from '@/hooks/use-ai-available';
 
 type Props = {
   selectedCount: number;
@@ -20,6 +22,10 @@ type Props = {
  * local state along with it.
  */
 export function AiEditPopover({ selectedCount, isPending, onSubmit }: Props) {
+  const t = useTranslations('test_generation');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
+  const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
 
@@ -31,13 +37,19 @@ export function AiEditPopover({ selectedCount, isPending, onSubmit }: Props) {
   return (
     <FloatingCard open={open} onOpenChange={isPending ? undefined : setOpen}>
       <FloatingCardTrigger asChild>
-        <Button variant="outline" size="lg" icon={WandSparkles}>
-          AI Edit
+        <Button
+          variant="outline"
+          size="lg"
+          icon={WandSparkles}
+          disabled={!aiAvailable}
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : undefined}
+        >
+          {t('ai_edit')}
         </Button>
       </FloatingCardTrigger>
       <FloatingCardContent className="w-80 space-y-3">
         <Textarea
-          placeholder="Describe how you want to edit the selected questions…"
+          placeholder={t('ai_edit_placeholder')}
           value={instructions}
           onChange={e => setInstructions(e.target.value)}
           rows={4}
@@ -45,11 +57,9 @@ export function AiEditPopover({ selectedCount, isPending, onSubmit }: Props) {
           autoFocus
         />
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">
-            {selectedCount} question{selectedCount === 1 ? '' : 's'} selected
-          </p>
+          <p className="text-xs text-muted-foreground">{t('questions_selected', { count: selectedCount })}</p>
           <Button size="sm" onClick={handleSubmit} disabled={!instructions.trim() || isPending}>
-            {isPending ? 'Applying…' : 'Submit'}
+            {isPending ? t('applying') : tCommon('submit')}
           </Button>
         </div>
       </FloatingCardContent>

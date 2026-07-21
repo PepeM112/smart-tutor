@@ -2,12 +2,14 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { WandSparkles, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { Textarea } from '@/components/ui/textarea';
+import { useAiAvailable } from '@/hooks/use-ai-available';
 import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { useTextHighlight } from '@/hooks/use-text-highlight';
 import { sdk } from '@/lib/api-client';
@@ -44,6 +46,10 @@ type DiffState = {
 };
 
 export function NoteEditor({ content, onChange, noteId }: Props) {
+  const t = useTranslations('notes_ai');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
+  const aiAvailable = useAiAvailable();
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(SPLIT_KEY, DEFAULT_RATIO);
 
@@ -57,6 +63,11 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   useEffect(() => {
     popoverOpenRef.current = popoverOpen;
   }, [popoverOpen]);
+
+  const contentRef = useRef(content);
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
 
   const handleViewContainerChange = useCallback((el: HTMLDivElement | null) => {
     viewContainerRef.current = el;
@@ -92,7 +103,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         return;
       }
 
-      const range = getMarkdownRangeFromSelection(container, content);
+      const range = getMarkdownRangeFromSelection(container, contentRef.current);
       if (!range) {
         setSelectionTrigger(null);
         return;
@@ -137,7 +148,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       document.removeEventListener('selectionchange', handleSelectionChange);
       container?.removeEventListener('scroll', commitSelection);
     };
-  }, [noteId, content]);
+  }, [noteId]);
 
   // ── Handlers ────────────────────────────────────────────────────
 
@@ -183,14 +194,14 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       setSelectionTrigger(null);
       setInstructions('');
     },
-    onError: () => toast.error('Failed to edit selection. Please try again.'),
+    onError: () => toast.error(t('failed_to_edit')),
   });
 
   function handleAcceptDiff() {
     if (activeDiffIndex === null || !activeDiff) return;
     const { markdownStart, markdownEnd, originalMarkdown, editedText } = activeDiff;
     if (content.slice(markdownStart, markdownEnd) !== originalMarkdown) {
-      toast.error('Could not locate the original text — it may have changed.');
+      toast.error(t('could_not_locate'));
       removeDiff(activeDiffIndex);
       return;
     }
@@ -227,7 +238,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         <div className="min-w-0 overflow-hidden rounded-lg border border-border" style={{ flex: 1 - splitRatio }}>
           <div className="flex h-full flex-col bg-card p-4">
             <div className="flex items-center justify-between mb-3 shrink-0">
-              <h3 className="text-sm font-semibold text-foreground">Changes</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t('changes')}</h3>
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -238,12 +249,12 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
               </Button>
             </div>
 
-            <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">Old</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">{t('old')}</p>
             <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
               <MarkdownRenderer content={activeDiff.originalMarkdown} />
             </div>
 
-            <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">New</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">{t('new')}</p>
             <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
               <MarkdownRenderer content={activeDiff.editedText} />
             </div>
@@ -254,10 +265,10 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
                 size="sm"
                 onClick={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}
               >
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button size="sm" onClick={handleAcceptDiff}>
-                Accept
+                {tCommon('accept')}
               </Button>
             </div>
           </div>
@@ -277,19 +288,24 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         >
           <FloatingCard open={popoverOpen} onOpenChange={handleOpenChange}>
             <FloatingCardTrigger asChild>
-              <Button size="icon" icon={WandSparkles} tooltip="Edit with AI" />
+              <Button
+                size="icon"
+                icon={WandSparkles}
+                disabled={!aiAvailable}
+                tooltip={!aiAvailable ? tSettings('ai_not_configured') : t('edit_with_ai')}
+              />
             </FloatingCardTrigger>
             <FloatingCardContent align="start" className="w-72 space-y-3">
               <Textarea
                 autoFocus
                 rows={3}
-                placeholder="How should this text be edited?"
+                placeholder={t('how_to_edit')}
                 value={instructions}
                 onChange={e => setInstructions(e.target.value)}
               />
               <div className="flex items-center justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
-                  Cancel
+                  {tCommon('cancel')}
                 </Button>
                 <Button
                   size="sm"
@@ -297,7 +313,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
                   disabled={!instructions.trim() || isSubmittingEdit}
                   onClick={() => editChunk()}
                 >
-                  {isSubmittingEdit ? 'Editing...' : 'Edit'}
+                  {isSubmittingEdit ? t('editing') : tCommon('edit')}
                 </Button>
               </div>
             </FloatingCardContent>

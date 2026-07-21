@@ -1,12 +1,16 @@
 'use client';
 
 import { Loader2, Send } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import {
+  LongTextLength,
   QuestionGroupType,
   QuestionType,
   type AnswerStatus,
+  type LongTextContentStripped,
+  type MultipleChoiceContentStripped,
   type QuestionReadStripped,
   type TestQuestionGroupReadStripped,
   type TestReadStripped,
@@ -36,6 +40,7 @@ type Props = {
 };
 
 export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
+  const t = useTranslations('exam');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const items = buildExamItems(test);
 
@@ -112,7 +117,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
                 {group.points != null && group.points !== 1 && (
                   <span className="text-xs text-muted-foreground mr-1.5">[{group.points} pts]</span>
                 )}
-                {group.title ?? 'Question Group'}
+                {group.title ?? t('question_group')}
               </p>
 
               {isVocabulary ? (
@@ -154,20 +159,23 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
           <CardContent className="flex items-center justify-between py-4">
             <div>
               <p className="text-lg font-semibold">
-                Score: {(result.score ?? 0).toFixed(1)}%
+                {t('score', { score: (result.score ?? 0).toFixed(1) })}
                 {result.totalPoints != null && result.totalPoints > 0 && (
                   <span className="text-base font-normal text-muted-foreground ml-2">
-                    {result.earnedPoints} / {result.totalPoints} pts
+                    {t('points', { earned: result.earnedPoints ?? 0, total: result.totalPoints })}
                   </span>
                 )}
               </p>
               <p className="text-sm text-muted-foreground">
-                {result.correctAnswers} of {result.totalQuestions - (result.pendingAnswers ?? 0)} correct
+                {t('correct_count', {
+                  correct: result.correctAnswers,
+                  total: result.totalQuestions - (result.pendingAnswers ?? 0),
+                })}
               </p>
               {result.pendingAnswers != null && result.pendingAnswers > 0 && (
                 <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <Loader2 className="size-3.5 animate-spin" />
-                  {result.pendingAnswers} question{result.pendingAnswers === 1 ? '' : 's'} pending AI review
+                  {t('pending_review', { count: result.pendingAnswers })}
                 </p>
               )}
             </div>
@@ -184,7 +192,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
             onClick={handleSubmit}
             disabled={isSubmitting || allQuestions.length === 0}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Exam'}
+            {isSubmitting ? t('submitting') : t('submit_exam')}
           </Button>
         </div>
       )}
@@ -229,14 +237,16 @@ function VocabularyTable({
   statusColor,
   disabled,
 }: VocabularyTableProps) {
+  const t = useTranslations('exam');
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">#</TableHead>
-          <TableHead>Prompt</TableHead>
-          <TableHead>Answer</TableHead>
-          <TableHead className="w-32 text-right">Result</TableHead>
+          <TableHead>{t('column_prompt')}</TableHead>
+          <TableHead>{t('column_answer')}</TableHead>
+          <TableHead className="w-32 text-right">{t('column_result')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -251,7 +261,7 @@ function VocabularyTable({
               </TableCell>
               <TableCell>
                 <Input
-                  placeholder="Type your answer..."
+                  placeholder={t('type_your_answer')}
                   value={answers[q.id] ?? ''}
                   onChange={e => onTextChange(q.id, e.target.value)}
                   disabled={disabled}
@@ -302,12 +312,15 @@ function QuestionCard({
   disabled,
   nested,
 }: QuestionCardProps) {
-  const content = question.content as Record<string, unknown> | undefined;
+  const t = useTranslations('exam');
+  const content = question.content;
   const isSimple = question.questionType === QuestionType.SIMPLE;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isLongText = question.questionType === QuestionType.LONG_TEXT;
   const longTextTier = isLongText
-    ? (LONG_TEXT_LENGTH_TIERS.find(t => t.value === (content?.length_limit as number)) ?? LONG_TEXT_LENGTH_TIERS[1])
+    ? (LONG_TEXT_LENGTH_TIERS.find(
+        tier => tier.value === (content as LongTextContentStripped | undefined)?.lengthLimit
+      ) ?? LONG_TEXT_LENGTH_TIERS[1])
     : null;
 
   const wrapper = (children: React.ReactNode) =>
@@ -339,7 +352,7 @@ function QuestionCard({
       {/* Simple text input */}
       {isSimple && (
         <Input
-          placeholder="Type your answer..."
+          placeholder={t('type_your_answer')}
           value={answer}
           onChange={e => onTextChange(question.id, e.target.value)}
           disabled={disabled}
@@ -349,7 +362,7 @@ function QuestionCard({
       {/* Multiple choice checkboxes */}
       {isMC && content && (
         <div className="space-y-2">
-          {((content.options ?? []) as string[]).map((option, idx) => {
+          {((content as MultipleChoiceContentStripped).options ?? []).map((option, idx) => {
             const selected = answer ? answer.split(',').map(Number) : [];
             const checked = selected.includes(idx);
             return (
@@ -373,7 +386,7 @@ function QuestionCard({
       {isLongText && longTextTier && (
         <div className="space-y-1">
           <Textarea
-            placeholder="Write your answer..."
+            placeholder={t('write_your_answer')}
             value={answer}
             onChange={e => {
               if (e.target.value.length <= longTextTier.limit) {
@@ -381,7 +394,9 @@ function QuestionCard({
               }
             }}
             disabled={disabled}
-            rows={longTextTier.value === 1 ? 4 : longTextTier.value === 2 ? 10 : 20}
+            rows={
+              longTextTier.value === LongTextLength.SHORT ? 4 : longTextTier.value === LongTextLength.MEDIUM ? 10 : 20
+            }
           />
           <p className="text-xs text-muted-foreground text-right">
             {answer.length} / {longTextTier.limit}

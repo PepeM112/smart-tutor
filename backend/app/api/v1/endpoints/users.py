@@ -17,7 +17,7 @@ from app.crud import user as user_crud
 from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import user_service
 
 router = APIRouter()
@@ -99,3 +99,12 @@ def logout(response: Response) -> None:
 @router.get("/me", response_model=UserRead)
 def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+def update_me(
+    data: UserUpdate,
+    db: DbSession,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    return user_service.update_user(db, current_user=current_user, data=data)

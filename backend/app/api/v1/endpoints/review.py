@@ -24,8 +24,9 @@ def list_(
     mode: str = Query(default="review", pattern="^(review|practice)$"),
 ) -> ReviewResponse:
     """Fetch questions for review. SRS-prioritised by default, random in practice mode."""
+    effective_limit = min(limit, current_user.daily_review_limit) if current_user.daily_review_limit else limit
     questions, has_questions = review_service.get_review_questions(
-        db, current_user=current_user, limit=limit, mode=mode
+        db, current_user=current_user, limit=effective_limit, mode=mode
     )
     return ReviewResponse(
         questions=[build_stripped_question(q) for q in questions],

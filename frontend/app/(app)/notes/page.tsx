@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { GenerateNoteDialog } from '@/features/notes/components/generate-note-dialog';
@@ -13,7 +14,8 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 export default function NotesPage() {
-  useBreadcrumb('Notes');
+  const t = useTranslations('notes');
+  useBreadcrumb(t('title'));
 
   const {
     data: notes,
@@ -27,12 +29,12 @@ export default function NotesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
-        <p className="text-muted-foreground">Create and manage your study notes.</p>
+        <p className="text-muted-foreground">{t('subtitle')}</p>
         <div className="flex items-center gap-2">
           <ImportNoteButton />
           <GenerateNoteDialog />
           <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.NOTE_NEW}>New Note</Link>
+            <Link href={Routes.NOTE_NEW}>{t('new_note')}</Link>
           </Button>
         </div>
       </div>
@@ -42,7 +44,7 @@ export default function NotesPage() {
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : isError ? (
-        <p className="text-muted-foreground">Failed to load notes. Please try again.</p>
+        <p className="text-muted-foreground">{t('failed_to_load')}</p>
       ) : (
         <NotesList data={notes?.data ?? []} />
       )}

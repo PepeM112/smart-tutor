@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 
 import { sdk } from '@/lib/api-client';
 
@@ -12,6 +13,8 @@ type Props = {
 };
 
 export function TestEditor({ testId }: Props) {
+  const t = useTranslations('tests');
+  const tCommon = useTranslations('common');
   const {
     data: existing,
     isLoading,
@@ -23,17 +26,17 @@ export function TestEditor({ testId }: Props) {
   });
 
   if (testId && isLoading) {
-    return <p className="text-muted-foreground">Loading…</p>;
+    return <p className="text-muted-foreground">{tCommon('loading')}</p>;
   }
 
   if (testId && isError) {
-    return <p className="text-muted-foreground">Failed to load test. Please try again.</p>;
+    return <p className="text-muted-foreground">{t('failed_to_load')}</p>;
   }
 
   const test = existing?.data;
 
   if (testId && !test) {
-    return <p className="text-muted-foreground">Test not found.</p>;
+    return <p className="text-muted-foreground">{t('test_not_found')}</p>;
   }
 
   return (

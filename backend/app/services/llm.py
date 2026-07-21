@@ -6,11 +6,19 @@ so that each feature only needs to supply a system prompt, user prompt, and
 max_tokens.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
+
+from app.core.enums import AiProvider
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 logger = logging.getLogger("smarttutor.llm")
 
@@ -21,7 +29,7 @@ class LLMClient(ABC):
     def name(self) -> str: ...
 
     @abstractmethod
-    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
         """Send a system + user message pair and return the raw text response."""
         ...
 
@@ -29,26 +37,26 @@ class LLMClient(ABC):
 class AnthropicLLMClient(LLMClient):
     MODEL = "claude-haiku-4-5-20251001"
 
-    def __init__(self) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         from anthropic import Anthropic
 
-        api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        if not api_key:
+        resolved_key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
+        if not resolved_key:
             raise ValueError("ANTHROPIC_API_KEY is not set")
-        self._client = Anthropic(api_key=api_key)
+        self._client = Anthropic(api_key=resolved_key)
 
     @property
     def name(self) -> str:
         return f"Anthropic ({self.MODEL})"
 
-    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
         from anthropic.types import TextBlock
 
         response = self._client.messages.create(
             model=self.MODEL,
             max_tokens=max_tokens,
             system=system,
-            messages=[{"role": "user", "content": user}],
+            messages=[{"role": "user", "content": user_prompt}],
         )
 
         if not response.content:
@@ -75,25 +83,25 @@ class AnthropicLLMClient(LLMClient):
 class OpenAILLMClient(LLMClient):
     MODEL = "gpt-4o-mini"
 
-    def __init__(self) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         from openai import OpenAI
 
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        if not api_key:
+        resolved_key = api_key or os.getenv("OPENAI_API_KEY", "")
+        if not resolved_key:
             raise ValueError("OPENAI_API_KEY is not set")
-        self._client = OpenAI(api_key=api_key)
+        self._client = OpenAI(api_key=resolved_key)
 
     @property
     def name(self) -> str:
         return f"OpenAI ({self.MODEL})"
 
-    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
         response = self._client.chat.completions.create(
             model=self.MODEL,
             max_tokens=max_tokens,
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user", "content": user},
+                {"role": "user", "content": user_prompt},
             ],
         )
 
@@ -120,7 +128,11 @@ def _load_clients() -> None:
 
 
 def get_llm_client() -> LLMClient:
-    """Return a singleton LLM client based on the AI_GRADING_PROVIDER env var."""
+    """Return a singleton LLM client based on the AI_GRADING_PROVIDER env var.
+
+    Kept as a fallback for system-level calls that aren't tied to a specific
+    user (e.g. ops scripts). Feature code should prefer `get_user_llm_client`.
+    """
     _load_clients()
     name = os.getenv("AI_GRADING_PROVIDER", "anthropic").lower()
     if name not in _INSTANCES:
@@ -131,19 +143,28 @@ def get_llm_client() -> LLMClient:
     return _INSTANCES[name]
 
 
-def complete(*, system: str, user: str, max_tokens: int) -> str:
-    """Get the LLM client and call complete, wrapping errors into HTTPExceptions."""
-    try:
-        llm = get_llm_client()
-    except ValueError as exc:
-        logger.error("AI provider unavailable: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI service is not configured. Please contact the administrator.",
-        ) from exc
+def get_user_llm_client(user: User) -> LLMClient:
+    """Create an LLM client using the user's own API key and preferred provider."""
+    from app.services.encryption import decrypt
 
+    provider = user.ai_provider
+    if provider is None or provider == AiProvider.ANTHROPIC:
+        if not user.encrypted_anthropic_key:
+            raise ValueError("No Anthropic API key configured")
+        api_key = decrypt(user.encrypted_anthropic_key)
+        return AnthropicLLMClient(api_key=api_key)
+    if provider == AiProvider.OPENAI:
+        if not user.encrypted_openai_key:
+            raise ValueError("No OpenAI API key configured")
+        api_key = decrypt(user.encrypted_openai_key)
+        return OpenAILLMClient(api_key=api_key)
+    raise ValueError(f"Unknown AI provider: {provider}")
+
+
+def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens: int) -> str:
+    """Execute a completion call, wrapping provider errors into HTTPExceptions."""
     try:
-        return llm.complete(system=system, user=user, max_tokens=max_tokens)
+        return llm.complete(system=system, user_prompt=user_prompt, max_tokens=max_tokens)
     except (ValueError, TypeError) as exc:
         logger.error("AI provider returned unusable response: %s", exc)
         raise HTTPException(
@@ -156,3 +177,31 @@ def complete(*, system: str, user: str, max_tokens: int) -> str:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI service encountered an error. Please try again later.",
         ) from exc
+
+
+def complete(*, system: str, user_prompt: str, max_tokens: int) -> str:
+    """Get the LLM client and call complete, wrapping errors into HTTPExceptions."""
+    try:
+        llm = get_llm_client()
+    except ValueError as exc:
+        logger.error("AI provider unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI service is not configured. Please contact the administrator.",
+        ) from exc
+
+    return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
+
+
+def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: int) -> str:
+    """Get a per-user LLM client and call complete, wrapping errors into HTTPExceptions."""
+    try:
+        llm = get_user_llm_client(user)
+    except ValueError as exc:
+        logger.error("User AI provider unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="AI is not configured. Please add your API key in Settings.",
+        ) from exc
+
+    return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)

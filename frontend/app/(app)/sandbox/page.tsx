@@ -1,6 +1,7 @@
 'use client';
 
 import { Info, Star, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { buttonVariants } from '@/components/ui/button';
@@ -36,7 +37,8 @@ const ICON_SIZES: ButtonSize[] = ['icon-xs', 'icon-sm', 'icon', 'icon-lg'];
 const isIconSize = (size: ButtonSize) => ICON_SIZES.includes(size);
 
 export default function SandboxPage() {
-  useBreadcrumb('Sandbox');
+  const t = useTranslations('sidebar');
+  useBreadcrumb(t('sandbox'));
   const [switchA, setSwitchA] = useState(false);
   const [switchB, setSwitchB] = useState(true);
   const [checkA, setCheckA] = useState(false);

@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import type { QuestionType } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
@@ -35,6 +36,7 @@ type Props = {
 };
 
 export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
+  const t = useTranslations('test_editor');
   const canRemoveChoice = data.choices.length > MIN_CHOICES;
   const canAddChoice = data.choices.length < MAX_CHOICES;
 
@@ -64,7 +66,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
       <div className="flex items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
-          placeholder="Question prompt"
+          placeholder={t('question_prompt')}
           value={data.prompt}
           onChange={e => onChange({ ...data, prompt: e.target.value })}
           className="flex-1"
@@ -76,7 +78,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
           value={data.points}
           onChange={e => onChange({ ...data, points: Number(e.target.value) })}
           className="w-20 shrink-0 text-center"
-          title="Points"
+          title={t('points')}
         />
         <QuestionBlockAction onRemove={onRemove} />
       </div>
@@ -90,7 +92,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
             />
             <AutoTextarea
               rows={1}
-              placeholder={`Option ${ci + 1}`}
+              placeholder={t('option', { n: ci + 1 })}
               value={choice.text}
               onChange={e => updateChoice(ci, { text: e.target.value })}
               className="flex-1"
@@ -117,7 +119,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
           className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
         >
           <Plus className="size-3.5" />
-          Add choice
+          {t('add_choice')}
         </Button>
       )}
     </div>

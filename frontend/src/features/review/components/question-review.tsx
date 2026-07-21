@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Loader2, MinusCircle, XCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { AnswerStatus, type QuestionReadStripped, QuestionType, type SrsStateResponse } from '@/client';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-import { feedbackBg, feedbackTextColor, statusLabel } from '../helpers';
+import { feedbackBg, feedbackTextColor } from '../helpers';
 
 export type CheckResult = {
   status: AnswerStatus;
@@ -40,10 +41,25 @@ export function QuestionReview({
   onNext,
   isLast,
 }: Props) {
+  const t = useTranslations('review');
+  const tCommon = useTranslations('common');
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isSimple = question.questionType === QuestionType.SIMPLE;
   const content = question.content as Record<string, unknown> | undefined;
   const isChecked = checkResult !== null;
+
+  const statusLabel = (status: AnswerStatus): string => {
+    switch (status) {
+      case AnswerStatus.CORRECT:
+        return t('status_correct');
+      case AnswerStatus.PARTIAL:
+        return t('status_partial');
+      case AnswerStatus.WRONG:
+        return t('status_wrong');
+      default:
+        return t('status_pending');
+    }
+  };
 
   const handleCheckboxToggle = (index: number) => {
     const selected = answer ? answer.split(',').map(Number) : [];
@@ -57,12 +73,14 @@ export function QuestionReview({
         <CardContent className="space-y-6 p-0">
           <div className="text-center space-y-2">
             <p className="text-lg font-semibold">{question.prompt}</p>
-            {question.hint && <p className="text-sm text-muted-foreground italic">Hint: {question.hint}</p>}
+            {question.hint && (
+              <p className="text-sm text-muted-foreground italic">{t('hint', { hint: question.hint })}</p>
+            )}
           </div>
 
           {isSimple && (
             <Input
-              placeholder="Type your answer..."
+              placeholder={t('type_your_answer')}
               value={answer}
               onChange={e => onAnswerChange(e.target.value)}
               onKeyDown={e => {
@@ -92,7 +110,7 @@ export function QuestionReview({
 
           {!isChecked && (
             <Button className="w-full" size="lg" onClick={onCheck} disabled={isChecking || !answer.trim()}>
-              {isChecking ? <Loader2 className="animate-spin" /> : 'Check'}
+              {isChecking ? <Loader2 className="animate-spin" /> : tCommon('check')}
             </Button>
           )}
         </CardContent>
@@ -108,7 +126,7 @@ export function QuestionReview({
               </p>
               {isSimple && checkResult.status !== AnswerStatus.CORRECT && checkResult.correctAnswers && (
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Correct answer:{' '}
+                  {t('correct_answer')}{' '}
                   <span className="text-feedback-correct font-medium">{checkResult.correctAnswers.join(', ')}</span>
                 </p>
               )}
@@ -133,7 +151,7 @@ export function QuestionReview({
 
           <div className="mt-4 flex justify-end">
             <Button size="lg" icon={ArrowRight} onClick={onNext}>
-              {isLast ? 'Finish' : 'Next'}
+              {isLast ? tCommon('finish') : tCommon('next')}
             </Button>
           </div>
         </div>

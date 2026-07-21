@@ -16,7 +16,7 @@ from app.schemas.test_generation import (
     TestRefinementRequest,
 )
 from app.services.grading_prompts import strip_code_fences
-from app.services.llm import complete
+from app.services.llm import complete_for_user
 from app.services.note_service import get_note
 from app.services.test_generation_prompts import (
     TEST_GENERATION_SYSTEM_PROMPT,
@@ -240,6 +240,7 @@ def generate_test_questions(
 
     requested_types = set(data.question_types)
     result = _call_and_validate(
+        user=current_user,
         user_prompt=user_prompt,
         requested_types=requested_types,
         max_tokens=_estimate_max_tokens(data.question_count, requested_types),
@@ -281,6 +282,7 @@ def refine_test_questions(
 
     expected = len(data.current_questions)
     result = _call_and_validate(
+        user=current_user,
         user_prompt=user_prompt,
         requested_types=set(QuestionType),
         max_tokens=_estimate_max_tokens(expected, set(QuestionType)),
@@ -329,6 +331,7 @@ def edit_test_questions(
 
     expected = len(data.all_questions)
     result = _call_and_validate(
+        user=current_user,
         user_prompt=user_prompt,
         requested_types=set(QuestionType),
         max_tokens=_estimate_max_tokens(expected, set(QuestionType)),
@@ -379,13 +382,16 @@ class _GenerationResult:
 
 def _call_and_validate(
     *,
+    user: User,
     user_prompt: str,
     requested_types: set[QuestionType],
     max_tokens: int = _MIN_GENERATION_TOKENS,
     expected_count: int | None = None,
 ) -> _GenerationResult:
     """Call the LLM and validate the response. Retry once on validation failure."""
-    raw = complete(system=TEST_GENERATION_SYSTEM_PROMPT, user=user_prompt, max_tokens=max_tokens)
+    raw = complete_for_user(
+        user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=max_tokens
+    )
     questions, errors = _validate_generated_questions(raw, requested_types)
 
     if errors and questions:
@@ -393,7 +399,9 @@ def _call_and_validate(
     elif errors and not questions:
         logger.warning("First attempt failed validation: %s. Retrying...", errors)
         retry_prompt = build_retry_user_prompt(user_prompt, errors)
-        raw = complete(system=TEST_GENERATION_SYSTEM_PROMPT, user=retry_prompt, max_tokens=max_tokens)
+        raw = complete_for_user(
+            user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=retry_prompt, max_tokens=max_tokens
+        )
         questions, retry_errors = _validate_generated_questions(raw, requested_types)
 
         if retry_errors and not questions:

@@ -1,12 +1,15 @@
 'use client';
 
 import { Dumbbell } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 
 export default function PracticePage() {
-  useBreadcrumb('Practice');
+  const t = useTranslations('practice');
+  const tCommon = useTranslations('common');
+  useBreadcrumb(t('title'));
 
   return (
     <div className="flex items-center justify-center py-24">
@@ -16,13 +19,11 @@ export default function PracticePage() {
             <Dumbbell className="size-6 text-muted-foreground" />
           </div>
           <div className="space-y-1">
-            <p className="font-semibold text-foreground">Practice Mode</p>
-            <p className="text-sm text-muted-foreground">
-              Answer questions one by one with instant feedback. Coming soon.
-            </p>
+            <p className="font-semibold text-foreground">{t('practice_mode')}</p>
+            <p className="text-sm text-muted-foreground">{t('description')}</p>
           </div>
           <span className="text-[10px] font-medium bg-muted-foreground/20 px-2 py-0.5 rounded-full text-muted-foreground">
-            Coming soon
+            {tCommon('coming_soon')}
           </span>
         </CardContent>
       </Card>

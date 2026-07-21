@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 
 import {
@@ -36,14 +39,17 @@ export function ConfirmDialog({
   title,
   description,
   children,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   confirmClassName,
   disableConfirm = false,
   onConfirm,
   open,
   onOpenChange,
 }: ConfirmDialogProps) {
+  const t = useTranslations('common');
+  const finalConfirmLabel = confirmLabel ?? t('confirm');
+  const finalCancelLabel = cancelLabel ?? t('cancel');
   const isControlled = open !== undefined;
 
   return (
@@ -56,7 +62,7 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         {children && <div className="mt-4">{children}</div>}
         <AlertDialogFooter className="mt-6">
-          <AlertDialogCancel onClick={e => e.stopPropagation()}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel onClick={e => e.stopPropagation()}>{finalCancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={e => {
               e.stopPropagation();
@@ -65,7 +71,7 @@ export function ConfirmDialog({
             disabled={disableConfirm}
             className={cn(confirmClassName)}
           >
-            {confirmLabel}
+            {finalConfirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

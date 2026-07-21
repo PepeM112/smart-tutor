@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { use } from 'react';
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ export default function TakeTestPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
+  const t = useTranslations('tests');
 
   const {
     data: testResponse,
@@ -50,11 +52,11 @@ export default function TakeTestPage({ params }: Props) {
     },
     onError: (err: unknown) => {
       const detail = (err as { detail?: string })?.detail;
-      toast.error(detail ?? 'Failed to submit exam. Please try again.');
+      toast.error(detail ?? t('failed_to_submit'));
     },
   });
 
-  useBreadcrumb(test?.title ?? 'Take Test', [{ label: 'Tests', href: Routes.TESTS }], Routes.TESTS);
+  useBreadcrumb(test?.title ?? t('take_test'), [{ label: t('title'), href: Routes.TESTS }], Routes.TESTS);
 
   if (isLoading) {
     return (
@@ -65,15 +67,15 @@ export default function TakeTestPage({ params }: Props) {
   }
 
   if (isError) {
-    return <p className="text-muted-foreground">Failed to load test. Please try again.</p>;
+    return <p className="text-muted-foreground">{t('failed_to_load')}</p>;
   }
 
   if (!test) {
-    return <p className="text-muted-foreground">Test not found.</p>;
+    return <p className="text-muted-foreground">{t('test_not_found')}</p>;
   }
 
   if ((test.questions?.length ?? 0) === 0 && (test.questionGroups?.length ?? 0) === 0) {
-    return <p className="text-muted-foreground">This test has no questions yet.</p>;
+    return <p className="text-muted-foreground">{t('no_questions_yet')}</p>;
   }
 
   return <ExamView test={test} onSubmit={submitExam} isSubmitting={isSubmitting} result={null} />;

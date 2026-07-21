@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -16,6 +17,7 @@ import { NoteEditor } from './note-editor';
 import { TagInput } from './tag-input';
 
 export function NewNotePage() {
+  const t = useTranslations('notes');
   const router = useRouter();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
@@ -39,11 +41,11 @@ export function NewNotePage() {
       }),
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success('Note created');
+      toast.success(t('note_created'));
       if (!res.data) return;
       router.push(Routes.NOTE_DETAIL(res.data.id));
     },
-    onError: () => toast.error('Failed to create note'),
+    onError: () => toast.error(t('failed_to_create')),
   });
 
   return (
@@ -55,19 +57,19 @@ export function NewNotePage() {
             value={title}
             onChange={e => setTitle(e.target.value)}
             className="w-80 text-lg font-semibold"
-            placeholder="Note title"
+            placeholder={t('note_title')}
             autoFocus
           />
           <AutoTextarea
             rows={2}
             value={description}
             onChange={e => setDescription(e.target.value)}
-            placeholder="Description (optional)"
+            placeholder={t('description_optional')}
           />
           <TagInput tags={tags} onChange={setTags} />
         </div>
         <Button icon={Save} onClick={() => createNote()} disabled={!title.trim() || isCreating}>
-          {isCreating ? 'Creating...' : 'Create'}
+          {isCreating ? t('creating') : t('create')}
         </Button>
       </div>
 

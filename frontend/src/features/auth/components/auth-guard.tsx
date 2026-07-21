@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { clearSessionCookie } from '../utils/session-cookie';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const t = useTranslations();
   const setUser = useAuthStore(s => s.setUser);
   const logout = useAuthStore(s => s.logout);
   const didRedirect = useRef(false);
@@ -56,8 +58,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Could not connect to the server.</p>
-          <Button onClick={() => window.location.reload()}>Try again</Button>
+          <p className="text-muted-foreground">{t('auth.could_not_connect')}</p>
+          <Button onClick={() => window.location.reload()}>{t('common.try_again')}</Button>
         </div>
       </div>
     );

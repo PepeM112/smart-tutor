@@ -1,12 +1,14 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { type TestResultRead } from '@/client';
 import { getScoreCircleClasses } from '@/features/history/utils/score-colors';
 import { cn } from '@/lib/utils';
 
 export function ScoreBanner({ result, testTitle }: { result: TestResultRead; testTitle: string }) {
+  const t = useTranslations('history');
   const score = result.score ?? 0;
   const pending = result.pendingAnswers ?? 0;
 
@@ -16,13 +18,13 @@ export function ScoreBanner({ result, testTitle }: { result: TestResultRead; tes
         <h1 className="text-xl font-semibold">{testTitle}</h1>
         {result.totalPoints != null && result.totalPoints > 0 && (
           <p className="text-sm text-muted-foreground tabular-nums">
-            {result.earnedPoints} / {result.totalPoints} pts
+            {result.earnedPoints} / {result.totalPoints} {t('pts')}
           </p>
         )}
         {pending > 0 && (
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
-            {pending} question{pending === 1 ? '' : 's'} pending AI review
+            {t('pending_questions', { count: pending })}
           </p>
         )}
       </div>

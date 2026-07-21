@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { AnswerStatus, type AnswerRead, type QuestionRead, QuestionType } from '@/client';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -44,6 +46,7 @@ export function QuestionDetailPanel({
 }
 
 function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
+  const t = useTranslations('history');
   const status = answer?.status ?? AnswerStatus.UNKNOWN;
   const isWrong = isAnswerWrong(status);
   const correctAnswer = getCorrectAnswer(question);
@@ -53,15 +56,15 @@ function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; an
       {question.hint && <p className="-mt-2 text-sm text-muted-foreground italic">Hint: {question.hint}</p>}
       <div className="space-y-2 text-sm">
         <div>
-          <p className="text-muted-foreground mb-0.5">Your answer</p>
+          <p className="text-muted-foreground mb-0.5">{t('your_answer')}</p>
           <p className={cn('rounded-md bg-muted/50 p-3', isWrong && 'line-through text-muted-foreground')}>
-            {answer ? getUserAnswerDisplay(question, answer.userAnswer) : '(no answer)'}
+            {answer ? getUserAnswerDisplay(question, answer.userAnswer) : t('no_answer')}
           </p>
         </div>
         {correctAnswer && (
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
-              <p className="text-muted-foreground">Correct answer</p>
+              <p className="text-muted-foreground">{t('correct_answer')}</p>
               {question.explanation && <Tooltip content={question.explanation} />}
             </div>
             <p className="rounded-md bg-muted/50 p-3 text-feedback-correct font-medium">{correctAnswer}</p>
@@ -73,6 +76,8 @@ function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; an
 }
 
 function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
+  const t = useTranslations('history');
+
   return (
     <div className="space-y-3">
       {question.hint && <p className="-mt-2 text-sm text-muted-foreground italic">Hint: {question.hint}</p>}
@@ -80,7 +85,7 @@ function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer
       {question.explanation && (
         <div className="flex items-center gap-1.5 border-t border-border pt-2">
           <Tooltip content={question.explanation} />
-          <p className="text-xs text-muted-foreground">Explanation</p>
+          <p className="text-xs text-muted-foreground">{t('explanation')}</p>
         </div>
       )}
     </div>

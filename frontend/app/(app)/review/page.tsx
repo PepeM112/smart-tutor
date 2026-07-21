@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Loader2, PartyPopper } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,8 @@ import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
 
 export default function ReviewPage() {
-  useBreadcrumb('Review Now');
+  const t = useTranslations('review');
+  useBreadcrumb(t('title'));
   const [mode, setMode] = useState<'review' | 'practice'>('review');
 
   const {
@@ -38,7 +40,7 @@ export default function ReviewPage() {
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <p className="text-muted-foreground">Failed to load review questions. Please try again.</p>
+        <p className="text-muted-foreground">{t('failed_to_load')}</p>
       </div>
     );
   }
@@ -47,8 +49,8 @@ export default function ReviewPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <BookOpen className="size-10 text-muted-foreground/50 mb-4" />
-        <p className="text-muted-foreground">No questions yet.</p>
-        <p className="text-sm text-muted-foreground mt-1">Create some tests with questions first!</p>
+        <p className="text-muted-foreground">{t('no_questions')}</p>
+        <p className="text-sm text-muted-foreground mt-1">{t('create_tests_first')}</p>
       </div>
     );
   }
@@ -57,10 +59,10 @@ export default function ReviewPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <PartyPopper className="size-10 text-muted-foreground/50 mb-4" />
-        <p className="text-muted-foreground">You&apos;re all caught up!</p>
-        <p className="text-sm text-muted-foreground mt-1">No questions are due for review right now.</p>
+        <p className="text-muted-foreground">{t('all_caught_up')}</p>
+        <p className="text-sm text-muted-foreground mt-1">{t('no_questions_due')}</p>
         <Button variant="outline" className="mt-4" onClick={() => setMode('practice')}>
-          Practice anyway
+          {t('practice_anyway')}
         </Button>
       </div>
     );

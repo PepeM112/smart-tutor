@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from app.core.enums import UserStatus
 from app.crud import user as user_crud
 from app.models.user import User
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserUpdate
+from app.services.encryption import encrypt
 
 
 def _hash_password(password: str) -> str:
@@ -45,3 +46,19 @@ def create_user(db: Session, user_in: UserCreate) -> User:
     return user_crud.create(
         db, username=user_in.username, email=user_in.email, hashed_password=_hash_password(user_in.password)
     )
+
+
+def update_user(db: Session, *, current_user: User, data: UserUpdate) -> User:
+    update_data = data.model_dump(exclude_unset=True)
+
+    if "anthropic_api_key" in update_data:
+        key = update_data.pop("anthropic_api_key")
+        update_data["encrypted_anthropic_key"] = encrypt(key) if key else None
+    if "openai_api_key" in update_data:
+        key = update_data.pop("openai_api_key")
+        update_data["encrypted_openai_key"] = encrypt(key) if key else None
+
+    if not update_data:
+        return current_user
+
+    return user_crud.update(db, user=current_user, data=update_data)

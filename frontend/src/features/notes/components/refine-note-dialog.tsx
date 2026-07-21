@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { WandSparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
 
 type Props = {
@@ -26,6 +28,10 @@ type Props = {
 };
 
 export function RefineNoteDialog({ noteId, onRefined }: Props) {
+  const t = useTranslations('notes_ai');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
+  const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
   const queryClient = useQueryClient();
@@ -44,16 +50,22 @@ export function RefineNoteDialog({ noteId, onRefined }: Props) {
       onRefined(data.content ?? '');
       setOpen(false);
       setInstructions('');
-      toast.success('Note refined successfully');
+      toast.success(t('note_refined'));
     },
-    onError: () => toast.error('Failed to refine note. Please try again.'),
+    onError: () => toast.error(t('failed_to_refine')),
   });
 
   return (
     <Dialog open={open} onOpenChange={isRefining ? undefined : setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="lg" icon={WandSparkles}>
-          Refine with AI
+        <Button
+          variant="outline"
+          size="lg"
+          icon={WandSparkles}
+          disabled={!aiAvailable}
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : undefined}
+        >
+          {t('refine_with_ai')}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -62,22 +74,20 @@ export function RefineNoteDialog({ noteId, onRefined }: Props) {
         onEscapeKeyDown={isRefining ? e => e.preventDefault() : undefined}
       >
         {isRefining ? (
-          <DialogLoading title="Refining your notes…" />
+          <DialogLoading title={t('refining_notes')} />
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Refine Notes with AI</DialogTitle>
-              <DialogDescription>
-                Tell the AI what to change. It will update the current notes based on your instructions.
-              </DialogDescription>
+              <DialogTitle>{t('refine_study_notes')}</DialogTitle>
+              <DialogDescription>{t('refine_description')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="refine-note-instructions">Instructions</Label>
+                <Label htmlFor="refine-note-instructions">{t('instructions')}</Label>
                 <Textarea
                   id="refine-note-instructions"
-                  placeholder='e.g. "Add more examples to the section on photosynthesis. Expand the summary. Make the mnemonics more memorable."'
+                  placeholder={t('refine_placeholder')}
                   value={instructions}
                   onChange={e => setInstructions(e.target.value)}
                   rows={5}
@@ -87,10 +97,10 @@ export function RefineNoteDialog({ noteId, onRefined }: Props) {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button onClick={() => refine()} disabled={!instructions.trim()} icon={WandSparkles}>
-                Refine
+                {tCommon('refine')}
               </Button>
             </DialogFooter>
           </>
