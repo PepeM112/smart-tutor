@@ -26,6 +26,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'SmartTutor',
   description: 'Your personal learning platform',
+  manifest: '/manifest.webmanifest',
+  icons: {
+    apple: '/icons/apple-touch-icon.png',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'default',
+  },
 };
 
 export default async function RootLayout({
