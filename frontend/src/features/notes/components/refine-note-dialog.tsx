@@ -60,7 +60,7 @@ export function RefineNoteDialog({ noteId, onRefined, compact = false }: Props &
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          size={compact ? 'icon' : 'lg'}
+          size={compact ? 'icon-lg' : 'lg'}
           icon={WandSparkles}
           disabled={!aiAvailable}
           tooltip={!aiAvailable ? tSettings('ai_not_configured') : compact ? t('refine_with_ai') : undefined}

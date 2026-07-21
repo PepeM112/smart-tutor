@@ -11,6 +11,7 @@ import { SidebarNav } from './sidebar-nav';
 
 export function MobileHeader() {
   const tApp = useTranslations('app');
+  const tSidebar = useTranslations('sidebar');
   const [open, setOpen] = useState(false);
 
   return (
@@ -21,7 +22,7 @@ export function MobileHeader() {
             variant="ghost"
             size="icon-sm"
             className="text-sidebar-foreground hover:bg-sidebar-accent"
-            aria-label="Open menu"
+            aria-label={tSidebar('open_menu')}
           >
             <Menu size={20} />
           </Button>

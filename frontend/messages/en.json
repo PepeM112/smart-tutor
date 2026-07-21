@@ -33,6 +33,7 @@
   "sidebar": {
     "expand": "Expand sidebar",
     "collapse": "Collapse sidebar",
+    "open_menu": "Open menu",
     "learning": "Learning",
     "dashboard": "Dashboard",
     "review_now": "Review Now",

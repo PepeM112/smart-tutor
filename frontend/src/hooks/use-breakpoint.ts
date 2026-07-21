@@ -16,7 +16,7 @@ function getBreakpoint(): Breakpoint {
 }
 
 export function useBreakpoint() {
-  const [breakpoint, setBreakpoint] = useState<Breakpoint>(getBreakpoint);
+  const [breakpoint, setBreakpoint] = useState<Breakpoint>('desktop');
 
   useEffect(() => {
     const mobileQuery = window.matchMedia(`(max-width: ${MOBILE_MAX - 1}px)`);
@@ -26,6 +26,7 @@ export function useBreakpoint() {
       setBreakpoint(getBreakpoint());
     }
 
+    update();
     mobileQuery.addEventListener('change', update);
     tabletQuery.addEventListener('change', update);
     return () => {

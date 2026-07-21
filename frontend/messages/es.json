@@ -33,6 +33,7 @@
   "sidebar": {
     "expand": "Expandir barra lateral",
     "collapse": "Colapsar barra lateral",
+    "open_menu": "Abrir menú",
     "learning": "Aprendizaje",
     "dashboard": "Panel",
     "review_now": "Repasar Ahora",

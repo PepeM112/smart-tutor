@@ -109,7 +109,7 @@ export function GenerateTestDialog({ noteId, noteTitle, compact = false }: Props
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          size={compact ? 'icon' : 'lg'}
+          size={compact ? 'icon-lg' : 'lg'}
           icon={Sparkles}
           disabled={!aiAvailable}
           tooltip={!aiAvailable ? tSettings('ai_not_configured') : compact ? t('generate_test') : undefined}
