@@ -15,7 +15,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
+import { UserRole } from '@/client';
 import { LogoutButton } from '@/features/auth/components/logout-button';
+import { useAuthStore } from '@/features/auth/store/auth-store';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +26,7 @@ type NavItem = {
   href: string | null;
   icon: React.ElementType;
   disabled?: boolean;
+  requiredRole?: UserRole;
 };
 
 type NavSection = {
@@ -56,7 +59,7 @@ const sections: NavSection[] = [
   },
   {
     labelKey: 'dev',
-    items: [{ labelKey: 'sandbox', href: Routes.SANDBOX, icon: FlaskConical }],
+    items: [{ labelKey: 'sandbox', href: Routes.SANDBOX, icon: FlaskConical, requiredRole: UserRole.ADMIN }],
   },
 ];
 
@@ -68,69 +71,76 @@ type SidebarNavProps = {
 export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const t = useTranslations('sidebar');
   const pathname = usePathname();
+  const userRole = useAuthStore(s => s.user?.role);
 
   return (
     <>
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
-        {sections.map(section => (
-          <div key={section.labelKey}>
-            {!collapsed && (
-              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
-                {t(section.labelKey)}
-              </p>
-            )}
-            <ul className="space-y-0.5">
-              {section.items.map(item => {
-                const Icon = item.icon;
-                const isActive = item.href !== null && (pathname === item.href || pathname.startsWith(item.href + '/'));
-                const label = t(item.labelKey);
+        {sections.map(section => {
+          const visibleItems = section.items.filter(item => !item.requiredRole || item.requiredRole === userRole);
+          if (visibleItems.length === 0) return null;
 
-                if (item.disabled || item.href === null) {
+          return (
+            <div key={section.labelKey}>
+              {!collapsed && (
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
+                  {t(section.labelKey)}
+                </p>
+              )}
+              <ul className="space-y-0.5">
+                {visibleItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive =
+                    item.href !== null && (pathname === item.href || pathname.startsWith(item.href + '/'));
+                  const label = t(item.labelKey);
+
+                  if (item.disabled || item.href === null) {
+                    return (
+                      <li key={item.labelKey}>
+                        <span
+                          title={collapsed ? `${label} (${t('coming_soon')})` : undefined}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg text-sm cursor-not-allowed opacity-40 text-sidebar-muted py-2',
+                            collapsed ? 'justify-center px-0' : 'px-3'
+                          )}
+                        >
+                          <Icon size={17} className="shrink-0" />
+                          {!collapsed && (
+                            <>
+                              <span className="truncate flex-1">{label}</span>
+                              <span className="text-[10px] font-medium bg-sidebar-accent px-1.5 py-0.5 rounded-full">
+                                {t('soon')}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  }
+
                   return (
                     <li key={item.labelKey}>
-                      <span
-                        title={collapsed ? `${label} (${t('coming_soon')})` : undefined}
+                      <Link
+                        href={item.href}
+                        onClick={onNavigate}
+                        title={collapsed ? label : undefined}
                         className={cn(
-                          'flex items-center gap-3 rounded-lg text-sm cursor-not-allowed opacity-40 text-sidebar-muted py-2',
+                          'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
+                          'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                          isActive && 'bg-sidebar-accent text-sidebar-foreground',
                           collapsed ? 'justify-center px-0' : 'px-3'
                         )}
                       >
                         <Icon size={17} className="shrink-0" />
-                        {!collapsed && (
-                          <>
-                            <span className="truncate flex-1">{label}</span>
-                            <span className="text-[10px] font-medium bg-sidebar-accent px-1.5 py-0.5 rounded-full">
-                              {t('soon')}
-                            </span>
-                          </>
-                        )}
-                      </span>
+                        {!collapsed && <span className="truncate">{label}</span>}
+                      </Link>
                     </li>
                   );
-                }
-
-                return (
-                  <li key={item.labelKey}>
-                    <Link
-                      href={item.href}
-                      onClick={onNavigate}
-                      title={collapsed ? label : undefined}
-                      className={cn(
-                        'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
-                        'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                        isActive && 'bg-sidebar-accent text-sidebar-foreground',
-                        collapsed ? 'justify-center px-0' : 'px-3'
-                      )}
-                    >
-                      <Icon size={17} className="shrink-0" />
-                      {!collapsed && <span className="truncate">{label}</span>}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
 
       <div className="border-t border-sidebar-border px-2 py-3 space-y-0.5">

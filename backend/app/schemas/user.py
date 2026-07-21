@@ -1,6 +1,6 @@
 from pydantic import field_validator, model_validator
 
-from app.core.enums import AiProvider, UserStatus
+from app.core.enums import AiProvider, UserRole, UserStatus
 from app.schemas.base import BaseSchema
 
 VALID_LOCALES = {"en", "es"}
@@ -72,6 +72,7 @@ class UserUpdate(BaseSchema):
 class UserRead(UserBase):
     id: str
     status: UserStatus
+    role: UserRole
     display_name: str | None = None
     locale: str = "en"
     theme: str = "system"

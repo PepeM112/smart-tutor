@@ -21,6 +21,12 @@ class UserStatus(NamedIntEnum):
     BLOCKED = 3
 
 
+class UserRole(NamedIntEnum):
+    UNKNOWN = 0
+    ADMIN = 1
+    USER = 2
+
+
 class TestStatus(NamedIntEnum):
     UNKNOWN = 0
     ACTIVE = 1
