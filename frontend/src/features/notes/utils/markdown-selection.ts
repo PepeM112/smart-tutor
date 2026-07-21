@@ -11,10 +11,7 @@ function findAnnotatedAncestor(node: Node, container: HTMLElement): HTMLElement 
 
 export type MarkdownRange = { start: number; end: number; markdown: string };
 
-export function getMarkdownRangeFromSelection(
-  container: HTMLElement,
-  content: string,
-): MarkdownRange | null {
+export function getMarkdownRangeFromSelection(container: HTMLElement, content: string): MarkdownRange | null {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || !sel.anchorNode || !sel.focusNode) return null;
   if (!container.contains(sel.anchorNode) || !container.contains(sel.focusNode)) return null;
@@ -23,14 +20,8 @@ export function getMarkdownRangeFromSelection(
   const focusEl = findAnnotatedAncestor(sel.focusNode, container);
   if (!anchorEl || !focusEl) return null;
 
-  const starts = [
-    Number(anchorEl.getAttribute('data-md-start')),
-    Number(focusEl.getAttribute('data-md-start')),
-  ];
-  const ends = [
-    Number(anchorEl.getAttribute('data-md-end')),
-    Number(focusEl.getAttribute('data-md-end')),
-  ];
+  const starts = [Number(anchorEl.getAttribute('data-md-start')), Number(focusEl.getAttribute('data-md-start'))];
+  const ends = [Number(anchorEl.getAttribute('data-md-end')), Number(focusEl.getAttribute('data-md-end'))];
 
   const start = Math.min(...starts);
   const end = Math.max(...ends);

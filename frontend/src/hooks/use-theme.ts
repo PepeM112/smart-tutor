@@ -16,7 +16,7 @@ export const ThemeContext = createContext<ThemeContextValue>({
 
 function readStoredTheme(): ThemeId {
   const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId | null;
-  return stored && themes.some((t) => t.id === stored) ? stored : DEFAULT_THEME_ID;
+  return stored && themes.some(t => t.id === stored) ? stored : DEFAULT_THEME_ID;
 }
 
 const subscribers = new Set<() => void>();
@@ -46,7 +46,7 @@ export function useThemeProvider(): ThemeContextValue {
   const themeId = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const setTheme = useCallback((id: ThemeId) => {
-    if (!themes.some((t) => t.id === id)) return;
+    if (!themes.some(t => t.id === id)) return;
 
     currentTheme = id;
     localStorage.setItem(THEME_STORAGE_KEY, id);
@@ -59,7 +59,7 @@ export function useThemeProvider(): ThemeContextValue {
       root.dataset.theme = id;
     }
 
-    subscribers.forEach((cb) => cb());
+    subscribers.forEach(cb => cb());
   }, []);
 
   return { themeId, setTheme };

@@ -170,7 +170,12 @@ function CategoryInput({
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current) }, []);
+  useEffect(
+    () => () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    },
+    []
+  );
 
   const filtered = useMemo(() => {
     if (!value) return suggestions.slice(0, 5);

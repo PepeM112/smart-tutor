@@ -19,11 +19,43 @@ type Segment = {
 // ── Constants ────────────────────────────────────────────────────────
 
 const BLOCK_TAGS = new Set([
-  'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DD', 'DETAILS',
-  'DIV', 'DL', 'DT', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER',
-  'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEADER', 'HR',
-  'LI', 'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'TABLE',
-  'TBODY', 'TD', 'TFOOT', 'TH', 'THEAD', 'TR', 'UL',
+  'ADDRESS',
+  'ARTICLE',
+  'ASIDE',
+  'BLOCKQUOTE',
+  'DD',
+  'DETAILS',
+  'DIV',
+  'DL',
+  'DT',
+  'FIELDSET',
+  'FIGCAPTION',
+  'FIGURE',
+  'FOOTER',
+  'FORM',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'HEADER',
+  'HR',
+  'LI',
+  'MAIN',
+  'NAV',
+  'OL',
+  'P',
+  'PRE',
+  'SECTION',
+  'TABLE',
+  'TBODY',
+  'TD',
+  'TFOOT',
+  'TH',
+  'THEAD',
+  'TR',
+  'UL',
 ]);
 
 const STYLE_ID = 'ai-edit-highlight-styles';
@@ -178,7 +210,7 @@ function applyHighlights(
   segments: Segment[],
   highlightIndex: number,
   groupMarks: HTMLElement[],
-  onClick: () => void,
+  onClick: () => void
 ): HTMLElement[] {
   const marks: HTMLElement[] = [];
 
@@ -232,7 +264,7 @@ export function useTextHighlight(
   containerRef: React.RefObject<HTMLElement | null>,
   texts: string[],
   activeIndex: number | null,
-  onClick: (index: number) => void,
+  onClick: (index: number) => void
 ): void {
   const marksMapRef = useRef<Map<number, HTMLElement[]>>(new Map());
   const onClickRef = useRef(onClick);

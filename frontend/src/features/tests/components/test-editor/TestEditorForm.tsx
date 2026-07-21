@@ -138,7 +138,12 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     <div>
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="space-y-3 flex-1">
-          <Input className="w-1/2" placeholder={t('test_name')} value={title} onChange={e => setTitle(e.target.value)} />
+          <Input
+            className="w-1/2"
+            placeholder={t('test_name')}
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+          />
           <AutoTextarea
             rows={2}
             placeholder={t('description_optional')}
