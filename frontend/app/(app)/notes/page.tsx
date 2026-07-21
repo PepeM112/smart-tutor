@@ -28,11 +28,11 @@ export default function NotesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <p className="text-muted-foreground">{t('subtitle')}</p>
-        <div className="flex items-center gap-2">
-          <ImportNoteButton />
-          <GenerateNoteDialog />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
+        <div className="flex items-center gap-2 self-end lg:self-auto">
+          <ImportNoteButton compact />
+          <GenerateNoteDialog compact />
           <Button size="lg" icon={Plus} asChild>
             <Link href={Routes.NOTE_NEW}>{t('new_note')}</Link>
           </Button>

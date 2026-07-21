@@ -69,7 +69,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
       )}
     >
       {/* Prompt + length tier + delete */}
-      <div className="flex items-start gap-2 mb-4">
+      <div className="flex flex-wrap items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
           placeholder={`${t('question_prompt')} (${t('question_prompt_example')})`}

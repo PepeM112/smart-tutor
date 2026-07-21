@@ -24,7 +24,7 @@ export default function HistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground">{t('subtitle')}</p>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       {isLoading ? (

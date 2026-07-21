@@ -16,18 +16,19 @@ export function Breadcrumb() {
   const title = useBreadcrumbStore(s => s.title);
   const crumbs = useBreadcrumbStore(s => s.crumbs);
   const back = useBreadcrumbStore(s => s.back);
+  const actions = useBreadcrumbStore(s => s.actions);
   const router = useRouter();
 
   if (!title) return null;
 
   return (
-    <div className="flex items-center gap-3 p-8">
+    <div className="flex items-center gap-3 p-4 lg:p-8">
       {back && (
         <Button variant="ghost" size="icon" onClick={() => router.push(back)}>
           <ArrowLeft className="size-5" />
         </Button>
       )}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 min-w-0">
         {crumbs.map((crumb, i) => (
           <span key={i} className="flex items-center gap-1 text-sm text-muted-foreground">
             {crumb.href ? (
@@ -40,8 +41,14 @@ export function Breadcrumb() {
             <ChevronRight className="size-3" />
           </span>
         ))}
-        <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+        <h1 className="text-xl lg:text-2xl font-semibold text-foreground truncate">{title}</h1>
       </div>
+      {actions && (
+        <>
+          <div className="flex-1" />
+          <div className="shrink-0 flex items-center gap-2">{actions}</div>
+        </>
+      )}
     </div>
   );
 }

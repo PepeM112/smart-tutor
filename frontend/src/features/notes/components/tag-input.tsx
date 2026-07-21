@@ -57,7 +57,7 @@ export function TagInput({ tags, onChange }: Props) {
         onChange={e => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={tags.length === 0 ? 'Add tags...' : ''}
-        className="flex-1 min-w-16 border-0 px-0 py-0 h-6 text-xs shadow-none focus-visible:ring-0 focus-visible:border-transparent"
+        className="flex-1 min-w-16 border-0 px-0 py-0 h-6 text-xs shadow-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:border-transparent"
       />
     </div>
   );

@@ -187,8 +187,8 @@ export function GeneratedTestPreview() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3 flex-1">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-3 flex-1 min-w-0">
           <div className="flex items-center gap-2">
             {isEditingTitle ? (
               <Input
@@ -217,7 +217,7 @@ export function GeneratedTestPreview() {
           </div>
           <p className="text-sm text-muted-foreground">{t('questions_count', { count: items.length })}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
@@ -247,7 +247,7 @@ export function GeneratedTestPreview() {
         </div>
       </div>
 
-      <div className={cn('gap-3', columns === 2 ? 'grid grid-cols-2' : 'flex flex-col')}>
+      <div className={cn('gap-3', columns === 2 ? 'grid grid-cols-1 lg:grid-cols-2' : 'flex flex-col')}>
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
           const onClick = (e: React.MouseEvent) => toggleSelection(i, e);

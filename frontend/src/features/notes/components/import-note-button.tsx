@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
-export function ImportNoteButton() {
+export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -55,8 +55,15 @@ export function ImportNoteButton() {
         onChange={handleFileChange}
         disabled={isImporting}
       />
-      <Button variant="outline" size="lg" icon={Upload} onClick={() => fileRef.current?.click()} disabled={isImporting}>
-        {isImporting ? t('importing') : tCommon('import')}
+      <Button
+        variant="outline"
+        size={compact ? 'icon-lg' : 'lg'}
+        icon={Upload}
+        onClick={() => fileRef.current?.click()}
+        disabled={isImporting}
+        tooltip={compact ? (isImporting ? t('importing') : tCommon('import')) : undefined}
+      >
+        {!compact && (isImporting ? t('importing') : tCommon('import'))}
       </Button>
     </>
   );

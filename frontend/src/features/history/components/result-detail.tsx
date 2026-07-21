@@ -4,6 +4,8 @@ import { ChevronsLeftRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { AnswerStatus, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
+import { Drawer, DrawerContent } from '@/components/ui/drawer';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +27,7 @@ const DEFAULT_SPLIT_RATIO = 0.5;
 
 export default function ResultDetail({ result, test }: Props) {
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+  const { isDesktop } = useBreakpoint();
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(
     SPLIT_RATIO_KEY,
     DEFAULT_SPLIT_RATIO
@@ -50,48 +53,67 @@ export default function ResultDetail({ result, test }: Props) {
 
   const hasSelection = selectedItem !== null;
 
-  return (
-    <div ref={containerRef} className="flex h-[calc(100vh-6rem)] overflow-hidden">
-      {/* Left panel */}
-      <div className="min-w-0 overflow-y-auto scrollbar-none p-0.5 pr-4 pb-4 space-y-4" style={{ flex: splitRatio }}>
-        <ScoreBanner result={result} testTitle={test.title} />
-
-        {items.map((item, idx) => {
-          if (item.type === ExamItemType.QUESTION) {
-            const question = item.question;
-
-            return (
-              <CompactQuestionCard
-                key={question.id}
-                question={question}
-                answer={answerMap.get(question.id)}
-                number={itemNumbers[idx]}
-                isSelected={selectedItem?.type === ExamItemType.QUESTION && selectedItem.id === question.id}
-                disabled={pendingAnswerIds.has(question.id)}
-                onClick={() => setSelectedItem({ type: ExamItemType.QUESTION, id: question.id })}
-              />
-            );
-          }
-
-          const group = item.group;
-          const questions = group.questions ?? [];
-          const groupId = group.id ?? `group-${idx}`;
-
+  const listContent = (
+    <>
+      <ScoreBanner result={result} testTitle={test.title} />
+      {items.map((item, idx) => {
+        if (item.type === ExamItemType.QUESTION) {
+          const question = item.question;
           return (
-            <CompactGroupCard
-              key={groupId}
-              title={group.title ?? 'Question Group'}
-              correctCount={countCorrectInGroup(questions, answerMap)}
-              totalCount={questions.length}
+            <CompactQuestionCard
+              key={question.id}
+              question={question}
+              answer={answerMap.get(question.id)}
               number={itemNumbers[idx]}
-              isSelected={selectedItem?.type === ExamItemType.GROUP && selectedItem.id === groupId}
-              onClick={() => setSelectedItem({ type: ExamItemType.GROUP, id: groupId })}
+              isSelected={isDesktop && selectedItem?.type === ExamItemType.QUESTION && selectedItem.id === question.id}
+              disabled={pendingAnswerIds.has(question.id)}
+              onClick={() => setSelectedItem({ type: ExamItemType.QUESTION, id: question.id })}
             />
           );
-        })}
+        }
+
+        const group = item.group;
+        const questions = group.questions ?? [];
+        const groupId = group.id ?? `group-${idx}`;
+
+        return (
+          <CompactGroupCard
+            key={groupId}
+            title={group.title ?? 'Question Group'}
+            correctCount={countCorrectInGroup(questions, answerMap)}
+            totalCount={questions.length}
+            number={itemNumbers[idx]}
+            isSelected={isDesktop && selectedItem?.type === ExamItemType.GROUP && selectedItem.id === groupId}
+            onClick={() => setSelectedItem({ type: ExamItemType.GROUP, id: groupId })}
+          />
+        );
+      })}
+    </>
+  );
+
+  const rightPanelContent = (
+    <RightPanel selectedItem={selectedItem} items={items} test={test} answerMap={answerMap} itemNumbers={itemNumbers} />
+  );
+
+  if (!isDesktop) {
+    return (
+      <div className="space-y-4 pb-4">
+        {listContent}
+        <Drawer open={hasSelection} onOpenChange={open => !open && setSelectedItem(null)}>
+          <DrawerContent className="max-h-[80dvh]">
+            <div className="overflow-y-auto px-4 pb-8">{rightPanelContent}</div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="flex h-[calc(100vh-6rem)] overflow-hidden">
+      <div className="min-w-0 overflow-y-auto scrollbar-none p-0.5 pr-4 pb-4 space-y-4" style={{ flex: splitRatio }}>
+        {listContent}
       </div>
 
-      {/* Resizable divider */}
       <div
         className={cn(
           'shrink-0 relative flex items-center justify-center w-12',
@@ -106,15 +128,8 @@ export default function ResultDetail({ result, test }: Props) {
         </div>
       </div>
 
-      {/* Right panel */}
       <div className="min-w-0 overflow-y-auto scrollbar-none p-0.5 pl-4 pb-4" style={{ flex: 1 - splitRatio }}>
-        <RightPanel
-          selectedItem={selectedItem}
-          items={items}
-          test={test}
-          answerMap={answerMap}
-          itemNumbers={itemNumbers}
-        />
+        {rightPanelContent}
       </div>
     </div>
   );

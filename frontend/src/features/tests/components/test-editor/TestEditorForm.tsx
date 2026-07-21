@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -16,8 +16,10 @@ import {
 import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
+import { useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
 import { useBlockSelection } from '../../hooks/use-block-selection';
 import { AddQuestionDropdown } from '../add-question-dropdown';
@@ -48,6 +50,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const t = useTranslations('tests');
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { isDesktop } = useBreakpoint();
+  const setActions = useBreadcrumbStore(s => s.setActions);
   const isEdit = !!testId;
 
   const [title, setTitle] = useState(initialTitle);
@@ -134,12 +138,25 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     removeAndReindex(idx);
   }
 
+  useEffect(() => {
+    if (!isDesktop) {
+      setActions(
+        <Button disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
+          {isSaving ? t('saving') : t('save_test')}
+        </Button>
+      );
+      return () => setActions(undefined);
+    }
+    setActions(undefined);
+    return () => setActions(undefined);
+  }, [isDesktop, title, isSaving, saveTest, setActions, t]);
+
   return (
     <div>
-      <div className="flex items-start justify-between gap-4 mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="space-y-3 flex-1">
           <Input
-            className="w-1/2"
+            className="w-full lg:w-1/2"
             placeholder={t('test_name')}
             value={title}
             onChange={e => setTitle(e.target.value)}
@@ -151,9 +168,11 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
             onChange={e => setDescription(e.target.value)}
           />
         </div>
-        <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-          {isSaving ? t('saving') : t('save_test')}
-        </Button>
+        {isDesktop && (
+          <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
+            {isSaving ? t('saving') : t('save_test')}
+          </Button>
+        )}
       </div>
 
       {selectedIndices.size > 0 && (
