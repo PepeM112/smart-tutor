@@ -1,9 +1,9 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { HistoryTable } from '@/features/history/components/history-table';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
@@ -24,13 +24,11 @@ export default function HistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground">{t('subtitle')}</p>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingSpinner />
       ) : isError ? (
         <p className="text-muted-foreground">{t('failed_to_load')}</p>
       ) : (

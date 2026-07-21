@@ -1,23 +1,25 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { WandSparkles, X } from 'lucide-react';
+import { Eye, Pencil, WandSparkles, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { useTextHighlight } from '@/hooks/use-text-highlight';
 import { sdk } from '@/lib/api-client';
 
 import { getMarkdownRangeFromSelection } from '../utils/markdown-selection';
 
+import { MarkdownEditor } from './markdown-editor';
 import { MarkdownRenderer } from './markdown-renderer';
-import { MarkdownRendererV2 } from './markdown-renderer-v2';
 
 type Props = {
   content: string;
@@ -47,12 +49,16 @@ type DiffState = {
 
 export function NoteEditor({ content, onChange, noteId }: Props) {
   const t = useTranslations('notes_ai');
+  const tNotes = useTranslations('notes');
   const tCommon = useTranslations('common');
   const tSettings = useTranslations('settings');
   const aiAvailable = useAiAvailable();
+  const { isDesktop } = useBreakpoint();
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(SPLIT_KEY, DEFAULT_RATIO);
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('edit');
   const [selectionTrigger, setSelectionTrigger] = useState<SelectionTrigger | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
@@ -80,10 +86,10 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   const activeDiff = activeDiffIndex !== null ? diffs[activeDiffIndex] : null;
   const hasDiffPanel = activeDiff !== null;
 
-  // ── Selection detection ─────────────────────────────────────────
+  // ── Selection detection (desktop only) ─────────────────────────
 
   useEffect(() => {
-    if (!noteId) return;
+    if (!noteId || !isDesktop) return;
 
     function commitSelection() {
       if (popoverOpenRef.current) return;
@@ -148,7 +154,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       document.removeEventListener('selectionchange', handleSelectionChange);
       container?.removeEventListener('scroll', commitSelection);
     };
-  }, [noteId]);
+  }, [noteId, isDesktop]);
 
   // ── Handlers ────────────────────────────────────────────────────
 
@@ -209,74 +215,118 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     removeDiff(activeDiffIndex);
   }
 
+  // ── Diff panel content (shared between desktop side pane and mobile drawer) ──
+
+  const diffPanelContent = activeDiff && (
+    <div className="flex h-full flex-col bg-card p-4">
+      <div className="flex items-center justify-between mb-3 shrink-0">
+        <h3 className="text-sm font-semibold text-foreground">{t('changes')}</h3>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setActiveDiffIndex(null)}
+          className="text-muted-foreground"
+        >
+          <X className="size-4" />
+        </Button>
+      </div>
+
+      <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">{t('old')}</p>
+      <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
+        <MarkdownRenderer content={activeDiff.originalMarkdown} />
+      </div>
+
+      <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">{t('new')}</p>
+      <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
+        <MarkdownRenderer content={activeDiff.editedText} />
+      </div>
+
+      <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
+        <Button variant="outline" size="sm" onClick={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}>
+          {tCommon('cancel')}
+        </Button>
+        <Button size="sm" onClick={handleAcceptDiff}>
+          {tCommon('accept')}
+        </Button>
+      </div>
+    </div>
+  );
+
   // ── Render ──────────────────────────────────────────────────────
 
   return (
     <div ref={containerRef} className="flex h-full gap-0">
-      {/* Main pane: MarkdownRendererV2 (view/edit toggle built in) */}
+      {/* Main pane */}
       <div
         className="min-w-0 overflow-hidden rounded-xl border border-primary/90 bg-card"
-        style={{ flex: hasDiffPanel ? splitRatio : 1 }}
+        style={{ flex: isDesktop && hasDiffPanel ? splitRatio : 1 }}
       >
-        <MarkdownRendererV2 content={content} onChange={onChange} onViewContainerChange={handleViewContainerChange} />
+        <MarkdownEditor
+          content={content}
+          onChange={onChange}
+          readOnly={!isDesktop}
+          onViewContainerChange={handleViewContainerChange}
+          onTapView={
+            !isDesktop
+              ? () => {
+                  setDrawerMode('edit');
+                  setIsFullscreen(true);
+                }
+              : undefined
+          }
+        />
       </div>
 
-      {/* Divider — only when diff panel is open */}
-      {hasDiffPanel && (
-        <div
-          className="shrink-0 relative flex items-center justify-center w-5 mx-2 cursor-col-resize"
-          onMouseDown={handleDividerMouseDown}
-          onDoubleClick={resetRatio}
-        >
-          <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-          <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
-        </div>
-      )}
-
-      {/* Diff review panel — only when a diff is active */}
-      {hasDiffPanel && (
-        <div className="min-w-0 overflow-hidden rounded-lg border border-border" style={{ flex: 1 - splitRatio }}>
-          <div className="flex h-full flex-col bg-card p-4">
-            <div className="flex items-center justify-between mb-3 shrink-0">
-              <h3 className="text-sm font-semibold text-foreground">{t('changes')}</h3>
+      {/* Mobile: fullscreen editor drawer */}
+      {!isDesktop && (
+        <Drawer open={isFullscreen} onOpenChange={setIsFullscreen}>
+          <DrawerContent className="max-h-[95dvh] h-[95dvh]" title="Note editor">
+            <div className="flex items-center justify-end px-4 shrink-0">
               <Button
                 variant="ghost"
-                size="icon-sm"
-                onClick={() => setActiveDiffIndex(null)}
+                size="icon"
+                onClick={() => setDrawerMode(m => (m === 'view' ? 'edit' : 'view'))}
+                tooltip={drawerMode === 'view' ? tNotes('edit_markdown') : tNotes('preview')}
                 className="text-muted-foreground"
               >
-                <X className="size-4" />
+                {drawerMode === 'view' ? <Pencil className="size-5" /> : <Eye className="size-5" />}
               </Button>
             </div>
-
-            <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">{t('old')}</p>
-            <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
-              <MarkdownRenderer content={activeDiff.originalMarkdown} />
+            <div className="flex-1 min-h-0">
+              <MarkdownEditor content={content} onChange={onChange} mode={drawerMode} onModeChange={setDrawerMode} />
             </div>
-
-            <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">{t('new')}</p>
-            <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
-              <MarkdownRenderer content={activeDiff.editedText} />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}
-              >
-                {tCommon('cancel')}
-              </Button>
-              <Button size="sm" onClick={handleAcceptDiff}>
-                {tCommon('accept')}
-              </Button>
-            </div>
-          </div>
-        </div>
+          </DrawerContent>
+        </Drawer>
       )}
 
-      {/* Floating AI edit trigger */}
-      {selectionTrigger && (
+      {/* Desktop: side-by-side diff panel */}
+      {isDesktop && hasDiffPanel && (
+        <>
+          <div
+            className="shrink-0 relative flex items-center justify-center w-5 mx-2 cursor-col-resize"
+            onMouseDown={handleDividerMouseDown}
+            onDoubleClick={resetRatio}
+          >
+            <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
+            <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
+          </div>
+          <div className="min-w-0 overflow-hidden rounded-lg border border-border" style={{ flex: 1 - splitRatio }}>
+            {diffPanelContent}
+          </div>
+        </>
+      )}
+
+      {/* Mobile: diff panel as bottom drawer */}
+      {!isDesktop && (
+        <Drawer open={hasDiffPanel} onOpenChange={open => !open && setActiveDiffIndex(null)}>
+          <DrawerContent className="max-h-[75dvh]">
+            <div className="overflow-y-auto px-4 pb-8">{diffPanelContent}</div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      {/* Floating AI edit trigger (desktop only) */}
+      {isDesktop && selectionTrigger && (
         <div
           style={{
             position: 'fixed',

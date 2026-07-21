@@ -33,7 +33,7 @@ const LENGTH_OPTIONS = [
   { value: NoteLength.LONG, labelKey: 'length_long' },
 ] as const;
 
-export function GenerateNoteDialog() {
+export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
   const t = useTranslations('notes_ai');
   const tCommon = useTranslations('common');
   const tSettings = useTranslations('settings');
@@ -77,12 +77,12 @@ export function GenerateNoteDialog() {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          size="lg"
+          size={compact ? 'icon-lg' : 'lg'}
           icon={Sparkles}
           disabled={!aiAvailable}
-          tooltip={!aiAvailable ? tSettings('ai_not_configured') : undefined}
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : compact ? t('generate_with_ai') : undefined}
         >
-          {t('generate_with_ai')}
+          {!compact && t('generate_with_ai')}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -140,10 +140,13 @@ export function GenerateNoteDialog() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                {tCommon('cancel')}
-              </Button>
-              <Button onClick={() => generate()} disabled={!topic.trim()} icon={Sparkles}>
+              <Button
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={() => generate()}
+                disabled={!topic.trim()}
+                icon={Sparkles}
+              >
                 {tCommon('generate')}
               </Button>
             </DialogFooter>

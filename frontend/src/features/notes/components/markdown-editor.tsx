@@ -2,7 +2,7 @@
 
 import { Eye, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useRef, useState, type KeyboardEvent } from 'react';
 import { type Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -58,25 +58,32 @@ const WRAP_CHARS: Record<string, string> = { '*': '*', '`': '`', '~': '~~' };
 
 // ── Component ───────────────────────────────────────────────────────
 
-export type MarkdownRendererV2Handle = {
-  viewContainer: HTMLDivElement | null;
-};
-
 type Props = {
   content: string;
   onChange?: (content: string) => void;
   readOnly?: boolean;
   className?: string;
   onViewContainerChange?: (el: HTMLDivElement | null) => void;
+  onTapView?: () => void;
+  mode?: 'view' | 'edit';
+  onModeChange?: (mode: 'view' | 'edit') => void;
 };
 
-export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(function MarkdownRendererV2(
-  { content, onChange, readOnly, className, onViewContainerChange },
-  ref
-) {
+export function MarkdownEditor({
+  content,
+  onChange,
+  readOnly,
+  className,
+  onViewContainerChange,
+  onTapView,
+  mode: controlledMode,
+  onModeChange,
+}: Props) {
   const t = useTranslations('notes');
   const viewRef = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [internalMode, setInternalMode] = useState<'view' | 'edit'>('view');
+  const isControlled = controlledMode !== undefined;
+  const mode = controlledMode ?? internalMode;
   const canToggle = !readOnly && !!onChange;
 
   const viewCallbackRef = useCallback(
@@ -88,12 +95,6 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(fu
   );
 
   const isViewMode = mode === 'view' || !canToggle;
-
-  useImperativeHandle(ref, () => ({
-    get viewContainer() {
-      return viewRef.current;
-    },
-  }));
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (!onChange) return;
@@ -124,12 +125,17 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(fu
 
   return (
     <div className={cn('relative h-full', className)}>
-      {canToggle && (
+      {canToggle && !isControlled && (
         <div className="absolute top-3 right-3 z-10">
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => setMode(m => (m === 'view' ? 'edit' : 'view'))}
+            onClick={e => {
+              e.stopPropagation();
+              const next = mode === 'view' ? 'edit' : 'view';
+              setInternalMode(next);
+              onModeChange?.(next);
+            }}
             tooltip={mode === 'view' ? t('edit_markdown') : t('preview')}
             className="text-muted-foreground"
           >
@@ -139,7 +145,14 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(fu
       )}
 
       {isViewMode ? (
-        <div ref={viewCallbackRef} className="h-full overflow-y-auto scrollbar-none p-6">
+        <div
+          ref={viewCallbackRef}
+          className={cn(
+            'h-full overflow-y-auto overflow-x-hidden scrollbar-none p-4 lg:p-6',
+            onTapView && 'cursor-pointer'
+          )}
+          onClick={onTapView}
+        >
           {content ? (
             <div className="markdown-body max-w-none text-sm text-foreground">
               <ReactMarkdown
@@ -160,11 +173,11 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(fu
           onChange={e => onChange?.(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t('start_writing')}
-          className="w-full h-full resize-none scrollbar-none bg-transparent p-6 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="w-full h-full resize-none scrollbar-none bg-transparent p-4 lg:p-6 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
           spellCheck={false}
           autoFocus
         />
       )}
     </div>
   );
-});
+}

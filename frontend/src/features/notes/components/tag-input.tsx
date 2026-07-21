@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState, type KeyboardEvent } from 'react';
 
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function TagInput({ tags, onChange }: Props) {
+  const t = useTranslations('notes');
   const [input, setInput] = useState('');
 
   function addTag(raw: string) {
@@ -56,8 +58,8 @@ export function TagInput({ tags, onChange }: Props) {
         value={input}
         onChange={e => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={tags.length === 0 ? 'Add tags...' : ''}
-        className="flex-1 min-w-16 border-0 px-0 py-0 h-6 text-xs shadow-none focus-visible:ring-0 focus-visible:border-transparent"
+        placeholder={tags.length === 0 ? t('add_tags') : ''}
+        className="flex-1 min-w-16 border-0 px-0 py-0 h-6 text-xs shadow-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:border-transparent"
       />
     </div>
   );

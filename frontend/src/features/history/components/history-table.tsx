@@ -4,12 +4,13 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import type { TestResultListItem } from '@/client';
 import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { getScoreBadgeClasses } from '@/features/history/utils/score-colors';
+import { formatDate, formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -21,24 +22,29 @@ export function HistoryTable({ data }: Props) {
   const t = useTranslations('history');
   const columns = useMemo(() => getColumns(t), [t]);
 
+  const renderPreview = useCallback(
+    (row: TestResultListItem) => (
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground truncate">{row.testTitle}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{formatShortDate(row.createdAt)}</p>
+        </div>
+        <ScoreBadge score={row.score ?? 0} />
+      </div>
+    ),
+    []
+  );
+
   return (
     <DataTable
       columns={columns}
       data={data}
       emptyMessage={t('no_history_yet')}
       onRowClick={row => router.push(Routes.RESULT_DETAIL(row.id))}
+      renderPreview={renderPreview}
+      expandable={false}
     />
   );
-}
-
-function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function ScoreBadge({ score }: { score: number }) {

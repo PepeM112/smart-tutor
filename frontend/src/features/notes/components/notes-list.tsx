@@ -5,13 +5,15 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { Bot, Download, Pencil, Trash2, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { NoteSource, type NoteRead } from '@/client';
-import { DataTable } from '@/components/shared/data-table';
+import { DataTable, type MobileAction } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/api-client';
+import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -20,8 +22,59 @@ type Props = {
 
 export function NotesList({ data }: Props) {
   const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
   const router = useRouter();
-  const columns = useNotesColumns();
+  const queryClient = useQueryClient();
+  const { mutate: deleteNote, isPending: deleteIsPending } = useMutation({
+    mutationFn: (id: string) => sdk.notesDelete({ path: { note_id: id } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast.success(t('note_deleted'));
+    },
+    onError: () => toast.error(t('failed_to_delete')),
+  });
+
+  const columns = useNotesColumns({ deleteNote, isDeleting: deleteIsPending });
+
+  const renderPreview = useCallback((note: NoteRead) => {
+    const preview =
+      note.description && note.description.length > 80 ? `${note.description.slice(0, 80)}...` : note.description;
+    return (
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{note.title}</p>
+        {preview && <p className="mt-0.5 text-xs text-muted-foreground truncate">{preview}</p>}
+      </div>
+    );
+  }, []);
+
+  const renderActions = useCallback(
+    (note: NoteRead): MobileAction[] => [
+      {
+        label: tCommon('edit'),
+        icon: Pencil,
+        onClick: () => router.push(Routes.NOTE_DETAIL(note.id)),
+      },
+      {
+        label: tCommon('export'),
+        icon: Download,
+        onClick: () => {
+          downloadMarkdown(note.title, note.content ?? '');
+          toast.success(tCommon('downloaded'));
+        },
+      },
+      {
+        label: tCommon('delete'),
+        icon: Trash2,
+        variant: 'destructive',
+        onClick: () => deleteNote(note.id),
+        confirm: {
+          title: t('delete_note'),
+          description: t('delete_note_confirm', { title: note.title }),
+        },
+      },
+    ],
+    [t, tCommon, router, deleteNote]
+  );
 
   return (
     <DataTable
@@ -29,6 +82,9 @@ export function NotesList({ data }: Props) {
       data={data}
       emptyMessage={t('no_notes_yet')}
       onRowClick={row => router.push(Routes.NOTE_DETAIL(row.id))}
+      renderPreview={renderPreview}
+      expandable={false}
+      renderActions={renderActions}
     />
   );
 }
@@ -57,16 +113,15 @@ function SourceBadge({ source }: { source: NoteSource }) {
   );
 }
 
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
+type ColumnDeps = {
+  deleteNote: (id: string) => void;
+  isDeleting: boolean;
+};
 
-function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
+function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
   const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
+  const router = useRouter();
 
   return [
     {
@@ -91,74 +146,62 @@ function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
     {
       id: 'updated',
       header: t('column_updated'),
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.updatedAt)}</span>,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{formatShortDate(row.original.updatedAt)}</span>
+      ),
     },
     {
       id: 'actions',
       header: '',
-      cell: function ActionsCell({ row }) {
-        const t = useTranslations('notes');
-        const tCommon = useTranslations('common');
-        const router = useRouter();
-        const queryClient = useQueryClient();
-        const { mutate: deleteNote, isPending: isDeleting } = useMutation({
-          mutationFn: () => sdk.notesDelete({ path: { note_id: row.original.id } }),
-          onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ['notes'] });
-            toast.success(t('note_deleted'));
-          },
-          onError: () => toast.error(t('failed_to_delete')),
-        });
-
-        return (
-          <div className="flex justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              tooltip={tCommon('edit')}
-              onClick={e => {
-                e.stopPropagation();
-                router.push(Routes.NOTE_DETAIL(row.original.id));
-              }}
-              aria-label={tCommon('edit')}
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              tooltip={tCommon('export')}
-              onClick={e => {
-                e.stopPropagation();
-                downloadMarkdown(row.original.title, row.original.content ?? '');
-                toast.success(tCommon('downloaded'));
-              }}
-              aria-label={tCommon('export')}
-            >
-              <Download className="size-4" />
-            </Button>
-            <ConfirmDialog
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="icon-lg"
-                  tooltip={tCommon('delete')}
-                  onClick={e => e.stopPropagation()}
-                  disabled={isDeleting}
-                  aria-label={tCommon('delete')}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              }
-              title={t('delete_note')}
-              description={t('delete_note_confirm', { title: row.original.title })}
-              confirmLabel={tCommon('delete')}
-              confirmClassName="bg-destructive text-white hover:bg-destructive/90"
-              onConfirm={() => deleteNote()}
-            />
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            tooltip={tCommon('edit')}
+            onClick={e => {
+              e.stopPropagation();
+              router.push(Routes.NOTE_DETAIL(row.original.id));
+            }}
+            aria-label={tCommon('edit')}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            tooltip={tCommon('export')}
+            onClick={e => {
+              e.stopPropagation();
+              downloadMarkdown(row.original.title, row.original.content ?? '');
+              toast.success(tCommon('downloaded'));
+            }}
+            aria-label={tCommon('export')}
+          >
+            <Download className="size-4" />
+          </Button>
+          <ConfirmDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                className="text-destructive hover:text-destructive"
+                tooltip={tCommon('delete')}
+                onClick={e => e.stopPropagation()}
+                disabled={isDeleting}
+                aria-label={tCommon('delete')}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            }
+            title={t('delete_note')}
+            description={t('delete_note_confirm', { title: row.original.title })}
+            confirmLabel={tCommon('delete')}
+            confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+            onConfirm={() => deleteNote(row.original.id)}
+          />
+        </div>
+      ),
     },
   ];
 }

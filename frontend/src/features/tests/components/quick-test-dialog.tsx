@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Routes } from '@/lib/routes';
 
-export function QuickTestDialog() {
+export function QuickTestDialog({ compact = false }: { compact?: boolean }) {
   const t = useTranslations('tests');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -26,8 +26,13 @@ export function QuickTestDialog() {
   return (
     <ConfirmDialog
       trigger={
-        <Button size="lg" variant="outline" icon={Zap}>
-          {t('quick_test')}
+        <Button
+          size={compact ? 'icon-lg' : 'lg'}
+          variant="outline"
+          icon={Zap}
+          tooltip={compact ? t('quick_test') : undefined}
+        >
+          {!compact && t('quick_test')}
         </Button>
       }
       title={t('quick_test')}

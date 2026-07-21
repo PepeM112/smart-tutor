@@ -8,9 +8,12 @@ import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GenerateTestDialog } from '@/features/tests/components/generate-test-dialog';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
 import { sdk } from '@/lib/api-client';
 
 import { NoteEditor } from './note-editor';
@@ -33,11 +36,7 @@ export function NotePage({ noteId }: Props) {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (isError) {
@@ -55,6 +54,7 @@ function NoteForm({ note }: { note: NoteRead }) {
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
+  const { isDesktop } = useBreakpoint();
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [title, setTitle] = useState(note.title);
   const [description, setDescription] = useState(note.description ?? '');
@@ -63,7 +63,6 @@ function NoteForm({ note }: { note: NoteRead }) {
   const [isDirty, setIsDirty] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const headerSnapshot = useRef({ title: '', description: '', tags: [] as string[] });
-
   function startEditingHeader() {
     headerSnapshot.current = { title, description, tags: [...tags] };
     setIsEditingHeader(true);
@@ -105,11 +104,20 @@ function NoteForm({ note }: { note: NoteRead }) {
     setIsDirty(true);
   }
 
+  useMobileBreadcrumbActions(
+    isDirty ? (
+      <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
+        {isSaving ? t('saving') : tCommon('save')}
+      </Button>
+    ) : undefined
+  );
+
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)]">
       <div className="space-y-3 pb-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-3 flex-1">
+        {/* Header: title/description/tags */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3 flex-1 min-w-0">
             {isEditingHeader ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -123,7 +131,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                       if (e.key === 'Enter') confirmHeader();
                       if (e.key === 'Escape') cancelHeader();
                     }}
-                    className="w-80 text-lg font-semibold"
+                    className="w-80 max-w-full text-sm lg:text-lg lg:font-semibold"
                     placeholder={t('note_title')}
                     autoFocus
                   />
@@ -177,8 +185,10 @@ function NoteForm({ note }: { note: NoteRead }) {
               </>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {isDirty && (
+
+          {/* Actions: desktop inline, mobile right-aligned below */}
+          <div className="flex items-center gap-2 self-end lg:self-auto">
+            {isDesktop && isDirty && (
               <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
                 {isSaving ? t('saving') : tCommon('save')}
               </Button>

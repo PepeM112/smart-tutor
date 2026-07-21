@@ -27,7 +27,7 @@ type Props = {
   onRefined: (content: string) => void;
 };
 
-export function RefineNoteDialog({ noteId, onRefined }: Props) {
+export function RefineNoteDialog({ noteId, onRefined, compact = false }: Props & { compact?: boolean }) {
   const t = useTranslations('notes_ai');
   const tCommon = useTranslations('common');
   const tSettings = useTranslations('settings');
@@ -60,12 +60,12 @@ export function RefineNoteDialog({ noteId, onRefined }: Props) {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          size="lg"
+          size={compact ? 'icon-lg' : 'lg'}
           icon={WandSparkles}
           disabled={!aiAvailable}
-          tooltip={!aiAvailable ? tSettings('ai_not_configured') : undefined}
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : compact ? t('refine_with_ai') : undefined}
         >
-          {t('refine_with_ai')}
+          {!compact && t('refine_with_ai')}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -96,10 +96,13 @@ export function RefineNoteDialog({ noteId, onRefined }: Props) {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                {tCommon('cancel')}
-              </Button>
-              <Button onClick={() => refine()} disabled={!instructions.trim()} icon={WandSparkles}>
+              <Button
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={() => refine()}
+                disabled={!instructions.trim()}
+                icon={WandSparkles}
+              >
                 {tCommon('refine')}
               </Button>
             </DialogFooter>

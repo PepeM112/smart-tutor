@@ -33,6 +33,7 @@
   "sidebar": {
     "expand": "Expand sidebar",
     "collapse": "Collapse sidebar",
+    "open_menu": "Open menu",
     "learning": "Learning",
     "dashboard": "Dashboard",
     "review_now": "Review Now",
@@ -362,6 +363,8 @@
     "api_key_configured": "API key configured",
     "api_key_not_configured": "No API key configured",
     "remove_key": "Remove key",
+    "remove_key_title": "Remove API key",
+    "remove_key_confirm": "Are you sure you want to remove this API key? You will need to re-enter it to use this provider.",
     "appearance": "Appearance",
     "theme": "Theme",
     "theme_light": "Light",

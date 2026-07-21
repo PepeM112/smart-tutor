@@ -33,6 +33,7 @@
   "sidebar": {
     "expand": "Expandir barra lateral",
     "collapse": "Colapsar barra lateral",
+    "open_menu": "Abrir menú",
     "learning": "Aprendizaje",
     "dashboard": "Panel",
     "review_now": "Repasar Ahora",
@@ -362,6 +363,8 @@
     "api_key_configured": "Clave API configurada",
     "api_key_not_configured": "Clave API no configurada",
     "remove_key": "Eliminar clave",
+    "remove_key_title": "Eliminar clave API",
+    "remove_key_confirm": "¿Estás seguro de que quieres eliminar esta clave API? Tendrás que volver a introducirla para usar este proveedor.",
     "appearance": "Apariencia",
     "theme": "Tema",
     "theme_light": "Claro",
