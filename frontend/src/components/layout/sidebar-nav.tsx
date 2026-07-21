@@ -15,6 +15,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
+import { UserRole } from '@/client';
+import { useAuthStore } from '@/features/auth/store/auth-store';
 import { LogoutButton } from '@/features/auth/components/logout-button';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
@@ -24,6 +26,7 @@ type NavItem = {
   href: string | null;
   icon: React.ElementType;
   disabled?: boolean;
+  requiredRole?: UserRole;
 };
 
 type NavSection = {
@@ -56,7 +59,7 @@ const sections: NavSection[] = [
   },
   {
     labelKey: 'dev',
-    items: [{ labelKey: 'sandbox', href: Routes.SANDBOX, icon: FlaskConical }],
+    items: [{ labelKey: 'sandbox', href: Routes.SANDBOX, icon: FlaskConical, requiredRole: UserRole.ADMIN }],
   },
 ];
 
@@ -68,11 +71,18 @@ type SidebarNavProps = {
 export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const t = useTranslations('sidebar');
   const pathname = usePathname();
+  const userRole = useAuthStore(s => s.user?.role);
 
   return (
     <>
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
-        {sections.map(section => (
+        {sections.map(section => {
+          const visibleItems = section.items.filter(
+            item => !item.requiredRole || item.requiredRole === userRole
+          );
+          if (visibleItems.length === 0) return null;
+
+          return (
           <div key={section.labelKey}>
             {!collapsed && (
               <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
@@ -80,7 +90,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
               </p>
             )}
             <ul className="space-y-0.5">
-              {section.items.map(item => {
+              {visibleItems.map(item => {
                 const Icon = item.icon;
                 const isActive = item.href !== null && (pathname === item.href || pathname.startsWith(item.href + '/'));
                 const label = t(item.labelKey);
@@ -130,7 +140,8 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
               })}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="border-t border-sidebar-border px-2 py-3 space-y-0.5">

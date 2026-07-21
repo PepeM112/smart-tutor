@@ -1,7 +1,7 @@
 from sqlalchemy import Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.enums import AiProvider, UserStatus
+from app.core.enums import AiProvider, UserRole, UserStatus
 from app.database import Base
 from app.models.base import CreatedAtMixin, generate_ulid
 
@@ -13,6 +13,7 @@ class User(Base, CreatedAtMixin):
     username: Mapped[str] = mapped_column(String, index=True, unique=True)
     email: Mapped[str] = mapped_column(String, index=True, unique=True)
     status: Mapped[UserStatus] = mapped_column(default=UserStatus.ACTIVE)
+    role: Mapped[UserRole] = mapped_column(default=UserRole.USER)
     hashed_password: Mapped[str] = mapped_column(String)
     display_name: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     locale: Mapped[str] = mapped_column(String(5), default="en")

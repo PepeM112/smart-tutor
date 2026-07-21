@@ -75,6 +75,12 @@ class NoteLength(NamedIntEnum):
     LONG = 3
 
 
+class UserRole(NamedIntEnum):
+    UNKNOWN = 0
+    ADMIN = 1
+    USER = 2
+
+
 class AiProvider(NamedIntEnum):
     UNKNOWN = 0
     ANTHROPIC = 1
