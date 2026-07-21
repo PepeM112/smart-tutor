@@ -1,8 +1,8 @@
 'use client';
 
 import { UserRole } from '@/client';
-import { AuthGuard } from '@/features/auth/components/auth-guard';
+import RoleGuard from '@/features/auth/components/role-guard';
 
 export default function SandboxLayout({ children }: { children: React.ReactNode }) {
-  return <AuthGuard requiredRole={UserRole.ADMIN}>{children}</AuthGuard>;
+  return <RoleGuard requiredRole={UserRole.ADMIN}>{children}</RoleGuard>;
 }

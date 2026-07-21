@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useRef } from 'react';
 
-import { type UserRole } from '@/client';
 import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
@@ -13,12 +12,7 @@ import { Routes } from '@/lib/routes';
 import { useAuthStore } from '../store/auth-store';
 import { clearSessionCookie } from '../utils/session-cookie';
 
-type AuthGuardProps = {
-  requiredRole?: UserRole;
-  children: React.ReactNode;
-};
-
-export function AuthGuard({ requiredRole, children }: AuthGuardProps) {
+export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const t = useTranslations();
   const setUser = useAuthStore(s => s.setUser);
@@ -72,11 +66,6 @@ export function AuthGuard({ requiredRole, children }: AuthGuardProps) {
   }
 
   if (isLoading || !user) return null;
-
-  if (requiredRole && user.role !== requiredRole) {
-    router.replace(Routes.DASHBOARD);
-    return null;
-  }
 
   return <>{children}</>;
 }
