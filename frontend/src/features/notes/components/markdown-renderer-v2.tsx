@@ -2,7 +2,7 @@
 
 import { Eye, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useRef, useState, type KeyboardEvent } from 'react';
 import { type Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -58,10 +58,6 @@ const WRAP_CHARS: Record<string, string> = { '*': '*', '`': '`', '~': '~~' };
 
 // ── Component ───────────────────────────────────────────────────────
 
-export type MarkdownRendererV2Handle = {
-  viewContainer: HTMLDivElement | null;
-};
-
 type Props = {
   content: string;
   onChange?: (content: string) => void;
@@ -73,10 +69,16 @@ type Props = {
   onModeChange?: (mode: 'view' | 'edit') => void;
 };
 
-export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(function MarkdownRendererV2(
-  { content, onChange, readOnly, className, onViewContainerChange, onTapView, mode: controlledMode, onModeChange },
-  ref
-) {
+export function MarkdownRendererV2({
+  content,
+  onChange,
+  readOnly,
+  className,
+  onViewContainerChange,
+  onTapView,
+  mode: controlledMode,
+  onModeChange,
+}: Props) {
   const t = useTranslations('notes');
   const viewRef = useRef<HTMLDivElement>(null);
   const [internalMode, setInternalMode] = useState<'view' | 'edit'>('view');
@@ -93,12 +95,6 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(fu
   );
 
   const isViewMode = mode === 'view' || !canToggle;
-
-  useImperativeHandle(ref, () => ({
-    get viewContainer() {
-      return viewRef.current;
-    },
-  }));
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (!onChange) return;
@@ -184,4 +180,4 @@ export const MarkdownRendererV2 = forwardRef<MarkdownRendererV2Handle, Props>(fu
       )}
     </div>
   );
-});
+}

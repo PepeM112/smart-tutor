@@ -24,9 +24,7 @@ export function NotesList({ data }: Props) {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
-  const columns = useNotesColumns();
-
-  const { mutate: deleteNote } = useMutation({
+  const { mutate: deleteNote, isPending: deleteIsPending } = useMutation({
     mutationFn: (id: string) => sdk.notesDelete({ path: { note_id: id } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
@@ -34,6 +32,8 @@ export function NotesList({ data }: Props) {
     },
     onError: () => toast.error(t('failed_to_delete')),
   });
+
+  const columns = useNotesColumns({ deleteNote, isDeleting: deleteIsPending });
 
   const renderPreview = useCallback((note: NoteRead) => {
     const preview =
@@ -120,8 +120,15 @@ function formatDate(date: Date): string {
   });
 }
 
-function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
+type ColumnDeps = {
+  deleteNote: (id: string) => void;
+  isDeleting: boolean;
+};
+
+function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
   const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
+  const router = useRouter();
 
   return [
     {
@@ -151,70 +158,55 @@ function useNotesColumns(): ColumnDef<NoteRead, unknown>[] {
     {
       id: 'actions',
       header: '',
-      cell: function ActionsCell({ row }) {
-        const t = useTranslations('notes');
-        const tCommon = useTranslations('common');
-        const router = useRouter();
-        const queryClient = useQueryClient();
-        const { mutate: deleteNote, isPending: isDeleting } = useMutation({
-          mutationFn: () => sdk.notesDelete({ path: { note_id: row.original.id } }),
-          onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ['notes'] });
-            toast.success(t('note_deleted'));
-          },
-          onError: () => toast.error(t('failed_to_delete')),
-        });
-
-        return (
-          <div className="flex justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              tooltip={tCommon('edit')}
-              onClick={e => {
-                e.stopPropagation();
-                router.push(Routes.NOTE_DETAIL(row.original.id));
-              }}
-              aria-label={tCommon('edit')}
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              tooltip={tCommon('export')}
-              onClick={e => {
-                e.stopPropagation();
-                downloadMarkdown(row.original.title, row.original.content ?? '');
-                toast.success(tCommon('downloaded'));
-              }}
-              aria-label={tCommon('export')}
-            >
-              <Download className="size-4" />
-            </Button>
-            <ConfirmDialog
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="icon-lg"
-                  className="text-destructive hover:text-destructive"
-                  tooltip={tCommon('delete')}
-                  onClick={e => e.stopPropagation()}
-                  disabled={isDeleting}
-                  aria-label={tCommon('delete')}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              }
-              title={t('delete_note')}
-              description={t('delete_note_confirm', { title: row.original.title })}
-              confirmLabel={tCommon('delete')}
-              confirmClassName="bg-destructive text-white hover:bg-destructive/90"
-              onConfirm={() => deleteNote()}
-            />
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            tooltip={tCommon('edit')}
+            onClick={e => {
+              e.stopPropagation();
+              router.push(Routes.NOTE_DETAIL(row.original.id));
+            }}
+            aria-label={tCommon('edit')}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            tooltip={tCommon('export')}
+            onClick={e => {
+              e.stopPropagation();
+              downloadMarkdown(row.original.title, row.original.content ?? '');
+              toast.success(tCommon('downloaded'));
+            }}
+            aria-label={tCommon('export')}
+          >
+            <Download className="size-4" />
+          </Button>
+          <ConfirmDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                className="text-destructive hover:text-destructive"
+                tooltip={tCommon('delete')}
+                onClick={e => e.stopPropagation()}
+                disabled={isDeleting}
+                aria-label={tCommon('delete')}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            }
+            title={t('delete_note')}
+            description={t('delete_note_confirm', { title: row.original.title })}
+            confirmLabel={tCommon('delete')}
+            confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+            onConfirm={() => deleteNote(row.original.id)}
+          />
+        </div>
+      ),
     },
   ];
 }

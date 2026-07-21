@@ -25,9 +25,7 @@ export function TestsTable({ data }: Props) {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
-  const columns = useTestsColumns();
-
-  const { mutate: deleteTest } = useMutation({
+  const { mutate: deleteTest, isPending: deleteIsPending } = useMutation({
     mutationFn: (id: string) => sdk.testsDelete({ path: { test_id: id } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
@@ -35,6 +33,8 @@ export function TestsTable({ data }: Props) {
     },
     onError: () => toast.error(t('failed_to_delete')),
   });
+
+  const columns = useTestsColumns({ deleteTest, isDeleting: deleteIsPending });
 
   const renderPreview = useCallback((test: TestRead) => {
     const questions = test.questions ?? [];
@@ -121,8 +121,15 @@ function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number 
   );
 }
 
-function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
+type ColumnDeps = {
+  deleteTest: (id: string) => void;
+  isDeleting: boolean;
+};
+
+function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<TestRead, unknown>[] {
   const t = useTranslations('tests');
+  const tCommon = useTranslations('common');
+  const router = useRouter();
 
   return [
     {
@@ -171,83 +178,68 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
     {
       id: 'actions',
       header: '',
-      cell: function ActionsCell({ row }) {
-        const t = useTranslations('tests');
-        const tCommon = useTranslations('common');
-        const router = useRouter();
-        const queryClient = useQueryClient();
-        const { mutate: deleteTest, isPending: isDeleting } = useMutation({
-          mutationFn: () => sdk.testsDelete({ path: { test_id: row.original.id } }),
-          onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ['tests'] });
-            toast.success(t('test_deleted'));
-          },
-          onError: () => toast.error(t('failed_to_delete')),
-        });
-
-        return (
-          <div className="flex justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              tooltip={tCommon('edit')}
-              onClick={e => {
-                e.stopPropagation();
-                router.push(Routes.TEST_EDIT(row.original.id));
-              }}
-              aria-label={tCommon('edit')}
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              tooltip={t('copy_id')}
-              onClick={e => {
-                e.stopPropagation();
-                void navigator.clipboard.writeText(row.original.id);
-                toast.success(tCommon('copied'));
-              }}
-              aria-label={t('copy_id')}
-            >
-              <Copy className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              className="text-amber-500 hover:text-amber-500"
-              tooltip={t('take_test_action')}
-              onClick={e => {
-                e.stopPropagation();
-                router.push(Routes.TEST_DETAIL(row.original.id));
-              }}
-              aria-label={t('take_test_action')}
-            >
-              <Dumbbell className="size-4" />
-            </Button>
-            <ConfirmDialog
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="icon-lg"
-                  className="text-destructive hover:text-destructive"
-                  tooltip={tCommon('delete')}
-                  onClick={e => e.stopPropagation()}
-                  disabled={isDeleting}
-                  aria-label={tCommon('delete')}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              }
-              title={t('delete_test')}
-              description={t('delete_test_confirm', { title: row.original.title })}
-              confirmLabel={tCommon('delete')}
-              confirmClassName="bg-destructive text-white hover:bg-destructive/90"
-              onConfirm={() => deleteTest()}
-            />
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            tooltip={tCommon('edit')}
+            onClick={e => {
+              e.stopPropagation();
+              router.push(Routes.TEST_EDIT(row.original.id));
+            }}
+            aria-label={tCommon('edit')}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            tooltip={t('copy_id')}
+            onClick={e => {
+              e.stopPropagation();
+              void navigator.clipboard.writeText(row.original.id);
+              toast.success(tCommon('copied'));
+            }}
+            aria-label={t('copy_id')}
+          >
+            <Copy className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            className="text-amber-500 hover:text-amber-500"
+            tooltip={t('take_test_action')}
+            onClick={e => {
+              e.stopPropagation();
+              router.push(Routes.TEST_DETAIL(row.original.id));
+            }}
+            aria-label={t('take_test_action')}
+          >
+            <Dumbbell className="size-4" />
+          </Button>
+          <ConfirmDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                className="text-destructive hover:text-destructive"
+                tooltip={tCommon('delete')}
+                onClick={e => e.stopPropagation()}
+                disabled={isDeleting}
+                aria-label={tCommon('delete')}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            }
+            title={t('delete_test')}
+            description={t('delete_test_confirm', { title: row.original.title })}
+            confirmLabel={tCommon('delete')}
+            confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+            onConfirm={() => deleteTest(row.original.id)}
+          />
+        </div>
+      ),
     },
   ];
 }
