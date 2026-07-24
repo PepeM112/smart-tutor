@@ -1,0 +1,65 @@
+[tool.poetry]
+name = "smart-tutor"
+version = "0.1.0"
+description = "AI-powered SRS learning platform backend"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = ">=0.110.0"
+uvicorn = {extras = ["standard"], version = ">=0.27.0"}
+pydantic = {extras = ["email"], version = ">=2.6.0"}
+pydantic-settings = ">=2.2.0"
+sqlalchemy = ">=2.0.27"
+psycopg2-binary = ">=2.9.9"
+alembic = "*"
+python-dotenv = ">=1.0.1"
+python-jose = {extras = ["cryptography"], version = ">=3.3.0"}
+bcrypt = ">=5.0.0"
+openai = ">=1.13.0"
+anthropic = ">=0.39.0"
+python-multipart = ">=0.0.9"  # Needed for OAuth2
+python-ulid = ">=2.7.0"
+
+[tool.poetry.group.dev.dependencies]
+pyright = "*"
+ruff = "*"
+pytest = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors — indentation, whitespace, line length
+    "W",    # pycodestyle warnings — trailing whitespace, blank lines
+    "F",    # pyflakes — unused imports, undefined names, redefined variables
+    "I",    # isort — import sorting and grouping
+    "N",    # pep8-naming — snake_case functions, PascalCase classes, UPPER_CASE constants
+    "ANN",  # flake8-annotations — require type annotations on all function args + returns
+    "B",    # flake8-bugbear — common bugs: mutable default args, Depends() in defaults, bare raise
+    "UP",   # pyupgrade — modernize syntax: List[str] → list[str], Optional[X] → X | None (auto-fixable)
+    "SIM",  # flake8-simplify — simplify conditionals: if x == True → if x, merge nested ifs
+    "RET",  # flake8-return — clean return patterns: no else after return, no pointless return None
+    "PIE",  # flake8-pie — misc cleanups: no-op pass, unnecessary spread, redundant dict calls
+    "T20",  # flake8-print — flags print() calls (use logging instead)
+    "RUF",  # ruff-specific — mutable default args, invalid noqa, unused noqa directives
+]
+ignore = [
+    "RUF012",  # mutable class default — false positive on Pydantic schemas (they copy defaults per instance)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ANN",   # no need to annotate test functions
+]
+
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "standard"
+reportMissingImports = false

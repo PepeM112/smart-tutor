@@ -1,0 +1,37 @@
+# --- Root / General ---
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+
+# --- Frontend (Next.js) ---
+frontend/build/
+frontend/node_modules/
+frontend/out/
+frontend/src/client
+frontend/next-env.d.ts
+frontend/.next/
+frontend/.vercel
+.next/
+
+# --- Backend (Python/Docker) ---
+backend/node_modules/
+backend/.venv/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/.pytest_cache/
+backend/.docker/
+backend/build/
+backend/dist/
+**/*.egg-info/
+
+# --- Docker & Misc ---
+.docker/
+.claude/
+CLAUDE.md
+.vscode/
+tsconfig.tsbuildinfo
+
+# Prevent nested repos
+**/ .git
