@@ -35,7 +35,7 @@ type Props<T> = {
   columns: ColumnDef<T, unknown>[];
   data: T[];
   emptyMessage?: string;
-  onRowClick?: (row: T) => void;
+  onRowClick?: (row: T) => void | Promise<void>;
   renderPreview?: (row: T) => ReactNode;
   expandable?: boolean;
   renderActions?: (row: T) => MobileAction[];
@@ -116,7 +116,7 @@ export function DataTable<T>({
               <TableRow
                 key={row.id}
                 className={onRowClick ? 'cursor-pointer' : undefined}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                onClick={onRowClick ? () => void onRowClick(row.original) : undefined}
               >
                 {row.getVisibleCells().map(cell => (
                   <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
@@ -141,7 +141,7 @@ type MobileCardProps<T> = {
   preview: ReactNode;
   expandable: boolean;
   actions?: MobileAction[];
-  onRowClick?: (row: T) => void;
+  onRowClick?: (row: T) => void | Promise<void>;
   cells: CellData[];
 };
 
@@ -152,7 +152,7 @@ function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }
 
   function handleCardClick() {
     if (expandable) setIsExpanded(prev => !prev);
-    else if (onRowClick) onRowClick(data);
+    else if (onRowClick) void onRowClick(data);
   }
 
   const expandableCells = cells.filter(cell => typeof cell.header === 'string' && cell.header !== '');

@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { AiProvider, type TokenUsageDailySummary } from '@/client';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
 
 const PROVIDER_COLORS: Record<number, { fill: string; label: string }> = {
   [AiProvider.ANTHROPIC]: { fill: '#F97316', label: 'Anthropic' },
@@ -67,6 +68,7 @@ type Props = {
 
 export function TokenUsageChart({ daily }: Props) {
   const t = useTranslations('dashboard');
+  const { isMobile } = useBreakpoint();
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
 
   const data = useMemo(() => buildChartData(daily), [daily]);
@@ -88,18 +90,32 @@ export function TokenUsageChart({ daily }: Props) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <ComposedChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={isMobile ? 240 : 350}>
+      <ComposedChart data={data} margin={{ top: 4, right: isMobile ? 4 : 8, left: isMobile ? -12 : 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-        <XAxis dataKey="date" tickFormatter={formatDate} className="text-xs" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="daily" tickFormatter={formatTokens} className="text-xs" tick={{ fontSize: 11 }} />
+        <XAxis
+          dataKey="date"
+          tickFormatter={formatDate}
+          className="text-xs"
+          tick={{ fontSize: isMobile ? 10 : 11 }}
+          interval={isMobile ? 'preserveStartEnd' : undefined}
+        />
         <YAxis
-          yAxisId="cumulative"
-          orientation="right"
+          yAxisId="daily"
           tickFormatter={formatTokens}
           className="text-xs"
-          tick={{ fontSize: 11 }}
+          tick={{ fontSize: isMobile ? 10 : 11 }}
+          width={isMobile ? 40 : 60}
         />
+        {!isMobile && (
+          <YAxis
+            yAxisId="cumulative"
+            orientation="right"
+            tickFormatter={formatTokens}
+            className="text-xs"
+            tick={{ fontSize: 11 }}
+          />
+        )}
         <Tooltip
           contentStyle={{
             backgroundColor: 'var(--color-card)',
@@ -128,7 +144,7 @@ export function TokenUsageChart({ daily }: Props) {
             const label = value === 'cumulative' ? t('cumulative') : value === 'anthropic' ? 'Anthropic' : 'OpenAI';
             return <span className={isHidden ? 'opacity-40' : ''}>{label}</span>;
           }}
-          wrapperStyle={{ cursor: 'pointer', fontSize: 12 }}
+          wrapperStyle={{ cursor: 'pointer', fontSize: isMobile ? 11 : 12 }}
         />
         <Bar
           yAxisId="daily"
@@ -147,7 +163,7 @@ export function TokenUsageChart({ daily }: Props) {
           radius={[2, 2, 0, 0]}
         />
         <Line
-          yAxisId="cumulative"
+          yAxisId={isMobile ? 'daily' : 'cumulative'}
           dataKey="cumulative"
           stroke="var(--color-primary)"
           strokeWidth={2}

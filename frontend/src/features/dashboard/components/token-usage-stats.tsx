@@ -25,7 +25,7 @@ export function TokenUsageStats({ totalInputTokens, totalOutputTokens, totalEsti
   const total = totalInputTokens + totalOutputTokens;
 
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
       <StatCard label={t('total_tokens')} value={formatTokens(total)} />
       <StatCard label={t('input_tokens')} value={formatTokens(totalInputTokens)} />
       <StatCard label={t('output_tokens')} value={formatTokens(totalOutputTokens)} />
@@ -36,9 +36,9 @@ export function TokenUsageStats({ totalInputTokens, totalOutputTokens, totalEsti
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums sm:text-2xl">{value}</p>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { useAuthStore } from '@/features/auth/store/auth-store';
 import { Routes } from './routes';
 
 client.setConfig({
-  baseUrl: '/api/v1',
+  baseUrl: '',
   credentials: 'include',
   throwOnError: true,
 });

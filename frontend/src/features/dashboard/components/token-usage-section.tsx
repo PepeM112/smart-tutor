@@ -34,9 +34,9 @@ export function TokenUsageSection() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:space-y-0">
         <CardTitle>{t('token_usage')}</CardTitle>
-        <div className="flex gap-1 rounded-md border border-border p-0.5">
+        <div className="flex gap-1 self-start rounded-md border border-border p-0.5 sm:self-auto">
           {TIME_RANGES.map(range => (
             <button
               key={range.days}
