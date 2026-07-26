@@ -26,11 +26,11 @@ export function LanguageSection() {
 
   const { mutate: updateLocale } = useMutation({
     mutationFn: async (locale: string) => {
-      document.cookie = `locale=${locale};path=/;max-age=31536000`;
       const result = await sdk.usersUpdateMe({ body: { locale } });
       return result.data!;
     },
     onSuccess: updatedUser => {
+      document.cookie = `locale=${updatedUser.locale};path=/;max-age=31536000`;
       setUser(updatedUser);
       startTransition(() => {
         router.refresh();

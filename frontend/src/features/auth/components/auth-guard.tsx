@@ -3,14 +3,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { useAuthStore } from '../store/auth-store';
-import { clearSessionCookie } from '../utils/session-cookie';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -36,20 +35,22 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     refetchOnWindowFocus: true,
   });
 
-  const user = data?.data ?? null;
+  const errorStatus = (error as { status?: number })?.status;
+  const isAuthError = isError && (errorStatus === 401 || errorStatus === 403);
 
-  // Handle auth errors — redirect to login on 401/403
-  if (isError && !didRedirect.current) {
-    const status = (error as { status?: number })?.status;
-    if (status === 401 || status === 403) {
+  useEffect(() => {
+    if (isAuthError && !didRedirect.current) {
       didRedirect.current = true;
       logout();
-      clearSessionCookie();
       router.replace(Routes.LOGIN);
-      return null;
     }
+  }, [isAuthError, logout, router]);
 
-    // Non-auth error (network blip, 500) — trust cached user if available
+  if (isAuthError) return null;
+
+  const user = data?.data ?? null;
+
+  if (isError) {
     const cachedUser = useAuthStore.getState().user;
     if (cachedUser) {
       return <>{children}</>;
