@@ -1,18 +1,14 @@
 import logging
 import sys
-from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
-from sqlalchemy import text
-from sqlalchemy.orm import Session
 from uvicorn.logging import DefaultFormatter
 
 from app.api.v1.endpoints import answers, notes, questions, results, review, tests, token_usage, users
 
 from .config import settings
-from .database import get_session
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -80,16 +76,3 @@ _grading_logger.propagate = False
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@app.get("/db-test")
-def test_db(session: Annotated[Session, Depends(get_session)]) -> dict[str, Any]:
-    logger.info("Testing database connection to Neon...")
-    try:
-        result = session.execute(text("SELECT 1")).scalar()
-
-        logger.info("Database connection successful!")
-        return {"status": "connected", "result": result}
-    except Exception as e:
-        logger.error(f"Database connection failed: {e}")
-        return {"status": "error", "detail": str(e)}

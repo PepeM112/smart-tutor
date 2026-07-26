@@ -50,8 +50,7 @@ def create_many(
 def update(db: Session, *, question: Question, data: QuestionUpdate) -> Question:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(question, field, value)
-    db.commit()
-    db.refresh(question)
+    db.flush()
     return question
 
 

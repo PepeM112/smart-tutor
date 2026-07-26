@@ -37,7 +37,10 @@ def update_question(db: Session, *, question_id: str, current_user: User, data: 
     question = get_question(db, question_id=question_id, current_user=current_user)
     if data.content is not None and data.question_type is None:
         _validate_content(QuestionType(question.question_type), data.content)
-    return question_crud.update(db, question=question, data=data)
+    updated = question_crud.update(db, question=question, data=data)
+    db.commit()
+    db.refresh(updated)
+    return updated
 
 
 def delete_question(db: Session, *, question_id: str, current_user: User) -> None:
@@ -64,6 +67,7 @@ def check_question(
             answer_status=answer_status,
             initial_ease_factor=current_user.initial_ease_factor,
         )
+        db.commit()
 
     answer_fields = get_correct_answer_fields(question)
     return QuestionCheckResponse(

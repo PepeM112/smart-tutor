@@ -42,11 +42,10 @@ def create(
 def update(db: Session, *, note: Note, data: NoteUpdate) -> Note:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(note, field, value)
-    db.commit()
-    db.refresh(note)
+    db.flush()
     return note
 
 
 def delete(db: Session, *, note: Note) -> None:
     db.delete(note)
-    db.commit()
+    db.flush()

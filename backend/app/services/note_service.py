@@ -16,6 +16,7 @@ from app.services.note_prompts import (
     build_note_generation_user_prompt,
     build_note_refinement_user_prompt,
 )
+from app.services.service_helpers import get_owned_or_404
 
 _NOTE_MAX_TOKENS: dict[int, int] = {
     NoteLength.SHORT: 2048,
@@ -30,12 +31,7 @@ def list_notes(db: Session, *, current_user: User) -> list[Note]:
 
 
 def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
-    note = note_crud.get_by_id(db, id=note_id)
-    if note is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-    if note.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    return note
+    return get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")  # type: ignore[return-value]
 
 
 def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
@@ -55,12 +51,16 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
 
 def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpdate) -> Note:
     note = get_note(db, note_id=note_id, current_user=current_user)
-    return note_crud.update(db, note=note, data=data)
+    updated = note_crud.update(db, note=note, data=data)
+    db.commit()
+    db.refresh(updated)
+    return updated
 
 
 def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
     note = get_note(db, note_id=note_id, current_user=current_user)
     note_crud.delete(db, note=note)
+    db.commit()
 
 
 def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Note:
@@ -114,11 +114,14 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_REFINEMENT)
 
-    return note_crud.update(
+    updated = note_crud.update(
         db,
         note=note,
         data=NoteUpdate(content=result.text),
     )
+    db.commit()
+    db.refresh(updated)
+    return updated
 
 
 def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: NoteChunkEdit) -> NoteChunkEditResponse:

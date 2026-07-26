@@ -43,11 +43,10 @@ def create(
 def update(db: Session, *, test: Test, data: TestUpdate) -> Test:
     for field, value in data.model_dump(exclude_unset=True, exclude={"questions", "question_groups"}).items():
         setattr(test, field, value)
-    db.commit()
-    db.refresh(test)
+    db.flush()
     return test
 
 
 def delete(db: Session, *, test: Test) -> None:
     test.status = TestStatus.DELETED
-    db.commit()
+    db.flush()

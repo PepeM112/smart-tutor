@@ -3,7 +3,10 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 
-SECRET_KEY = os.getenv("JWT_SECRET", "insecure-dev-secret-change-in-production")
+_secret = os.getenv("JWT_SECRET")
+if not _secret:
+    raise RuntimeError("JWT_SECRET environment variable is not set")
+SECRET_KEY = _secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
