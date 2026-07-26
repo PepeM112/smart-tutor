@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import { SetBreadcrumb } from '@/components/breadcrumb';
+import { TokenUsageSection } from '@/features/dashboard/components/token-usage-section';
 
 export default async function DashboardPage() {
   const t = await getTranslations('dashboard');
@@ -8,7 +9,9 @@ export default async function DashboardPage() {
   return (
     <>
       <SetBreadcrumb title={t('title')} />
-      <p className="text-muted-foreground">{t('overview_placeholder')}</p>
+      <div className="space-y-6">
+        <TokenUsageSection />
+      </div>
     </>
   );
 }

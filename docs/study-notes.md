@@ -11,13 +11,13 @@ Notes serve two purposes:
 
 ## The Note Entity
 
-| Field         | Description                                                        |
-| ------------- | -------------------------------------------------------------------- |
-| `title`       | Short name, up to 200 characters                                     |
-| `description` | Optional one-line summary, up to 500 characters                      |
-| `content`     | The note body, in Markdown                                           |
-| `source`      | `USER_CREATED` or `AI_GENERATED`                                     |
-| `tags`        | Free-form labels for organization                                    |
+| Field         | Description                                     |
+| ------------- | ----------------------------------------------- |
+| `title`       | Short name, up to 200 characters                |
+| `description` | Optional one-line summary, up to 500 characters |
+| `content`     | The note body, in Markdown                      |
+| `source`      | `USER_CREATED` or `AI_GENERATED`                |
+| `tags`        | Free-form labels for organization               |
 
 Notes track when they were created and when they were last edited.
 
@@ -44,6 +44,20 @@ The AI produces structured Markdown content covering the topic. The result opens
 Once a note exists — whether written by hand or generated — the user can ask the AI to revise it. Rather than filling out a form again, the user describes the change in free text (e.g. "shorten the introduction," "add a section on exceptions," "make the tone more casual"). The AI returns an updated version of the content, which the user reviews before saving.
 
 Refinement operates on the note as a whole; it does not require regenerating from the original topic.
+
+## AI Chunk Editing
+
+Refinement changes the whole note. Chunk editing changes one part of it.
+
+In the note's rendered preview, the user selects a span of text. A popover opens with an instruction field, where the user describes the wanted change (e.g. "make this sentence clearer" or "add an example here").
+
+The AI receives three things: the full note content (for context), the selected chunk, and the instructions. It returns an edited version of the chunk only.
+
+A diff viewer shows the old text (red) and the new text (green) side by side. The user reviews the diff, then accepts or cancels it. Nothing changes in the note until the user accepts.
+
+This is a synchronous operation — the user waits for the AI response.
+
+- Endpoint: `POST /notes/{note_id}/edit-chunk`
 
 ## Tags
 

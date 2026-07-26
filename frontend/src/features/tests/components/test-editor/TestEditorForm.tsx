@@ -181,7 +181,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           if (item.type === 'group') {
             return (
               <QuestionGroupBlock
-                key={i}
+                key={item.key}
                 data={item}
                 onChange={data => updateItem(i, data)}
                 onRemove={() => removeItem(i)}
@@ -193,7 +193,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           if (item.type === QuestionType.LONG_TEXT) {
             return (
               <LongTextQuestionBlock
-                key={i}
+                key={item.key}
                 data={item}
                 onChange={data => updateItem(i, data)}
                 onRemove={() => removeItem(i)}
@@ -204,7 +204,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           }
           return (
             <MultipleChoiceQuestionBlock
-              key={i}
+              key={item.key}
               data={item}
               onChange={data => updateItem(i, data)}
               onRemove={() => removeItem(i)}

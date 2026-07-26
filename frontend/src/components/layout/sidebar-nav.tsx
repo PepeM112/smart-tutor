@@ -98,7 +98,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
                     return (
                       <li key={item.labelKey}>
                         <span
-                          title={collapsed ? `${label} (${t('coming_soon')})` : undefined}
+                          title={collapsed ? `${label} (${t('soon')})` : undefined}
                           className={cn(
                             'flex items-center gap-3 rounded-lg text-sm cursor-not-allowed opacity-40 text-sidebar-muted py-2',
                             collapsed ? 'justify-center px-0' : 'px-3'

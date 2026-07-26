@@ -36,7 +36,7 @@ class ChallengeRequest(BaseSchema):
 
 
 class AnswerBase(BaseSchema):
-    test_result_id: str
+    test_result_id: str | None = None
     question_id: str
     user_answer: str
     status: AnswerStatus

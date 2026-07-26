@@ -17,7 +17,6 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { useAuthStore } from '../store/auth-store';
-import { setSessionCookie } from '../utils/session-cookie';
 
 export function LoginForm() {
   const router = useRouter();
@@ -38,7 +37,6 @@ export function LoginForm() {
       }),
     onSuccess: response => {
       setUser(response.data ?? null);
-      setSessionCookie();
       router.push(Routes.DASHBOARD);
       router.refresh();
     },

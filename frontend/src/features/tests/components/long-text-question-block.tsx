@@ -21,6 +21,7 @@ export type Criterion = {
 };
 
 export type LongTextQuestionData = {
+  key: string;
   type: QuestionType.LONG_TEXT;
   prompt: string;
   lengthLimit: number;

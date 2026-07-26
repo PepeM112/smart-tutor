@@ -43,9 +43,12 @@ def create_user(db: Session, user_in: UserCreate) -> User:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this username already exists.",
         )
-    return user_crud.create(
+    user = user_crud.create(
         db, username=user_in.username, email=user_in.email, hashed_password=_hash_password(user_in.password)
     )
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 def update_user(db: Session, *, current_user: User, data: UserUpdate) -> User:
@@ -61,4 +64,7 @@ def update_user(db: Session, *, current_user: User, data: UserUpdate) -> User:
     if not update_data:
         return current_user
 
-    return user_crud.update(db, user=current_user, data=update_data)
+    updated = user_crud.update(db, user=current_user, data=update_data)
+    db.commit()
+    db.refresh(updated)
+    return updated

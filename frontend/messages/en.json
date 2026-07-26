@@ -76,7 +76,22 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "overview_placeholder": "Your learning overview will appear here."
+    "overview_placeholder": "Your learning overview will appear here.",
+    "token_usage": "AI Token Usage",
+    "token_usage_description": "Track your AI provider token consumption over time.",
+    "total_tokens": "Total Tokens",
+    "input_tokens": "Input",
+    "output_tokens": "Output",
+    "no_usage_data": "No usage data yet. Use AI features like grading, note generation, or test creation to see your token consumption here.",
+    "last_n_days": "Last {days} days",
+    "daily_tokens": "Daily tokens",
+    "cumulative": "Cumulative",
+    "estimated_cost": "Est. Cost",
+    "range_1d": "1D",
+    "range_1w": "1W",
+    "range_1m": "1M",
+    "range_3m": "3M",
+    "range_1y": "1Y"
   },
   "review": {
     "title": "Review Now",
@@ -391,6 +406,8 @@
     "theme_light_group": "Light",
     "theme_dark_group": "Dark",
     "font_size_label": "Font Size",
-    "font_size_description": "Adjust the interface text size."
+    "font_size_description": "Adjust the interface text size.",
+    "show_key": "Show API key",
+    "hide_key": "Hide API key"
   }
 }

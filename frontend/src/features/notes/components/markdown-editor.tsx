@@ -3,19 +3,16 @@
 import { Eye, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useRef, useState, type KeyboardEvent } from 'react';
-import { type Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-import type { Element, Root } from 'hast';
+import { markdownComponents } from './markdown-components';
 
-// ── Rehype plugin: stamp source positions on HTML elements ──────────
+import type { Element, Root } from 'hast';
 
 function rehypeSourcePositions() {
   return (tree: Root) => {
@@ -28,29 +25,6 @@ function rehypeSourcePositions() {
     });
   };
 }
-
-// ── Markdown components (shared with V1) ────────────────────────────
-
-const markdownComponents: Components = {
-  code({ className: codeClassName, children, ...props }) {
-    const match = /language-(\w+)/.exec(codeClassName ?? '');
-    const code = (typeof children === 'string' ? children : '').replace(/\n$/, '');
-
-    if (match) {
-      return (
-        <SyntaxHighlighter language={match[1]} style={oneDark} PreTag="div">
-          {code}
-        </SyntaxHighlighter>
-      );
-    }
-
-    return (
-      <code className={codeClassName} {...props}>
-        {children}
-      </code>
-    );
-  },
-};
 
 // ── Wrap chars for editor keyboard shortcuts ────────────────────────
 

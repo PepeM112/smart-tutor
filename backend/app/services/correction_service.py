@@ -15,6 +15,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import AnswerStatus, QuestionType
+from app.crud import test_result as test_result_crud
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test_result import TestResult
@@ -244,7 +245,8 @@ def correct_test(
     graded_pts = total_pts - pending_pts
     score = round(earned_pts / graded_pts * 100, 2) if graded_pts > 0 else 0.0
 
-    test_result = TestResult(
+    test_result = test_result_crud.create(
+        db,
         test_id=test_id,
         user_id=current_user.id,
         score=score,
@@ -255,7 +257,6 @@ def correct_test(
         total_points=round(total_pts, 2),
         answers=answers,
     )
-    db.add(test_result)
     db.commit()
     db.refresh(test_result)
 

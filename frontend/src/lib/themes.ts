@@ -104,11 +104,11 @@ export const themes: ThemePreview[] = [
   {
     id: 'midnight',
     name: 'Midnight',
-    sidebar: '#0b1120',
-    primary: '#60a5fa',
-    background: '#0f172a',
-    foreground: '#f8fafc',
-    accent: '#1e3a5f',
+    sidebar: '#101a23',
+    primary: '#1da1f2',
+    background: '#15202b',
+    foreground: '#ffffff',
+    accent: '#1e2732',
   },
   {
     id: 'carbon',

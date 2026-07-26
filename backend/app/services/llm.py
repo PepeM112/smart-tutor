@@ -11,16 +11,26 @@ from __future__ import annotations
 import logging
 import os
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
 
-from app.core.enums import AiProvider
+from app.core.enums import AIProvider
 
 if TYPE_CHECKING:
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.llm")
+
+
+@dataclass(frozen=True, slots=True)
+class CompletionResult:
+    text: str
+    input_tokens: int
+    output_tokens: int
+    provider: str
+    model: str
 
 
 class LLMClient(ABC):
@@ -29,8 +39,8 @@ class LLMClient(ABC):
     def name(self) -> str: ...
 
     @abstractmethod
-    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
-        """Send a system + user message pair and return the raw text response."""
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
+        """Send a system + user message pair and return the text response with usage data."""
         ...
 
 
@@ -49,7 +59,7 @@ class AnthropicLLMClient(LLMClient):
     def name(self) -> str:
         return f"Anthropic ({self.MODEL})"
 
-    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
         from anthropic.types import TextBlock
 
         response = self._client.messages.create(
@@ -77,7 +87,13 @@ class AnthropicLLMClient(LLMClient):
         if response.stop_reason == "max_tokens":
             logger.warning("Anthropic response truncated (max_tokens=%d, usage=%s)", max_tokens, response.usage)
 
-        return text
+        return CompletionResult(
+            text=text,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            provider="anthropic",
+            model=self.MODEL,
+        )
 
 
 class OpenAILLMClient(LLMClient):
@@ -95,7 +111,7 @@ class OpenAILLMClient(LLMClient):
     def name(self) -> str:
         return f"OpenAI ({self.MODEL})"
 
-    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> str:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
         response = self._client.chat.completions.create(
             model=self.MODEL,
             max_tokens=max_tokens,
@@ -113,7 +129,14 @@ class OpenAILLMClient(LLMClient):
         if choice.finish_reason == "length":
             logger.warning("OpenAI response truncated (max_tokens=%d)", max_tokens)
 
-        return text
+        usage = response.usage
+        return CompletionResult(
+            text=text,
+            input_tokens=usage.prompt_tokens if usage else 0,
+            output_tokens=usage.completion_tokens if usage else 0,
+            provider="openai",
+            model=self.MODEL,
+        )
 
 
 _CLIENTS: dict[str, type[LLMClient]] = {}
@@ -148,12 +171,12 @@ def get_user_llm_client(user: User) -> LLMClient:
     from app.services.encryption import decrypt
 
     provider = user.ai_provider
-    if provider is None or provider == AiProvider.ANTHROPIC:
+    if provider is None or provider == AIProvider.ANTHROPIC:
         if not user.encrypted_anthropic_key:
             raise ValueError("No Anthropic API key configured")
         api_key = decrypt(user.encrypted_anthropic_key)
         return AnthropicLLMClient(api_key=api_key)
-    if provider == AiProvider.OPENAI:
+    if provider == AIProvider.OPENAI:
         if not user.encrypted_openai_key:
             raise ValueError("No OpenAI API key configured")
         api_key = decrypt(user.encrypted_openai_key)
@@ -161,7 +184,7 @@ def get_user_llm_client(user: User) -> LLMClient:
     raise ValueError(f"Unknown AI provider: {provider}")
 
 
-def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens: int) -> str:
+def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
     """Execute a completion call, wrapping provider errors into HTTPExceptions."""
     try:
         return llm.complete(system=system, user_prompt=user_prompt, max_tokens=max_tokens)
@@ -179,7 +202,7 @@ def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens
         ) from exc
 
 
-def complete(*, system: str, user_prompt: str, max_tokens: int) -> str:
+def complete(*, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
     """Get the LLM client and call complete, wrapping errors into HTTPExceptions."""
     try:
         llm = get_llm_client()
@@ -193,7 +216,7 @@ def complete(*, system: str, user_prompt: str, max_tokens: int) -> str:
     return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
 
 
-def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: int) -> str:
+def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
     """Get a per-user LLM client and call complete, wrapping errors into HTTPExceptions."""
     try:
         llm = get_user_llm_client(user)

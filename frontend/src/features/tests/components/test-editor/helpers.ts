@@ -6,6 +6,7 @@ import type { QuestionGroupData } from '../question-group-block';
 
 export function newMultipleChoice(): MultipleChoiceQuestionData {
   return {
+    key: crypto.randomUUID(),
     type: QuestionType.MULTIPLE_CHOICE,
     prompt: '',
     choices: [
@@ -18,6 +19,7 @@ export function newMultipleChoice(): MultipleChoiceQuestionData {
 
 export function newQuestionGroup(): QuestionGroupData {
   return {
+    key: crypto.randomUUID(),
     type: 'group',
     groupType: QuestionGroupType.UNKNOWN,
     title: '',
@@ -28,6 +30,7 @@ export function newQuestionGroup(): QuestionGroupData {
 
 export function newLongText(): LongTextQuestionData {
   return {
+    key: crypto.randomUUID(),
     type: QuestionType.LONG_TEXT,
     prompt: '',
     lengthLimit: 2,
