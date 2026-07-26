@@ -9,6 +9,7 @@ Unlike exams, reviews give immediate feedback after each answer and update the S
 ## Review Session Flow
 
 1. Frontend requests a batch of questions (`GET /api/v1/review/questions`)
+   - The endpoint respects the user's `daily_review_limit` setting (default: no limit). If set, it caps the number of questions returned per batch.
 2. Backend returns up to 10 questions, prioritised by SRS (see below)
 3. For each question, the user types an answer and clicks "Check"
 4. Backend grades the answer AND updates SRS state as a side effect
@@ -28,12 +29,14 @@ SmartTutor uses the SM-2 algorithm (the same one Anki is based on), with Anki's 
 
 Each question has per-user SRS state stored in `UserQuestionState`:
 
-| Field         | Meaning                                                                             |
-| ------------- | ----------------------------------------------------------------------------------- |
-| `ease_factor` | How "easy" this question is for the user. Starts at 2.5. Higher = longer intervals. |
-| `interval`    | Days until the next review.                                                         |
-| `repetitions` | How many times in a row the user has gotten it right.                               |
-| `next_review` | When this question should next be shown (datetime).                                 |
+| Field         | Meaning                                                                                                                                |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `ease_factor` | How "easy" this question is for the user. Starts at the user's `initial_ease_factor` setting (default 2.5). Higher = longer intervals. |
+| `interval`    | Days until the next review.                                                                                                            |
+| `repetitions` | How many times in a row the user has gotten it right.                                                                                  |
+| `next_review` | When this question should next be shown (datetime).                                                                                    |
+
+The starting ease factor is configurable per user, not a fixed constant. Users set it in Settings → SRS Preferences (`initial_ease_factor` field on the `User` model). The SRS service reads the user's `initial_ease_factor` when creating a new `UserQuestionState`, so different users can start new questions at different difficulty assumptions.
 
 ### How Scheduling Works
 

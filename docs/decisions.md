@@ -201,3 +201,59 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** When a user challenges a grading criterion, the re-evaluation can only flip "not met" to "met", never the reverse.
 
 **Why:** The challenge flow is a user appeal, not a full re-grade. Allowing downgrades would create a perverse incentive — users would avoid challenging for fear of losing points they already earned. The one-directional rule makes challenges risk-free, encouraging users to engage with the feedback rather than accept it passively.
+
+---
+
+## Per-User API Keys Over Global Environment Variable
+
+**Decision:** AI features use per-user API keys stored encrypted in the database, not a global `AI_GRADING_PROVIDER` env var.
+
+**Why:** Users bring their own keys (Anthropic or OpenAI), configured in Settings. Keys are encrypted at rest using Fernet (`services/encryption.py`). `get_user_llm_client(user)` creates a client from the user's decrypted key. The old env-var-based `get_llm_client()` remains as a fallback for system-level operations. This makes the app self-hostable without the operator providing AI keys.
+
+---
+
+## Fernet Encryption for API Keys at Rest
+
+**Decision:** User API keys are encrypted with Fernet symmetric encryption before storage.
+
+**Why:** API keys in plaintext in the DB would be a breach liability. Fernet provides authenticated encryption (encrypt + HMAC). The encryption key is an env var (`ENCRYPTION_KEY`), not stored in the DB. Trade-off: if the encryption key is lost, all stored API keys become unrecoverable — but that's preferable to storing them in plain text.
+
+---
+
+## Cookie-Based Theme and Locale for SSR
+
+**Decision:** Theme and locale are persisted in both localStorage (client) and cookies (SSR). The server reads cookies to set `data-theme` and locale on the initial HTML render.
+
+**Why:** Without server-side knowledge of the theme, the first render uses the default, causing a flash of wrong theme (FOIT). Cookies are readable in Next.js server components via `cookies()`. localStorage alone would require client-side hydration to apply the theme, which causes a visible flash.
+
+---
+
+## Token Costs as Strings in the API
+
+**Decision:** Cost values (`estimated_cost`, `total_estimated_cost`) are serialized as strings in JSON responses, not numbers.
+
+**Why:** Per-token prices have many decimal places (e.g., `0.000001`). JavaScript floats lose precision on such values (`0.1 + 0.2 !== 0.3`). Using `Decimal` on the backend and `string` in the API preserves full precision. The frontend formats with `toFixed()` at display time.
+
+---
+
+## OpenRouter as Model Pricing Source
+
+**Decision:** Model prices are fetched from OpenRouter's public API (`GET https://openrouter.ai/api/v1/models`), not hardcoded.
+
+**Why:** Neither Anthropic nor OpenAI exposes a pricing API. OpenRouter maintains accurate, up-to-date pricing for both providers, freely queryable (no auth). Prices are stored in `model_pricing` with `valid_from`/`valid_to` date ranges so historical cost calculations remain accurate when prices change. A mapping dict (`SDK_TO_OPENROUTER` in `core/model_registry.py`) translates between SDK model IDs (e.g., `claude-haiku-4-5-20251001`) and OpenRouter IDs (e.g., `anthropic/claude-haiku-4.5`).
+
+---
+
+## SameSite=None Cookies in Production
+
+**Decision:** Auth cookies use `SameSite=None; Secure` in production, `SameSite=Lax` in development.
+
+**Why:** The frontend (Vercel) and backend (Render) are on different domains. `SameSite=Lax` cookies are not sent on cross-origin `fetch()` requests with `credentials: 'include'`, causing a login redirect loop. `SameSite=None` allows cross-origin cookie transmission but requires `Secure` (HTTPS only). Local dev stays on `Lax` since both services share `localhost`.
+
+---
+
+## i18n Without URL Prefixes
+
+**Decision:** Locale is stored in a cookie, not in the URL path (`/en/dashboard` vs `/dashboard`).
+
+**Why:** SmartTutor is a personal app, not a content site. Locale-prefixed URLs add routing complexity (middleware, link rewriting, redirects) without SEO benefit — the content is private and behind auth. A cookie-based approach keeps URLs clean and is simpler to implement with Next.js App Router.

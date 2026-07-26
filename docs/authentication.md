@@ -14,21 +14,23 @@ SmartTutor uses JWT (JSON Web Tokens) with HTTP-only cookies for authentication.
 
 ### Token Details
 
-| Property  | Value                              |
-| --------- | ---------------------------------- |
-| Algorithm | HS256                              |
+| Property  | Value                                         |
+| --------- | --------------------------------------------- |
+| Algorithm | HS256                                         |
 | Expiry    | 30-minute access token + 30-day refresh token |
-| Payload   | `{ sub: user_id, exp: timestamp }` |
-| Storage   | HTTP-only cookie                   |
+| Payload   | `{ sub: user_id, exp: timestamp }`            |
+| Storage   | HTTP-only cookie                              |
+
+**Cross-origin cookies:** In production, the frontend (Vercel) and backend (Render) run on different domains, so the auth cookies must be sent cross-origin. They are set with `SameSite=None; Secure` in production to allow this. In local development, both services share `localhost`, so cookies use `SameSite=Lax` instead.
 
 ### Refresh Token Flow
 
 Authentication uses a dual-token strategy:
 
-| Token | Lifetime | Purpose |
-|-------|----------|---------|
-| Access token | 30 minutes | Authorizes API requests |
-| Refresh token | 30 days | Obtains new access tokens silently |
+| Token         | Lifetime   | Purpose                            |
+| ------------- | ---------- | ---------------------------------- |
+| Access token  | 30 minutes | Authorizes API requests            |
+| Refresh token | 30 days    | Obtains new access tokens silently |
 
 Both tokens are stored as HTTP-only cookies. When the access token expires, the frontend's API client interceptor catches the 401 response and calls `POST /api/v1/users/refresh`. If the refresh token is still valid, a new access token is issued transparently — the original request is retried and the user sees no interruption.
 
@@ -39,7 +41,7 @@ Both tokens are stored as HTTP-only cookies. When the access token expires, the 
 
 #### Frontend Auth Guard
 
-The `AuthGuard` component wraps all protected pages. On mount, it always calls the `/me` endpoint to validate the session — it does not trust client-side state (e.g. rehydrated Zustand stores) as the source of truth. If `/me` fails and silent refresh also fails, the user is redirected to login.
+The `AuthGuard` component wraps all protected pages. It uses `useQuery(['me'])` with `staleTime: 5 * 60 * 1000` (a stale-while-revalidate pattern) rather than re-fetching on every mount, and sets `refetchOnWindowFocus` so switching back to the tab re-validates the session. If `/me` fails and silent refresh also fails, the user is redirected to login.
 
 ### Protected Routes
 
@@ -53,6 +55,17 @@ The `get_current_user` dependency extracts the JWT from the cookie, decodes it, 
 ### Frontend Auth State
 
 The frontend determines if the user is logged in by calling a `/me` endpoint, not by reading the cookie (it can't — the cookie is HTTP-only and invisible to JavaScript). The API client is configured with `credentials: 'include'` so cookies are sent automatically with every request.
+
+Auth state is also mirrored in a Zustand store so components can read it synchronously. To keep multiple open tabs in sync, the store listens for the browser's `storage` event and updates itself whenever another tab changes auth state (e.g. after a logout).
+
+## Role-Based Access
+
+The `User` model has a `role` field: `ADMIN` or `USER` (the default).
+
+- **Backend:** the `get_current_admin_user` dependency raises a 403 if the current user's role is not `ADMIN`.
+- **Frontend:** the `RoleGuard` component checks the user's role and redirects away in a `useEffect` if it doesn't match the required role.
+
+Currently, this is only used to restrict the Sandbox/dev page to admins.
 
 ## Why HTTP-only Cookies (Not localStorage)
 

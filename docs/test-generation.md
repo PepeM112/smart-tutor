@@ -21,12 +21,13 @@ Rather than writing every question by hand, a user can generate a test directly 
 
 ## Question Types
 
-Only Simple and Multiple Choice questions can be generated:
+All three question types can be generated:
 
 - **Simple** — the AI produces a prompt and one or more valid answers (including reasonable synonyms).
 - **Multiple Choice** — the AI produces a prompt, 2–6 options, and marks which ones are correct.
+- **Long Text** — the AI produces a prompt and a rubric, including criteria with weights and, where relevant, categories.
 
-Long Text questions are deliberately excluded. Designing a rubric — deciding what criteria matter and how to weight them — is a judgment call that belongs to the person who owns the material, not something the AI should decide unsupervised.
+Designing a rubric — deciding what criteria matter and how to weight them — is a judgment call that belongs to the person who owns the material. For Long Text questions, the AI drafts a reasonable rubric, but nothing is final until the user reviews it in the preview and edits it as needed before saving.
 
 ## Validation
 
@@ -43,6 +44,18 @@ If the first generation attempt fails validation, the system retries once, telli
 ## Refinement
 
 Refinement lets the user adjust the current set of questions without regenerating everything from scratch. The user's instructions, along with the current question set, are sent back to the AI, which returns a modified set reflecting the requested change. The preview updates in place, and refinement can be repeated as many times as needed before saving.
+
+## Question Editing
+
+Refinement changes the whole set with one instruction. Question editing targets specific questions.
+
+In both the generated test preview and the existing test editor, the user selects one or more questions — click to select a single question, Shift+Click to select a range. A popover opens where the user describes the wanted change (e.g. "make this harder," "convert to multiple choice," "add more distractors").
+
+The AI receives the selected questions and the instructions, and returns modified versions of them. The preview updates in place with the edited questions.
+
+This works for all question types, including Long Text — the AI can generate a rubric as part of the edit.
+
+- Endpoint: `POST /tests/generate/edit-questions`
 
 ## Saving
 
