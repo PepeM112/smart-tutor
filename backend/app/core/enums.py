@@ -33,6 +33,12 @@ class TestStatus(NamedIntEnum):
     DELETED = 2
 
 
+class QuestionStatus(NamedIntEnum):
+    UNKNOWN = 0
+    ACTIVE = 1
+    DELETED = 2
+
+
 class QuestionType(NamedIntEnum):
     UNKNOWN = 0
     SIMPLE = 1
