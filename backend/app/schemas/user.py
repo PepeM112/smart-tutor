@@ -1,6 +1,6 @@
 from pydantic import field_validator, model_validator
 
-from app.core.enums import AiProvider, UserRole, UserStatus
+from app.core.enums import AIProvider, UserRole, UserStatus
 from app.schemas.base import BaseSchema
 
 VALID_LOCALES = {"en", "es"}
@@ -34,7 +34,7 @@ class UserUpdate(BaseSchema):
     display_name: str | None = None
     locale: str | None = None
     theme: str | None = None
-    ai_provider: AiProvider | None = None
+    ai_provider: AIProvider | None = None
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None
     daily_review_limit: int | None = None
@@ -76,7 +76,7 @@ class UserRead(UserBase):
     display_name: str | None = None
     locale: str = "en"
     theme: str = "system"
-    ai_provider: AiProvider | None = None
+    ai_provider: AIProvider | None = None
     has_anthropic_key: bool = False
     has_openai_key: bool = False
     daily_review_limit: int | None = None

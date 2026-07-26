@@ -16,7 +16,7 @@ from pydantic import ValidationError
 
 from app.core.enums import NoteLength, NoteSource
 from app.schemas.note import NoteBase, NoteCreate, NoteGenerate, NoteUpdate
-from app.services.llm import AnthropicLLMClient, OpenAILLMClient
+from app.services.llm import AnthropicLLMClient, CompletionResult, OpenAILLMClient
 from app.services.note_prompts import NOTE_GENERATION_SYSTEM_PROMPT, build_note_generation_user_prompt
 
 # ---------------------------------------------------------------------------
@@ -127,6 +127,8 @@ class TestAnthropicLLMClient:
         block = TextBlock(type="text", text=text)
         response = MagicMock()
         response.content = [block]
+        response.usage.input_tokens = 10
+        response.usage.output_tokens = 20
         return response
 
     def test_returns_text(self) -> None:
@@ -135,18 +137,20 @@ class TestAnthropicLLMClient:
         client._client = MagicMock()
         client._client.messages.create.return_value = self._mock_response(markdown)
 
-        result = client.complete(system="You are helpful.", user="Write notes", max_tokens=4096)
-        assert "Spanish Verbs" in result
-        assert "**ser**" in result
+        result = client.complete(system="You are helpful.", user_prompt="Write notes", max_tokens=4096)
+        assert "Spanish Verbs" in result.text
+        assert "**ser**" in result.text
+        assert result.input_tokens == 10
+        assert result.output_tokens == 20
 
     def test_strips_whitespace_from_response(self) -> None:
         client = self._make_client()
         client._client = MagicMock()
         client._client.messages.create.return_value = self._mock_response("  \n## Notes\ncontent\n  ")
 
-        result = client.complete(system="sys", user="usr", max_tokens=4096)
-        assert result.startswith("## Notes")
-        assert result.endswith("content")
+        result = client.complete(system="sys", user_prompt="usr", max_tokens=4096)
+        assert result.text.startswith("## Notes")
+        assert result.text.endswith("content")
 
     def test_raises_on_empty_response(self) -> None:
         client = self._make_client()
@@ -156,7 +160,7 @@ class TestAnthropicLLMClient:
         client._client.messages.create.return_value = response
 
         with pytest.raises(ValueError, match="Empty response"):
-            client.complete(system="sys", user="usr", max_tokens=4096)
+            client.complete(system="sys", user_prompt="usr", max_tokens=4096)
 
     def test_raises_on_empty_text(self) -> None:
         client = self._make_client()
@@ -164,7 +168,7 @@ class TestAnthropicLLMClient:
         client._client.messages.create.return_value = self._mock_response("   ")
 
         with pytest.raises(ValueError, match="empty text"):
-            client.complete(system="sys", user="usr", max_tokens=4096)
+            client.complete(system="sys", user_prompt="usr", max_tokens=4096)
 
     def test_raises_on_non_text_block(self) -> None:
         client = self._make_client()
@@ -176,7 +180,7 @@ class TestAnthropicLLMClient:
         client._client.messages.create.return_value = response
 
         with pytest.raises(TypeError, match="Expected TextBlock"):
-            client.complete(system="sys", user="usr", max_tokens=4096)
+            client.complete(system="sys", user_prompt="usr", max_tokens=4096)
 
     def test_raises_without_api_key(self) -> None:
         with patch.dict("os.environ", {}, clear=True), pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
@@ -198,6 +202,8 @@ class TestOpenAILLMClient:
         choice.message.content = text
         response = MagicMock()
         response.choices = [choice]
+        response.usage.prompt_tokens = 15
+        response.usage.completion_tokens = 25
         return response
 
     def test_returns_text(self) -> None:
@@ -206,8 +212,10 @@ class TestOpenAILLMClient:
         client._client = MagicMock()
         client._client.chat.completions.create.return_value = self._mock_response(markdown)
 
-        result = client.complete(system="You are helpful.", user="Write notes", max_tokens=4096)
-        assert "Geography" in result
+        result = client.complete(system="You are helpful.", user_prompt="Write notes", max_tokens=4096)
+        assert "Geography" in result.text
+        assert result.input_tokens == 15
+        assert result.output_tokens == 25
 
     def test_raises_on_empty_text(self) -> None:
         client = self._make_client()
@@ -215,7 +223,7 @@ class TestOpenAILLMClient:
         client._client.chat.completions.create.return_value = self._mock_response("")
 
         with pytest.raises(ValueError, match="empty text"):
-            client.complete(system="sys", user="usr", max_tokens=4096)
+            client.complete(system="sys", user_prompt="usr", max_tokens=4096)
 
     def test_raises_without_api_key(self) -> None:
         with patch.dict("os.environ", {}, clear=True), pytest.raises(ValueError, match="OPENAI_API_KEY"):
@@ -235,7 +243,10 @@ class TestNoteServiceErrorHandling:
         user.id = "user-123"
         return user
 
-    def test_missing_api_key_returns_503(self) -> None:
+    def _mock_completion(self, text: str) -> CompletionResult:
+        return CompletionResult(text=text, input_tokens=10, output_tokens=20, provider="anthropic", model="test")
+
+    def test_missing_api_key_returns_403(self) -> None:
         from fastapi import HTTPException
 
         from app.services.note_service import generate_note
@@ -243,10 +254,15 @@ class TestNoteServiceErrorHandling:
         db = MagicMock()
         data = NoteGenerate(topic="test topic")
 
-        with patch("app.services.note_service.get_llm_client", side_effect=ValueError("API key not set")):
+        with patch(
+            "app.services.note_service.complete_for_user",
+            side_effect=HTTPException(
+                status_code=403, detail="AI is not configured. Please add your API key in Settings."
+            ),
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 generate_note(db, current_user=self._make_user(), data=data)
-            assert exc_info.value.status_code == 503
+            assert exc_info.value.status_code == 403
             assert "not configured" in exc_info.value.detail
 
     def test_provider_value_error_returns_502(self) -> None:
@@ -256,10 +272,13 @@ class TestNoteServiceErrorHandling:
 
         db = MagicMock()
         data = NoteGenerate(topic="test topic")
-        mock_llm = MagicMock()
-        mock_llm.complete.side_effect = ValueError("empty text")
 
-        with patch("app.services.note_service.get_llm_client", return_value=mock_llm):
+        with patch(
+            "app.services.note_service.complete_for_user",
+            side_effect=HTTPException(
+                status_code=502, detail="AI service returned an invalid response. Please try again."
+            ),
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 generate_note(db, current_user=self._make_user(), data=data)
             assert exc_info.value.status_code == 502
@@ -272,10 +291,13 @@ class TestNoteServiceErrorHandling:
 
         db = MagicMock()
         data = NoteGenerate(topic="test topic")
-        mock_llm = MagicMock()
-        mock_llm.complete.side_effect = TypeError("Expected TextBlock")
 
-        with patch("app.services.note_service.get_llm_client", return_value=mock_llm):
+        with patch(
+            "app.services.note_service.complete_for_user",
+            side_effect=HTTPException(
+                status_code=502, detail="AI service returned an invalid response. Please try again."
+            ),
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 generate_note(db, current_user=self._make_user(), data=data)
             assert exc_info.value.status_code == 502
@@ -287,10 +309,13 @@ class TestNoteServiceErrorHandling:
 
         db = MagicMock()
         data = NoteGenerate(topic="test topic")
-        mock_llm = MagicMock()
-        mock_llm.complete.side_effect = RuntimeError("network timeout")
 
-        with patch("app.services.note_service.get_llm_client", return_value=mock_llm):
+        with patch(
+            "app.services.note_service.complete_for_user",
+            side_effect=HTTPException(
+                status_code=502, detail="AI service encountered an error. Please try again later."
+            ),
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 generate_note(db, current_user=self._make_user(), data=data)
             assert exc_info.value.status_code == 502
@@ -301,13 +326,15 @@ class TestNoteServiceErrorHandling:
 
         db = MagicMock()
         data = NoteGenerate(topic="Spanish verbs")
-        mock_llm = MagicMock()
-        mock_llm.complete.return_value = "## Spanish Verbs\n\nContent here"
         mock_note = MagicMock()
         mock_note.id = "note-456"
 
         with (
-            patch("app.services.note_service.get_llm_client", return_value=mock_llm),
+            patch(
+                "app.services.note_service.complete_for_user",
+                return_value=self._mock_completion("## Spanish Verbs\n\nContent here"),
+            ),
+            patch("app.services.note_service.token_usage_service"),
             patch("app.services.note_service.note_crud") as mock_crud,
         ):
             mock_crud.create.return_value = mock_note
@@ -345,12 +372,14 @@ class TestAnthropicNoteIntegration:
         user_prompt = build_note_generation_user_prompt("The water cycle", length=NoteLength.SHORT)
         result = client.complete(
             system=NOTE_GENERATION_SYSTEM_PROMPT,
-            user=user_prompt,
+            user_prompt=user_prompt,
             max_tokens=4096,
         )
 
-        assert len(result) > 100
-        assert "#" in result
+        assert len(result.text) > 100
+        assert "#" in result.text
+        assert result.input_tokens > 0
+        assert result.output_tokens > 0
 
 
 @pytest.mark.integration
@@ -370,9 +399,11 @@ class TestOpenAINoteIntegration:
         user_prompt = build_note_generation_user_prompt("The water cycle", length=NoteLength.SHORT)
         result = client.complete(
             system=NOTE_GENERATION_SYSTEM_PROMPT,
-            user=user_prompt,
+            user_prompt=user_prompt,
             max_tokens=4096,
         )
 
-        assert len(result) > 100
-        assert "#" in result
+        assert len(result.text) > 100
+        assert "#" in result.text
+        assert result.input_tokens > 0
+        assert result.output_tokens > 0

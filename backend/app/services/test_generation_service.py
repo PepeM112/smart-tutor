@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import LongTextLength, QuestionType
+from app.core.enums import AIFeature, LongTextLength, QuestionType
 from app.models.user import User
 from app.schemas.question import LongTextContent, MultipleChoiceContent, RubricItem, SimpleContent
 from app.schemas.test_generation import (
@@ -15,6 +15,7 @@ from app.schemas.test_generation import (
     TestGenerationResponse,
     TestRefinementRequest,
 )
+from app.services import token_usage_service
 from app.services.grading_prompts import strip_code_fences
 from app.services.llm import complete_for_user
 from app.services.note_service import get_note
@@ -240,6 +241,7 @@ def generate_test_questions(
 
     requested_types = set(data.question_types)
     result = _call_and_validate(
+        db,
         user=current_user,
         user_prompt=user_prompt,
         requested_types=requested_types,
@@ -282,6 +284,7 @@ def refine_test_questions(
 
     expected = len(data.current_questions)
     result = _call_and_validate(
+        db,
         user=current_user,
         user_prompt=user_prompt,
         requested_types=set(QuestionType),
@@ -331,6 +334,7 @@ def edit_test_questions(
 
     expected = len(data.all_questions)
     result = _call_and_validate(
+        db,
         user=current_user,
         user_prompt=user_prompt,
         requested_types=set(QuestionType),
@@ -381,6 +385,7 @@ class _GenerationResult:
 
 
 def _call_and_validate(
+    db: Session,
     *,
     user: User,
     user_prompt: str,
@@ -389,20 +394,22 @@ def _call_and_validate(
     expected_count: int | None = None,
 ) -> _GenerationResult:
     """Call the LLM and validate the response. Retry once on validation failure."""
-    raw = complete_for_user(
+    result = complete_for_user(
         user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=max_tokens
     )
-    questions, errors = _validate_generated_questions(raw, requested_types)
+    token_usage_service.record_usage(db, user_id=user.id, result=result, feature=AIFeature.TEST_GENERATION)
+    questions, errors = _validate_generated_questions(result.text, requested_types)
 
     if errors and questions:
         logger.warning("Partial validation: %d valid, %d rejected: %s", len(questions), len(errors), errors)
     elif errors and not questions:
         logger.warning("First attempt failed validation: %s. Retrying...", errors)
         retry_prompt = build_retry_user_prompt(user_prompt, errors)
-        raw = complete_for_user(
+        result = complete_for_user(
             user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=retry_prompt, max_tokens=max_tokens
         )
-        questions, retry_errors = _validate_generated_questions(raw, requested_types)
+        token_usage_service.record_usage(db, user_id=user.id, result=result, feature=AIFeature.TEST_GENERATION)
+        questions, retry_errors = _validate_generated_questions(result.text, requested_types)
 
         if retry_errors and not questions:
             logger.error("Retry also failed validation: %s", retry_errors)

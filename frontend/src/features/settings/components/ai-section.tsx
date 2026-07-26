@@ -81,15 +81,19 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
                 value={form.anthropicApiKey}
                 onChange={e => updateField('anthropicApiKey', e.target.value)}
                 autoComplete="off"
+                className={form.anthropicApiKey ? 'pr-10' : undefined}
               />
-              <button
-                type="button"
-                onClick={() => setShowAnthropicKey(!showAnthropicKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-              >
-                {showAnthropicKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              </button>
+              {form.anthropicApiKey && (
+                <button
+                  type="button"
+                  onClick={() => setShowAnthropicKey(!showAnthropicKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                  aria-label={showAnthropicKey ? t('hide_key') : t('show_key')}
+                >
+                  {showAnthropicKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                </button>
+              )}
             </div>
             {hasAnthropicKey && (
               <ConfirmDialog
@@ -128,15 +132,19 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
                 value={form.openaiApiKey}
                 onChange={e => updateField('openaiApiKey', e.target.value)}
                 autoComplete="off"
+                className={form.openaiApiKey ? 'pr-10' : undefined}
               />
-              <button
-                type="button"
-                onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-              >
-                {showOpenaiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              </button>
+              {form.openaiApiKey && (
+                <button
+                  type="button"
+                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                  aria-label={showOpenaiKey ? t('hide_key') : t('show_key')}
+                >
+                  {showOpenaiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                </button>
+              )}
             </div>
             {hasOpenaiKey && (
               <ConfirmDialog

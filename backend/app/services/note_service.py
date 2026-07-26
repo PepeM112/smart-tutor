@@ -1,11 +1,12 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import NoteLength, NoteSource
+from app.core.enums import AIFeature, NoteLength, NoteSource
 from app.crud import note as note_crud
 from app.models.note import Note
 from app.models.user import User
 from app.schemas.note import NoteChunkEdit, NoteChunkEditResponse, NoteCreate, NoteGenerate, NoteRefine, NoteUpdate
+from app.services import token_usage_service
 from app.services.llm import complete_for_user
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
@@ -71,18 +72,19 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
 
     max_tokens = _NOTE_MAX_TOKENS.get(int(data.length), _DEFAULT_MAX_TOKENS) if data.length else _DEFAULT_MAX_TOKENS
 
-    content = complete_for_user(
+    result = complete_for_user(
         user=current_user,
         system=NOTE_GENERATION_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=max_tokens,
     )
+    token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_GENERATION)
 
     note = note_crud.create(
         db,
         user_id=current_user.id,
         title=data.topic,
-        content=content,
+        content=result.text,
         source=NoteSource.AI_GENERATED,
     )
     db.commit()
@@ -104,17 +106,18 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
         instructions=data.instructions,
     )
 
-    refined_content = complete_for_user(
+    result = complete_for_user(
         user=current_user,
         system=NOTE_REFINEMENT_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=_DEFAULT_MAX_TOKENS,
     )
+    token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_REFINEMENT)
 
     return note_crud.update(
         db,
         note=note,
-        data=NoteUpdate(content=refined_content),
+        data=NoteUpdate(content=result.text),
     )
 
 
@@ -127,11 +130,12 @@ def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: Note
         instructions=data.instructions,
     )
 
-    edited_text = complete_for_user(
+    result = complete_for_user(
         user=current_user,
         system=NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=_DEFAULT_MAX_TOKENS,
     )
+    token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_CHUNK_EDIT)
 
-    return NoteChunkEditResponse(edited_text=edited_text)
+    return NoteChunkEditResponse(edited_text=result.text)

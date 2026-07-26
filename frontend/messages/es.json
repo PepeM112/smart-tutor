@@ -76,7 +76,16 @@
   },
   "dashboard": {
     "title": "Panel",
-    "overview_placeholder": "Tu resumen de aprendizaje aparecerá aquí."
+    "overview_placeholder": "Tu resumen de aprendizaje aparecerá aquí.",
+    "token_usage": "Uso de tokens de IA",
+    "token_usage_description": "Controla el consumo de tokens de tus proveedores de IA.",
+    "total_tokens": "Tokens totales",
+    "input_tokens": "Entrada",
+    "output_tokens": "Salida",
+    "no_usage_data": "Aún no hay datos de uso. Usa funciones de IA como evaluación, generación de notas o creación de tests para ver tu consumo de tokens aquí.",
+    "last_n_days": "Últimos {days} días",
+    "daily_tokens": "Tokens diarios",
+    "cumulative": "Acumulado"
   },
   "review": {
     "title": "Repasar Ahora",
@@ -391,6 +400,8 @@
     "theme_light_group": "Claro",
     "theme_dark_group": "Oscuro",
     "font_size_label": "Tamaño de fuente",
-    "font_size_description": "Ajusta el tamaño del texto de la interfaz."
+    "font_size_description": "Ajusta el tamaño del texto de la interfaz.",
+    "show_key": "Mostrar clave API",
+    "hide_key": "Ocultar clave API"
   }
 }

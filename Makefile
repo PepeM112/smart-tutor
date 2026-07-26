@@ -137,7 +137,7 @@ pyright: ## Run pyright type checking (backend)
 install-all: install-backend frontend-install ## Install all dependencies (BE + FE)
 
 seed: ## Seed database with all sample tests
-	bash scripts/seed.sh
+	bash backend/scripts/seed.sh
 
 clean: ## Stop services and remove containers, volumes, and local images
 	$(DOCKER_COMPOSE) down -v --rmi local

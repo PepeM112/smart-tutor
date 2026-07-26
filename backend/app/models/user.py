@@ -1,7 +1,7 @@
 from sqlalchemy import Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.enums import AiProvider, UserRole, UserStatus
+from app.core.enums import AIProvider, UserRole, UserStatus
 from app.database import Base
 from app.models.base import CreatedAtMixin, generate_ulid
 
@@ -18,7 +18,7 @@ class User(Base, CreatedAtMixin):
     display_name: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     locale: Mapped[str] = mapped_column(String(5), default="en")
     theme: Mapped[str] = mapped_column(String(20), default="system")
-    ai_provider: Mapped[AiProvider | None] = mapped_column(nullable=True, default=None)
+    ai_provider: Mapped[AIProvider | None] = mapped_column(nullable=True, default=None)
     encrypted_anthropic_key: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     encrypted_openai_key: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     daily_review_limit: Mapped[int | None] = mapped_column(nullable=True, default=None)
