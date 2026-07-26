@@ -18,6 +18,7 @@ export type Choice = {
 };
 
 export type MultipleChoiceQuestionData = {
+  key: string;
   type: QuestionType.MULTIPLE_CHOICE;
   prompt: string;
   choices: Choice[];

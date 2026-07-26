@@ -20,6 +20,7 @@ type Props = {
   hasAnthropicKey: boolean;
   hasOpenaiKey: boolean;
   removeKey: (provider: 'anthropic' | 'openai') => void;
+  isRemovingKey: boolean;
 };
 
 const PROVIDERS = [
@@ -27,7 +28,7 @@ const PROVIDERS = [
   { value: AiProvider.OPENAI, labelKey: 'openai', modelKey: 'model_gpt4o_mini' },
 ] as const;
 
-export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, removeKey }: Props) {
+export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, removeKey, isRemovingKey }: Props) {
   const t = useTranslations('settings');
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
@@ -66,7 +67,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
           <div className="flex items-center justify-between">
             <Label htmlFor="anthropicKey">{t('anthropic_api_key')}</Label>
             {hasAnthropicKey && (
-              <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-1 text-xs text-feedback-correct">
                 <Check className="size-3" />
                 {t('api_key_configured')}
               </span>
@@ -98,7 +99,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
             {hasAnthropicKey && (
               <ConfirmDialog
                 trigger={
-                  <Button variant="destructive" size="icon-sm" tooltip={t('remove_key')}>
+                  <Button variant="destructive" size="icon-sm" tooltip={t('remove_key')} disabled={isRemovingKey}>
                     <X className="size-3.5" />
                   </Button>
                 }
@@ -117,7 +118,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
           <div className="flex items-center justify-between">
             <Label htmlFor="openaiKey">{t('openai_api_key')}</Label>
             {hasOpenaiKey && (
-              <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-1 text-xs text-feedback-correct">
                 <Check className="size-3" />
                 {t('api_key_configured')}
               </span>
@@ -149,7 +150,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
             {hasOpenaiKey && (
               <ConfirmDialog
                 trigger={
-                  <Button variant="destructive" size="icon-sm" tooltip={t('remove_key')}>
+                  <Button variant="destructive" size="icon-sm" tooltip={t('remove_key')} disabled={isRemovingKey}>
                     <X className="size-3.5" />
                   </Button>
                 }

@@ -127,7 +127,7 @@ export function GeneratedTestPreview() {
       const questionGroups = editorItems.flatMap((item, idx) => {
         if (item.type !== QuestionType.MULTIPLE_CHOICE && item.type !== QuestionType.LONG_TEXT) {
           const group = groupToApiGroup(item, idx);
-          return [{ ...group, title: group.title || sourceNoteTitle }];
+          return [{ ...group, title: group.title ?? sourceNoteTitle }];
         }
         return [];
       });
@@ -301,6 +301,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
       id: crypto.randomUUID(),
       kind: 'mc',
       data: {
+        key: crypto.randomUUID(),
         type: QuestionType.MULTIPLE_CHOICE,
         prompt: q.prompt,
         choices: content.options.map((text, i) => ({
@@ -318,6 +319,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
       id: crypto.randomUUID(),
       kind: 'long_text',
       data: {
+        key: crypto.randomUUID(),
         type: QuestionType.LONG_TEXT,
         prompt: q.prompt,
         lengthLimit: content.lengthLimit ?? 2,
@@ -336,6 +338,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
       id: crypto.randomUUID(),
       kind: 'group',
       data: {
+        key: crypto.randomUUID(),
         type: 'group',
         groupType: QuestionGroupType.UNKNOWN,
         title: '',

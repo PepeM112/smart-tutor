@@ -83,7 +83,7 @@ export function SettingsPage() {
     },
   });
 
-  const { mutate: removeKey } = useMutation({
+  const { mutate: removeKey, isPending: isRemovingKey } = useMutation({
     mutationFn: async (provider: 'anthropic' | 'openai') => {
       const payload: UserUpdate = provider === 'anthropic' ? { anthropicApiKey: null } : { openaiApiKey: null };
       const result = await sdk.usersUpdateMe({ body: payload });
@@ -110,6 +110,7 @@ export function SettingsPage() {
         hasAnthropicKey={hasAnthropicKey}
         hasOpenaiKey={hasOpenaiKey}
         removeKey={removeKey}
+        isRemovingKey={isRemovingKey}
       />
       <AppearanceSection />
       <LanguageSection />
