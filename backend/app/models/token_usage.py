@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.enums import AIFeature, AIProvider
@@ -16,3 +16,4 @@ class TokenUsage(Base, CreatedAtMixin):
     feature: Mapped[int] = mapped_column(Integer, default=int(AIFeature.UNKNOWN))
     input_tokens: Mapped[int] = mapped_column(Integer)
     output_tokens: Mapped[int] = mapped_column(Integer)
+    estimated_cost: Mapped[float | None] = mapped_column(Numeric(12, 10), nullable=True, default=None)

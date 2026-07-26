@@ -61,6 +61,7 @@ ignore = [
 "scripts/**/*.py" = [
     "T20",   # print() is fine in CLI seed scripts
     "ANN",   # no need to annotate seed scripts
+    "E501",  # long lines in seed data (rubric text) are content, not code
 ]
 
 [tool.pyright]

@@ -8,6 +8,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.database import Base
 from app.models.answer import Answer  # noqa: F401
+from app.models.model_pricing import ModelPricing  # noqa: F401
 from app.models.note import Note  # noqa: F401
 from app.models.question import Question  # noqa: F401
 from app.models.test import Test  # noqa: F401

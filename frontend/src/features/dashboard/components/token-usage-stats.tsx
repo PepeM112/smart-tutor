@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 type Props = {
   totalInputTokens: number;
   totalOutputTokens: number;
+  totalEstimatedCost: string | null;
 };
 
 function formatTokens(value: number): string {
@@ -13,15 +14,22 @@ function formatTokens(value: number): string {
   return String(value);
 }
 
-export function TokenUsageStats({ totalInputTokens, totalOutputTokens }: Props) {
+function formatCost(value: string): string {
+  const num = parseFloat(value);
+  if (num >= 1) return `$${num.toFixed(2)}`;
+  return `$${num.toFixed(4)}`;
+}
+
+export function TokenUsageStats({ totalInputTokens, totalOutputTokens, totalEstimatedCost }: Props) {
   const t = useTranslations('dashboard');
   const total = totalInputTokens + totalOutputTokens;
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-4 gap-4">
       <StatCard label={t('total_tokens')} value={formatTokens(total)} />
       <StatCard label={t('input_tokens')} value={formatTokens(totalInputTokens)} />
       <StatCard label={t('output_tokens')} value={formatTokens(totalOutputTokens)} />
+      <StatCard label={t('estimated_cost')} value={totalEstimatedCost ? formatCost(totalEstimatedCost) : '—'} />
     </div>
   );
 }

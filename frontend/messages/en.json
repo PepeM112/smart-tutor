@@ -85,7 +85,13 @@
     "no_usage_data": "No usage data yet. Use AI features like grading, note generation, or test creation to see your token consumption here.",
     "last_n_days": "Last {days} days",
     "daily_tokens": "Daily tokens",
-    "cumulative": "Cumulative"
+    "cumulative": "Cumulative",
+    "estimated_cost": "Est. Cost",
+    "range_1d": "1D",
+    "range_1w": "1W",
+    "range_1m": "1M",
+    "range_3m": "3M",
+    "range_1y": "1Y"
   },
   "review": {
     "title": "Review Now",
