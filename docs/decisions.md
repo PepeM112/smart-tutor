@@ -244,11 +244,11 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 ---
 
-## SameSite=None Cookies in Production
+## Same-Origin API Proxy Over Cross-Origin Cookies
 
-**Decision:** Auth cookies use `SameSite=None; Secure` in production, `SameSite=Lax` in development.
+**Decision:** API calls are proxied through Next.js rewrites (`/api/:path*` -> `${BACKEND_URL}/api/:path*`) instead of calling the backend directly from the browser.
 
-**Why:** The frontend (Vercel) and backend (Render) are on different domains. `SameSite=Lax` cookies are not sent on cross-origin `fetch()` requests with `credentials: 'include'`, causing a login redirect loop. `SameSite=None` allows cross-origin cookie transmission but requires `Secure` (HTTPS only). Local dev stays on `Lax` since both services share `localhost`.
+**Why:** iOS Safari standalone mode (PWA) partitions or blocks third-party cookies, which broke login on mobile when the frontend (Vercel) and backend (Render) were on different domains. The rewrite proxy makes all API calls same-origin from the browser's perspective, so cookies use `SameSite=Lax` in both environments — no cross-origin cookie configuration needed. This also eliminated the need for `NEXT_PUBLIC_API_URL` (a client-side env var); it was replaced by `BACKEND_URL` (server-side only, never exposed to the browser).
 
 ---
 

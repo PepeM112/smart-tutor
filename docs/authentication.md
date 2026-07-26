@@ -21,7 +21,7 @@ SmartTutor uses JWT (JSON Web Tokens) with HTTP-only cookies for authentication.
 | Payload   | `{ sub: user_id, exp: timestamp }`            |
 | Storage   | HTTP-only cookie                              |
 
-**Cross-origin cookies:** In production, the frontend (Vercel) and backend (Render) run on different domains, so the auth cookies must be sent cross-origin. They are set with `SameSite=None; Secure` in production to allow this. In local development, both services share `localhost`, so cookies use `SameSite=Lax` instead.
+**Same-origin via proxy:** In production, the frontend (Vercel) proxies all `/api/*` requests to the backend (Render) using Next.js rewrites (configured in `next.config.ts`). This makes API calls same-origin from the browser's perspective, which avoids cross-origin cookie issues — particularly on iOS Safari standalone mode (PWA), which partitions or blocks third-party cookies. Cookies use `SameSite=Lax` in both environments. The proxy destination is set via the `BACKEND_URL` server-side env var on Vercel.
 
 ### Refresh Token Flow
 
@@ -41,7 +41,9 @@ Both tokens are stored as HTTP-only cookies. When the access token expires, the 
 
 #### Frontend Auth Guard
 
-The `AuthGuard` component wraps all protected pages. It uses `useQuery(['me'])` with `staleTime: 5 * 60 * 1000` (a stale-while-revalidate pattern) rather than re-fetching on every mount, and sets `refetchOnWindowFocus` so switching back to the tab re-validates the session. If `/me` fails and silent refresh also fails, the user is redirected to login.
+The `AuthGuard` component wraps all protected pages. It uses `useQuery(['me'])` with `staleTime: 5 * 60 * 1000` (a stale-while-revalidate pattern) rather than re-fetching on every mount, and sets `refetchOnWindowFocus` so switching back to the tab re-validates the session. If `/me` fails with 401/403 and silent refresh also fails, the guard triggers logout and redirects to login via a `useEffect` (never during render).
+
+The API client interceptor in `api-client.ts` handles token refresh transparently. It deduplicates concurrent refresh attempts (only one `POST /refresh` in flight at a time) and tracks a `refreshFailed` flag — if refresh fails, the original response is returned immediately instead of retrying, preventing infinite loops.
 
 ### Protected Routes
 
@@ -49,6 +51,8 @@ Every API endpoint under `/api/v1/` requires authentication, except:
 
 - `POST /api/v1/users/login`
 - `POST /api/v1/users/signup`
+- `POST /api/v1/users/refresh`
+- `POST /api/v1/users/logout`
 
 The `get_current_user` dependency extracts the JWT from the cookie, decodes it, looks up the user, and injects the `User` object into the endpoint function. If the token is missing, expired, or invalid, the request gets a 401.
 
