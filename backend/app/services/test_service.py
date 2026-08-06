@@ -10,6 +10,7 @@ from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_question_group import TestQuestionGroupCreate
 from app.services.service_helpers import get_owned_or_404
+from app.services.versioning_service import version_test_if_needed
 
 
 def get_test(db: Session, *, test_id: str, current_user: User) -> Test:
@@ -92,6 +93,7 @@ def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
 
 def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpdate) -> Test:
     test = get_test(db, test_id=test_id, current_user=current_user)
+    version_test_if_needed(db, test=test)
 
     # Check incoming orders against what's already in the test
     _validate_order_space(data.questions or [], data.question_groups or [], existing_orders=_get_existing_orders(test))
@@ -113,5 +115,6 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
 
 def delete_test(db: Session, *, test_id: str, current_user: User) -> None:
     test = get_test(db, test_id=test_id, current_user=current_user)
+    version_test_if_needed(db, test=test)
     test_crud.delete(db, test=test)
     db.commit()

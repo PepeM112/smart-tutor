@@ -31,6 +31,8 @@ class TestRead(TestBase):
     user_id: str
     status: TestStatus
     source_note_id: str | None = None
+    version: int = 1
+    parent_id: str | None = None
     questions: list[QuestionRead] = []
     question_groups: list[TestQuestionGroupRead] = []
 

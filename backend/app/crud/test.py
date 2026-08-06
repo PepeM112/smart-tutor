@@ -26,7 +26,9 @@ def get_by_id(db: Session, *, id: str) -> Test | None:
 
 def list_by_user(db: Session, *, user_id: str) -> list[Test]:
     stmt = (
-        select(Test).options(*_active_load_options()).where(Test.user_id == user_id, Test.status == TestStatus.ACTIVE)
+        select(Test)
+        .options(*_active_load_options())
+        .where(Test.user_id == user_id, Test.status == TestStatus.ACTIVE, Test.parent_id.is_(None))
     )
     return list(db.scalars(stmt).all())
 

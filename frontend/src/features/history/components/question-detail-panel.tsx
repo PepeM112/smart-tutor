@@ -58,7 +58,7 @@ function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; an
         <div>
           <p className="text-muted-foreground mb-0.5">{t('your_answer')}</p>
           <p className={cn('rounded-md bg-muted/50 p-3', isWrong && 'line-through text-muted-foreground')}>
-            {answer ? getUserAnswerDisplay(question, answer.userAnswer) : t('no_answer')}
+            {(answer && getUserAnswerDisplay(question, answer.userAnswer)) ?? t('no_answer')}
           </p>
         </div>
         {correctAnswer && (

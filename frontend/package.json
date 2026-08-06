@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx @hey-api/openapi-ts && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:style": "stylelint \"src/**/*.{css}\" --allow-empty-input",

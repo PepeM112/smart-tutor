@@ -1,13 +1,20 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
+import { Info, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { type TestResultRead } from '@/client';
+import { Tooltip } from '@/components/ui/tooltip';
 import { getScoreCircleClasses } from '@/features/history/utils/score-colors';
 import { cn } from '@/lib/utils';
 
-export function ScoreBanner({ result, testTitle }: { result: TestResultRead; testTitle: string }) {
+type Props = {
+  result: TestResultRead;
+  testTitle: string;
+  isOlderVersion?: boolean;
+};
+
+export function ScoreBanner({ result, testTitle, isOlderVersion }: Props) {
   const t = useTranslations('history');
   const score = result.score ?? 0;
   const pending = result.pendingAnswers ?? 0;
@@ -15,7 +22,14 @@ export function ScoreBanner({ result, testTitle }: { result: TestResultRead; tes
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-xl font-semibold">{testTitle}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold">{testTitle}</h1>
+          {isOlderVersion && (
+            <Tooltip content={t('older_version_notice')}>
+              <Info className="size-4 text-muted-foreground shrink-0" />
+            </Tooltip>
+          )}
+        </div>
         {result.totalPoints != null && result.totalPoints > 0 && (
           <p className="text-sm text-muted-foreground tabular-nums">
             {result.earnedPoints} / {result.totalPoints} {t('pts')}

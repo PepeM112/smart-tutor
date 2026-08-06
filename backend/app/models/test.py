@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import TestStatus
@@ -22,6 +22,10 @@ class Test(Base, CreatedAtMixin):
     status: Mapped[TestStatus] = mapped_column(default=TestStatus.ACTIVE)
     source_note_id: Mapped[str | None] = mapped_column(
         String(26), ForeignKey("note.id", ondelete="SET NULL"), nullable=True, default=None
+    )
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    parent_id: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("test.id", ondelete="SET NULL"), nullable=True, default=None, index=True
     )
 
     questions: Mapped[list["Question"]] = relationship(back_populates="test", cascade="all, delete-orphan")

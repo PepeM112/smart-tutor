@@ -168,6 +168,11 @@ def correct_test(
     PARTIAL answers earn 50% credit. PENDING answers are excluded from scoring.
     """
     test = get_test(db, test_id=test_id, current_user=current_user)
+    if test.parent_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot submit to a frozen test version",
+        )
 
     all_questions: list[Question] = list(test.questions)
     for group in test.question_groups:

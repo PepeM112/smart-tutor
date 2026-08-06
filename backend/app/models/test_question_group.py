@@ -22,6 +22,9 @@ class TestQuestionGroup(Base):
     title: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     points: Mapped[float] = mapped_column(Float, default=1.0, server_default="1.0")
     status: Mapped[int] = mapped_column(Integer, default=int(QuestionStatus.ACTIVE), server_default="1")
+    origin_id: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("test_question_group.id", ondelete="SET NULL"), nullable=True, default=None
+    )
 
     test: Mapped["Test"] = relationship(back_populates="question_groups")
     questions: Mapped[list["Question"]] = relationship(
