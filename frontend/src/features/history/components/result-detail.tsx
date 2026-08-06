@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronsLeftRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import { AnswerStatus, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
@@ -26,6 +27,7 @@ const SPLIT_RATIO_KEY = 'result-detail-split-ratio';
 const DEFAULT_SPLIT_RATIO = 0.5;
 
 export default function ResultDetail({ result, test }: Props) {
+  const t = useTranslations('exam');
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const { isDesktop } = useBreakpoint();
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(
@@ -79,7 +81,7 @@ export default function ResultDetail({ result, test }: Props) {
         return (
           <CompactGroupCard
             key={groupId}
-            title={group.title ?? 'Question Group'}
+            title={group.title ?? t('question_group')}
             correctCount={countCorrectInGroup(questions, answerMap)}
             totalCount={questions.length}
             number={itemNumbers[idx]}
@@ -148,6 +150,8 @@ function RightPanel({
   answerMap: Map<string, AnswerRead>;
   itemNumbers: number[];
 }) {
+  const t = useTranslations('exam');
+
   if (!selectedItem) return null;
 
   const itemIdx = items.findIndex((item, idx) => {
@@ -175,7 +179,7 @@ function RightPanel({
   const { group } = groupItem;
   return (
     <GroupDetailPanel
-      title={group.title ?? 'Question Group'}
+      title={group.title ?? t('question_group')}
       type={group.type}
       questions={group.questions ?? []}
       answerMap={answerMap}

@@ -43,7 +43,7 @@ export function VocabularyReviewTable({
               </TableCell>
               <TableCell>
                 <span className={cn(isWrong && 'line-through text-muted-foreground')}>
-                  {answer ? getUserAnswerDisplay(q, answer.userAnswer) : t('no_answer')}
+                  {(answer && getUserAnswerDisplay(q, answer.userAnswer)) ?? t('no_answer')}
                 </span>
               </TableCell>
               <TableCell>
