@@ -9,7 +9,7 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 
 const PROVIDER_COLORS: Record<number, { fill: string; label: string }> = {
   [AiProvider.ANTHROPIC]: { fill: '#F97316', label: 'Anthropic' },
-  [AiProvider.OPENAI]: { fill: '#3F3F46', label: 'OpenAI' },
+  [AiProvider.OPENAI]: { fill: '#16B38C', label: 'OpenAI' },
 };
 
 type ChartDataPoint = {
