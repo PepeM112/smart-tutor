@@ -33,6 +33,12 @@ class TestStatus(NamedIntEnum):
     DELETED = 2
 
 
+class QuestionStatus(NamedIntEnum):
+    UNKNOWN = 0
+    ACTIVE = 1
+    DELETED = 2
+
+
 class QuestionType(NamedIntEnum):
     UNKNOWN = 0
     SIMPLE = 1
@@ -81,7 +87,17 @@ class NoteLength(NamedIntEnum):
     LONG = 3
 
 
-class AiProvider(NamedIntEnum):
+class AIProvider(NamedIntEnum):
     UNKNOWN = 0
     ANTHROPIC = 1
     OPENAI = 2
+
+
+class AIFeature(NamedIntEnum):
+    UNKNOWN = 0
+    GRADING = 1
+    CHALLENGE = 2
+    NOTE_GENERATION = 3
+    NOTE_REFINEMENT = 4
+    NOTE_CHUNK_EDIT = 5
+    TEST_GENERATION = 6

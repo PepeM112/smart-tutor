@@ -13,12 +13,22 @@ class RubricItem(BaseSchema):
 
 
 class SimpleContent(BaseSchema):
-    answers: list[str]
+    answers: list[str] = Field(..., min_length=1)
 
 
 class MultipleChoiceContent(BaseSchema):
     options: list[str] = Field(..., min_length=2, max_length=6)
-    correct_indices: list[int]
+    correct_indices: list[int] = Field(..., min_length=1)
+
+    @field_validator("correct_indices")
+    @classmethod
+    def validate_correct_indices(cls, v: list[int], info: ValidationInfo) -> list[int]:
+        options = info.data.get("options")
+        if options is not None:
+            for idx in v:
+                if idx < 0 or idx >= len(options):
+                    raise ValueError(f"correct_indices value {idx} is out of range for {len(options)} options")
+        return v
 
 
 class LongTextContent(BaseSchema):
@@ -114,6 +124,7 @@ class QuestionUpdate(BaseSchema):
 
 class QuestionRead(QuestionBase):
     id: str
+    origin_id: str | None = None
 
 
 class QuestionReadStripped(BaseSchema):

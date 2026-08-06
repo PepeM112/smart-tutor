@@ -2,17 +2,17 @@ import { client } from '@/client/client.gen';
 import * as sdk from '@/client/sdk.gen';
 import * as types from '@/client/types.gen';
 import { useAuthStore } from '@/features/auth/store/auth-store';
-import { clearSessionCookie } from '@/features/auth/utils/session-cookie';
 
 import { Routes } from './routes';
 
 client.setConfig({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1',
+  baseUrl: '',
   credentials: 'include',
   throwOnError: true,
 });
 
 let refreshPromise: Promise<void> | null = null;
+let refreshFailed = false;
 
 client.interceptors.response.use(async (response, request, options) => {
   if (response.status !== 401) return response;
@@ -22,6 +22,8 @@ client.interceptors.response.use(async (response, request, options) => {
     return response;
   }
 
+  refreshFailed = false;
+
   refreshPromise ??= sdk
     .usersRefresh()
     .then(result => {
@@ -30,8 +32,8 @@ client.interceptors.response.use(async (response, request, options) => {
       }
     })
     .catch(() => {
+      refreshFailed = true;
       useAuthStore.getState().logout();
-      clearSessionCookie();
       window.location.href = Routes.LOGIN;
     })
     .finally(() => {
@@ -40,7 +42,8 @@ client.interceptors.response.use(async (response, request, options) => {
 
   await refreshPromise;
 
-  // Retry with a fresh Request — the original's body stream was already consumed
+  if (refreshFailed) return response;
+
   return fetch(request.url, {
     method: request.method,
     headers: request.headers,

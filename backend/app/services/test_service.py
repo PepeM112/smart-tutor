@@ -9,15 +9,12 @@ from app.models.user import User
 from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_question_group import TestQuestionGroupCreate
+from app.services.service_helpers import get_owned_or_404
+from app.services.versioning_service import version_test_if_needed
 
 
 def get_test(db: Session, *, test_id: str, current_user: User) -> Test:
-    test = test_crud.get_by_id(db, id=test_id)
-    if test is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
-    if test.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    return test
+    return get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")  # type: ignore[return-value]
 
 
 def _validate_order_space(
@@ -96,6 +93,7 @@ def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
 
 def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpdate) -> Test:
     test = get_test(db, test_id=test_id, current_user=current_user)
+    version_test_if_needed(db, test=test)
 
     # Check incoming orders against what's already in the test
     _validate_order_space(data.questions or [], data.question_groups or [], existing_orders=_get_existing_orders(test))
@@ -107,6 +105,7 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
         group_crud.create_many(db, test_id=test.id, groups=data.question_groups)
 
     updated = test_crud.update(db, test=test, data=data)
+    db.commit()
 
     # Re-fetch with eager loading
     reloaded = test_crud.get_by_id(db, id=updated.id)
@@ -116,4 +115,6 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
 
 def delete_test(db: Session, *, test_id: str, current_user: User) -> None:
     test = get_test(db, test_id=test_id, current_user=current_user)
+    version_test_if_needed(db, test=test)
     test_crud.delete(db, test=test)
+    db.commit()

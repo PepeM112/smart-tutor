@@ -9,7 +9,7 @@ from openai import APIStatusError as OpenAIAPIError
 from openai import AuthenticationError as OpenAIAuthError
 from sqlalchemy.orm import Session
 
-from app.core.enums import AnswerStatus, QuestionType
+from app.core.enums import AIFeature, AnswerStatus, QuestionType
 from app.crud import answer as answer_crud
 from app.crud import question as question_crud
 from app.crud import user as user_crud
@@ -194,8 +194,13 @@ def process_challenge(answer_id: str) -> None:
         )
 
         llm = get_user_llm_client(user)
-        raw_response = llm.complete(system=CHALLENGE_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
-        cleaned = strip_code_fences(raw_response)
+        completion = llm.complete(system=CHALLENGE_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
+
+        from app.services import token_usage_service
+
+        token_usage_service.record_usage(db, user_id=user.id, result=completion, feature=AIFeature.CHALLENGE)
+
+        cleaned = strip_code_fences(completion.text)
         parsed = json.loads(cleaned)
         results: list[dict[str, object]] = parsed["results"]
 

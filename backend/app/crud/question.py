@@ -2,17 +2,20 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 
 from sqlalchemy import Select, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from app.core.enums import QuestionType, TestStatus
+from app.core.enums import QuestionStatus, QuestionType, TestStatus
+from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test import Test
+from app.models.test_question_group import TestQuestionGroup
 from app.models.user_question_state import UserQuestionState
 from app.schemas.question import QuestionCreate, QuestionUpdate
 
 
 def get_by_id(db: Session, *, id: str) -> Question | None:
-    return db.execute(select(Question).where(Question.id == id)).scalar_one_or_none()
+    stmt = select(Question).options(joinedload(Question.question_group)).where(Question.id == id)
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def list_by_test(db: Session, *, test_id: str) -> Sequence[Question]:
@@ -47,14 +50,29 @@ def create_many(
 def update(db: Session, *, question: Question, data: QuestionUpdate) -> Question:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(question, field, value)
-    db.commit()
-    db.refresh(question)
+    db.flush()
     return question
 
 
-def delete(db: Session, *, question: Question) -> None:
+def has_references(db: Session, *, question_id: str) -> bool:
+    """Check if a question has any answer or SRS state rows referencing it."""
+    has_answer = db.execute(select(Answer.id).where(Answer.question_id == question_id).limit(1)).first()
+    if has_answer:
+        return True
+    has_srs = db.execute(
+        select(UserQuestionState.id).where(UserQuestionState.question_id == question_id).limit(1)
+    ).first()
+    return has_srs is not None
+
+
+def soft_delete(db: Session, *, question: Question) -> None:
+    question.status = int(QuestionStatus.DELETED)
+    db.flush()
+
+
+def hard_delete(db: Session, *, question: Question) -> None:
     db.delete(question)
-    db.commit()
+    db.flush()
 
 
 def list_random_for_user(db: Session, *, user_id: str, limit: int) -> Sequence[Question]:
@@ -62,12 +80,20 @@ def list_random_for_user(db: Session, *, user_id: str, limit: int) -> Sequence[Q
 
 
 def _reviewable_base_query(*, user_id: str) -> Select[tuple[Question]]:
+    # Questions reach their owning test through two paths:
+    #   - Standalone: Question.test_id → Test.id
+    #   - Grouped:    Question.group_id → TestQuestionGroup.test_id → Test.id
+    # We outer-join both and coalesce to cover both cases.
+    resolved_test_id = func.coalesce(Question.test_id, TestQuestionGroup.test_id)
     return (
         select(Question)
-        .join(Test, Question.test_id == Test.id)
+        .outerjoin(TestQuestionGroup, Question.group_id == TestQuestionGroup.id)
+        .join(Test, resolved_test_id == Test.id)
         .where(
             Test.user_id == user_id,
             Test.status == int(TestStatus.ACTIVE),
+            Test.parent_id.is_(None),
+            Question.status == int(QuestionStatus.ACTIVE),
             Question.question_type.in_([int(QuestionType.SIMPLE), int(QuestionType.MULTIPLE_CHOICE)]),
         )
     )

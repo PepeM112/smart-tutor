@@ -8,11 +8,13 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.database import Base
 from app.models.answer import Answer  # noqa: F401
+from app.models.model_pricing import ModelPricing  # noqa: F401
 from app.models.note import Note  # noqa: F401
 from app.models.question import Question  # noqa: F401
 from app.models.test import Test  # noqa: F401
 from app.models.test_question_group import TestQuestionGroup  # noqa: F401
 from app.models.test_result import TestResult  # noqa: F401
+from app.models.token_usage import TokenUsage  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.user_question_state import UserQuestionState  # noqa: F401
 

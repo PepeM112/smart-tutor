@@ -33,8 +33,7 @@ def create(
         next_review=next_review,
     )
     db.add(state)
-    db.commit()
-    db.refresh(state)
+    db.flush()
     return state
 
 
@@ -51,6 +50,5 @@ def update(
     state.interval = interval
     state.repetitions = repetitions
     state.next_review = next_review
-    db.commit()
-    db.refresh(state)
+    db.flush()
     return state

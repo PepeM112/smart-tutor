@@ -27,8 +27,8 @@ services:
       - ./frontend:/app
       - /app/node_modules # Prevents local node_modules overwrites container
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/
-      - OPENAPI_SCHEMA_URL=http://localhost:8000/openapi.json
+      - BACKEND_URL=http://backend:8000
+      - OPENAPI_SCHEMA_URL=http://backend:8000/openapi.json
     depends_on:
       backend:
         condition: service_healthy

@@ -75,6 +75,7 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
 function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
   const content = q.content as { options: string[]; correctIndices: number[] };
   return {
+    key: crypto.randomUUID(),
     type: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
     choices: (content.options ?? []).map((text, i) => ({
@@ -88,6 +89,7 @@ function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
 function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
   const content = q.content as { lengthLimit: number; rubric: { point: string; weight: number; category?: string }[] };
   return {
+    key: crypto.randomUUID(),
     type: QuestionType.LONG_TEXT,
     prompt: q.prompt,
     lengthLimit: content.lengthLimit ?? 2,
@@ -102,6 +104,7 @@ function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
 
 function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
   return {
+    key: crypto.randomUUID(),
     type: 'group',
     groupType: g.type ?? QuestionGroupType.UNKNOWN,
     title: g.title ?? '',
@@ -245,6 +248,7 @@ export function fromPreviewToEditorItems(questions: GeneratedQuestionPreviewOutp
     .forEach(q => {
       const content = q.content as MultipleChoiceContent;
       items.push({
+        key: crypto.randomUUID(),
         type: QuestionType.MULTIPLE_CHOICE,
         prompt: q.prompt,
         choices: content.options.map((text, i) => ({
@@ -260,6 +264,7 @@ export function fromPreviewToEditorItems(questions: GeneratedQuestionPreviewOutp
     .forEach(q => {
       const content = q.content as LongTextContent;
       items.push({
+        key: crypto.randomUUID(),
         type: QuestionType.LONG_TEXT,
         prompt: q.prompt,
         lengthLimit: content.lengthLimit,
@@ -275,6 +280,7 @@ export function fromPreviewToEditorItems(questions: GeneratedQuestionPreviewOutp
   const simpleQuestions = questions.filter(q => q.questionType === QuestionType.SIMPLE);
   if (simpleQuestions.length > 0) {
     items.push({
+      key: crypto.randomUUID(),
       type: 'group',
       groupType: QuestionGroupType.UNKNOWN,
       title: '',

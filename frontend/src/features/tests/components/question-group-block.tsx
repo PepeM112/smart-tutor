@@ -19,6 +19,7 @@ export type SimpleRow = {
 };
 
 export type QuestionGroupData = {
+  key: string;
   type: 'group';
   groupType: QuestionGroupType;
   title: string;

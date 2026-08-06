@@ -81,14 +81,12 @@ export function parseSelectedIndices(userAnswer: string): number[] {
 export function getUserAnswerDisplay(question: QuestionRead, userAnswer: string): string {
   const { content } = question;
   if (question.questionType === QuestionType.MULTIPLE_CHOICE && isMCContent(content)) {
-    return (
-      parseSelectedIndices(userAnswer)
-        .map(i => content.options[i])
-        .filter(Boolean)
-        .join(', ') || '(no answer)'
-    );
+    return parseSelectedIndices(userAnswer)
+      .map(i => content.options[i])
+      .filter(Boolean)
+      .join(', ');
   }
-  return userAnswer || '(no answer)';
+  return userAnswer || '';
 }
 
 export function isAnswerWrong(status: AnswerStatus): boolean {

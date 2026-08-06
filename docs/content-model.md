@@ -20,6 +20,33 @@ A **QuestionGroup** is an organizational layer within a test. It groups related 
 
 Tests use soft delete. Each test has a `status` field (`ACTIVE` or `DELETED`). Deleting a test sets its status to `DELETED` rather than removing the row. All queries (listing, fetching, SRS review) filter by `ACTIVE` status, so deleted tests are invisible but recoverable.
 
+### Test Versioning (Copy-on-Write)
+
+When a test that has exam results is edited, the system clones the current state into a **frozen version** before applying edits. Existing results and their answers are repointed to the frozen copy so they remain stable against future changes.
+
+**How it works:**
+1. User takes an exam → `TestResult` points to the canonical test
+2. User edits the test → `version_test_if_needed()` runs before the edit:
+   - Clones Test, Questions, and Groups into frozen copies
+   - Repoints all `TestResult.test_id` and `Answer.question_id` to the frozen copies
+   - Increments `version` on the canonical test
+3. Edit is applied to the canonical test (same ID the user has always used)
+
+**Key fields:**
+- `Test.version` — integer counter, starts at 1, incremented on each versioning event
+- `Test.parent_id` — `NULL` = canonical (user-facing), non-NULL = frozen version pointing to its canonical test
+- `Question.origin_id` / `TestQuestionGroup.origin_id` — frozen copies point to their canonical entity (star topology, not chain)
+
+**Query rules:**
+- Test list filters `parent_id IS NULL` — frozen versions are hidden from the user
+- `get_by_id` does NOT filter by `parent_id` — frozen tests must be fetchable for result detail pages
+- SRS queries filter `parent_id IS NULL` — frozen test questions are excluded from review
+- Exam submission rejects frozen tests (`parent_id IS NOT NULL` → 400)
+
+**Important invariant:** After repointing, the canonical test has 0 results. Subsequent edits before the next exam are plain edits — no new frozen versions are created. Two quick edits = one frozen version.
+
+The versioning logic lives in `app/services/versioning_service.py`. See [Exams — Results History](exams.md) for how this affects the result detail page.
+
 ## Question Types
 
 Every question has a `prompt` (the text shown to the user), a `content` field (JSONB) whose shape depends on the question type, and a `points` value (default 1.0) that determines its weight in exam scoring. For grouped questions, the group's `points` is the scoring source of truth — individual question `points` are ignored.

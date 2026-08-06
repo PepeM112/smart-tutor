@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import NotRequired
 
-from app.core.enums import AnswerStatus, QuestionType
+from app.core.enums import AIFeature, AnswerStatus, QuestionType
 from app.crud import answer as answer_crud
 from app.crud import user as user_crud
 from app.database import SessionLocal
@@ -20,7 +20,7 @@ from app.models.question import Question
 from app.models.test_result import TestResult
 from app.schemas.question import LongTextContent, RubricItem
 from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
-from app.services.llm import LLMClient, get_user_llm_client
+from app.services.llm import CompletionResult, LLMClient, get_user_llm_client
 
 logger = logging.getLogger("smarttutor.grading")
 
@@ -38,15 +38,18 @@ class CriterionResult:
     reason: str = ""
 
 
-def grade(llm: LLMClient, prompt: str, rubric: list[RubricItem], answer: str) -> list[CriterionResult]:
+def grade(
+    llm: LLMClient, prompt: str, rubric: list[RubricItem], answer: str
+) -> tuple[list[CriterionResult], CompletionResult]:
     """Grade a long-text answer against a rubric via the provided LLM client."""
     user_prompt = build_grading_user_prompt(prompt, rubric, answer)
-    raw_text = llm.complete(system=GRADING_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
-    cleaned = strip_code_fences(raw_text)
+    completion = llm.complete(system=GRADING_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
+    cleaned = strip_code_fences(completion.text)
     data: dict[str, list[_RawCriterionDict]] = json.loads(cleaned)
-    return [
+    criteria = [
         CriterionResult(index=item["index"], met=item["met"], reason=item.get("reason", "")) for item in data["results"]
     ]
+    return criteria, completion
 
 
 def effective_met(entry: dict[str, object]) -> bool:
@@ -187,7 +190,11 @@ def grade_pending_answers(test_result_id: str) -> None:
 
             try:
                 content = LongTextContent.model_validate(question.content)
-                results = grade(llm, question.prompt, content.rubric, answer.user_answer)
+                results, completion = grade(llm, question.prompt, content.rubric, answer.user_answer)
+
+                from app.services import token_usage_service
+
+                token_usage_service.record_usage(db, user_id=user.id, result=completion, feature=AIFeature.GRADING)
 
                 status = _determine_status(results, len(content.rubric))
                 answer.status = int(status)

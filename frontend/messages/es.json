@@ -76,7 +76,22 @@
   },
   "dashboard": {
     "title": "Panel",
-    "overview_placeholder": "Tu resumen de aprendizaje aparecerá aquí."
+    "overview_placeholder": "Tu resumen de aprendizaje aparecerá aquí.",
+    "token_usage": "Uso de tokens de IA",
+    "token_usage_description": "Controla el consumo de tokens de tus proveedores de IA.",
+    "total_tokens": "Tokens totales",
+    "input_tokens": "Entrada",
+    "output_tokens": "Salida",
+    "no_usage_data": "Aún no hay datos de uso. Usa funciones de IA como evaluación, generación de notas o creación de tests para ver tu consumo de tokens aquí.",
+    "last_n_days": "Últimos {days} días",
+    "daily_tokens": "Tokens diarios",
+    "cumulative": "Acumulado",
+    "estimated_cost": "Coste est.",
+    "range_1d": "1D",
+    "range_1w": "1S",
+    "range_1m": "1M",
+    "range_3m": "3M",
+    "range_1y": "1A"
   },
   "review": {
     "title": "Repasar Ahora",
@@ -323,7 +338,8 @@
     "column_your_answer": "Tu respuesta",
     "pts": "pts",
     "view_details": "Ver detalles",
-    "pending_questions": "{count, plural, one {# pregunta} other {# preguntas}} pendiente de revisión IA"
+    "pending_questions": "{count, plural, one {# pregunta} other {# preguntas}} pendiente de revisión IA",
+    "older_version_notice": "Existe una versión más reciente de este test. Este resultado refleja la versión que hiciste."
   },
   "challenge": {
     "challenge_grade": "Impugnar nota",
@@ -391,6 +407,8 @@
     "theme_light_group": "Claro",
     "theme_dark_group": "Oscuro",
     "font_size_label": "Tamaño de fuente",
-    "font_size_description": "Ajusta el tamaño del texto de la interfaz."
+    "font_size_description": "Ajusta el tamaño del texto de la interfaz.",
+    "show_key": "Mostrar clave API",
+    "hide_key": "Ocultar clave API"
   }
 }

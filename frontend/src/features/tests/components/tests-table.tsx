@@ -208,7 +208,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
           <Button
             variant="ghost"
             size="icon-lg"
-            className="text-amber-500 hover:text-amber-500"
+            className="text-feedback-partial hover:text-feedback-partial"
             tooltip={t('take_test_action')}
             onClick={e => {
               e.stopPropagation();
