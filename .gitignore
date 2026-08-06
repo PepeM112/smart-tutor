@@ -9,6 +9,7 @@
 frontend/build/
 frontend/node_modules/
 frontend/out/
+frontend/src/client/client/
 frontend/next-env.d.ts
 frontend/.next/
 frontend/.vercel
