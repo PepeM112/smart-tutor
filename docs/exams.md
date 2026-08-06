@@ -37,6 +37,12 @@ Every exam creates a `TestResult` record containing:
 
 Users can browse their result history to track progress over time on specific tests.
 
+### Versioning and Result Stability
+
+If a test is edited after an exam, copy-on-write versioning ensures the result still shows the test as it was when taken. The result's `test_id` points to a frozen version, not the current canonical test. See [Content Model — Test Versioning](content-model.md#test-versioning-copy-on-write) for full details.
+
+On the result detail page, if the result points to a frozen version (`test.parentId != null`), the frontend shows a "newer version exists" indicator. The result content (questions, answers, scores) always reflects the version the user actually took.
+
 ## Weighted Scoring
 
 Each question and question group has a `points` value (default 1.0). This allows different questions to carry different weight in the exam score.

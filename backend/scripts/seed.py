@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(script_dir))
 from seed_data.clean import clean_user_data  # noqa: E402
 from seed_data.notes import seed_notes  # noqa: E402
 from seed_data.test_results import seed_history_result, seed_spanish_result  # noqa: E402
+from seed_data.test_versioning import seed_versioned_edit  # noqa: E402
 from seed_data.tests import seed_tests  # noqa: E402
 from seed_data.token_usage import seed_token_usage  # noqa: E402
 from sqlalchemy import text  # noqa: E402
@@ -45,6 +46,10 @@ print("Submitting test results... ", end="", flush=True)
 r1 = seed_spanish_result(db, user_id, tests["spanish_vocab"])
 r2 = seed_history_result(db, user_id, tests["history"])
 print(f"done (Spanish: {r1.score}%, History: {r2.score}%)")
+
+print("Simulating test edit (versioning)... ", end="", flush=True)
+seed_versioned_edit(db, tests["spanish_vocab"])
+print("done")
 
 print("Creating notes... ", end="", flush=True)
 notes = seed_notes(db, user_id)

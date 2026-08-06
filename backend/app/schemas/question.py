@@ -124,6 +124,7 @@ class QuestionUpdate(BaseSchema):
 
 class QuestionRead(QuestionBase):
     id: str
+    origin_id: str | None = None
 
 
 class QuestionReadStripped(BaseSchema):

@@ -338,7 +338,8 @@
     "column_your_answer": "Your answer",
     "pts": "pts",
     "view_details": "View details",
-    "pending_questions": "{count, plural, one {# question} other {# questions}} pending AI review"
+    "pending_questions": "{count, plural, one {# question} other {# questions}} pending AI review",
+    "older_version_notice": "A newer version of this test exists. This result reflects the version you took."
   },
   "challenge": {
     "challenge_grade": "Challenge grade",

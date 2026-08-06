@@ -92,6 +92,7 @@ def _reviewable_base_query(*, user_id: str) -> Select[tuple[Question]]:
         .where(
             Test.user_id == user_id,
             Test.status == int(TestStatus.ACTIVE),
+            Test.parent_id.is_(None),
             Question.status == int(QuestionStatus.ACTIVE),
             Question.question_type.in_([int(QuestionType.SIMPLE), int(QuestionType.MULTIPLE_CHOICE)]),
         )

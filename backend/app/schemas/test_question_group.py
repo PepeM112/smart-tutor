@@ -17,6 +17,7 @@ class TestQuestionGroupCreate(TestQuestionGroupBase):
 class TestQuestionGroupRead(TestQuestionGroupBase):
     id: str
     test_id: str
+    origin_id: str | None = None
     questions: list[QuestionRead] = []
 
 

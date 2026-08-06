@@ -12,6 +12,7 @@ from app.schemas.question import QuestionUpdate, _validate_content
 from app.services.correction_service import correct_question
 from app.services.question_helpers import get_correct_answer_fields
 from app.services.srs_service import record_answer
+from app.services.versioning_service import version_test_if_needed
 
 
 def _resolve_owning_test(db: Session, *, question: Question) -> Test | None:
@@ -35,6 +36,9 @@ def get_question(db: Session, *, question_id: str, current_user: User) -> Questi
 
 def update_question(db: Session, *, question_id: str, current_user: User, data: QuestionUpdate) -> Question:
     question = get_question(db, question_id=question_id, current_user=current_user)
+    test = _resolve_owning_test(db, question=question)
+    if test:
+        version_test_if_needed(db, test=test)
     if data.content is not None and data.question_type is None:
         _validate_content(QuestionType(question.question_type), data.content)
     updated = question_crud.update(db, question=question, data=data)
@@ -45,6 +49,9 @@ def update_question(db: Session, *, question_id: str, current_user: User, data: 
 
 def delete_question(db: Session, *, question_id: str, current_user: User) -> None:
     question = get_question(db, question_id=question_id, current_user=current_user)
+    test = _resolve_owning_test(db, question=question)
+    if test:
+        version_test_if_needed(db, test=test)
     if question_crud.has_references(db, question_id=question.id):
         question_crud.soft_delete(db, question=question)
     else:

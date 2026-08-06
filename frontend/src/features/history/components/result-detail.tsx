@@ -55,7 +55,7 @@ export default function ResultDetail({ result, test }: Props) {
 
   const listContent = (
     <>
-      <ScoreBanner result={result} testTitle={test.title} />
+      <ScoreBanner result={result} testTitle={test.title} isOlderVersion={!!test.parentId} />
       {items.map((item, idx) => {
         if (item.type === ExamItemType.QUESTION) {
           const question = item.question;
