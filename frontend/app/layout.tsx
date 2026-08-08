@@ -8,7 +8,7 @@ import { Providers } from '@/components/providers';
 import { ThemeProvider } from '@/components/theme-provider';
 import { FONT_SIZE_COOKIE, getFontSizeValue } from '@/lib/font-size';
 import type { FontSizeId } from '@/lib/font-size';
-import { THEME_COOKIE } from '@/lib/themes';
+import { THEME_COOKIE, THEME_STORAGE_KEY } from '@/lib/themes';
 
 import type { Metadata } from 'next';
 import './globals.css';
@@ -57,6 +57,15 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {!theme && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(){try{var s=localStorage.getItem("${THEME_STORAGE_KEY}");if(!s&&window.matchMedia("(prefers-color-scheme:dark)").matches){document.documentElement.setAttribute("data-theme","midnight")}}catch(e){}})()`,
+            }}
+          />
+        )}
+      </head>
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
