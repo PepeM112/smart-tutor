@@ -166,7 +166,7 @@ function CriterionCard({
   return (
     <div
       className={cn(
-        'rounded-md border-l-[3px] px-3 py-2 transition-all',
+        'rounded-md border-l-[3px] px-3 py-2 transition-colors',
         isMet ? 'border-l-feedback-correct bg-feedback-correct-bg' : 'border-l-destructive bg-feedback-wrong-bg',
         isSelected && 'border-l-feedback-partial bg-feedback-partial-bg',
         isPending && 'border-l-feedback-partial animate-pulse',

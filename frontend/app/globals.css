@@ -58,6 +58,9 @@
   --color-code-bg: var(--code-bg);
   --color-code-fg: var(--code-fg);
 
+  /* Shadows */
+  --shadow-card: var(--shadow-card);
+
   /* Borders */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -294,6 +297,7 @@
 
   /* ── Midnight ── */
   [data-theme='midnight'] {
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
     --background: #15202b;
     --foreground: #ffffff;
     --card: #192734;
@@ -335,6 +339,7 @@
 
   /* ── Carbon (neutral dark, gray accents) ── */
   [data-theme='carbon'] {
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
     --background: #121212;
     --foreground: #e0e0e0;
     --card: #1e1e1e;
@@ -376,6 +381,7 @@
 
   /* ── Neon (black + electric yellow) ── */
   [data-theme='neon'] {
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
     --background: #0a0a0a;
     --foreground: #f5f5f5;
     --card: #141414;
@@ -417,6 +423,7 @@
 
   /* ── Noir (black + white primary) ── */
   [data-theme='noir'] {
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
     --background: #0a0a0a;
     --foreground: #e5e5e5;
     --card: #141414;

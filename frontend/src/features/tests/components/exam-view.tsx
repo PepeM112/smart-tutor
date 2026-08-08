@@ -78,7 +78,7 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
   return (
     <div className="space-y-6">
       {/* Test title */}
-      <h2 className="text-2xl font-bold">{test.title}</h2>
+      <h2 className="text-2xl font-bold text-balance">{test.title}</h2>
       {test.description && <p className="text-sm text-muted-foreground -mt-4">{test.description}</p>}
 
       {items.map((item, idx) => {

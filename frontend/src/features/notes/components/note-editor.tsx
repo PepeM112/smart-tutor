@@ -258,7 +258,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     <div ref={containerRef} className="flex h-full gap-0">
       {/* Main pane */}
       <div
-        className="min-w-0 overflow-hidden rounded-xl border border-primary/90 bg-card"
+        className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card"
         style={{ flex: isDesktop && hasDiffPanel ? splitRatio : 1 }}
       >
         <MarkdownEditor
