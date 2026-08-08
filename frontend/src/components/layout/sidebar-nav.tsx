@@ -82,11 +82,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
 
           return (
             <div key={section.labelKey}>
-              {!collapsed && (
-                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
-                  {t(section.labelKey)}
-                </p>
-              )}
+              {!collapsed && <p className="px-3 mb-1 text-xs font-medium text-sidebar-muted">{t(section.labelKey)}</p>}
               <ul className="space-y-0.5">
                 {visibleItems.map(item => {
                   const Icon = item.icon;

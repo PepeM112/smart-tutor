@@ -65,6 +65,8 @@
     "hide_password": "Ocultar contraseña",
     "invalid_credentials": "Email o contraseña incorrectos.",
     "invalid_credentials_toast": "Nombre de usuario o contraseña incorrectos",
+    "network_error": "No se pudo conectar al servidor. Comprueba tu conexión e inténtalo de nuevo.",
+    "server_error": "Algo salió mal en el servidor. Inténtalo más tarde.",
     "account_created": "Cuenta creada correctamente",
     "error_creating_account": "Error al crear la cuenta",
     "could_not_create_account": "No se pudo crear la cuenta. Inténtalo de nuevo.",

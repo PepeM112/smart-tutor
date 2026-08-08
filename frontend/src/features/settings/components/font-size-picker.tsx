@@ -27,7 +27,7 @@ export function FontSizePicker() {
               key={option.id}
               onClick={() => setFontSize(option.id)}
               className={cn(
-                'flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
+                'flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,border-color,box-shadow]',
                 'ring-1 ring-foreground/10 hover:ring-foreground/20',
                 isActive && 'ring-2 ring-primary'
               )}

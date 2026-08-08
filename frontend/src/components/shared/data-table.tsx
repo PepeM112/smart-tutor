@@ -91,7 +91,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="rounded-xl ring-1 ring-primary/90 bg-card overflow-hidden">
+    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map(hg => (
@@ -158,7 +158,7 @@ function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }
   const expandableCells = cells.filter(cell => typeof cell.header === 'string' && cell.header !== '');
 
   return (
-    <div className="rounded-xl ring-1 ring-border bg-card overflow-hidden">
+    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
       <div
         className={cn('flex items-center gap-3 p-3', isClickable && 'cursor-pointer active:bg-muted/50')}
         onClick={handleCardClick}

@@ -40,7 +40,7 @@ export const themes: ThemePreview[] = [
   {
     id: 'sky',
     name: 'Sky',
-    sidebar: '#193050',
+    sidebar: '#edf3fa',
     primary: '#4a90d9',
     background: '#f7faff',
     foreground: '#1a2c40',
@@ -49,7 +49,7 @@ export const themes: ThemePreview[] = [
   {
     id: 'slate-minimal',
     name: 'Slate Minimal',
-    sidebar: '#1e293b',
+    sidebar: '#f1f5f9',
     primary: '#475569',
     background: '#ffffff',
     foreground: '#1e293b',
@@ -67,7 +67,7 @@ export const themes: ThemePreview[] = [
   {
     id: 'coral',
     name: 'Coral',
-    sidebar: '#6b3022',
+    sidebar: '#fdf2ed',
     primary: '#d97756',
     background: '#fffaf8',
     foreground: '#3d2420',
@@ -85,7 +85,7 @@ export const themes: ThemePreview[] = [
   {
     id: 'mint',
     name: 'Mint',
-    sidebar: '#0d4f4a',
+    sidebar: '#ebf8f6',
     primary: '#0ea5a0',
     background: '#f5fdfb',
     foreground: '#1a2d2a',
@@ -94,7 +94,7 @@ export const themes: ThemePreview[] = [
   {
     id: 'sage',
     name: 'Sage',
-    sidebar: '#2d4a3a',
+    sidebar: '#eff4f0',
     primary: '#5a8567',
     background: '#f8faf8',
     foreground: '#1e2d24',
@@ -105,7 +105,7 @@ export const themes: ThemePreview[] = [
     id: 'midnight',
     name: 'Midnight',
     sidebar: '#101a23',
-    primary: '#1da1f2',
+    primary: '#4a9ece',
     background: '#15202b',
     foreground: '#ffffff',
     accent: '#1e2732',

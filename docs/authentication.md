@@ -56,6 +56,10 @@ Every API endpoint under `/api/v1/` requires authentication, except:
 
 The `get_current_user` dependency extracts the JWT from the cookie, decodes it, looks up the user, and injects the `User` object into the endpoint function. If the token is missing, expired, or invalid, the request gets a 401.
 
+#### Server-Side Route Protection
+
+`frontend/proxy.ts` (Next.js 16 middleware) redirects unauthenticated users to `/login` before the page loads for `/dashboard` and `/tests` routes. It checks for the `access_token` or `refresh_token` cookie — if neither exists, the user has never logged in or their session expired. This prevents a flash of protected content before the client-side `AuthGuard` kicks in.
+
 ### Frontend Auth State
 
 The frontend determines if the user is logged in by calling a `/me` endpoint, not by reading the cookie (it can't — the cookie is HTTP-only and invisible to JavaScript). The API client is configured with `credentials: 'include'` so cookies are sent automatically with every request.

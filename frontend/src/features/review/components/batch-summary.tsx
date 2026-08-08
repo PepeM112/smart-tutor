@@ -38,7 +38,7 @@ export function BatchSummary({
   return (
     <div className="flex flex-col items-center justify-center gap-8 py-12">
       <div className={cn('w-full max-w-md rounded-xl border p-6 text-center', bannerColor)}>
-        <p className="text-3xl font-bold">{score.toFixed(0)}%</p>
+        <p className="text-3xl font-bold tabular-nums">{score.toFixed(0)}%</p>
         <p className="text-sm text-muted-foreground mt-1">{t('correct', { correct, partial, wrong, total })}</p>
       </div>
 

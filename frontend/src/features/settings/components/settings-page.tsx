@@ -102,21 +102,31 @@ export function SettingsPage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <ProfileSection user={user} form={form} updateField={updateField} />
-      <AiSection
-        form={form}
-        updateField={updateField}
-        hasAnthropicKey={hasAnthropicKey}
-        hasOpenaiKey={hasOpenaiKey}
-        removeKey={removeKey}
-        isRemovingKey={isRemovingKey}
-      />
-      <AppearanceSection />
-      <LanguageSection />
-      <SrsSection form={form} updateField={updateField} />
+    <div className="mx-auto max-w-2xl divide-y divide-border">
+      <div className="pb-6">
+        <ProfileSection user={user} form={form} updateField={updateField} />
+      </div>
+      <div className="py-6">
+        <AiSection
+          form={form}
+          updateField={updateField}
+          hasAnthropicKey={hasAnthropicKey}
+          hasOpenaiKey={hasOpenaiKey}
+          removeKey={removeKey}
+          isRemovingKey={isRemovingKey}
+        />
+      </div>
+      <div className="py-6">
+        <AppearanceSection />
+      </div>
+      <div className="py-6">
+        <LanguageSection />
+      </div>
+      <div className="py-6">
+        <SrsSection form={form} updateField={updateField} />
+      </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-6">
         <Button onClick={() => saveSettings()} disabled={!dirty || isSaving} size="lg">
           {isSaving ? tc('saving') : tc('save')}
         </Button>

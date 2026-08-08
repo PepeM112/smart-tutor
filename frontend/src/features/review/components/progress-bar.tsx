@@ -3,7 +3,7 @@ export function ProgressBar({ current, total }: { current: number; total: number
   return (
     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
       <div
-        className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+        className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
         style={{ width: `${pct}%` }}
       />
     </div>
