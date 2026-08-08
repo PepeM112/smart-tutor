@@ -65,6 +65,8 @@
     "hide_password": "Hide password",
     "invalid_credentials": "Invalid email or password.",
     "invalid_credentials_toast": "Invalid username or password",
+    "network_error": "Could not reach the server. Check your connection and try again.",
+    "server_error": "Something went wrong on our end. Please try again later.",
     "account_created": "Account created successfully",
     "error_creating_account": "Error creating account",
     "could_not_create_account": "Could not create account. Please try again.",

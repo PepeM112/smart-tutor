@@ -18,6 +18,13 @@ import { Routes } from '@/lib/routes';
 
 import { useAuthStore } from '../store/auth-store';
 
+type LoginErrorKey = 'invalid_credentials' | 'network_error' | 'server_error';
+
+function getLoginErrorKey(error: unknown): LoginErrorKey {
+  if (error instanceof TypeError) return 'network_error';
+  return 'invalid_credentials';
+}
+
 export function LoginForm() {
   const router = useRouter();
   const t = useTranslations('auth');
@@ -40,8 +47,8 @@ export function LoginForm() {
       router.push(Routes.DASHBOARD);
       router.refresh();
     },
-    onError: () => {
-      toast.error(t('invalid_credentials_toast'));
+    onError: (error: Error) => {
+      toast.error(t(getLoginErrorKey(error)));
     },
   });
 
@@ -90,7 +97,7 @@ export function LoginForm() {
             </div>
           </div>
 
-          {loginError && <p className="text-sm text-destructive">{t('invalid_credentials')}</p>}
+          {loginError && <p className="text-sm text-destructive">{t(getLoginErrorKey(loginError))}</p>}
 
           <Button type="submit" disabled={isLoggingIn} className="w-full py-5 font-semibold mt-6">
             {isLoggingIn ? t('logging_in') : t('log_in')}
