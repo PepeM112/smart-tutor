@@ -3,9 +3,10 @@
 import { useTranslations } from 'next-intl';
 
 import { type UserRead } from '@/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+import { SettingsSection } from './settings-section';
 
 import type { SettingsForm, UpdateField } from '../types';
 
@@ -19,11 +20,8 @@ export function ProfileSection({ user, form, updateField }: Props) {
   const t = useTranslations('settings');
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('profile')}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <SettingsSection title={t('profile')}>
+      <div className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="displayName">{t('display_name')}</Label>
           <Input
@@ -41,7 +39,7 @@ export function ProfileSection({ user, form, updateField }: Props) {
           <Label>{t('email')}</Label>
           <Input value={user.email} disabled />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }

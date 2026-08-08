@@ -110,46 +110,44 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
         const groupNumber = itemNumber;
 
         return (
-          <Card key={group.id ?? `group-${idx}`} className="p-6">
-            <CardContent className="space-y-4 p-0">
-              <p className="font-medium">
-                <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
-                {group.points != null && group.points !== 1 && (
-                  <span className="text-xs text-muted-foreground mr-1.5">[{group.points} pts]</span>
-                )}
-                {group.title ?? t('question_group')}
-              </p>
-
-              {isVocabulary ? (
-                <VocabularyTable
-                  questions={questions}
-                  answers={answers}
-                  onTextChange={handleTextChange}
-                  getAnswerStatus={getAnswerStatus}
-                  statusLabel={statusLabel}
-                  statusColor={statusColor}
-                  disabled={!!result}
-                />
-              ) : (
-                <div className="space-y-3">
-                  {questions.map(q => (
-                    <QuestionCard
-                      key={q.id}
-                      question={q}
-                      answer={answers[q.id] ?? ''}
-                      onTextChange={handleTextChange}
-                      onCheckboxToggle={handleCheckboxToggle}
-                      status={getAnswerStatus(q.id)}
-                      statusLabel={statusLabel}
-                      statusColor={statusColor}
-                      disabled={!!result}
-                      nested
-                    />
-                  ))}
-                </div>
+          <div key={group.id ?? `group-${idx}`} className="rounded-lg border border-border p-6 space-y-4">
+            <p className="font-medium">
+              <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
+              {group.points != null && group.points !== 1 && (
+                <span className="text-xs text-muted-foreground mr-1.5">[{group.points} pts]</span>
               )}
-            </CardContent>
-          </Card>
+              {group.title ?? t('question_group')}
+            </p>
+
+            {isVocabulary ? (
+              <VocabularyTable
+                questions={questions}
+                answers={answers}
+                onTextChange={handleTextChange}
+                getAnswerStatus={getAnswerStatus}
+                statusLabel={statusLabel}
+                statusColor={statusColor}
+                disabled={!!result}
+              />
+            ) : (
+              <div className="space-y-3">
+                {questions.map(q => (
+                  <QuestionCard
+                    key={q.id}
+                    question={q}
+                    answer={answers[q.id] ?? ''}
+                    onTextChange={handleTextChange}
+                    onCheckboxToggle={handleCheckboxToggle}
+                    status={getAnswerStatus(q.id)}
+                    statusLabel={statusLabel}
+                    statusColor={statusColor}
+                    disabled={!!result}
+                    nested
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         );
       })}
 
@@ -327,9 +325,7 @@ function QuestionCard({
     nested ? (
       <div className="rounded-lg border border-border p-4 space-y-3">{children}</div>
     ) : (
-      <Card className="p-6">
-        <CardContent className="space-y-4 p-0">{children}</CardContent>
-      </Card>
+      <div className="rounded-lg border border-border p-6 space-y-4">{children}</div>
     );
 
   return wrapper(

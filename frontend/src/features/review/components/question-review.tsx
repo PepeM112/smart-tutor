@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 
 import { AnswerStatus, type QuestionReadStripped, QuestionType, type SrsStateResponse } from '@/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,52 +68,50 @@ export function QuestionReview({
 
   return (
     <>
-      <Card className="mx-auto max-w-2xl p-8">
-        <CardContent className="space-y-6 p-0">
-          <div className="text-center space-y-2">
-            <p className="text-lg font-semibold">{question.prompt}</p>
-            {question.hint && (
-              <p className="text-sm text-muted-foreground italic">{t('hint', { hint: question.hint })}</p>
-            )}
-          </div>
+      <div className="mx-auto max-w-2xl rounded-xl border border-border bg-card p-8 space-y-6">
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold">{question.prompt}</p>
+          {question.hint && (
+            <p className="text-sm text-muted-foreground italic">{t('hint', { hint: question.hint })}</p>
+          )}
+        </div>
 
-          {isSimple && (
-            <Input
-              placeholder={t('type_your_answer')}
-              value={answer}
-              onChange={e => onAnswerChange(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !isChecked && answer.trim()) onCheck();
-              }}
-              disabled={isChecked}
-              className="text-center text-base h-12"
-              autoFocus
+        {isSimple && (
+          <Input
+            placeholder={t('type_your_answer')}
+            value={answer}
+            onChange={e => onAnswerChange(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !isChecked && answer.trim()) onCheck();
+            }}
+            disabled={isChecked}
+            className="text-center text-base h-12"
+            autoFocus
+          />
+        )}
+
+        {isMC &&
+          content &&
+          (isChecked && checkResult?.correctIndices ? (
+            <MultipleChoiceReview
+              options={(content.options ?? []) as string[]}
+              answer={answer}
+              correctIndices={checkResult.correctIndices}
             />
-          )}
+          ) : (
+            <MultipleChoiceInput
+              options={(content.options ?? []) as string[]}
+              answer={answer}
+              onToggle={handleCheckboxToggle}
+            />
+          ))}
 
-          {isMC &&
-            content &&
-            (isChecked && checkResult?.correctIndices ? (
-              <MultipleChoiceReview
-                options={(content.options ?? []) as string[]}
-                answer={answer}
-                correctIndices={checkResult.correctIndices}
-              />
-            ) : (
-              <MultipleChoiceInput
-                options={(content.options ?? []) as string[]}
-                answer={answer}
-                onToggle={handleCheckboxToggle}
-              />
-            ))}
-
-          {!isChecked && (
-            <Button className="w-full" size="lg" onClick={onCheck} disabled={isChecking || !answer.trim()}>
-              {isChecking ? <Loader2 className="animate-spin" /> : tCommon('check')}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+        {!isChecked && (
+          <Button className="w-full" size="lg" onClick={onCheck} disabled={isChecking || !answer.trim()}>
+            {isChecking ? <Loader2 className="animate-spin" /> : tCommon('check')}
+          </Button>
+        )}
+      </div>
 
       {isChecked && checkResult && (
         <div className={cn('mx-auto max-w-2xl rounded-xl border p-5', feedbackBg(checkResult.status))}>

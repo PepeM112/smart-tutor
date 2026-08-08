@@ -6,11 +6,12 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/features/auth/store/auth-store';
 import { sdk } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+
+import { SettingsSection } from './settings-section';
 
 const LANGUAGES = [
   { value: 'en', labelKey: 'english', flag: '🇬🇧' },
@@ -42,12 +43,8 @@ export function LanguageSection() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('language')}</CardTitle>
-        <CardDescription>{t('language_description')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SettingsSection title={t('language')} description={t('language_description')}>
+      <div className="space-y-3">
         <Label>{t('language')}</Label>
         <div className={cn('flex gap-2', isPending && 'opacity-50 pointer-events-none')}>
           {LANGUAGES.map(({ value, labelKey, flag }) => (
@@ -66,7 +63,7 @@ export function LanguageSection() {
             </button>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }
