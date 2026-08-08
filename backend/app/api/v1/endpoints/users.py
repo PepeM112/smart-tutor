@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, TypeAlias
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -24,9 +24,7 @@ router = APIRouter()
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 
-
 _is_production = settings.environment == "production"
-_cookie_samesite: Literal["lax", "none"] = "none" if _is_production else "lax"
 
 
 def _set_auth_cookies(response: Response, user_id: str) -> None:
@@ -37,7 +35,7 @@ def _set_auth_cookies(response: Response, user_id: str) -> None:
         value=access,
         httponly=True,
         secure=_is_production,
-        samesite=_cookie_samesite,
+        samesite="lax",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
     response.set_cookie(
@@ -45,14 +43,14 @@ def _set_auth_cookies(response: Response, user_id: str) -> None:
         value=refresh,
         httponly=True,
         secure=_is_production,
-        samesite=_cookie_samesite,
+        samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
     )
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(key="access_token", samesite=_cookie_samesite, secure=_is_production)
-    response.delete_cookie(key="refresh_token", samesite=_cookie_samesite, secure=_is_production)
+    response.delete_cookie(key="access_token", samesite="lax", secure=_is_production)
+    response.delete_cookie(key="refresh_token", samesite="lax", secure=_is_production)
 
 
 @router.post("/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED)
