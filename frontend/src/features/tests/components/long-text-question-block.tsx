@@ -199,7 +199,7 @@ function CategoryInput({
         className="w-full"
       />
       {showDropdown && (
-        <div className="absolute top-full left-0 z-10 mt-1 w-full rounded-md border border-border bg-popover py-1 shadow-md">
+        <div className="absolute top-full left-0 z-10 mt-1 w-full rounded-md bg-popover py-1 ring-1 ring-foreground/10">
           {filtered.map(s => (
             <button
               key={s}
