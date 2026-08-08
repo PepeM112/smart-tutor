@@ -58,6 +58,9 @@
   --color-code-bg: var(--code-bg);
   --color-code-fg: var(--code-fg);
 
+  /* Shadows */
+  --shadow-card: var(--shadow-card);
+
   /* Borders */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -154,11 +157,11 @@
     --input: #c8d9ea;
     --ring: #4a90d9;
     --brand-hover: #3a7cc4;
-    --sidebar: #193050;
-    --sidebar-foreground: #dce8f5;
-    --sidebar-muted: #7eaace;
-    --sidebar-accent: #234168;
-    --sidebar-border: #2a4d78;
+    --sidebar: #edf3fa;
+    --sidebar-foreground: #1a2c40;
+    --sidebar-muted: #7a95b0;
+    --sidebar-accent: #d6e4f0;
+    --sidebar-border: #c8d9ea;
   }
 
   /* ── Slate Minimal ── */
@@ -170,11 +173,11 @@
     --accent-foreground: #475569;
     --ring: #475569;
     --brand-hover: #334155;
-    --sidebar: #1e293b;
-    --sidebar-foreground: #e2e8f0;
+    --sidebar: #f1f5f9;
+    --sidebar-foreground: #1e293b;
     --sidebar-muted: #94a3b8;
-    --sidebar-accent: #334155;
-    --sidebar-border: #3b4f66;
+    --sidebar-accent: #e2e8f0;
+    --sidebar-border: #e2e8f0;
   }
 
   /* ── Sunset ── */
@@ -213,11 +216,11 @@
     --input: #e8d5cc;
     --ring: #d97756;
     --brand-hover: #c46645;
-    --sidebar: #6b3022;
-    --sidebar-foreground: #fce8e0;
-    --sidebar-muted: #e8a58d;
-    --sidebar-accent: #7d3a2a;
-    --sidebar-border: #8a4232;
+    --sidebar: #fdf2ed;
+    --sidebar-foreground: #3d2420;
+    --sidebar-muted: #b8907e;
+    --sidebar-accent: #f5ddd2;
+    --sidebar-border: #e8d5cc;
   }
 
   /* ── Forest ── */
@@ -256,11 +259,11 @@
     --input: #c2ddd8;
     --ring: #0ea5a0;
     --brand-hover: #0b8f8a;
-    --sidebar: #0d4f4a;
-    --sidebar-foreground: #ccfbf1;
-    --sidebar-muted: #5eead4;
-    --sidebar-accent: #115e57;
-    --sidebar-border: #14706a;
+    --sidebar: #ebf8f6;
+    --sidebar-foreground: #1a2d2a;
+    --sidebar-muted: #7a9e98;
+    --sidebar-accent: #d0ebe6;
+    --sidebar-border: #c2ddd8;
   }
 
   /* ── Sage (earthy green-gray, tinted bg) ── */
@@ -283,37 +286,38 @@
     --input: #ced9d1;
     --ring: #5a8567;
     --brand-hover: #4a7356;
-    --sidebar: #2d4a3a;
-    --sidebar-foreground: #d1e7d8;
-    --sidebar-muted: #7fb893;
-    --sidebar-accent: #385c48;
-    --sidebar-border: #3f6550;
+    --sidebar: #eff4f0;
+    --sidebar-foreground: #1e2d24;
+    --sidebar-muted: #8aa390;
+    --sidebar-accent: #dce8df;
+    --sidebar-border: #ced9d1;
   }
 
   /* ── Dark themes ────────────────────────────────────────────── */
 
   /* ── Midnight ── */
   [data-theme='midnight'] {
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
     --background: #15202b;
     --foreground: #ffffff;
     --card: #192734;
     --card-foreground: #ffffff;
     --popover: #192734;
     --popover-foreground: #ffffff;
-    --primary: #1da1f2;
+    --primary: #4a9ece;
     --primary-foreground: #ffffff;
     --secondary: #192734;
     --secondary-foreground: #ffffff;
     --muted: #38444d;
     --muted-foreground: #8899a6;
     --accent: #1e2732;
-    --accent-foreground: #1da1f2;
+    --accent-foreground: #4a9ece;
     --destructive: #f87171;
     --destructive-foreground: #15202b;
     --border: #38444d;
     --input: #38444d;
-    --ring: #1da1f2;
-    --brand-hover: #1a8cd8;
+    --ring: #4a9ece;
+    --brand-hover: #3d8ab8;
     --feedback-correct: #4ade80;
     --feedback-correct-bg: oklch(26% 0.065 152deg);
     --feedback-correct-border: oklch(35% 0.08 152deg);
@@ -335,6 +339,7 @@
 
   /* ── Carbon (neutral dark, gray accents) ── */
   [data-theme='carbon'] {
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
     --background: #121212;
     --foreground: #e0e0e0;
     --card: #1e1e1e;
@@ -376,6 +381,7 @@
 
   /* ── Neon (black + electric yellow) ── */
   [data-theme='neon'] {
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
     --background: #0a0a0a;
     --foreground: #f5f5f5;
     --card: #141414;
@@ -417,6 +423,7 @@
 
   /* ── Noir (black + white primary) ── */
   [data-theme='noir'] {
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
     --background: #0a0a0a;
     --foreground: #e5e5e5;
     --card: #141414;

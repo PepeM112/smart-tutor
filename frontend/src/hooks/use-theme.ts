@@ -14,9 +14,13 @@ export const ThemeContext = createContext<ThemeContextValue>({
   setTheme: () => {},
 });
 
+const DARK_DEFAULT: ThemeId = 'midnight';
+
 function readStoredTheme(): ThemeId {
   const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId | null;
-  return stored && themes.some(t => t.id === stored) ? stored : DEFAULT_THEME_ID;
+  if (stored && themes.some(t => t.id === stored)) return stored;
+  const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return prefersDark ? DARK_DEFAULT : DEFAULT_THEME_ID;
 }
 
 const subscribers = new Set<() => void>();

@@ -59,7 +59,7 @@ function ThemeCard({ theme, isActive, onSelect }: { theme: ThemePreview; isActiv
     <button
       onClick={onSelect}
       className={cn(
-        'group relative flex flex-col gap-2.5 rounded-xl p-3 text-left transition-all',
+        'group relative flex flex-col gap-2.5 rounded-xl p-3 text-left transition-[color,background-color,border-color,box-shadow,outline]',
         'ring-1 ring-foreground/10 hover:ring-foreground/20',
         isActive && 'ring-2 ring-primary'
       )}

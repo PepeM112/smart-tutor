@@ -41,7 +41,7 @@ export function Breadcrumb() {
             <ChevronRight className="size-3" />
           </span>
         ))}
-        <h1 className="text-xl lg:text-2xl font-semibold text-foreground truncate">{title}</h1>
+        <h1 className="text-xl lg:text-2xl font-semibold text-foreground truncate text-balance">{title}</h1>
       </div>
       {actions && (
         <>

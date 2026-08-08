@@ -2,9 +2,10 @@
 
 import { useTranslations } from 'next-intl';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+import { SettingsSection } from './settings-section';
 
 import type { SettingsForm, UpdateField } from '../types';
 
@@ -17,12 +18,8 @@ export function SrsSection({ form, updateField }: Props) {
   const t = useTranslations('settings');
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('srs_preferences')}</CardTitle>
-        <CardDescription>{t('srs_description')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <SettingsSection title={t('srs_preferences')} description={t('srs_description')}>
+      <div className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="dailyReviewLimit">{t('daily_review_limit')}</Label>
           <p className="text-xs text-muted-foreground">{t('daily_review_limit_description')}</p>
@@ -48,7 +45,7 @@ export function SrsSection({ form, updateField }: Props) {
             onChange={e => updateField('initialEaseFactor', e.target.value)}
           />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }

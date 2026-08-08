@@ -6,11 +6,12 @@ import { useState } from 'react';
 
 import { AiProvider } from '@/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+
+import { SettingsSection } from './settings-section';
 
 import type { SettingsForm, UpdateField } from '../types';
 
@@ -34,12 +35,8 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('ai_configuration')}</CardTitle>
-        <CardDescription>{t('ai_description')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+    <SettingsSection title={t('ai_configuration')} description={t('ai_description')}>
+      <div className="space-y-5">
         {/* Provider selector */}
         <div className="space-y-2">
           <Label>{t('ai_provider')}</Label>
@@ -163,7 +160,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }
