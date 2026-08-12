@@ -30,10 +30,11 @@ import { QuestionGroupBlock } from '../question-group-block';
 
 import {
   editorItemsToPreviewInputs,
-  fromPreviewToEditorItems,
+  flattenEditorItems,
   groupToApiGroup,
   longTextToApiQuestion,
   mcToApiQuestion,
+  mergeAiEditResult,
 } from './converters';
 import { newLongText, newMultipleChoice, newQuestionGroup } from './helpers';
 
@@ -104,10 +105,13 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
     mutationFn: (instructions: string) => {
       const allQuestions = editorItemsToPreviewInputs(items);
+      const flatIndices = flattenEditorItems(items)
+        .map((entry, i) => (selectedIndices.has(entry.blockIndex) ? i : -1))
+        .filter(i => i >= 0);
 
       return sdk.testsEditQuestions({
         body: {
-          selectedIndices: Array.from(selectedIndices),
+          selectedIndices: flatIndices,
           allQuestions,
           instructions,
           noteContent: undefined,
@@ -116,7 +120,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
     onSuccess: res => {
       if (!res.data) return;
-      setItems(fromPreviewToEditorItems(res.data.questions));
+      setItems(prev => mergeAiEditResult(prev, res.data.questions));
       clearSelection();
       toast.success(t('questions_updated'));
     },
@@ -173,7 +177,9 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
         </div>
       )}
 
-      <div className="space-y-3 mb-4">
+      <div
+        className={`space-y-3 mb-4 ${isAiEditing ? 'pointer-events-none opacity-50 transition-opacity' : 'transition-opacity'}`}
+      >
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
           const onClick = (e: React.MouseEvent) => toggleSelection(i, e);

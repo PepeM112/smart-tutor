@@ -47,10 +47,15 @@ client.interceptors.response.use(async (response, request, options) => {
   return fetch(request.url, {
     method: request.method,
     headers: request.headers,
-    body: options.body as BodyInit | undefined,
+    body: (options.serializedBody ?? options.body) as BodyInit | undefined,
     credentials: 'include',
     redirect: 'follow',
   });
+});
+
+client.interceptors.error.use((_error, response) => {
+  const err = typeof _error === 'object' && _error !== null ? _error : { detail: String(_error) };
+  return { ...err, status: response.status } as never;
 });
 
 export { client, sdk, types };

@@ -3,7 +3,7 @@
 import { Check, Loader2, RotateCcw, Scale, Send, ShieldCheck, Undo2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { type AnswerRead, type RubricResultItem } from '@/client';
+import { AnswerStatus, type AnswerRead, type RubricResultItem } from '@/client';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useAiAvailable } from '@/hooks/use-ai-available';
@@ -24,8 +24,11 @@ export function LongTextReview({ answer }: { answer?: AnswerRead }) {
         <p className="text-sm text-muted-foreground mb-1">{tChallenge('your_answer')}</p>
         <p className="text-sm whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.userAnswer}</p>
       </div>
-      {answer.rubricResult && answer.rubricResult.length > 0 && (
-        <RubricBreakdown items={answer.rubricResult} answerId={answer.id} />
+      {answer.status === AnswerStatus.FAILED ? (
+        <p className="text-sm text-destructive">{tChallenge('grading_failed')}</p>
+      ) : (
+        answer.rubricResult &&
+        answer.rubricResult.length > 0 && <RubricBreakdown items={answer.rubricResult} answerId={answer.id} />
       )}
     </div>
   );

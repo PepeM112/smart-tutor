@@ -404,7 +404,8 @@
     "challenge_submitted": "Challenge submitted — re-evaluating…",
     "challenge_failed": "Challenge failed: {error}",
     "challenge_overturned": "Challenge resolved — {count, plural, one {# criterion} other {# criteria}} overturned",
-    "challenge_upheld": "Challenge resolved — original grading upheld"
+    "challenge_upheld": "Challenge resolved — original grading upheld",
+    "grading_failed": "Grading failed. Try submitting the answer again."
   },
   "stats": {
     "title": "Progress Stats",

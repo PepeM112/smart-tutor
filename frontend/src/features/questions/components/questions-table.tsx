@@ -272,6 +272,7 @@ function useQuestionsColumns({
     },
     {
       accessorKey: 'prompt',
+      meta: { label: t('column_prompt') },
       header: () => (
         <SortableHeader
           label={t('column_prompt')}
@@ -289,6 +290,7 @@ function useQuestionsColumns({
     },
     {
       id: 'type',
+      meta: { label: t('column_type') },
       header: () => (
         <SortableHeader
           label={t('column_type')}
@@ -307,6 +309,7 @@ function useQuestionsColumns({
     },
     {
       id: 'points',
+      meta: { label: t('column_points') },
       header: () => (
         <SortableHeader
           label={t('column_points')}

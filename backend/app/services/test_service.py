@@ -14,7 +14,7 @@ from app.services.versioning_service import version_test_if_needed
 
 
 def get_test(db: Session, *, test_id: str, current_user: User) -> Test:
-    return get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")  # type: ignore[return-value]
+    return get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
 
 
 def _validate_order_space(

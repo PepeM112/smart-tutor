@@ -32,9 +32,18 @@ export function CompactQuestionCard({
   onClick: () => void;
 }) {
   const score = computeQuestionScore(answer, question);
+  const isFailed = answer?.status === AnswerStatus.FAILED;
 
-  const ringClass = score ? getScoreRingColor(score.pct) : getStatusRingColor(answer?.status ?? AnswerStatus.UNKNOWN);
-  const bgClass = score ? getScoreBgColor(score.pct) : getStatusBgColor(answer?.status ?? AnswerStatus.UNKNOWN);
+  const ringClass = isFailed
+    ? getStatusRingColor(AnswerStatus.FAILED)
+    : score
+      ? getScoreRingColor(score.pct)
+      : getStatusRingColor(answer?.status ?? AnswerStatus.UNKNOWN);
+  const bgClass = isFailed
+    ? getStatusBgColor(AnswerStatus.FAILED)
+    : score
+      ? getScoreBgColor(score.pct)
+      : getStatusBgColor(answer?.status ?? AnswerStatus.UNKNOWN);
 
   return (
     <Card
@@ -55,7 +64,9 @@ export function CompactQuestionCard({
             <span className="text-muted-foreground mr-1.5">{number}.</span>
             {question.prompt}
           </p>
-          {score ? (
+          {isFailed ? (
+            <span className="text-sm font-semibold text-destructive shrink-0">{score?.label}</span>
+          ) : score ? (
             <span className={cn('text-sm font-semibold tabular-nums shrink-0', getScoreTextColor(score.pct))}>
               {score.label}
             </span>

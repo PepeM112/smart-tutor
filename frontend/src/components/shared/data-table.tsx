@@ -81,7 +81,9 @@ export function DataTable<T>({
             onRowClick={onRowClick}
             cells={row.getVisibleCells().map(cell => ({
               id: cell.id,
-              header: cell.column.columnDef.header,
+              headerLabel:
+                (cell.column.columnDef.meta as { label?: string } | undefined)?.label ??
+                (typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : null),
               content: flexRender(cell.column.columnDef.cell, cell.getContext()),
             }))}
           />
@@ -132,7 +134,7 @@ export function DataTable<T>({
 
 type CellData = {
   id: string;
-  header: unknown;
+  headerLabel: ReactNode;
   content: ReactNode;
 };
 
@@ -155,7 +157,7 @@ function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }
     else if (onRowClick) void onRowClick(data);
   }
 
-  const expandableCells = cells.filter(cell => typeof cell.header === 'string' && cell.header !== '');
+  const expandableCells = cells.filter(cell => cell.headerLabel != null && cell.headerLabel !== '');
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
@@ -177,7 +179,7 @@ function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }
           <dl className="space-y-2">
             {expandableCells.map(cell => (
               <div key={cell.id} className="flex items-baseline justify-between gap-4">
-                <dt className="text-xs text-muted-foreground shrink-0">{cell.header as string}</dt>
+                <dt className="text-xs text-muted-foreground shrink-0">{cell.headerLabel}</dt>
                 <dd className="text-sm text-right">{cell.content}</dd>
               </div>
             ))}

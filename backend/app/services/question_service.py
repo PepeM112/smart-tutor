@@ -9,18 +9,42 @@ from app.models.test import Test
 from app.models.user import User
 from app.schemas.correction import QuestionCheckResponse
 from app.schemas.question import (
+    LongTextContent,
+    MultipleChoiceContent,
     QuestionCreateStandalone,
     QuestionGrouping,
     QuestionListRead,
     QuestionSortBy,
     QuestionUpdate,
+    SimpleContent,
     SortOrder,
     _validate_content,
 )
 from app.services.correction_service import correct_question
 from app.services.question_helpers import get_correct_answer_fields
+from app.services.service_helpers import get_owned_or_404
 from app.services.srs_service import record_answer
 from app.services.versioning_service import version_test_if_needed
+
+_CONTENT_MODEL_FOR_TYPE = {
+    QuestionType.SIMPLE: SimpleContent,
+    QuestionType.MULTIPLE_CHOICE: MultipleChoiceContent,
+    QuestionType.LONG_TEXT: LongTextContent,
+}
+
+
+def _validate_stored_content(new_type: QuestionType, raw_content: dict[str, object]) -> None:
+    """Validate that a question's existing stored content is compatible with a new type."""
+    model = _CONTENT_MODEL_FOR_TYPE.get(new_type)
+    if model is None:
+        return
+    try:
+        model.model_validate(raw_content)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Existing content is incompatible with type {new_type.name}",
+        ) from exc
 
 
 def _resolve_owning_test(db: Session, *, question: Question) -> Test | None:
@@ -33,12 +57,9 @@ def _resolve_owning_test(db: Session, *, question: Question) -> Test | None:
 
 
 def get_question(db: Session, *, question_id: str, current_user: User) -> Question:
-    question = question_crud.get_by_id(db, id=question_id)
-    if question is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
-    if question.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    return question
+    return get_owned_or_404(
+        db, fetch=question_crud.get_by_id, id=question_id, current_user=current_user, entity_name="Question"
+    )
 
 
 def list_questions(
@@ -78,12 +99,7 @@ def create_question(db: Session, *, current_user: User, data: QuestionCreateStan
 
 
 def _get_owned_test_or_404(db: Session, *, test_id: str, current_user: User) -> Test:
-    test = test_crud.get_by_id(db, id=test_id)
-    if test is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
-    if test.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    return test
+    return get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
 
 
 def _next_order_for_test(test: Test) -> int:
@@ -166,6 +182,8 @@ def update_question(db: Session, *, question_id: str, current_user: User, data: 
         version_test_if_needed(db, test=test)
     if data.content is not None and data.question_type is None:
         _validate_content(QuestionType(question.question_type), data.content)
+    elif data.question_type is not None and data.content is None:
+        _validate_stored_content(QuestionType(data.question_type), question.content)
     updated = question_crud.update(db, question=question, data=data)
     db.commit()
     db.refresh(updated)
@@ -182,6 +200,11 @@ def check_question(
     db: Session, *, question_id: str, current_user: User, user_answer: str, update_srs: bool = True
 ) -> QuestionCheckResponse:
     question = get_question(db, question_id=question_id, current_user=current_user)
+    if QuestionType(question.question_type) == QuestionType.LONG_TEXT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Long Text questions require async AI grading and cannot be checked synchronously",
+        )
     answer_status = correct_question(user_answer, question)
 
     srs_state = None

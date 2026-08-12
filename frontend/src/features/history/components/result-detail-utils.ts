@@ -40,6 +40,10 @@ export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRea
 
   const maxPoints = question?.points ?? 1;
 
+  if (answer.status === AnswerStatus.FAILED) {
+    return { label: `—/${maxPoints.toFixed(2)}`, pct: -1 };
+  }
+
   if (question?.questionType === QuestionType.LONG_TEXT) {
     if (!answer.rubricResult || answer.rubricResult.length === 0) return null;
     const totalWeight = answer.rubricResult.reduce((sum, i) => sum + i.weight, 0);

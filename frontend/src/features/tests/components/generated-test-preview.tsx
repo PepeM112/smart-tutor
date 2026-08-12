@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Columns2, Pencil, Rows3, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { GeneratedQuestionPreviewInput, LongTextContent, MultipleChoiceContent, SimpleContent } from '@/client';
@@ -49,6 +49,7 @@ export function GeneratedTestPreview() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
   const [columns, setColumns] = useState<1 | 2>(1);
+  const isNavigatingRef = useRef(false);
 
   const { data: noteData } = useQuery({
     queryKey: ['notes', sourceNoteId],
@@ -58,7 +59,7 @@ export function GeneratedTestPreview() {
   const noteContent = noteData?.data?.content ?? undefined;
 
   useEffect(() => {
-    if (!hasData) router.replace(Routes.NOTES);
+    if (!hasData && !isNavigatingRef.current) router.replace(Routes.NOTES);
   }, [hasData, router]);
 
   // beforeunload guard
@@ -142,14 +143,15 @@ export function GeneratedTestPreview() {
       });
     },
     onSuccess: res => {
+      isNavigatingRef.current = true;
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
       toast.success(t('test_created'));
-      clear();
       if (res.data?.id) {
         router.push(Routes.TEST_EDIT(res.data.id));
       } else {
         router.push(Routes.TESTS);
       }
+      clear();
     },
     onError: () => toast.error(t('failed_to_create')),
   });

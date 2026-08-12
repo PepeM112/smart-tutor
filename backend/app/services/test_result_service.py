@@ -7,7 +7,7 @@ from app.services.service_helpers import get_owned_or_404
 
 
 def get_result(db: Session, *, result_id: str, current_user: User) -> TestResult:
-    return get_owned_or_404(  # type: ignore[return-value]
+    return get_owned_or_404(
         db, fetch=test_result_crud.get_by_id, id=result_id, current_user=current_user, entity_name="Test result"
     )
 
