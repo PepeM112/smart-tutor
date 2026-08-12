@@ -78,10 +78,10 @@ def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
     )
 
     if data.questions:
-        question_crud.create_many(db, questions=data.questions, test_id=test.id)
+        question_crud.create_many(db, questions=data.questions, user_id=current_user.id, test_id=test.id)
 
     if data.question_groups:
-        group_crud.create_many(db, test_id=test.id, groups=data.question_groups)
+        group_crud.create_many(db, test_id=test.id, user_id=current_user.id, groups=data.question_groups)
 
     db.commit()
 
@@ -99,10 +99,10 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
     _validate_order_space(data.questions or [], data.question_groups or [], existing_orders=_get_existing_orders(test))
 
     if data.questions:
-        question_crud.create_many(db, questions=data.questions, test_id=test.id)
+        question_crud.create_many(db, questions=data.questions, user_id=current_user.id, test_id=test.id)
 
     if data.question_groups:
-        group_crud.create_many(db, test_id=test.id, groups=data.question_groups)
+        group_crud.create_many(db, test_id=test.id, user_id=current_user.id, groups=data.question_groups)
 
     updated = test_crud.update(db, test=test, data=data)
     db.commit()

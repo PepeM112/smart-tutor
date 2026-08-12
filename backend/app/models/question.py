@@ -11,6 +11,7 @@ from app.models.base import generate_ulid
 if TYPE_CHECKING:
     from app.models.test import Test
     from app.models.test_question_group import TestQuestionGroup
+    from app.models.user import User
 
 
 class Question(Base):
@@ -29,6 +30,7 @@ class Question(Base):
     content: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
     hint: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown before answering
     explanation: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown after answering
+    user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"), index=True)
     test_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test.id"))
     # Organizational grouping within a test (e.g. a "Vocabulary" section with a shared title)
     group_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test_question_group.id"), nullable=True)
@@ -39,6 +41,7 @@ class Question(Base):
         String(26), ForeignKey("question.id", ondelete="SET NULL"), nullable=True, default=None
     )
 
+    user: Mapped["User"] = relationship()
     test: Mapped["Test"] = relationship(back_populates="questions")
     question_group: Mapped[Optional["TestQuestionGroup"]] = relationship(back_populates="questions")
 

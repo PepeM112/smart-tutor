@@ -12,3 +12,11 @@ Items here are not planned — they are ideas worth revisiting later.
 3. The query endpoint unions both tables: recent individual records + older daily summaries
 
 **When to implement**: When the `token_usage` table exceeds ~50K rows or query response time on 1Y range exceeds 200ms. Monitor via `EXPLAIN ANALYZE` on the daily summary query.
+
+## SRS for Bank Questions
+
+**Problem**: Bank questions (`test_id = NULL`) are currently excluded from SRS review because the review query filters by test. Users who keep standalone questions in the bank never get spaced repetition for them.
+
+**Proposed solution**: Modify the SRS review query to include bank questions alongside test questions. The `UserQuestionState` table already supports any question regardless of test association — only the query filter needs updating.
+
+**When to implement**: When users start using the Question Bank as a primary study tool rather than just a staging area for test assignment.

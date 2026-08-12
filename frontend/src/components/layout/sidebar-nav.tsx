@@ -47,7 +47,7 @@ const sections: NavSection[] = [
     items: [
       { labelKey: 'tests', href: Routes.TESTS, icon: BookOpen },
       { labelKey: 'notes', href: Routes.NOTES, icon: FileText },
-      { labelKey: 'questions', href: null, icon: Grid3X3, disabled: true },
+      { labelKey: 'questions', href: Routes.QUESTIONS, icon: Grid3X3 },
     ],
   },
   {
