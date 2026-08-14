@@ -23,10 +23,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { feedbackTextColor, statusLabel } from '@/features/review/helpers';
+import { feedbackTextColor, statusLabelKey } from '@/features/review/helpers';
 import { cn } from '@/lib/utils';
 
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
+import { parseMcAnswer, toggleMcOption } from '../utils/question-content';
 
 type ExamItem =
   | { kind: 'question'; question: QuestionReadStripped; order: number }
@@ -41,6 +42,8 @@ type Props = {
 
 export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
   const t = useTranslations('exam');
+  const tReview = useTranslations('review');
+  const statusLabel = (s: AnswerStatus) => tReview(statusLabelKey(s));
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const items = buildExamItems(test);
 
@@ -53,12 +56,10 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
   };
 
   const handleCheckboxToggle = (questionId: string, index: number) => {
-    setAnswers(prev => {
-      const current = prev[questionId] ?? '';
-      const selected = current ? current.split(',').map(Number) : [];
-      const updated = selected.includes(index) ? selected.filter(i => i !== index) : [...selected, index];
-      return { ...prev, [questionId]: updated.sort((a, b) => a - b).join(',') };
-    });
+    setAnswers(prev => ({
+      ...prev,
+      [questionId]: toggleMcOption(prev[questionId] ?? '', index),
+    }));
   };
 
   const handleSubmit = () => {
@@ -343,7 +344,7 @@ function QuestionCard({
         )}
       </div>
 
-      {question.hint && <p className="text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
+      {question.hint && <p className="text-xs text-muted-foreground italic">{t('hint', { hint: question.hint })}</p>}
 
       {/* Simple text input */}
       {isSimple && (
@@ -359,8 +360,7 @@ function QuestionCard({
       {isMC && content && (
         <div className="space-y-2">
           {((content as MultipleChoiceContentStripped).options ?? []).map((option, idx) => {
-            const selected = answer ? answer.split(',').map(Number) : [];
-            const checked = selected.includes(idx);
+            const checked = parseMcAnswer(answer).includes(idx);
             return (
               <div key={idx} className="flex items-center gap-3">
                 <Checkbox

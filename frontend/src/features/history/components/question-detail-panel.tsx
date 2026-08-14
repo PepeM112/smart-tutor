@@ -30,7 +30,7 @@ export function QuestionDetailPanel({
       </p>
       {isLongText ? (
         <>
-          {question.hint && <p className="-mt-2 text-xs text-muted-foreground italic">Hint: {question.hint}</p>}
+          <QuestionHint hint={question.hint} />
           <LongTextReview answer={answer} />
           {question.explanation && (
             <p className="text-xs text-muted-foreground border-t border-border pt-2">{question.explanation}</p>
@@ -53,7 +53,7 @@ function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; an
 
   return (
     <div className="space-y-3">
-      {question.hint && <p className="-mt-2 text-sm text-muted-foreground italic">Hint: {question.hint}</p>}
+      <QuestionHint hint={question.hint} />
       <div className="space-y-2 text-sm">
         <div>
           <p className="text-muted-foreground mb-0.5">{t('your_answer')}</p>
@@ -80,7 +80,7 @@ function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer
 
   return (
     <div className="space-y-3">
-      {question.hint && <p className="-mt-2 text-sm text-muted-foreground italic">Hint: {question.hint}</p>}
+      <QuestionHint hint={question.hint} />
       <MultipleChoiceReview question={question} userAnswer={answer?.userAnswer ?? ''} />
       {question.explanation && (
         <div className="flex items-center gap-1.5 border-t border-border pt-2">
@@ -90,4 +90,10 @@ function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer
       )}
     </div>
   );
+}
+
+function QuestionHint({ hint }: { hint?: string | null }) {
+  const t = useTranslations('review');
+  if (!hint) return null;
+  return <p className="-mt-2 text-sm text-muted-foreground italic">{t('hint', { hint })}</p>;
 }

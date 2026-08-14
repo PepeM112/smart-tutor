@@ -24,7 +24,12 @@
     "copied": "Copiado",
     "downloaded": "Descargado",
     "saving": "Guardando…",
-    "select": "Seleccionar…"
+    "select": "Seleccionar…",
+    "filters": "Filtros",
+    "clear": "Limpiar",
+    "clear_all": "Limpiar todo",
+    "all": "Todos",
+    "type_and_enter": "Escribe y pulsa Enter"
   },
   "app": {
     "title": "SmartTutor",
@@ -202,7 +207,17 @@
     "bulk_delete_confirm": "¿Estás seguro de que quieres eliminar {count} preguntas? Esta acción no se puede deshacer.",
     "bulk_deleted": "{count} preguntas eliminadas.",
     "bulk_assign": "Asignar seleccionadas a test",
-    "bulk_assigned": "{count} preguntas asignadas al test."
+    "bulk_assigned": "{count} preguntas asignadas al test.",
+    "type_simple": "Simple",
+    "type_multiple_choice": "Opción Múltiple",
+    "type_long_text": "Texto Largo",
+    "grouping_grouped": "En un grupo",
+    "grouping_standalone": "Individual",
+    "hint_label": "Pista",
+    "hint_placeholder": "Pista opcional mostrada antes de responder",
+    "explanation_label": "Explicación",
+    "explanation_placeholder": "Explicación opcional mostrada después de responder",
+    "options_label": "Opciones"
   },
   "exam": {
     "submit_exam": "Enviar Examen",
@@ -216,7 +231,8 @@
     "question_group": "Grupo de Preguntas",
     "column_prompt": "Enunciado",
     "column_answer": "Respuesta",
-    "column_result": "Resultado"
+    "column_result": "Resultado",
+    "hint": "Pista: {hint}"
   },
   "notes": {
     "title": "Notas",
@@ -364,7 +380,8 @@
     "medium_chars": "Medio (~1800 chars)",
     "long_chars": "Largo (~5000 chars)",
     "unknown": "Desconocido",
-    "simple_questions": "Preguntas simples"
+    "simple_questions": "Preguntas simples",
+    "multiple_choice": "Opción Múltiple"
   },
   "history": {
     "title": "Historial de Tests",

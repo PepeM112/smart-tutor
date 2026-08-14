@@ -2,17 +2,13 @@
 
 import { useTranslations } from 'next-intl';
 
+import { formatTokens } from '@/lib/format';
+
 type Props = {
   totalInputTokens: number;
   totalOutputTokens: number;
   totalEstimatedCost: string | null;
 };
-
-function formatTokens(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value);
-}
 
 function formatCost(value: string): string {
   const num = parseFloat(value);

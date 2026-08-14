@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { parseMcAnswer, toggleMcOption } from '@/features/tests/utils/question-content';
 import { cn } from '@/lib/utils';
 
-import { feedbackBg, feedbackTextColor } from '../helpers';
+import { feedbackBg, feedbackTextColor, statusLabelKey } from '../helpers';
 
 export type CheckResult = {
   status: AnswerStatus;
@@ -47,23 +48,10 @@ export function QuestionReview({
   const content = question.content as Record<string, unknown> | undefined;
   const isChecked = checkResult !== null;
 
-  const statusLabel = (status: AnswerStatus): string => {
-    switch (status) {
-      case AnswerStatus.CORRECT:
-        return t('status_correct');
-      case AnswerStatus.PARTIAL:
-        return t('status_partial');
-      case AnswerStatus.WRONG:
-        return t('status_wrong');
-      default:
-        return t('status_pending');
-    }
-  };
+  const statusLabel = (status: AnswerStatus) => t(statusLabelKey(status));
 
   const handleCheckboxToggle = (index: number) => {
-    const selected = answer ? answer.split(',').map(Number) : [];
-    const updated = selected.includes(index) ? selected.filter(i => i !== index) : [...selected, index];
-    onAnswerChange(updated.sort((a, b) => a - b).join(','));
+    onAnswerChange(toggleMcOption(answer, index));
   };
 
   return (
@@ -179,7 +167,7 @@ function MultipleChoiceInput({
   answer: string;
   onToggle: (index: number) => void;
 }) {
-  const selected = answer ? answer.split(',').map(Number) : [];
+  const selected = parseMcAnswer(answer);
 
   return (
     <div className="space-y-2">
@@ -218,14 +206,7 @@ function MultipleChoiceReview({
   answer: string;
   correctIndices: number[];
 }) {
-  const selectedSet = new Set(
-    answer
-      ? answer
-          .split(',')
-          .map(s => parseInt(s.trim(), 10))
-          .filter(n => !isNaN(n))
-      : []
-  );
+  const selectedSet = new Set(parseMcAnswer(answer));
   const correctSet = new Set(correctIndices);
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import type { FilterItem, FilterValue, Primitive, FilterEntity, DateFilterValue } from '@/lib/filters';
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export function FilterBar({ filterConfig, filters, onFilterChange, onClear }: Props) {
+  const t = useTranslations('common');
   const hasActiveFilters = Object.keys(filters).length > 0;
 
   return (
@@ -30,7 +32,7 @@ export function FilterBar({ filterConfig, filters, onFilterChange, onClear }: Pr
       {hasActiveFilters && (
         <Button variant="ghost" size="sm" className="h-8 gap-1 text-muted-foreground" onClick={onClear}>
           <X className="size-3.5" />
-          Clear
+          {t('clear')}
         </Button>
       )}
     </div>

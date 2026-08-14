@@ -22,6 +22,8 @@ type LoginErrorKey = 'invalid_credentials' | 'network_error' | 'server_error';
 
 function getLoginErrorKey(error: unknown): LoginErrorKey {
   if (error instanceof TypeError) return 'network_error';
+  const status = (error as { status?: number })?.status;
+  if (status && status >= 500) return 'server_error';
   return 'invalid_credentials';
 }
 

@@ -22,7 +22,7 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { useBlockSelection } from '../../hooks/use-block-selection';
-import { AddQuestionDropdown } from '../add-question-dropdown';
+import { type AddItemType, AddQuestionDropdown } from '../add-question-dropdown';
 import { AiEditPopover } from '../ai-edit-popover';
 import { LongTextQuestionBlock } from '../long-text-question-block';
 import { MultipleChoiceQuestionBlock } from '../multiple-choice-question-block';
@@ -127,7 +127,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     onError: () => toast.error(t('failed_to_edit_questions')),
   });
 
-  function addItem(type: 'group' | 'mc' | 'long') {
+  function addItem(type: AddItemType) {
     const factories = { group: newQuestionGroup, mc: newMultipleChoice, long: newLongText };
     setItems(prev => [...prev, factories[type]()]);
   }

@@ -26,7 +26,10 @@ export function useFilters(filterList: FilterItem[]) {
     new Set(
       filterList.flatMap(item => {
         const key = item.query ?? item.key;
-        return item.type === FilterType.DATE ? [`${key}_from`, `${key}_to`] : [key];
+        const staticKeys = item.type === FilterType.DATE ? [`${key}_from`, `${key}_to`] : [key];
+        if (!item.serializer) return staticKeys;
+        const probeResult = item.serializer({ [item.key]: '' });
+        return [...staticKeys, ...Object.keys(probeResult)];
       })
     )
   );
@@ -34,11 +37,10 @@ export function useFilters(filterList: FilterItem[]) {
   const [filters, setFilters] = useState<FilterValue>(() => hydrateFromUrl(filterList, searchParams));
 
   useEffect(() => {
-    isHydrating.current = false;
-  }, []);
-
-  useEffect(() => {
-    if (isHydrating.current) return;
+    if (isHydrating.current) {
+      isHydrating.current = false;
+      return;
+    }
 
     const currentParams = searchParamsRef.current;
     const serialized = filterList.flatMap(item => Object.entries(serializeFilterValue(item, filters)));

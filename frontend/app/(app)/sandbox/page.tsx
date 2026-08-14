@@ -34,7 +34,6 @@ const VARIANTS: ButtonVariant[] = ['default', 'outline', 'secondary', 'ghost', '
 const SIZES: ButtonSize[] = ['xs', 'sm', 'default', 'lg', 'icon-xs', 'icon-sm', 'icon', 'icon-lg'];
 
 const ICON_SIZES: ButtonSize[] = ['icon-xs', 'icon-sm', 'icon', 'icon-lg'];
-const isIconSize = (size: ButtonSize) => ICON_SIZES.includes(size);
 
 export default function SandboxPage() {
   const t = useTranslations('sidebar');
@@ -348,6 +347,8 @@ function SandboxBlock({ title, children }: { title: string; children: React.Reac
     </div>
   );
 }
+
+const isIconSize = (size: ButtonSize) => ICON_SIZES.includes(size);
 
 function StateLabel({ children }: { children: React.ReactNode }) {
   return <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{children}</span>;

@@ -24,14 +24,14 @@ import { Routes } from '@/lib/routes';
 const PER_PAGE = 25;
 
 const QUESTION_TYPE_OPTIONS = [
-  { label: 'Simple', value: QuestionType.SIMPLE },
-  { label: 'Multiple Choice', value: QuestionType.MULTIPLE_CHOICE },
-  { label: 'Long Text', value: QuestionType.LONG_TEXT },
+  { label: 'questions.type_simple', value: QuestionType.SIMPLE },
+  { label: 'questions.type_multiple_choice', value: QuestionType.MULTIPLE_CHOICE },
+  { label: 'questions.type_long_text', value: QuestionType.LONG_TEXT },
 ];
 
 const GROUPING_OPTIONS = [
-  { label: 'In a group', value: 'grouped' },
-  { label: 'Standalone', value: 'ungrouped' },
+  { label: 'questions.grouping_grouped', value: 'grouped' },
+  { label: 'questions.grouping_standalone', value: 'ungrouped' },
 ];
 
 export default function QuestionsPage() {

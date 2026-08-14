@@ -1,81 +1,91 @@
 import { AnswerStatus } from '@/client';
 
-// Unified thresholds: 80 / 65 / 35
-// Colors use semantic tokens from globals.css (--color-feedback-*)
+type ScoreTier = 'excellent' | 'good' | 'poor' | 'failing';
 
-export function getScoreTextColor(pct: number): string {
-  if (pct >= 80) return 'text-feedback-correct';
-  if (pct >= 65) return 'text-feedback-partial';
-  if (pct >= 35) return 'text-destructive';
-  return 'text-foreground';
+const TIERS: { min: number; tier: ScoreTier }[] = [
+  { min: 80, tier: 'excellent' },
+  { min: 65, tier: 'good' },
+  { min: 35, tier: 'poor' },
+];
+
+function getScoreTier(pct: number): ScoreTier {
+  return TIERS.find(t => pct >= t.min)?.tier ?? 'failing';
 }
 
-export function getScoreRingColor(pct: number): string {
-  if (pct >= 80) return 'ring-feedback-correct/40';
-  if (pct >= 65) return 'ring-feedback-partial/40';
-  if (pct >= 35) return 'ring-destructive/40';
-  return 'ring-foreground/10';
-}
+const TIER_STYLES: Record<ScoreTier, { text: string; ring: string; bg: string; circle: string; badge: string }> = {
+  excellent: {
+    text: 'text-feedback-correct',
+    ring: 'ring-feedback-correct/40',
+    bg: 'bg-feedback-correct-bg',
+    circle: 'border-feedback-correct bg-feedback-correct/5 text-feedback-correct',
+    badge: 'bg-feedback-correct-bg text-feedback-correct',
+  },
+  good: {
+    text: 'text-feedback-partial',
+    ring: 'ring-feedback-partial/40',
+    bg: 'bg-feedback-partial-bg',
+    circle: 'border-feedback-partial bg-feedback-partial/5 text-feedback-partial',
+    badge: 'bg-feedback-partial-bg text-feedback-partial',
+  },
+  poor: {
+    text: 'text-destructive',
+    ring: 'ring-destructive/40',
+    bg: 'bg-feedback-wrong-bg',
+    circle: 'border-destructive bg-destructive/5 text-destructive',
+    badge: 'bg-feedback-wrong-bg text-destructive',
+  },
+  failing: {
+    text: 'text-foreground',
+    ring: 'ring-foreground/10',
+    bg: 'bg-foreground/5',
+    circle: 'border-foreground/20 bg-foreground/5 text-foreground',
+    badge: 'bg-muted text-muted-foreground',
+  },
+};
 
-export function getScoreBgColor(pct: number): string {
-  if (pct >= 80) return 'bg-feedback-correct-bg';
-  if (pct >= 65) return 'bg-feedback-partial-bg';
-  if (pct >= 35) return 'bg-feedback-wrong-bg';
-  return 'bg-foreground/5';
-}
+export const getScoreTextColor = (pct: number) => TIER_STYLES[getScoreTier(pct)].text;
+export const getScoreRingColor = (pct: number) => TIER_STYLES[getScoreTier(pct)].ring;
+export const getScoreBgColor = (pct: number) => TIER_STYLES[getScoreTier(pct)].bg;
+export const getScoreCircleClasses = (pct: number) => TIER_STYLES[getScoreTier(pct)].circle;
+export const getScoreBadgeClasses = (pct: number) => TIER_STYLES[getScoreTier(pct)].badge;
+export const getScoreStyles = (pct: number) => TIER_STYLES[getScoreTier(pct)];
 
-export function getScoreCircleClasses(pct: number): string {
-  if (pct >= 80) return 'border-feedback-correct bg-feedback-correct/5 text-feedback-correct';
-  if (pct >= 65) return 'border-feedback-partial bg-feedback-partial/5 text-feedback-partial';
-  if (pct >= 35) return 'border-destructive bg-destructive/5 text-destructive';
-  return 'border-foreground/20 bg-foreground/5 text-foreground';
-}
+const STATUS_STYLES: Record<AnswerStatus, { text: string; ring: string; bg: string }> = {
+  [AnswerStatus.CORRECT]: {
+    text: 'text-feedback-correct',
+    ring: 'ring-feedback-correct/40',
+    bg: 'bg-feedback-correct-bg',
+  },
+  [AnswerStatus.PARTIAL]: {
+    text: 'text-feedback-partial',
+    ring: 'ring-feedback-partial/40',
+    bg: 'bg-feedback-partial-bg',
+  },
+  [AnswerStatus.WRONG]: {
+    text: 'text-destructive',
+    ring: 'ring-destructive/40',
+    bg: 'bg-feedback-wrong-bg',
+  },
+  [AnswerStatus.FAILED]: {
+    text: 'text-destructive',
+    ring: 'ring-destructive/40',
+    bg: 'bg-feedback-wrong-bg',
+  },
+  [AnswerStatus.UNKNOWN]: {
+    text: 'text-muted-foreground',
+    ring: 'ring-foreground/10',
+    bg: 'bg-foreground/5',
+  },
+  [AnswerStatus.PENDING]: {
+    text: 'text-muted-foreground',
+    ring: 'ring-foreground/10',
+    bg: 'bg-foreground/5',
+  },
+};
 
-export function getScoreBadgeClasses(pct: number): string {
-  if (pct >= 80) return 'bg-feedback-correct-bg text-feedback-correct';
-  if (pct >= 65) return 'bg-feedback-partial-bg text-feedback-partial';
-  if (pct >= 35) return 'bg-feedback-wrong-bg text-destructive';
-  return 'bg-muted text-muted-foreground';
-}
+const DEFAULT_STATUS_STYLE = STATUS_STYLES[AnswerStatus.UNKNOWN];
 
-export function getStatusTextColor(status: AnswerStatus): string {
-  switch (status) {
-    case AnswerStatus.CORRECT:
-      return 'text-feedback-correct';
-    case AnswerStatus.PARTIAL:
-      return 'text-feedback-partial';
-    case AnswerStatus.WRONG:
-    case AnswerStatus.FAILED:
-      return 'text-destructive';
-    default:
-      return 'text-muted-foreground';
-  }
-}
-
-export function getStatusRingColor(status: AnswerStatus): string {
-  switch (status) {
-    case AnswerStatus.CORRECT:
-      return 'ring-feedback-correct/40';
-    case AnswerStatus.PARTIAL:
-      return 'ring-feedback-partial/40';
-    case AnswerStatus.WRONG:
-    case AnswerStatus.FAILED:
-      return 'ring-destructive/40';
-    default:
-      return 'ring-foreground/10';
-  }
-}
-
-export function getStatusBgColor(status: AnswerStatus): string {
-  switch (status) {
-    case AnswerStatus.CORRECT:
-      return 'bg-feedback-correct-bg';
-    case AnswerStatus.PARTIAL:
-      return 'bg-feedback-partial-bg';
-    case AnswerStatus.WRONG:
-    case AnswerStatus.FAILED:
-      return 'bg-feedback-wrong-bg';
-    default:
-      return 'bg-foreground/5';
-  }
-}
+export const getStatusTextColor = (status: AnswerStatus) => (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE).text;
+export const getStatusRingColor = (status: AnswerStatus) => (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE).ring;
+export const getStatusBgColor = (status: AnswerStatus) => (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE).bg;
+export const getStatusStyles = (status: AnswerStatus) => STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE;

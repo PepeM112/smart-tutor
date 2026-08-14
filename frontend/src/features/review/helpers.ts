@@ -2,16 +2,16 @@ import { AnswerStatus } from '@/client';
 
 export const REVIEW_BATCH_SIZE = 10;
 
-export function statusLabel(s: AnswerStatus): string {
+export function statusLabelKey(s: AnswerStatus): string {
   switch (s) {
     case AnswerStatus.CORRECT:
-      return 'Correct';
+      return 'status_correct';
     case AnswerStatus.PARTIAL:
-      return 'Almost correct (typo)';
+      return 'status_partial';
     case AnswerStatus.WRONG:
-      return 'Wrong';
+      return 'status_wrong';
     default:
-      return 'Pending';
+      return 'status_pending';
   }
 }
 

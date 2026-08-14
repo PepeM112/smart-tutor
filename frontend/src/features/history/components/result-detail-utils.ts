@@ -7,7 +7,7 @@ import {
   type TestQuestionGroupRead,
   type TestRead,
 } from '@/client';
-import { isMCContent, isSimpleContent } from '@/features/tests/utils/question-content';
+import { isMCContent, isSimpleContent, parseMcAnswer } from '@/features/tests/utils/question-content';
 
 export enum ExamItemType {
   QUESTION = 'question',
@@ -76,10 +76,7 @@ export function getCorrectAnswer(question: QuestionRead): string {
 }
 
 export function parseSelectedIndices(userAnswer: string): number[] {
-  return userAnswer
-    .split(',')
-    .map(s => parseInt(s.trim(), 10))
-    .filter(n => !isNaN(n));
+  return parseMcAnswer(userAnswer);
 }
 
 export function getUserAnswerDisplay(question: QuestionRead, userAnswer: string): string {

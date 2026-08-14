@@ -3,7 +3,7 @@
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { ChevronDown, EllipsisVertical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Fragment, type ReactNode, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -118,7 +118,7 @@ export function DataTable<T>({
               <TableRow
                 key={row.id}
                 className={onRowClick ? 'cursor-pointer' : undefined}
-                onClick={onRowClick ? () => void onRowClick(row.original) : undefined}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
               >
                 {row.getVisibleCells().map(cell => (
                   <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
@@ -192,15 +192,10 @@ function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }
 
 function ActionsMenu({ actions }: { actions: MobileAction[] }) {
   const [pendingConfirm, setPendingConfirm] = useState<MobileAction | null>(null);
-  const customActions = actions.filter(a => a.node);
-  const menuActions = actions.filter(a => !a.node);
 
   return (
     <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-      {customActions.map(a => (
-        <Fragment key={a.label}>{a.node}</Fragment>
-      ))}
-      {menuActions.length > 0 && (
+      {actions.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-lg" className="text-muted-foreground">
@@ -208,7 +203,7 @@ function ActionsMenu({ actions }: { actions: MobileAction[] }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-40">
-            {menuActions.map(action => (
+            {actions.map(action => (
               <DropdownMenuItem
                 key={action.label}
                 onClick={() => {

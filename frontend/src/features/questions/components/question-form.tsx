@@ -131,8 +131,9 @@ export function QuestionForm({ question }: Props) {
     };
   }
 
+  type SharedField = keyof SimpleFormData & keyof MCFormData;
   const data = questionType === QuestionType.SIMPLE ? simpleData : mcData;
-  const setField = (field: string, value: string | number) => {
+  const setField = (field: SharedField, value: string | number) => {
     if (questionType === QuestionType.SIMPLE) {
       setSimpleData(prev => ({ ...prev, [field]: value }));
     } else {
@@ -151,7 +152,7 @@ export function QuestionForm({ question }: Props) {
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value={String(QuestionType.SIMPLE)}>{tEditor('simple')}</option>
-            <option value={String(QuestionType.MULTIPLE_CHOICE)}>Multiple Choice</option>
+            <option value={String(QuestionType.MULTIPLE_CHOICE)}>{t('type_multiple_choice')}</option>
           </select>
         </div>
       )}
@@ -185,20 +186,16 @@ export function QuestionForm({ question }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label>Hint</Label>
-        <Input
-          value={data.hint}
-          onChange={e => setField('hint', e.target.value)}
-          placeholder="Optional hint shown before answering"
-        />
+        <Label>{t('hint_label')}</Label>
+        <Input value={data.hint} onChange={e => setField('hint', e.target.value)} placeholder={t('hint_placeholder')} />
       </div>
 
       <div className="space-y-2">
-        <Label>Explanation</Label>
+        <Label>{t('explanation_label')}</Label>
         <AutoTextarea
           value={data.explanation}
           onChange={e => setField('explanation', e.target.value)}
-          placeholder="Optional explanation shown after answering"
+          placeholder={t('explanation_placeholder')}
         />
       </div>
 
@@ -261,11 +258,12 @@ function SimpleAnswersEditor({ data, onChange }: { data: SimpleFormData; onChang
 }
 
 function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: MCFormData) => void }) {
+  const t = useTranslations('questions');
   const tEditor = useTranslations('test_editor');
 
   return (
     <div className="space-y-2">
-      <Label>Options</Label>
+      <Label>{t('options_label')}</Label>
       {data.choices.map((choice, i) => (
         <div key={i} className="flex items-center gap-2">
           <Checkbox

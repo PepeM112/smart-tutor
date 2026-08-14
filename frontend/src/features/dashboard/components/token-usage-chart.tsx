@@ -6,6 +6,7 @@ import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, T
 
 import { AiProvider, type TokenUsageDailySummary } from '@/client';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { formatTokens } from '@/lib/format';
 
 const PROVIDER_COLORS: Record<number, { fill: string; label: string }> = {
   [AiProvider.ANTHROPIC]: { fill: '#F97316', label: 'Anthropic' },
@@ -54,12 +55,6 @@ function buildChartData(daily: TokenUsageDailySummary[]): ChartDataPoint[] {
 function formatDate(dateStr: string): string {
   const [, month, day] = dateStr.split('-');
   return `${month}/${day}`;
-}
-
-function formatTokens(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value);
 }
 
 type Props = {
@@ -141,7 +136,9 @@ export function TokenUsageChart({ daily }: Props) {
           }}
           formatter={(value: string) => {
             const isHidden = hiddenSeries.has(value);
-            const label = value === 'cumulative' ? t('cumulative') : value === 'anthropic' ? 'Anthropic' : 'OpenAI';
+            const providerKey =
+              value === 'anthropic' ? AiProvider.ANTHROPIC : value === 'openai' ? AiProvider.OPENAI : null;
+            const label = providerKey !== null ? PROVIDER_COLORS[providerKey].label : t('cumulative');
             return <span className={isHidden ? 'opacity-40' : ''}>{label}</span>;
           }}
           wrapperStyle={{ cursor: 'pointer', fontSize: isMobile ? 11 : 12 }}

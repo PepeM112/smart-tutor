@@ -57,6 +57,16 @@ export function CompactQuestionCard({
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer select-none'
       )}
       onClick={disabled ? undefined : onClick}
+      onKeyDown={
+        disabled
+          ? undefined
+          : e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+      }
     >
       <CardContent className="p-0">
         <div className="flex items-start justify-between gap-2">
@@ -104,6 +114,12 @@ export function CompactGroupCard({
       tabIndex={0}
       className={cn('p-4 ring-1 transition-colors cursor-pointer select-none', ringClass, isSelected && bgClass)}
       onClick={onClick}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <CardContent className="p-0">
         <NumberedScoreRow number={number} title={title} correctCount={correctCount} totalCount={totalCount} />

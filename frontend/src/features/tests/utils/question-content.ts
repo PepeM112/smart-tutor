@@ -16,3 +16,13 @@ export function isMCContent(content: unknown): content is MultipleChoiceContent 
     Array.isArray(content.correctIndices)
   );
 }
+
+export function parseMcAnswer(answer: string): number[] {
+  return answer ? answer.split(',').map(Number) : [];
+}
+
+export function toggleMcOption(answer: string, index: number): string {
+  const selected = parseMcAnswer(answer);
+  const updated = selected.includes(index) ? selected.filter(i => i !== index) : [...selected, index];
+  return updated.sort((a, b) => a - b).join(',');
+}

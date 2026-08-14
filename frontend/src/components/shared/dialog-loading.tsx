@@ -18,13 +18,15 @@ export function DialogLoading({ title, messages }: DialogLoadingProps) {
   const timerRef = useRef<ReturnType<typeof setInterval>>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
+  const messageCount = messages?.length ?? 0;
+
   useEffect(() => {
-    if (!messages?.length) return;
+    if (!messageCount) return;
 
     timerRef.current = setInterval(() => {
       setIsTransitioning(true);
       timeoutRef.current = setTimeout(() => {
-        setMessageIndex(prev => (prev + 1) % messages.length);
+        setMessageIndex(prev => (prev + 1) % messageCount);
         setIsTransitioning(false);
       }, 200);
     }, MESSAGE_INTERVAL_MS);
@@ -33,7 +35,7 @@ export function DialogLoading({ title, messages }: DialogLoadingProps) {
       if (timerRef.current) clearInterval(timerRef.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [messages]);
+  }, [messageCount]);
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 py-12">

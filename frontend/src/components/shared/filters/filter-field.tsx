@@ -1,9 +1,9 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { type KeyboardEvent, useCallback, useMemo, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
@@ -59,6 +59,7 @@ function MultipleField({
   value: Primitive[] | undefined;
   onChange: (v: Primitive[] | undefined) => void;
 }) {
+  const t = useTranslations('common');
   const [inputValue, setInputValue] = useState('');
   const tags = useMemo(() => value ?? [], [value]);
 
@@ -95,7 +96,7 @@ function MultipleField({
         onKeyDown={handleKeyDown}
         onBlur={() => addTag(inputValue)}
         className="h-8 text-sm"
-        placeholder="Type and press Enter"
+        placeholder={t('type_and_enter')}
       />
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
@@ -129,6 +130,8 @@ function SelectField({
   value: Primitive | undefined;
   onChange: (v: Primitive | undefined) => void;
 }) {
+  const t = useTranslations();
+  const tCommon = useTranslations('common');
   const items = item.options?.items ?? [];
 
   return (
@@ -142,12 +145,12 @@ function SelectField({
       }}
       className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
     >
-      <option value="">All</option>
+      <option value="">{tCommon('all')}</option>
       {items.map(opt => {
         const entity = isFilterEntity(opt) ? opt : { label: String(opt), value: opt };
         return (
           <option key={String(entity.value)} value={String(entity.value)}>
-            {entity.label}
+            {t(entity.label)}
           </option>
         );
       })}
@@ -164,6 +167,7 @@ function MultipleSelectField({
   value: Primitive[] | undefined;
   onChange: (v: Primitive[] | undefined) => void;
 }) {
+  const t = useTranslations();
   const items = item.options?.items ?? [];
   const selected = value ?? [];
 
@@ -191,21 +195,10 @@ function MultipleSelectField({
             className="flex items-center gap-2 py-0.5 text-sm cursor-pointer hover:text-foreground text-muted-foreground"
           >
             <Checkbox checked={isChecked} onCheckedChange={() => toggle(entity.value)} />
-            {entity.label}
+            {t(entity.label)}
           </label>
         );
       })}
     </div>
   );
 }
-
-function ClearButton({ onClick }: { onClick: () => void }) {
-  return (
-    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={onClick}>
-      <X className="size-3 mr-1" />
-      Clear
-    </Button>
-  );
-}
-
-export { ClearButton };

@@ -24,7 +24,12 @@
     "copied": "Copied",
     "downloaded": "Downloaded",
     "saving": "Saving…",
-    "select": "Select…"
+    "select": "Select…",
+    "filters": "Filters",
+    "clear": "Clear",
+    "clear_all": "Clear all",
+    "all": "All",
+    "type_and_enter": "Type and press Enter"
   },
   "app": {
     "title": "SmartTutor",
@@ -202,7 +207,17 @@
     "bulk_delete_confirm": "Are you sure you want to delete {count} questions? This action cannot be undone.",
     "bulk_deleted": "{count} questions deleted.",
     "bulk_assign": "Assign selected to test",
-    "bulk_assigned": "{count} questions assigned to test."
+    "bulk_assigned": "{count} questions assigned to test.",
+    "type_simple": "Simple",
+    "type_multiple_choice": "Multiple Choice",
+    "type_long_text": "Long Text",
+    "grouping_grouped": "In a group",
+    "grouping_standalone": "Standalone",
+    "hint_label": "Hint",
+    "hint_placeholder": "Optional hint shown before answering",
+    "explanation_label": "Explanation",
+    "explanation_placeholder": "Optional explanation shown after answering",
+    "options_label": "Options"
   },
   "exam": {
     "submit_exam": "Submit Exam",
@@ -216,7 +231,8 @@
     "question_group": "Question Group",
     "column_prompt": "Prompt",
     "column_answer": "Answer",
-    "column_result": "Result"
+    "column_result": "Result",
+    "hint": "Hint: {hint}"
   },
   "notes": {
     "title": "Notes",
@@ -364,7 +380,8 @@
     "medium_chars": "Medium (~1800 chars)",
     "long_chars": "Long (~5000 chars)",
     "unknown": "Unknown",
-    "simple_questions": "Simple questions"
+    "simple_questions": "Simple questions",
+    "multiple_choice": "Multiple Choice"
   },
   "history": {
     "title": "Test History",

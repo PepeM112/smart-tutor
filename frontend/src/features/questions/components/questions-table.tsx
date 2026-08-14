@@ -51,7 +51,7 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
     onError: () => toast.error(t('failed_to_delete')),
   });
 
-  const { mutate: duplicateQuestion } = useMutation({
+  const { mutate: duplicateQuestion, isPending: isDuplicating } = useMutation({
     mutationFn: (id: string) => sdk.questionsDuplicate({ path: { question_id: id } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
@@ -79,9 +79,8 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
     deleteQuestion,
     isDeleting: deleteIsPending,
     onAssign: setAssignQuestionId,
-    onDuplicate: (id: string) => {
-      duplicateQuestion(id);
-    },
+    onDuplicate: (id: string) => duplicateQuestion(id),
+    isDuplicating,
     sort,
     onSort,
     selectedIds,
@@ -177,11 +176,12 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
 }
 
 function QuestionTypeBadge({ type }: { type: QuestionType }) {
-  const { icon: Icon, label } = getQuestionTypeInfo(type);
+  const t = useTranslations('test_editor');
+  const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
   return (
     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
       <Icon className="size-3.5" />
-      {label}
+      {t(labelKey)}
     </span>
   );
 }
@@ -227,6 +227,7 @@ type ColumnDeps = {
   isDeleting: boolean;
   onAssign: (questionId: string) => void;
   onDuplicate: (questionId: string) => void;
+  isDuplicating: boolean;
   sort: SortState;
   onSort: (column: string, order: 'asc' | 'desc') => void;
   selectedIds: Set<string>;
@@ -240,6 +241,7 @@ function useQuestionsColumns({
   isDeleting,
   onAssign,
   onDuplicate,
+  isDuplicating,
   sort,
   onSort,
   selectedIds,
@@ -342,6 +344,7 @@ function useQuestionsColumns({
             variant="ghost"
             size="icon-lg"
             tooltip={t('duplicate')}
+            disabled={isDuplicating}
             onClick={e => {
               e.stopPropagation();
               onDuplicate(row.original.id);

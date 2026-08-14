@@ -22,7 +22,9 @@ client.interceptors.response.use(async (response, request, options) => {
     return response;
   }
 
-  refreshFailed = false;
+  if (!refreshPromise) {
+    refreshFailed = false;
+  }
 
   refreshPromise ??= sdk
     .usersRefresh()

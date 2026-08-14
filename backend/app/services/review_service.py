@@ -3,10 +3,11 @@ from sqlalchemy.orm import Session
 from app.crud import question as question_crud
 from app.models.question import Question
 from app.models.user import User
+from app.schemas.user_question_state import ReviewMode
 
 
 def get_review_questions(
-    db: Session, *, current_user: User, limit: int, mode: str = "review"
+    db: Session, *, current_user: User, limit: int, mode: ReviewMode = "review"
 ) -> tuple[list[Question], bool]:
     """Return (questions, has_questions). In review mode, due questions first then new; in practice mode, random."""
     has_questions = question_crud.user_has_questions(db, user_id=current_user.id)

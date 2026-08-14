@@ -1,5 +1,3 @@
-'use client';
-
 import { Breadcrumb } from '@/components/breadcrumb';
 import { MobileHeader } from '@/components/layout/mobile-header';
 import { Sidebar } from '@/components/layout/sidebar';
