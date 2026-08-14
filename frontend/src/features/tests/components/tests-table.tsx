@@ -108,11 +108,12 @@ function countByType(questions: QuestionRead[], type: QuestionType): number {
 }
 
 function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number }) {
+  const t = useTranslations('test_editor');
   if (count === 0) return null;
-  const { icon: Icon, label } = getQuestionTypeInfo(type);
+  const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
   return (
     <span
-      title={`${count} ${label}`}
+      title={`${count} ${t(labelKey)}`}
       className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
     >
       <Icon className="size-3.5" />

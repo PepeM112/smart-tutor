@@ -77,7 +77,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
           min={0.5}
           step={0.5}
           value={data.points}
-          onChange={e => onChange({ ...data, points: Number(e.target.value) })}
+          onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
           className="w-20 shrink-0 text-center"
           title={t('points')}
         />

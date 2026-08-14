@@ -66,12 +66,16 @@ export function SettingsPage() {
         payload.initialEaseFactor = ease;
       }
 
-      if (Object.keys(payload).length === 0) return user!;
+      if (Object.keys(payload).length === 0) return null;
 
       const result = await sdk.usersUpdateMe({ body: payload });
       return result.data!;
     },
-    onSuccess: (updatedUser: UserRead) => {
+    onSuccess: (updatedUser: UserRead | null) => {
+      if (!updatedUser) {
+        setDirty(false);
+        return;
+      }
       setUser(updatedUser);
       setForm(formFromUser(updatedUser));
       setDirty(false);
@@ -92,6 +96,7 @@ export function SettingsPage() {
     onSuccess: (updatedUser: UserRead) => {
       setUser(updatedUser);
       setForm(formFromUser(updatedUser));
+      void queryClient.invalidateQueries({ queryKey: ['me'] });
       toast.success(t('settings_saved'));
     },
     onError: () => {

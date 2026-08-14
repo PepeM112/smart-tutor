@@ -32,5 +32,5 @@ export function useBlockSelection() {
     setSelectedIndices(new Set());
   }, []);
 
-  return { selectedIndices, setSelectedIndices, toggleSelection, removeAndReindex, clearSelection };
+  return { selectedIndices, toggleSelection, removeAndReindex, clearSelection };
 }

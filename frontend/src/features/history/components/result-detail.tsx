@@ -10,7 +10,7 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { cn } from '@/lib/utils';
 
-import GroupDetailPanel from './group-detail-panel';
+import { GroupDetailPanel } from './group-detail-panel';
 import { QuestionDetailPanel } from './question-detail-panel';
 import { CompactGroupCard, CompactQuestionCard } from './question-review-cards';
 import { ExamItemType, buildExamItems, countCorrectInGroup, type ExamItem } from './result-detail-utils';
@@ -26,7 +26,7 @@ type SelectedItem = { type: ExamItemType; id: string };
 const SPLIT_RATIO_KEY = 'result-detail-split-ratio';
 const DEFAULT_SPLIT_RATIO = 0.5;
 
-export default function ResultDetail({ result, test }: Props) {
+export function ResultDetail({ result, test }: Props) {
   const t = useTranslations('exam');
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const { isDesktop } = useBreakpoint();

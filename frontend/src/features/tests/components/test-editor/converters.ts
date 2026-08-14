@@ -235,37 +235,54 @@ export function editorItemsToPreviewInputs(items: EditorItem[]): GeneratedQuesti
 }
 
 /**
- * Converts the AI's flat question list back into editor blocks. Mirrors the
- * grouping used when a test is first generated: one block per MC/Long Text
- * question, and all SIMPLE questions collapsed into a single group block
- * (the AI payload carries no group boundaries to restore).
+ * Merge the AI edit response back into existing editor items, preserving
+ * group metadata (title, groupType, points) that the flat AI format can't carry.
+ *
+ * The AI returns the full flat question list (same count and order as
+ * `flattenEditorItems(currentItems)`). Each position maps back to a block via
+ * the `blockIndex` tag from flattening. We rebuild each block's content from
+ * the response while keeping the block's structural metadata intact.
  */
-export function fromPreviewToEditorItems(questions: GeneratedQuestionPreviewOutput[]): EditorItem[] {
-  const items: EditorItem[] = [];
+export function mergeAiEditResult(
+  currentItems: EditorItem[],
+  aiQuestions: GeneratedQuestionPreviewOutput[]
+): EditorItem[] {
+  const flat = flattenEditorItems(currentItems);
 
-  questions
-    .filter(q => q.questionType === QuestionType.MULTIPLE_CHOICE)
-    .forEach(q => {
+  // Group AI response questions by their originating block index
+  const blockQuestions = new Map<number, GeneratedQuestionPreviewOutput[]>();
+  flat.forEach((entry, i) => {
+    if (i >= aiQuestions.length) return;
+    const existing = blockQuestions.get(entry.blockIndex) ?? [];
+    existing.push(aiQuestions[i]);
+    blockQuestions.set(entry.blockIndex, existing);
+  });
+
+  return currentItems.map((item, blockIndex) => {
+    const questions = blockQuestions.get(blockIndex);
+    if (!questions || questions.length === 0) return item;
+
+    // MC block: single question, rebuild with AI content
+    if (item.type === QuestionType.MULTIPLE_CHOICE) {
+      const q = questions[0];
       const content = q.content as MultipleChoiceContent;
-      items.push({
-        key: crypto.randomUUID(),
-        type: QuestionType.MULTIPLE_CHOICE,
+      return {
+        ...item,
         prompt: q.prompt,
         choices: content.options.map((text, i) => ({
           text,
           isCorrect: content.correctIndices.includes(i),
         })) as Choice[],
-        points: q.points ?? 1,
-      });
-    });
+        points: q.points ?? item.points,
+      };
+    }
 
-  questions
-    .filter(q => q.questionType === QuestionType.LONG_TEXT)
-    .forEach(q => {
+    // Long Text block: single question, rebuild with AI content
+    if (item.type === QuestionType.LONG_TEXT) {
+      const q = questions[0];
       const content = q.content as LongTextContent;
-      items.push({
-        key: crypto.randomUUID(),
-        type: QuestionType.LONG_TEXT,
+      return {
+        ...item,
         prompt: q.prompt,
         lengthLimit: content.lengthLimit,
         criteria: content.rubric.map(r => ({
@@ -273,24 +290,17 @@ export function fromPreviewToEditorItems(questions: GeneratedQuestionPreviewOutp
           weight: r.weight,
           category: r.category ?? '',
         })) as Criterion[],
-        points: q.points ?? 1,
-      });
-    });
+        points: q.points ?? item.points,
+      };
+    }
 
-  const simpleQuestions = questions.filter(q => q.questionType === QuestionType.SIMPLE);
-  if (simpleQuestions.length > 0) {
-    items.push({
-      key: crypto.randomUUID(),
-      type: 'group',
-      groupType: QuestionGroupType.UNKNOWN,
-      title: '',
-      rows: simpleQuestions.map(q => {
+    // Group block: rebuild rows from AI output, preserve group metadata
+    return {
+      ...item,
+      rows: questions.map(q => {
         const content = q.content as SimpleContent;
         return { prompt: q.prompt, answers: content.answers } as SimpleRow;
       }),
-      points: 1,
-    });
-  }
-
-  return items;
+    };
+  });
 }

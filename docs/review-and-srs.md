@@ -82,7 +82,7 @@ When the review endpoint fetches questions, it follows this priority:
 2. **New questions second:** Questions the user has never reviewed (no `UserQuestionState` row exists). Selected randomly.
 3. **If no questions are due or new:** Returns an empty list with `hasQuestions: true`, so the frontend can show "You're all caught up!"
 
-**Excluded from review:** Long Text questions (require async AI grading) and questions belonging to soft-deleted tests are both filtered out of the review pool.
+**Excluded from review:** Long Text questions (require async AI grading), questions belonging to soft-deleted tests, and bank questions (`test_id IS NULL`) are all filtered out of the review pool. Bank question exclusion is a known limitation — SRS queries filter by test, so standalone questions are skipped. Acceptable for now.
 
 ### Practice Mode
 

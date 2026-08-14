@@ -30,6 +30,7 @@ def seed_versioned_edit(db: Session, test: Test) -> None:
             break
 
     new_q = Question(
+        user_id=test.user_id,
         question_type=int(QuestionType.SIMPLE),
         prompt='Translate: "dog"',
         content={"answers": ["perro"]},

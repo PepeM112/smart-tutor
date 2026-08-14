@@ -1,6 +1,6 @@
 import { HelpCircle } from 'lucide-react';
 import { Popover } from 'radix-ui';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,8 @@ export function Tooltip({ content, children, side = 'top', className }: TooltipP
   const [open, setOpen] = useState(false);
   const pinned = useRef(false);
   const hoverTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => () => clearTimeout(hoverTimeout.current), []);
 
   const handleMouseEnter = useCallback(() => {
     if (pinned.current) return;

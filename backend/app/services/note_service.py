@@ -31,7 +31,7 @@ def list_notes(db: Session, *, current_user: User) -> list[Note]:
 
 
 def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
-    return get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")  # type: ignore[return-value]
+    return get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
 
 
 def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:

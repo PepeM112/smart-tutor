@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import Date, Index, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -12,8 +13,8 @@ class ModelPricing(Base, CreatedAtMixin):
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
     model_id: Mapped[str] = mapped_column(String(100))
-    input_price: Mapped[float] = mapped_column(Numeric(18, 12))
-    output_price: Mapped[float] = mapped_column(Numeric(18, 12))
+    input_price: Mapped[Decimal] = mapped_column(Numeric(18, 12))
+    output_price: Mapped[Decimal] = mapped_column(Numeric(18, 12))
     valid_from: Mapped[date] = mapped_column(Date)
     valid_to: Mapped[date | None] = mapped_column(Date, nullable=True, default=None)
 

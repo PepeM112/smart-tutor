@@ -7,7 +7,7 @@ import {
   type TestQuestionGroupRead,
   type TestRead,
 } from '@/client';
-import { isMCContent, isSimpleContent } from '@/features/tests/utils/question-content';
+import { isMCContent, isSimpleContent, parseMcAnswer } from '@/features/tests/utils/question-content';
 
 export enum ExamItemType {
   QUESTION = 'question',
@@ -39,6 +39,10 @@ export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRea
   if (!answer || answer.status === AnswerStatus.UNKNOWN || answer.status === AnswerStatus.PENDING) return null;
 
   const maxPoints = question?.points ?? 1;
+
+  if (answer.status === AnswerStatus.FAILED) {
+    return { label: `—/${maxPoints.toFixed(2)}`, pct: -1 };
+  }
 
   if (question?.questionType === QuestionType.LONG_TEXT) {
     if (!answer.rubricResult || answer.rubricResult.length === 0) return null;
@@ -72,10 +76,7 @@ export function getCorrectAnswer(question: QuestionRead): string {
 }
 
 export function parseSelectedIndices(userAnswer: string): number[] {
-  return userAnswer
-    .split(',')
-    .map(s => parseInt(s.trim(), 10))
-    .filter(n => !isNaN(n));
+  return parseMcAnswer(userAnswer);
 }
 
 export function getUserAnswerDisplay(question: QuestionRead, userAnswer: string): string {

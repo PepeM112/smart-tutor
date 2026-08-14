@@ -55,6 +55,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   const aiAvailable = useAiAvailable();
   const { isDesktop } = useBreakpoint();
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
+  const [viewContainer, setViewContainer] = useState<HTMLDivElement | null>(null);
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(SPLIT_KEY, DEFAULT_RATIO);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -77,6 +78,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
 
   const handleViewContainerChange = useCallback((el: HTMLDivElement | null) => {
     viewContainerRef.current = el;
+    setViewContainer(el);
   }, []);
 
   const highlightTexts = useMemo(() => diffs.map(d => d.selectedText), [diffs]);
@@ -89,13 +91,11 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   // ── Selection detection (desktop only) ─────────────────────────
 
   useEffect(() => {
-    if (!noteId || !isDesktop) return;
+    if (!noteId || !isDesktop || !viewContainer) return;
+    const container = viewContainer;
 
     function commitSelection() {
       if (popoverOpenRef.current) return;
-
-      const container = viewContainerRef.current;
-      if (!container) return;
 
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !sel.anchorNode || !container.contains(sel.anchorNode)) {
@@ -142,19 +142,17 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       if (!sel || sel.isCollapsed) setSelectionTrigger(null);
     }
 
-    const container = viewContainerRef.current;
-
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('keyup', handleKeyUp);
     document.addEventListener('selectionchange', handleSelectionChange);
-    container?.addEventListener('scroll', commitSelection, { passive: true });
+    container.addEventListener('scroll', commitSelection, { passive: true });
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('keyup', handleKeyUp);
       document.removeEventListener('selectionchange', handleSelectionChange);
-      container?.removeEventListener('scroll', commitSelection);
+      container.removeEventListener('scroll', commitSelection);
     };
-  }, [noteId, isDesktop]);
+  }, [noteId, isDesktop, viewContainer]);
 
   // ── Handlers ────────────────────────────────────────────────────
 
@@ -212,7 +210,18 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
       return;
     }
     onChange(content.slice(0, markdownStart) + editedText + content.slice(markdownEnd));
-    removeDiff(activeDiffIndex);
+
+    const delta = editedText.length - originalMarkdown.length;
+    setDiffs(prev =>
+      prev
+        .filter((_, i) => i !== activeDiffIndex)
+        .map(d =>
+          d.markdownStart > markdownStart
+            ? { ...d, markdownStart: d.markdownStart + delta, markdownEnd: d.markdownEnd + delta }
+            : d
+        )
+    );
+    setActiveDiffIndex(null);
   }
 
   // ── Diff panel content (shared between desktop side pane and mobile drawer) ──

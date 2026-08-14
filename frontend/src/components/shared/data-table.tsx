@@ -3,7 +3,7 @@
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { ChevronDown, EllipsisVertical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Fragment, type ReactNode, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -81,7 +81,9 @@ export function DataTable<T>({
             onRowClick={onRowClick}
             cells={row.getVisibleCells().map(cell => ({
               id: cell.id,
-              header: cell.column.columnDef.header,
+              headerLabel:
+                (cell.column.columnDef.meta as { label?: string } | undefined)?.label ??
+                (typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : null),
               content: flexRender(cell.column.columnDef.cell, cell.getContext()),
             }))}
           />
@@ -116,7 +118,7 @@ export function DataTable<T>({
               <TableRow
                 key={row.id}
                 className={onRowClick ? 'cursor-pointer' : undefined}
-                onClick={onRowClick ? () => void onRowClick(row.original) : undefined}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
               >
                 {row.getVisibleCells().map(cell => (
                   <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
@@ -132,7 +134,7 @@ export function DataTable<T>({
 
 type CellData = {
   id: string;
-  header: unknown;
+  headerLabel: ReactNode;
   content: ReactNode;
 };
 
@@ -155,7 +157,7 @@ function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }
     else if (onRowClick) void onRowClick(data);
   }
 
-  const expandableCells = cells.filter(cell => typeof cell.header === 'string' && cell.header !== '');
+  const expandableCells = cells.filter(cell => cell.headerLabel != null && cell.headerLabel !== '');
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
@@ -177,7 +179,7 @@ function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }
           <dl className="space-y-2">
             {expandableCells.map(cell => (
               <div key={cell.id} className="flex items-baseline justify-between gap-4">
-                <dt className="text-xs text-muted-foreground shrink-0">{cell.header as string}</dt>
+                <dt className="text-xs text-muted-foreground shrink-0">{cell.headerLabel}</dt>
                 <dd className="text-sm text-right">{cell.content}</dd>
               </div>
             ))}
@@ -190,15 +192,10 @@ function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }
 
 function ActionsMenu({ actions }: { actions: MobileAction[] }) {
   const [pendingConfirm, setPendingConfirm] = useState<MobileAction | null>(null);
-  const customActions = actions.filter(a => a.node);
-  const menuActions = actions.filter(a => !a.node);
 
   return (
     <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-      {customActions.map(a => (
-        <Fragment key={a.label}>{a.node}</Fragment>
-      ))}
-      {menuActions.length > 0 && (
+      {actions.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-lg" className="text-muted-foreground">
@@ -206,7 +203,7 @@ function ActionsMenu({ actions }: { actions: MobileAction[] }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-40">
-            {menuActions.map(action => (
+            {actions.map(action => (
               <DropdownMenuItem
                 key={action.label}
                 onClick={() => {

@@ -89,6 +89,20 @@ export const AnswerStatusSchema = {
     ]
 } as const;
 
+export const AssignQuestionRequestSchema = {
+    properties: {
+        testId: {
+            type: 'string',
+            title: 'Testid'
+        }
+    },
+    type: 'object',
+    required: [
+        'testId'
+    ],
+    title: 'AssignQuestionRequest'
+} as const;
+
 export const Body_usersLoginSchema = {
     properties: {
         grant_type: {
@@ -147,6 +161,75 @@ export const Body_usersLoginSchema = {
         'password'
     ],
     title: 'Body_usersLogin'
+} as const;
+
+export const BulkAssignQuestionsRequestSchema = {
+    properties: {
+        questionIds: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Questionids'
+        },
+        testId: {
+            type: 'string',
+            title: 'Testid'
+        }
+    },
+    type: 'object',
+    required: [
+        'questionIds',
+        'testId'
+    ],
+    title: 'BulkAssignQuestionsRequest'
+} as const;
+
+export const BulkAssignQuestionsResponseSchema = {
+    properties: {
+        assigned: {
+            type: 'integer',
+            title: 'Assigned'
+        }
+    },
+    type: 'object',
+    required: [
+        'assigned'
+    ],
+    title: 'BulkAssignQuestionsResponse'
+} as const;
+
+export const BulkDeleteQuestionsRequestSchema = {
+    properties: {
+        questionIds: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Questionids'
+        }
+    },
+    type: 'object',
+    required: [
+        'questionIds'
+    ],
+    title: 'BulkDeleteQuestionsRequest'
+} as const;
+
+export const BulkDeleteQuestionsResponseSchema = {
+    properties: {
+        deleted: {
+            type: 'integer',
+            title: 'Deleted'
+        }
+    },
+    type: 'object',
+    required: [
+        'deleted'
+    ],
+    title: 'BulkDeleteQuestionsResponse'
 } as const;
 
 export const ChallengeRequestSchema = {
@@ -724,6 +807,40 @@ export const NoteUpdateSchema = {
     title: 'NoteUpdate'
 } as const;
 
+export const PaginatedResponse_QuestionListRead_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/QuestionListRead'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[QuestionListRead]'
+} as const;
+
 export const QuestionAnswerSchema = {
     properties: {
         questionId: {
@@ -898,6 +1015,67 @@ export const QuestionCreateSchema = {
     title: 'QuestionCreate'
 } as const;
 
+export const QuestionCreateStandaloneSchema = {
+    properties: {
+        questionType: {
+            $ref: '#/components/schemas/QuestionType'
+        },
+        prompt: {
+            type: 'string',
+            title: 'Prompt'
+        },
+        content: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SimpleContent'
+                },
+                {
+                    $ref: '#/components/schemas/MultipleChoiceContent'
+                },
+                {
+                    $ref: '#/components/schemas/LongTextContent'
+                }
+            ],
+            title: 'Content'
+        },
+        hint: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hint'
+        },
+        explanation: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Explanation'
+        },
+        points: {
+            type: 'number',
+            title: 'Points',
+            default: 1
+        }
+    },
+    type: 'object',
+    required: [
+        'questionType',
+        'prompt',
+        'content'
+    ],
+    title: 'QuestionCreateStandalone',
+    description: 'Create a standalone question not attached to any test.'
+} as const;
+
 export const QuestionEditRequestSchema = {
     properties: {
         selectedIndices: {
@@ -953,6 +1131,132 @@ export const QuestionGroupTypeSchema = {
         'UNKNOWN',
         'VOCABULARY'
     ]
+} as const;
+
+export const QuestionListReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        questionType: {
+            $ref: '#/components/schemas/QuestionType'
+        },
+        prompt: {
+            type: 'string',
+            title: 'Prompt'
+        },
+        content: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SimpleContent'
+                },
+                {
+                    $ref: '#/components/schemas/MultipleChoiceContent'
+                },
+                {
+                    $ref: '#/components/schemas/LongTextContent'
+                }
+            ],
+            title: 'Content'
+        },
+        hint: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hint'
+        },
+        explanation: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Explanation'
+        },
+        testId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Testid'
+        },
+        groupId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Groupid'
+        },
+        order: {
+            type: 'integer',
+            title: 'Order',
+            default: 0
+        },
+        points: {
+            type: 'number',
+            title: 'Points',
+            default: 1
+        },
+        originId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Originid'
+        },
+        testTitle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Testtitle'
+        },
+        groupTitle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Grouptitle'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'questionType',
+        'prompt',
+        'content'
+    ],
+    title: 'QuestionListRead',
+    description: 'Question with owning test/group names — used in the questions list page.'
 } as const;
 
 export const QuestionReadSchema = {

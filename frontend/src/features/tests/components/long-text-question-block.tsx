@@ -56,6 +56,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
   }
 
   const totalWeight = data.criteria.reduce((sum, c) => sum + c.weight, 0);
+  const isWeightValid = Math.abs(totalWeight - 1.0) < 0.001;
   const uniqueCategories = useMemo(
     () => [...new Set(data.criteria.map(c => c.category).filter(Boolean))],
     [data.criteria]
@@ -85,7 +86,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         >
           {LONG_TEXT_LENGTH_TIERS.map(tier => (
             <option key={tier.value} value={tier.value}>
-              {tier.label}
+              {t(tier.labelKey)}
             </option>
           ))}
         </select>
@@ -94,7 +95,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
           min={0.5}
           step={0.5}
           value={data.points}
-          onChange={e => onChange({ ...data, points: Number(e.target.value) })}
+          onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
           className="w-20 shrink-0 text-center"
           title={t('points')}
         />
@@ -103,7 +104,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
 
       {/* Rubric criteria */}
       <div className="space-y-2">
-        <p className="text-sm font-medium text-muted-foreground">
+        <p className={cn('text-sm font-medium', isWeightValid ? 'text-muted-foreground' : 'text-destructive')}>
           {t('rubric_criteria', { total: totalWeight.toFixed(2) })}
         </p>
 
@@ -127,7 +128,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
               max={1}
               step={0.05}
               value={criterion.weight}
-              onChange={e => updateCriterion(ci, { weight: Number(e.target.value) })}
+              onChange={e => updateCriterion(ci, { weight: parseFloat(e.target.value) || 0.05 })}
               className="w-20 shrink-0 text-center"
             />
             {data.criteria.length > 1 && (

@@ -9,6 +9,7 @@ def create_many(
     db: Session,
     *,
     test_id: str,
+    user_id: str,
     groups: list[TestQuestionGroupCreate],
 ) -> list[TestQuestionGroup]:
     result: list[TestQuestionGroup] = []
@@ -20,10 +21,10 @@ def create_many(
             title=group_data.title,
         )
         db.add(group)
-        db.flush()  # assigns the group.id so nested questions can reference it
+        db.flush()
 
         if group_data.questions:
-            question_crud.create_many(db, questions=group_data.questions, group_id=group.id)
+            question_crud.create_many(db, questions=group_data.questions, user_id=user_id, group_id=group.id)
 
         result.append(group)
 

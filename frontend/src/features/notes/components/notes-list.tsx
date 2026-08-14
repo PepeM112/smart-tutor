@@ -25,7 +25,7 @@ export function NotesList({ data }: Props) {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { mutate: deleteNote, isPending: deleteIsPending } = useMutation({
+  const { mutate: deleteNote, isPending: isDeleting } = useMutation({
     mutationFn: (id: string) => sdk.notesDelete({ path: { note_id: id } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
@@ -34,7 +34,7 @@ export function NotesList({ data }: Props) {
     onError: () => toast.error(t('failed_to_delete')),
   });
 
-  const columns = useNotesColumns({ deleteNote, isDeleting: deleteIsPending });
+  const columns = useNotesColumns({ deleteNote, isDeleting });
 
   const renderPreview = useCallback((note: NoteRead) => {
     const preview =

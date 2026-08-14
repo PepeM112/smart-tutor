@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { use } from 'react';
 
-import ResultDetail from '@/features/history/components/result-detail';
+import { ResultDetail } from '@/features/history/components/result-detail';
 import { useTestResult } from '@/features/history/hooks/use-test-result';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
