@@ -23,8 +23,7 @@ export function FilterPopover({ filterConfig, filters, onFilterChange, onClear }
   return (
     <FloatingCard>
       <FloatingCardTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5">
-          <Filter className="size-3.5" />
+        <Button variant="outline" size="lg" icon={Filter} className={activeCount > 0 ? 'pr-3' : ''}>
           {t('filters')}
           {activeCount > 0 && (
             <span className="ml-0.5 rounded-full bg-foreground text-background px-1.5 py-0.5 text-[10px] font-semibold leading-none">
@@ -33,7 +32,7 @@ export function FilterPopover({ filterConfig, filters, onFilterChange, onClear }
           )}
         </Button>
       </FloatingCardTrigger>
-      <FloatingCardContent align="start" className="w-72 space-y-4">
+      <FloatingCardContent align="start" className="w-80 space-y-4">
         {filterConfig.map(item => (
           <div key={item.key} className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">{item.label}</label>
@@ -41,7 +40,7 @@ export function FilterPopover({ filterConfig, filters, onFilterChange, onClear }
           </div>
         ))}
         {activeCount > 0 && (
-          <Button variant="ghost" size="sm" className="w-full gap-1 text-muted-foreground" onClick={onClear}>
+          <Button variant="ghost" size="sm" className="w-full gap-1 text-muted-foreground hover:text-destructive" onClick={onClear}>
             <X className="size-3.5" />
             {t('clear_all')}
           </Button>

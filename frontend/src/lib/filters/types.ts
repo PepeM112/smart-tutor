@@ -6,6 +6,7 @@ export enum FilterType {
   SELECT,
   MULTIPLE_SELECT,
   DATE,
+  TOGGLE,
 }
 
 export type FilterMapping = {
@@ -14,6 +15,7 @@ export type FilterMapping = {
   [FilterType.SELECT]: Primitive | FilterEntity;
   [FilterType.MULTIPLE_SELECT]: Primitive[] | FilterEntity[];
   [FilterType.DATE]: DateFilterValue;
+  [FilterType.TOGGLE]: Primitive;
 };
 
 export type FilterItem = {

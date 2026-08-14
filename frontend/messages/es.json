@@ -29,7 +29,9 @@
     "clear": "Limpiar",
     "clear_all": "Limpiar todo",
     "all": "Todos",
-    "type_and_enter": "Escribe y pulsa Enter"
+    "type_and_enter": "Escribe y pulsa Enter",
+    "search": "Buscar…",
+    "selected_count": "{count} seleccionados"
   },
   "app": {
     "title": "SmartTutor",

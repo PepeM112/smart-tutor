@@ -83,7 +83,7 @@ export default function QuestionsPage() {
       {
         label: t('filter_grouping'),
         key: 'grouping',
-        type: FilterType.SELECT,
+        type: FilterType.TOGGLE,
         query: 'grouping',
         options: { items: GROUPING_OPTIONS },
       },
