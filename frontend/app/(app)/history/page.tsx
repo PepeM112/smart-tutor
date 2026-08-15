@@ -13,7 +13,7 @@ import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { useFilters } from '@/hooks/use-filters';
 import { useUrlSort } from '@/hooks/use-url-sort';
 import { sdk } from '@/lib/api-client';
-import { FilterType, type FilterItem } from '@/lib/filters';
+import { FilterType, type DateFilterValue, type FilterItem, type RangeFilterValue } from '@/lib/filters';
 
 const PER_PAGE = 20;
 
@@ -32,6 +32,18 @@ export default function HistoryPage() {
         key: 'search',
         type: FilterType.SINGLE,
         query: 'search',
+      },
+      {
+        label: t('filter_score'),
+        key: 'score',
+        type: FilterType.RANGE,
+        query: 'score',
+      },
+      {
+        label: t('filter_date'),
+        key: 'created',
+        type: FilterType.DATE,
+        query: 'created',
       },
     ],
     [t]
@@ -53,6 +65,8 @@ export default function HistoryPage() {
   }, [rawClearFilters]);
 
   const search = getValue<string>('search');
+  const score = getValue<RangeFilterValue>('score');
+  const created = getValue<DateFilterValue>('created');
 
   const {
     data: response,
@@ -60,11 +74,15 @@ export default function HistoryPage() {
     isFetching,
     isError,
   } = useQuery({
-    queryKey: ['results', { search, page, sortBy, sortOrder }],
+    queryKey: ['results', { search, score, created, page, sortBy, sortOrder }],
     queryFn: () =>
       sdk.resultsList({
         query: {
           search: search || undefined,
+          score_min: score?.min ?? undefined,
+          score_max: score?.max ?? undefined,
+          created_from: created?.from ?? undefined,
+          created_to: created?.to ?? undefined,
           page,
           per_page: PER_PAGE,
           sort_by: sortBy,

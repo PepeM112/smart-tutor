@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
+import { QuestionType } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/filter-popover';
 import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Pagination } from '@/components/shared/pagination';
@@ -16,10 +17,16 @@ import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { useFilters } from '@/hooks/use-filters';
 import { useUrlSort } from '@/hooks/use-url-sort';
 import { sdk } from '@/lib/api-client';
-import { FilterType, type FilterItem } from '@/lib/filters';
+import { FilterType, type DateFilterValue, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
 const PER_PAGE = 20;
+
+const QUESTION_TYPE_OPTIONS = [
+  { label: 'questions.type_simple', value: QuestionType.SIMPLE },
+  { label: 'questions.type_multiple_choice', value: QuestionType.MULTIPLE_CHOICE },
+  { label: 'questions.type_long_text', value: QuestionType.LONG_TEXT },
+];
 
 export default function TestsPage() {
   const t = useTranslations('tests');
@@ -36,6 +43,19 @@ export default function TestsPage() {
         key: 'search',
         type: FilterType.SINGLE,
         query: 'search',
+      },
+      {
+        label: t('filter_type'),
+        key: 'question_type',
+        type: FilterType.MULTIPLE_SELECT,
+        query: 'question_type',
+        options: { items: QUESTION_TYPE_OPTIONS, number: true },
+      },
+      {
+        label: t('filter_date'),
+        key: 'created',
+        type: FilterType.DATE,
+        query: 'created',
       },
     ],
     [t]
@@ -57,6 +77,8 @@ export default function TestsPage() {
   }, [rawClearFilters]);
 
   const search = getValue<string>('search');
+  const questionType = getValue<Primitive[]>('question_type');
+  const created = getValue<DateFilterValue>('created');
 
   const {
     data: response,
@@ -64,11 +86,14 @@ export default function TestsPage() {
     isFetching,
     isError,
   } = useQuery({
-    queryKey: ['tests', { search, page, sortBy, sortOrder }],
+    queryKey: ['tests', { search, questionType, created, page, sortBy, sortOrder }],
     queryFn: () =>
       sdk.testsList({
         query: {
           search: search || undefined,
+          question_type: questionType?.length ? (questionType as number[]) : undefined,
+          created_from: created?.from ?? undefined,
+          created_to: created?.to ?? undefined,
           page,
           per_page: PER_PAGE,
           sort_by: sortBy,

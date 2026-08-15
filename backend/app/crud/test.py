@@ -1,7 +1,8 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import cast
 
-from sqlalchemy import UnaryExpression, func, select
+from sqlalchemy import UnaryExpression, exists, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session, selectinload
 
 from app.core.enums import QuestionStatus, TestStatus
@@ -47,6 +48,9 @@ def list_by_user(
     *,
     user_id: str,
     search: str | None = None,
+    question_type: list[int] | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
     sort_by: TestSortBy | None = None,
     sort_order: SortOrder = "desc",
     page: int = 1,
@@ -60,6 +64,20 @@ def list_by_user(
 
     if search:
         stmt = stmt.where(token_search(Test.title, Test.description, search=search))
+    if question_type:
+        stmt = stmt.where(
+            exists(
+                select(Question.id).where(
+                    Question.test_id == Test.id,
+                    Question.status == int(QuestionStatus.ACTIVE),
+                    Question.question_type.in_(question_type),
+                )
+            )
+        )
+    if created_from:
+        stmt = stmt.where(Test.created_at >= created_from)
+    if created_to:
+        stmt = stmt.where(Test.created_at <= created_to)
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0

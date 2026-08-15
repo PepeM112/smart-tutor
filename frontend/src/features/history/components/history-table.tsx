@@ -11,7 +11,7 @@ import { DataTable } from '@/components/shared/data-table';
 import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { getScoreBadgeClasses } from '@/features/history/utils/score-colors';
-import { formatDate, formatShortDate } from '@/lib/format';
+import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -97,7 +97,7 @@ function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef
       accessorKey: 'createdAt',
       header: t('column_date'),
       meta: { sortKey: 'created_at' },
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.createdAt)}</span>,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>,
     },
     {
       id: 'actions',

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import cast
 
 from sqlalchemy import UnaryExpression, func, select
@@ -37,6 +38,10 @@ def list_by_user(
     *,
     user_id: str,
     search: str | None = None,
+    score_min: float | None = None,
+    score_max: float | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
     sort_by: TestResultSortBy | None = None,
     sort_order: SortOrder = "desc",
     page: int = 1,
@@ -51,6 +56,14 @@ def list_by_user(
 
     if search:
         stmt = stmt.where(token_search(Test.title, search=search))
+    if score_min is not None:
+        stmt = stmt.where(TestResult.score >= score_min)
+    if score_max is not None:
+        stmt = stmt.where(TestResult.score <= score_max)
+    if created_from:
+        stmt = stmt.where(TestResult.created_at >= created_from)
+    if created_to:
+        stmt = stmt.where(TestResult.created_at <= created_to)
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0

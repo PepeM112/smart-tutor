@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -65,6 +67,9 @@ def list_tests(
     *,
     current_user: User,
     search: str | None = None,
+    question_type: list[int] | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
     sort_by: TestSortBy | None = None,
     sort_order: SortOrder = "desc",
     page: int = 1,
@@ -74,6 +79,9 @@ def list_tests(
         db,
         user_id=current_user.id,
         search=search,
+        question_type=question_type,
+        created_from=created_from,
+        created_to=created_to,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,

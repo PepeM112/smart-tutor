@@ -5,12 +5,17 @@ import {
   type FilterItem,
   type FilterValue,
   type Primitive,
+  type RangeFilterValue,
 } from './types';
 
 // --- Type Guards ---
 
 export function isDateFilterValue(val: unknown): val is DateFilterValue {
   return !!val && typeof val === 'object' && ('from' in val || 'to' in val);
+}
+
+export function isRangeFilterValue(val: unknown): val is RangeFilterValue {
+  return !!val && typeof val === 'object' && ('min' in val || 'max' in val);
 }
 
 export function isPrimitiveValue(val: unknown): val is Primitive {
@@ -60,6 +65,14 @@ export function serializeFilterValue(
     return result;
   }
 
+  if (filterItem.type === FilterType.RANGE) {
+    if (!isRangeFilterValue(value)) return {};
+    const result: Record<string, string> = {};
+    if (value.min != null) result[`${urlKey}_min`] = String(value.min);
+    if (value.max != null) result[`${urlKey}_max`] = String(value.max);
+    return result;
+  }
+
   if (filterItem.options?.returnObject) {
     if (Array.isArray(value) && value.every(isFilterEntity)) {
       return { [urlKey]: (value as FilterEntity[]).map(v => String(v.value)) };
@@ -82,7 +95,7 @@ export function serializeFilterValue(
 export function deserializeFilterValue(
   filterItem: FilterItem,
   params: URLSearchParams
-): Primitive | Primitive[] | FilterEntity | FilterEntity[] | DateFilterValue | undefined {
+): Primitive | Primitive[] | FilterEntity | FilterEntity[] | DateFilterValue | RangeFilterValue | undefined {
   if (filterItem.deserializer) return filterItem.deserializer(params);
 
   const urlKey = filterItem.query ?? filterItem.key;
@@ -94,6 +107,15 @@ export function deserializeFilterValue(
     if (fromStr) result.from = new Date(Number(fromStr));
     if (toStr) result.to = new Date(Number(toStr));
     return result.from || result.to ? result : undefined;
+  }
+
+  if (filterItem.type === FilterType.RANGE) {
+    const minStr = params.get(`${urlKey}_min`);
+    const maxStr = params.get(`${urlKey}_max`);
+    const result: RangeFilterValue = {};
+    if (minStr) result.min = Number(minStr);
+    if (maxStr) result.max = Number(maxStr);
+    return result.min != null || result.max != null ? result : undefined;
   }
 
   const allValues = params.getAll(urlKey);

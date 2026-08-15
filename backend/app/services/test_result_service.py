@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from app.crud import test_result as test_result_crud
@@ -18,6 +20,10 @@ def list_results(
     *,
     current_user: User,
     search: str | None = None,
+    score_min: float | None = None,
+    score_max: float | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
     sort_by: TestResultSortBy | None = None,
     sort_order: SortOrder = "desc",
     page: int = 1,
@@ -27,6 +33,10 @@ def list_results(
         db,
         user_id=current_user.id,
         search=search,
+        score_min=score_min,
+        score_max=score_max,
+        created_from=created_from,
+        created_to=created_to,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,

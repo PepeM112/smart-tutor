@@ -1814,6 +1814,18 @@ export type TestsListData = {
          */
         search?: string | null;
         /**
+         * Question Type
+         */
+        question_type?: Array<number> | null;
+        /**
+         * Created From
+         */
+        created_from?: Date | null;
+        /**
+         * Created To
+         */
+        created_to?: Date | null;
+        /**
          * Sort By
          */
         sort_by?: 'title' | 'created_at' | null;
@@ -2109,6 +2121,22 @@ export type ResultsListData = {
          * Search
          */
         search?: string | null;
+        /**
+         * Score Min
+         */
+        score_min?: number | null;
+        /**
+         * Score Max
+         */
+        score_max?: number | null;
+        /**
+         * Created From
+         */
+        created_from?: Date | null;
+        /**
+         * Created To
+         */
+        created_to?: Date | null;
         /**
          * Sort By
          */

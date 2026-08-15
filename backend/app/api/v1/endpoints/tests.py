@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, TypeAlias
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
@@ -40,6 +41,9 @@ def list_(
     db: DbSession,
     current_user: CurrentUser,
     search: str | None = None,
+    question_type: Annotated[list[int] | None, Query()] = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
     sort_by: Annotated[TestSortBy | None, Query()] = None,
     sort_order: Annotated[SortOrder, Query()] = "desc",
     page: int = Query(default=1, ge=1),
@@ -49,6 +53,9 @@ def list_(
         db,
         current_user=current_user,
         search=search,
+        question_type=question_type,
+        created_from=created_from,
+        created_to=created_to,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
