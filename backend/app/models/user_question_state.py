@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
+# Per (user, question) SM-2 spaced-repetition state — ease_factor/interval/repetitions follow the SM-2 algorithm
 class UserQuestionState(Base, CreatedAtMixin):
     __tablename__ = "user_question_state"
     __table_args__ = (

@@ -42,6 +42,7 @@ class LongTextContent(BaseSchema):
     @classmethod
     def validate_rubric_weights(cls, v: list[RubricItem]) -> list[RubricItem]:
         for item in v:
+            # round() compensates for binary float imprecision (e.g. 0.15 % 0.05 ≠ 0)
             remainder = round(item.weight % 0.05, 10)
             if remainder > 1e-9 and remainder < 0.05 - 1e-9:
                 raise ValueError(f"Weight {item.weight} is not a multiple of 0.05")

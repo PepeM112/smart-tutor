@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 import { NoteSource, type NoteRead } from '@/client';
 import { DataTable, type MobileAction } from '@/components/shared/data-table';
+import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/api-client';
@@ -18,9 +19,11 @@ import { Routes } from '@/lib/routes';
 
 type Props = {
   data: NoteRead[];
+  sort?: SortState;
+  onSort?: (column: string | null, order: SortDirection) => void;
 };
 
-export function NotesList({ data }: Props) {
+export function NotesList({ data, sort, onSort }: Props) {
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -80,6 +83,8 @@ export function NotesList({ data }: Props) {
     <DataTable
       columns={columns}
       data={data}
+      sort={sort}
+      onSort={onSort}
       emptyMessage={t('no_notes_yet')}
       onRowClick={row => router.push(Routes.NOTE_DETAIL(row.id))}
       renderPreview={renderPreview}
@@ -127,6 +132,7 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
     {
       accessorKey: 'title',
       header: t('column_title'),
+      meta: { sortKey: 'title' },
       cell: ({ row }) => {
         const { title, description } = row.original;
         const preview = description && description.length > 80 ? `${description.slice(0, 80)}...` : description;
@@ -146,6 +152,7 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
     {
       id: 'updated',
       header: t('column_updated'),
+      meta: { sortKey: 'updated_at' },
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">{formatShortDate(row.original.updatedAt)}</span>
       ),

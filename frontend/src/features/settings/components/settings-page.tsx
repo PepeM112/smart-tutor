@@ -48,6 +48,7 @@ export function SettingsPage() {
         payload.aiProvider = form.aiProvider;
       }
 
+      // Only send the key if the user typed a new one — empty field must not overwrite a saved key
       if (form.anthropicApiKey) {
         payload.anthropicApiKey = form.anthropicApiKey;
       }
@@ -144,6 +145,7 @@ function formFromUser(user: UserRead | null): SettingsForm {
   return {
     displayName: user?.displayName ?? '',
     aiProvider: user?.aiProvider ?? null,
+    // API keys are write-only — the backend never echoes them back, so form starts blank
     anthropicApiKey: '',
     openaiApiKey: '',
     dailyReviewLimit: user?.dailyReviewLimit != null ? String(user.dailyReviewLimit) : '',

@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import {
   FilterType,
   isFilterEntity,
+  type DateFilterValue,
   type FilterEntity,
   type FilterItem,
   type FilterValue,
   type Primitive,
+  type RangeFilterValue,
 } from '@/lib/filters';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +35,10 @@ export function FilterField({ item, value, onChange }: Props) {
       return <SearchableMultiSelectField item={item} value={value as Primitive[] | undefined} onChange={onChange} />;
     case FilterType.TOGGLE:
       return <ToggleField item={item} value={value as Primitive | undefined} onChange={onChange} />;
+    case FilterType.DATE:
+      return <DateField value={value as DateFilterValue | undefined} onChange={onChange} />;
+    case FilterType.RANGE:
+      return <RangeField value={value as RangeFilterValue | undefined} onChange={onChange} />;
     default:
       return null;
   }
@@ -160,7 +166,6 @@ function SelectField({
   );
 }
 
-
 function ToggleField({
   item,
   value,
@@ -174,6 +179,7 @@ function ToggleField({
 
   const options = useMemo(() => {
     const items = item.options?.items ?? [];
+    // '__all__' sentinel maps back to undefined (no filter) on click
     const all: FilterEntity[] = [{ label: 'common.all', value: '__all__' }];
     items.forEach(opt => {
       all.push(isFilterEntity(opt) ? opt : { label: String(opt), value: opt });
@@ -194,15 +200,98 @@ function ToggleField({
             onClick={() => onChange(opt.value === '__all__' ? undefined : opt.value)}
             className={cn(
               'flex-1 basis-0 rounded-sm px-3 py-1.5 text-center text-sm font-medium transition-colors',
-              isActive
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+              isActive ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             )}
           >
             {t(opt.label)}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function DateField({
+  value,
+  onChange,
+}: {
+  value: DateFilterValue | undefined;
+  onChange: (v: DateFilterValue | undefined) => void;
+}) {
+  const t = useTranslations('common');
+  const from = value?.from ? toLocalDateString(value.from) : '';
+  const to = value?.to ? toLocalDateString(value.to) : '';
+
+  const handleChange = (field: 'from' | 'to', dateStr: string) => {
+    const next: DateFilterValue = { ...value };
+    if (dateStr) {
+      next[field] = new Date(dateStr + 'T00:00:00');
+    } else {
+      delete next[field];
+    }
+    onChange(next.from || next.to ? next : undefined);
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">{t('from')}</label>
+        <Input type="date" value={from} onChange={e => handleChange('from', e.target.value)} className="h-8 text-sm" />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">{t('to')}</label>
+        <Input type="date" value={to} onChange={e => handleChange('to', e.target.value)} className="h-8 text-sm" />
+      </div>
+    </div>
+  );
+}
+
+function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function RangeField({
+  value,
+  onChange,
+}: {
+  value: RangeFilterValue | undefined;
+  onChange: (v: RangeFilterValue | undefined) => void;
+}) {
+  const t = useTranslations('common');
+
+  const handleChange = (field: 'min' | 'max', raw: string) => {
+    const next: RangeFilterValue = { ...value };
+    if (raw !== '') {
+      next[field] = Number(raw);
+    } else {
+      delete next[field];
+    }
+    onChange(next.min != null || next.max != null ? next : undefined);
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">{t('min')}</label>
+        <Input
+          type="number"
+          value={value?.min != null ? String(value.min) : ''}
+          onChange={e => handleChange('min', e.target.value)}
+          className="h-8 text-sm"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">{t('max')}</label>
+        <Input
+          type="number"
+          value={value?.max != null ? String(value.max) : ''}
+          onChange={e => handleChange('max', e.target.value)}
+          className="h-8 text-sm"
+        />
+      </div>
     </div>
   );
 }
@@ -257,14 +346,11 @@ function SearchableMultiSelectField({
     [selected, onChange]
   );
 
-  const handleBlur = useCallback(
-    (e: React.FocusEvent) => {
-      if (containerRef.current?.contains(e.relatedTarget)) return;
-      setOpen(false);
-      setSearch('');
-    },
-    []
-  );
+  const handleBlur = useCallback((e: React.FocusEvent) => {
+    if (containerRef.current?.contains(e.relatedTarget)) return;
+    setOpen(false);
+    setSearch('');
+  }, []);
 
   return (
     <div ref={containerRef} className="relative" onBlur={handleBlur}>
@@ -277,9 +363,7 @@ function SearchableMultiSelectField({
             key={String(entity.value)}
             className="inline-flex items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
           >
-            <span className="max-w-[140px] truncate">
-              {t.has(entity.label) ? t(entity.label) : entity.label}
-            </span>
+            <span className="max-w-[140px] truncate">{t.has(entity.label) ? t(entity.label) : entity.label}</span>
             <button
               type="button"
               onClick={e => {
@@ -333,9 +417,7 @@ function SearchableMultiSelectField({
                     onClick={() => toggle(entity.value)}
                     className="flex w-full items-center gap-2 rounded-sm px-1.5 py-1.5 text-left text-sm hover:bg-muted"
                   >
-                    <Check
-                      className={cn('size-3.5 shrink-0', isChecked ? 'text-foreground' : 'text-transparent')}
-                    />
+                    <Check className={cn('size-3.5 shrink-0', isChecked ? 'text-foreground' : 'text-transparent')} />
                     <span className="truncate">{t.has(entity.label) ? t(entity.label) : entity.label}</span>
                   </button>
                 );

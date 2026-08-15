@@ -9,9 +9,10 @@ type Props = {
   perPage: number;
   total: number;
   onPageChange: (page: number) => void;
+  disabled?: boolean;
 };
 
-export function Pagination({ page, perPage, total, onPageChange }: Props) {
+export function Pagination({ page, perPage, total, onPageChange, disabled }: Props) {
   const totalPages = Math.ceil(total / perPage);
   if (totalPages <= 1) return null;
 
@@ -24,13 +25,13 @@ export function Pagination({ page, perPage, total, onPageChange }: Props) {
         {from}–{to} / {total}
       </p>
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="icon-lg" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+        <Button variant="outline" size="icon-lg" disabled={disabled || page <= 1} onClick={() => onPageChange(page - 1)}>
           <ChevronLeft className="size-4" />
         </Button>
         <span className="px-2 text-sm tabular-nums text-muted-foreground">
           {page} / {totalPages}
         </span>
-        <Button variant="outline" size="icon-lg" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+        <Button variant="outline" size="icon-lg" disabled={disabled || page >= totalPages} onClick={() => onPageChange(page + 1)}>
           <ChevronRight className="size-4" />
         </Button>
       </div>

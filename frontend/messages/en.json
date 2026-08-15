@@ -31,7 +31,11 @@
     "all": "All",
     "type_and_enter": "Type and press Enter",
     "search": "Search…",
-    "selected_count": "{count} selected"
+    "selected_count": "{count} selected",
+    "from": "From",
+    "to": "To",
+    "min": "Min",
+    "max": "Max"
   },
   "app": {
     "title": "SmartTutor",
@@ -160,9 +164,15 @@
     "column_title": "Title",
     "column_questions": "Questions",
     "column_types": "Types",
+    "column_created": "Created",
     "quick_test": "Quick Test",
     "quick_test_description": "Enter the ID of the test you want to take.",
-    "test_id": "Test ID"
+    "test_id": "Test ID",
+    "filter_search": "Search",
+    "filter_type": "Type",
+    "filter_date": "Date",
+    "no_results": "No tests match your filters.",
+    "clear_filters": "Clear filters"
   },
   "questions": {
     "title": "Questions",
@@ -271,7 +281,11 @@
     "preview": "Preview",
     "start_writing": "Start writing in Markdown…",
     "add_tags": "Add tags…",
-    "remove_tag": "Remove tag {tag}"
+    "remove_tag": "Remove tag {tag}",
+    "filter_search": "Search",
+    "filter_source": "Source",
+    "no_results": "No notes match your filters.",
+    "clear_filters": "Clear filters"
   },
   "notes_ai": {
     "generate_with_ai": "Generate with AI",
@@ -408,7 +422,12 @@
     "pts": "pts",
     "view_details": "View details",
     "pending_questions": "{count, plural, one {# question} other {# questions}} pending AI review",
-    "older_version_notice": "A newer version of this test exists. This result reflects the version you took."
+    "older_version_notice": "A newer version of this test exists. This result reflects the version you took.",
+    "filter_search": "Search",
+    "filter_score": "Score",
+    "filter_date": "Date",
+    "no_results": "No results match your filters.",
+    "clear_filters": "Clear filters"
   },
   "challenge": {
     "challenge_grade": "Challenge grade",

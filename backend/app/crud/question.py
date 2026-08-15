@@ -8,6 +8,7 @@ from sqlalchemy import Select, UnaryExpression, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, joinedload
 
 from app.core.enums import QuestionStatus, QuestionType, TestStatus
+from app.crud.helpers import token_search
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test import Test
@@ -83,6 +84,7 @@ def list_by_user(
         .where(
             Question.user_id == user_id,
             Question.status == int(QuestionStatus.ACTIVE),
+            # Exclude frozen version snapshots (parent_id set); keep bank questions and current versions only
             sa.or_(Question.test_id.is_(None), Test.parent_id.is_(None)),
         )
     )
@@ -90,6 +92,7 @@ def list_by_user(
     if question_type:
         stmt = stmt.where(Question.question_type.in_(question_type))
     if test_id:
+        # "bank" is a UI sentinel mixed with real test UUIDs, meaning "include unattached questions"
         bank_requested = "bank" in test_id
         real_ids = [t for t in test_id if t != "bank"]
         if bank_requested and real_ids:
@@ -103,7 +106,7 @@ def list_by_user(
     elif grouping == "ungrouped":
         stmt = stmt.where(Question.group_id.is_(None))
     if search:
-        stmt = stmt.where(Question.prompt.ilike(f"%{search}%"))
+        stmt = stmt.where(token_search(Question.prompt, search=search))
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0

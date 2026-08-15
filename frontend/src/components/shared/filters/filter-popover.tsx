@@ -40,7 +40,12 @@ export function FilterPopover({ filterConfig, filters, onFilterChange, onClear }
           </div>
         ))}
         {activeCount > 0 && (
-          <Button variant="ghost" size="sm" className="w-full gap-1 text-muted-foreground hover:text-destructive" onClick={onClear}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full gap-1 text-muted-foreground hover:text-destructive"
+            onClick={onClear}
+          >
             <X className="size-3.5" />
             {t('clear_all')}
           </Button>

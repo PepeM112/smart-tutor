@@ -31,7 +31,11 @@
     "all": "Todos",
     "type_and_enter": "Escribe y pulsa Enter",
     "search": "Buscar…",
-    "selected_count": "{count} seleccionados"
+    "selected_count": "{count} seleccionados",
+    "from": "Desde",
+    "to": "Hasta",
+    "min": "Mín",
+    "max": "Máx"
   },
   "app": {
     "title": "SmartTutor",
@@ -160,9 +164,15 @@
     "column_title": "Título",
     "column_questions": "Preguntas",
     "column_types": "Tipos",
+    "column_created": "Creado",
     "quick_test": "Test Rápido",
     "quick_test_description": "Introduce el ID del test que quieres hacer.",
-    "test_id": "ID del Test"
+    "test_id": "ID del Test",
+    "filter_search": "Buscar",
+    "filter_type": "Tipo",
+    "filter_date": "Fecha",
+    "no_results": "Ningún test coincide con tus filtros.",
+    "clear_filters": "Limpiar filtros"
   },
   "questions": {
     "title": "Preguntas",
@@ -271,7 +281,11 @@
     "preview": "Vista previa",
     "start_writing": "Empieza a escribir en Markdown…",
     "add_tags": "Añadir etiquetas…",
-    "remove_tag": "Eliminar etiqueta {tag}"
+    "remove_tag": "Eliminar etiqueta {tag}",
+    "filter_search": "Buscar",
+    "filter_source": "Origen",
+    "no_results": "Ninguna nota coincide con tus filtros.",
+    "clear_filters": "Limpiar filtros"
   },
   "notes_ai": {
     "generate_with_ai": "Generar con IA",
@@ -408,7 +422,12 @@
     "pts": "pts",
     "view_details": "Ver detalles",
     "pending_questions": "{count, plural, one {# pregunta} other {# preguntas}} pendiente de revisión IA",
-    "older_version_notice": "Existe una versión más reciente de este test. Este resultado refleja la versión que hiciste."
+    "older_version_notice": "Existe una versión más reciente de este test. Este resultado refleja la versión que hiciste.",
+    "filter_search": "Buscar",
+    "filter_score": "Nota",
+    "filter_date": "Fecha",
+    "no_results": "Ningún resultado coincide con tus filtros.",
+    "clear_filters": "Limpiar filtros"
   },
   "challenge": {
     "challenge_grade": "Impugnar nota",

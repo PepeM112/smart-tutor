@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import { notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesListResponseTransformer, notesRefineResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, testsSubmitResponseTransformer, tokenUsageGetUsageResponseTransformer } from './transformers.gen';
+import { notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesListResponseTransformer, notesRefineResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, testsCreateResponseTransformer, testsGetResponseTransformer, testsListResponseTransformer, testsSubmitResponseTransformer, testsUpdateResponseTransformer, tokenUsageGetUsageResponseTransformer } from './transformers.gen';
 import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, DefaultHealthData, DefaultHealthResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesListData, NotesListErrors, NotesListResponses, NotesRefineData, NotesRefineErrors, NotesRefineResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsAssignToTestData, QuestionsAssignToTestErrors, QuestionsAssignToTestResponses, QuestionsBulkAssignData, QuestionsBulkAssignErrors, QuestionsBulkAssignResponses, QuestionsBulkDeleteData, QuestionsBulkDeleteErrors, QuestionsBulkDeleteResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsCreateData, QuestionsCreateErrors, QuestionsCreateResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsDuplicateData, QuestionsDuplicateErrors, QuestionsDuplicateResponses, QuestionsGetData, QuestionsGetErrors, QuestionsGetResponses, QuestionsListData, QuestionsListErrors, QuestionsListResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
@@ -74,12 +74,17 @@ export const usersUpdateMe = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * List
  */
-export const testsList = <ThrowOnError extends boolean = false>(options?: Options<TestsListData, ThrowOnError>) => (options?.client ?? client).get<TestsListResponses, TestsListErrors, ThrowOnError>({ url: '/api/v1/tests', ...options });
+export const testsList = <ThrowOnError extends boolean = false>(options?: Options<TestsListData, ThrowOnError>) => (options?.client ?? client).get<TestsListResponses, TestsListErrors, ThrowOnError>({
+    responseTransformer: testsListResponseTransformer,
+    url: '/api/v1/tests',
+    ...options
+});
 
 /**
  * Create
  */
 export const testsCreate = <ThrowOnError extends boolean = false>(options: Options<TestsCreateData, ThrowOnError>) => (options.client ?? client).post<TestsCreateResponses, TestsCreateErrors, ThrowOnError>({
+    responseTransformer: testsCreateResponseTransformer,
     url: '/api/v1/tests',
     ...options,
     headers: {
@@ -96,12 +101,17 @@ export const testsDelete = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Get
  */
-export const testsGet = <ThrowOnError extends boolean = false>(options: Options<TestsGetData, ThrowOnError>) => (options.client ?? client).get<TestsGetResponses, TestsGetErrors, ThrowOnError>({ url: '/api/v1/tests/{test_id}', ...options });
+export const testsGet = <ThrowOnError extends boolean = false>(options: Options<TestsGetData, ThrowOnError>) => (options.client ?? client).get<TestsGetResponses, TestsGetErrors, ThrowOnError>({
+    responseTransformer: testsGetResponseTransformer,
+    url: '/api/v1/tests/{test_id}',
+    ...options
+});
 
 /**
  * Update
  */
 export const testsUpdate = <ThrowOnError extends boolean = false>(options: Options<TestsUpdateData, ThrowOnError>) => (options.client ?? client).put<TestsUpdateResponses, TestsUpdateErrors, ThrowOnError>({
+    responseTransformer: testsUpdateResponseTransformer,
     url: '/api/v1/tests/{test_id}',
     ...options,
     headers: {

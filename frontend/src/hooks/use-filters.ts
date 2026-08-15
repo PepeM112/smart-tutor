@@ -28,6 +28,7 @@ export function useFilters(filterList: FilterItem[]) {
         const key = item.query ?? item.key;
         const staticKeys = item.type === FilterType.DATE ? [`${key}_from`, `${key}_to`] : [key];
         if (!item.serializer) return staticKeys;
+        // Probe the serializer with a throwaway value to discover which URL keys it emits
         const probeResult = item.serializer({ [item.key]: '' });
         return [...staticKeys, ...Object.keys(probeResult)];
       })

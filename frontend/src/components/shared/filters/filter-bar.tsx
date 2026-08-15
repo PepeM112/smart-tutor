@@ -4,11 +4,11 @@ import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
-import type { FilterItem, FilterValue, Primitive, FilterEntity, DateFilterValue } from '@/lib/filters';
+import type { FilterItem, FilterValue, Primitive, FilterEntity, DateFilterValue, RangeFilterValue } from '@/lib/filters';
 
 import { FilterField } from './filter-field';
 
-type FilterChangeValue = Primitive | Primitive[] | FilterEntity | FilterEntity[] | DateFilterValue | undefined;
+type FilterChangeValue = Primitive | Primitive[] | FilterEntity | FilterEntity[] | DateFilterValue | RangeFilterValue | undefined;
 
 type Props = {
   filterConfig: FilterItem[];

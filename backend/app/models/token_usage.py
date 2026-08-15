@@ -18,4 +18,5 @@ class TokenUsage(Base, CreatedAtMixin):
     feature: Mapped[int] = mapped_column(Integer, default=int(AIFeature.UNKNOWN))
     input_tokens: Mapped[int] = mapped_column(Integer)
     output_tokens: Mapped[int] = mapped_column(Integer)
+    # Null when no active price was found for the model at usage time
     estimated_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 10), nullable=True, default=None)

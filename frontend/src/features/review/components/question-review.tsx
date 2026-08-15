@@ -45,6 +45,7 @@ export function QuestionReview({
   const tCommon = useTranslations('common');
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isSimple = question.questionType === QuestionType.SIMPLE;
+  // SAFETY: isMC check below guards all MC-specific access; content is opaque JSON from the API
   const content = question.content as Record<string, unknown> | undefined;
   const isChecked = checkResult !== null;
 
@@ -122,6 +123,7 @@ export function QuestionReview({
             <p className="text-sm text-muted-foreground mt-3 border-t border-border/50 pt-3">{question.explanation}</p>
           )}
 
+          {/* Dev-only: exposes raw SRS state for debugging the spaced-repetition algorithm */}
           {process.env.NEXT_PUBLIC_DEV_MODE === 'true' && checkResult.srsState && (
             <div className="mt-3 border-t border-border/50 pt-3">
               <p className="text-xs font-mono text-muted-foreground">

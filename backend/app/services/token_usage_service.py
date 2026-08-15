@@ -21,6 +21,7 @@ _PROVIDER_MAP: dict[str, AIProvider] = {
 def _format_cost(cost: Decimal | None) -> str | None:
     if cost is None:
         return None
+    # 10 decimal places matches the estimated_cost column's Numeric(12, 10) precision
     return str(cost.quantize(Decimal("0.0000000001")))
 
 
@@ -31,7 +32,6 @@ def record_usage(
     result: CompletionResult,
     feature: AIFeature,
 ) -> None:
-    """Persist a token usage record from a completion result."""
     provider = _PROVIDER_MAP.get(result.provider, AIProvider.UNKNOWN)
     cost = calculate_cost(
         db,
@@ -57,7 +57,6 @@ def get_usage_summary(
     user_id: str,
     days: int = 30,
 ) -> TokenUsageSummaryResponse:
-    """Return daily usage summaries for the given period."""
     end = date.today()
     start = end - timedelta(days=days - 1)
 

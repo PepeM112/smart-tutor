@@ -17,6 +17,7 @@ import { AssignDialog } from '@/features/questions/components/assign-dialog';
 import { QuestionsTable } from '@/features/questions/components/questions-table';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { useFilters } from '@/hooks/use-filters';
+import { useUrlSort } from '@/hooks/use-url-sort';
 import { sdk } from '@/lib/api-client';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
@@ -41,18 +42,21 @@ export default function QuestionsPage() {
   useBreadcrumb(t('title'));
 
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<'prompt' | 'question_type' | 'points' | 'created_at' | undefined>();
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>();
+  const resetPage = useCallback(() => setPage(1), []);
+  const { sort, sortBy, sortOrder, handleSort } = useUrlSort(
+    ['prompt', 'question_type', 'points', 'created_at'] as const,
+    resetPage,
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
 
   const { data: testsResponse } = useQuery({
     queryKey: ['tests'],
-    queryFn: () => sdk.testsList(),
+    queryFn: () => sdk.testsList({ query: { per_page: 100 } }),
   });
 
   const testOptions = useMemo(() => {
-    const tests = testsResponse?.data ?? [];
+    const tests = testsResponse?.data?.items ?? [];
     const options: { label: string; value: Primitive }[] = [{ label: t('bank'), value: 'bank' }];
     tests.forEach(test => options.push({ label: test.title, value: test.id }));
     return options;
@@ -138,12 +142,6 @@ export default function QuestionsPage() {
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
-  const handleSort = useCallback((column: string, order: 'asc' | 'desc') => {
-    setSortBy(column as typeof sortBy);
-    setSortOrder(order);
-    setPage(1);
-  }, []);
-
   const { mutate: bulkDelete, isPending: isBulkDeleting } = useMutation({
     mutationFn: (ids: string[]) => sdk.questionsBulkDelete({ body: { questionIds: ids } }),
     onSuccess: () => {
@@ -153,14 +151,6 @@ export default function QuestionsPage() {
     },
     onError: () => toast.error(t('failed_to_delete')),
   });
-
-  const sort = useMemo(
-    () => ({
-      column: sortBy ?? null,
-      order: sortOrder ?? null,
-    }),
-    [sortBy, sortOrder]
-  );
 
   return (
     <div className="space-y-6">
@@ -223,7 +213,7 @@ export default function QuestionsPage() {
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
           />
-          <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} />
+          <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
         </div>
       )}
 

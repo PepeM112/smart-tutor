@@ -7,6 +7,7 @@ export enum FilterType {
   MULTIPLE_SELECT,
   DATE,
   TOGGLE,
+  RANGE,
 }
 
 export type FilterMapping = {
@@ -16,6 +17,7 @@ export type FilterMapping = {
   [FilterType.MULTIPLE_SELECT]: Primitive[] | FilterEntity[];
   [FilterType.DATE]: DateFilterValue;
   [FilterType.TOGGLE]: Primitive;
+  [FilterType.RANGE]: RangeFilterValue;
 };
 
 export type FilterItem = {
@@ -41,9 +43,17 @@ export type FilterOptions = {
   returnObject?: boolean;
 };
 
-export type FilterValue = Record<string, Primitive | Primitive[] | FilterEntity | FilterEntity[] | DateFilterValue>;
+export type FilterValue = Record<
+  string,
+  Primitive | Primitive[] | FilterEntity | FilterEntity[] | DateFilterValue | RangeFilterValue
+>;
 
 export type DateFilterValue = {
   from?: Date;
   to?: Date;
+};
+
+export type RangeFilterValue = {
+  min?: number;
+  max?: number;
 };

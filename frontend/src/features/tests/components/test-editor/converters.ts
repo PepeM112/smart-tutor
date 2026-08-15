@@ -45,7 +45,7 @@ export function longTextToApiQuestion(q: LongTextQuestionData, order: number): Q
       rubric: q.criteria.map(c => ({
         point: c.point,
         weight: c.weight,
-        ...(c.category ? { category: c.category } : {}),
+        ...(c.category && { category: c.category }),
       })),
     },
   };
@@ -73,6 +73,7 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
 /* ------------------------------------------------------------------ */
 
 function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
+  // SAFETY: caller filters by questionType === MULTIPLE_CHOICE before calling
   const content = q.content as { options: string[]; correctIndices: number[] };
   return {
     key: crypto.randomUUID(),
@@ -81,12 +82,13 @@ function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
     choices: (content.options ?? []).map((text, i) => ({
       text,
       isCorrect: (content.correctIndices ?? []).includes(i),
-    })) as Choice[],
+    })) satisfies Choice[],
     points: q.points ?? 1,
   };
 }
 
 function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
+  // SAFETY: caller filters by questionType === LONG_TEXT before calling
   const content = q.content as { lengthLimit: number; rubric: { point: string; weight: number; category?: string }[] };
   return {
     key: crypto.randomUUID(),
@@ -97,7 +99,7 @@ function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
       point: r.point,
       weight: r.weight,
       category: r.category ?? '',
-    })) as Criterion[],
+    })) satisfies Criterion[],
     points: q.points ?? 1,
   };
 }
@@ -109,11 +111,12 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
     groupType: g.type ?? QuestionGroupType.UNKNOWN,
     title: g.title ?? '',
     rows: (g.questions ?? []).map(q => {
+      // SAFETY: group questions are always SIMPLE type with { answers: string[] } content
       const content = q.content as { answers: string[] };
       return {
         prompt: q.prompt,
         answers: content.answers ?? [],
-      } as SimpleRow;
+      } satisfies SimpleRow;
     }),
     points: g.points ?? 1,
   };
@@ -139,6 +142,7 @@ export function fromApiToEditorItems(
       } else if (q.questionType === QuestionType.LONG_TEXT) {
         acc.push({ order: q.order ?? 0, kind: 'long', data: q });
       } else if (q.questionType === QuestionType.SIMPLE) {
+        // Wrap standalone SIMPLE questions in a synthetic group so the editor treats all items uniformly
         const syntheticGroup: TestQuestionGroupRead = {
           id: '',
           testId: '',
@@ -191,7 +195,7 @@ function longTextToPreviewInput(q: LongTextQuestionData): GeneratedQuestionPrevi
       rubric: q.criteria.map(c => ({
         point: c.point,
         weight: c.weight,
-        ...(c.category ? { category: c.category } : {}),
+        ...(c.category && { category: c.category }),
       })),
     },
   };
@@ -265,6 +269,7 @@ export function mergeAiEditResult(
     // MC block: single question, rebuild with AI content
     if (item.type === QuestionType.MULTIPLE_CHOICE) {
       const q = questions[0];
+      // SAFETY: item.type === MULTIPLE_CHOICE guarantees the AI returned MC content
       const content = q.content as MultipleChoiceContent;
       return {
         ...item,
@@ -272,7 +277,7 @@ export function mergeAiEditResult(
         choices: content.options.map((text, i) => ({
           text,
           isCorrect: content.correctIndices.includes(i),
-        })) as Choice[],
+        })) satisfies Choice[],
         points: q.points ?? item.points,
       };
     }
@@ -280,6 +285,7 @@ export function mergeAiEditResult(
     // Long Text block: single question, rebuild with AI content
     if (item.type === QuestionType.LONG_TEXT) {
       const q = questions[0];
+      // SAFETY: item.type === LONG_TEXT guarantees the AI returned LT content
       const content = q.content as LongTextContent;
       return {
         ...item,
@@ -289,7 +295,7 @@ export function mergeAiEditResult(
           point: r.point,
           weight: r.weight,
           category: r.category ?? '',
-        })) as Criterion[],
+        })) satisfies Criterion[],
         points: q.points ?? item.points,
       };
     }
@@ -298,8 +304,9 @@ export function mergeAiEditResult(
     return {
       ...item,
       rows: questions.map(q => {
+        // SAFETY: group items are always SIMPLE type with { answers } content
         const content = q.content as SimpleContent;
-        return { prompt: q.prompt, answers: content.answers } as SimpleRow;
+        return { prompt: q.prompt, answers: content.answers } satisfies SimpleRow;
       }),
     };
   });

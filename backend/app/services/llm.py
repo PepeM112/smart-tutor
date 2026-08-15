@@ -185,7 +185,6 @@ def get_user_llm_client(user: User) -> LLMClient:
 
 
 def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
-    """Execute a completion call, wrapping provider errors into HTTPExceptions."""
     try:
         return llm.complete(system=system, user_prompt=user_prompt, max_tokens=max_tokens)
     except (ValueError, TypeError) as exc:
@@ -203,7 +202,6 @@ def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens
 
 
 def complete(*, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
-    """Get the LLM client and call complete, wrapping errors into HTTPExceptions."""
     try:
         llm = get_llm_client()
     except ValueError as exc:
@@ -217,7 +215,6 @@ def complete(*, system: str, user_prompt: str, max_tokens: int) -> CompletionRes
 
 
 def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
-    """Get a per-user LLM client and call complete, wrapping errors into HTTPExceptions."""
     try:
         llm = get_user_llm_client(user)
     except ValueError as exc:

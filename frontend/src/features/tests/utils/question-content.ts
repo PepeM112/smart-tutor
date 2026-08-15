@@ -17,6 +17,7 @@ export function isMCContent(content: unknown): content is MultipleChoiceContent 
   );
 }
 
+// MC answers are stored as comma-separated option indices, e.g. "0,2"
 export function parseMcAnswer(answer: string): number[] {
   return answer ? answer.split(',').map(Number) : [];
 }

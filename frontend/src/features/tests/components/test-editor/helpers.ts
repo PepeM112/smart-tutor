@@ -33,6 +33,7 @@ export function newLongText(): LongTextQuestionData {
     key: crypto.randomUUID(),
     type: QuestionType.LONG_TEXT,
     prompt: '',
+    // 2 = LongTextLength.MEDIUM (default tier for new questions)
     lengthLimit: 2,
     criteria: [{ point: '', weight: 0.1, category: '' }],
     points: 1,

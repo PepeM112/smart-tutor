@@ -502,6 +502,28 @@ export type NoteUpdate = {
 };
 
 /**
+ * PaginatedResponse[NoteRead]
+ */
+export type PaginatedResponseNoteRead = {
+    /**
+     * Items
+     */
+    items: Array<NoteRead>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Perpage
+     */
+    perPage: number;
+};
+
+/**
  * PaginatedResponse[QuestionListRead]
  */
 export type PaginatedResponseQuestionListRead = {
@@ -509,6 +531,50 @@ export type PaginatedResponseQuestionListRead = {
      * Items
      */
     items: Array<QuestionListRead>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Perpage
+     */
+    perPage: number;
+};
+
+/**
+ * PaginatedResponse[TestRead]
+ */
+export type PaginatedResponseTestRead = {
+    /**
+     * Items
+     */
+    items: Array<TestRead>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Perpage
+     */
+    perPage: number;
+};
+
+/**
+ * PaginatedResponse[TestResultListItem]
+ */
+export type PaginatedResponseTestResultListItem = {
+    /**
+     * Items
+     */
+    items: Array<TestResultListItem>;
     /**
      * Total
      */
@@ -1171,6 +1237,10 @@ export type TestRead = {
      */
     parentId?: string | null;
     /**
+     * Createdat
+     */
+    createdAt: Date;
+    /**
      * Questions
      */
     questions?: Array<QuestionRead>;
@@ -1738,7 +1808,40 @@ export type UsersUpdateMeResponse = UsersUpdateMeResponses[keyof UsersUpdateMeRe
 export type TestsListData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Search
+         */
+        search?: string | null;
+        /**
+         * Question Type
+         */
+        question_type?: Array<number> | null;
+        /**
+         * Created From
+         */
+        created_from?: Date | null;
+        /**
+         * Created To
+         */
+        created_to?: Date | null;
+        /**
+         * Sort By
+         */
+        sort_by?: 'title' | 'created_at' | null;
+        /**
+         * Sort Order
+         */
+        sort_order?: 'asc' | 'desc';
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Per Page
+         */
+        per_page?: number;
+    };
     url: '/api/v1/tests';
 };
 
@@ -1753,11 +1856,9 @@ export type TestsListError = TestsListErrors[keyof TestsListErrors];
 
 export type TestsListResponses = {
     /**
-     * Response Testslist
-     *
      * Successful Response
      */
-    200: Array<TestRead>;
+    200: PaginatedResponseTestRead;
 };
 
 export type TestsListResponse = TestsListResponses[keyof TestsListResponses];
@@ -2015,7 +2116,44 @@ export type TestsSubmitResponse = TestsSubmitResponses[keyof TestsSubmitResponse
 export type ResultsListData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Search
+         */
+        search?: string | null;
+        /**
+         * Score Min
+         */
+        score_min?: number | null;
+        /**
+         * Score Max
+         */
+        score_max?: number | null;
+        /**
+         * Created From
+         */
+        created_from?: Date | null;
+        /**
+         * Created To
+         */
+        created_to?: Date | null;
+        /**
+         * Sort By
+         */
+        sort_by?: 'score' | 'created_at' | null;
+        /**
+         * Sort Order
+         */
+        sort_order?: 'asc' | 'desc';
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Per Page
+         */
+        per_page?: number;
+    };
     url: '/api/v1/results';
 };
 
@@ -2030,11 +2168,9 @@ export type ResultsListError = ResultsListErrors[keyof ResultsListErrors];
 
 export type ResultsListResponses = {
     /**
-     * Response Resultslist
-     *
      * Successful Response
      */
-    200: Array<TestResultListItem>;
+    200: PaginatedResponseTestResultListItem;
 };
 
 export type ResultsListResponse = ResultsListResponses[keyof ResultsListResponses];
@@ -2423,7 +2559,7 @@ export type ReviewListData = {
         /**
          * Mode
          */
-        mode?: string;
+        mode?: 'review' | 'practice';
     };
     url: '/api/v1/review/questions';
 };
@@ -2449,7 +2585,32 @@ export type ReviewListResponse = ReviewListResponses[keyof ReviewListResponses];
 export type NotesListData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Search
+         */
+        search?: string | null;
+        /**
+         * Source
+         */
+        source?: Array<number> | null;
+        /**
+         * Sort By
+         */
+        sort_by?: 'title' | 'updated_at' | 'created_at' | null;
+        /**
+         * Sort Order
+         */
+        sort_order?: 'asc' | 'desc';
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Per Page
+         */
+        per_page?: number;
+    };
     url: '/api/v1/notes';
 };
 
@@ -2464,11 +2625,9 @@ export type NotesListError = NotesListErrors[keyof NotesListErrors];
 
 export type NotesListResponses = {
     /**
-     * Response Noteslist
-     *
      * Successful Response
      */
-    200: Array<NoteRead>;
+    200: PaginatedResponseNoteRead;
 };
 
 export type NotesListResponse = NotesListResponses[keyof NotesListResponses];

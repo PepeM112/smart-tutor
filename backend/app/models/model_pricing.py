@@ -12,6 +12,7 @@ class ModelPricing(Base, CreatedAtMixin):
     __tablename__ = "model_pricing"
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
+    # OpenRouter model id (e.g. "anthropic/claude-haiku-4.5"), not the SDK model name — see core/model_registry.py
     model_id: Mapped[str] = mapped_column(String(100))
     input_price: Mapped[Decimal] = mapped_column(Numeric(18, 12))
     output_price: Mapped[Decimal] = mapped_column(Numeric(18, 12))

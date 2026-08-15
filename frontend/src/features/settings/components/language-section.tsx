@@ -31,6 +31,7 @@ export function LanguageSection() {
       return result.data!;
     },
     onSuccess: updatedUser => {
+      // Server components read locale from this cookie, so it must be set before router.refresh()
       document.cookie = `locale=${updatedUser.locale};path=/;max-age=31536000`;
       setUser(updatedUser);
       startTransition(() => {

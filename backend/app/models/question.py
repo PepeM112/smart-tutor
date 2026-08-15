@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
@@ -37,13 +37,14 @@ class Question(Base):
     order: Mapped[int] = mapped_column(Integer, default=0)
     points: Mapped[float] = mapped_column(Float, default=1.0, server_default="1.0")
     status: Mapped[int] = mapped_column(Integer, default=int(QuestionStatus.ACTIVE), server_default="1")
+    # Links a copied/versioned question back to its source (set during test-version copy or bank duplication)
     origin_id: Mapped[str | None] = mapped_column(
         String(26), ForeignKey("question.id", ondelete="SET NULL"), nullable=True, default=None
     )
 
     user: Mapped["User"] = relationship()
     test: Mapped["Test"] = relationship(back_populates="questions")
-    question_group: Mapped[Optional["TestQuestionGroup"]] = relationship(back_populates="questions")
+    question_group: Mapped["TestQuestionGroup | None"] = relationship(back_populates="questions")
 
     __table_args__ = (
         UniqueConstraint("test_id", "order", name="uq_test_question_order"),

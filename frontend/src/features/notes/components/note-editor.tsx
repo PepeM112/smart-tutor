@@ -204,6 +204,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   function handleAcceptDiff() {
     if (activeDiffIndex === null || !activeDiff) return;
     const { markdownStart, markdownEnd, originalMarkdown, editedText } = activeDiff;
+    // Bail if the source text moved since this diff was computed — stored offsets would splice the wrong range
     if (content.slice(markdownStart, markdownEnd) !== originalMarkdown) {
       toast.error(t('could_not_locate'));
       removeDiff(activeDiffIndex);
@@ -211,6 +212,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     }
     onChange(content.slice(0, markdownStart) + editedText + content.slice(markdownEnd));
 
+    // Accepting this diff changes text length, so shift all pending diffs after it by the delta
     const delta = editedText.length - originalMarkdown.length;
     setDiffs(prev =>
       prev

@@ -29,6 +29,7 @@ from app.services.test_generation_prompts import (
 
 logger = logging.getLogger("smarttutor.test_generation")
 
+# Empirically tuned per-question token budgets, sized to avoid AI response truncation
 _BASE_TOKENS_PER_QUESTION = 200
 _LONG_TEXT_EXTRA_TOKENS = 300
 _MIN_GENERATION_TOKENS = 4096
@@ -48,7 +49,6 @@ def _validate_generated_questions(
     raw_json: str,
     requested_types: set[QuestionType],
 ) -> tuple[list[GeneratedQuestionPreview], list[str]]:
-    """Validate AI response and return (questions, errors)."""
     errors: list[str] = []
 
     try:
@@ -127,7 +127,6 @@ def _validate_generated_questions(
 
 
 def _validate_content(q_type: QuestionType, content: dict[str, Any], prefix: str) -> list[str]:
-    """Validate content dict for a specific question type. Returns list of errors."""
     errors: list[str] = []
 
     if q_type == QuestionType.SIMPLE:
@@ -176,6 +175,7 @@ def _validate_content(q_type: QuestionType, content: dict[str, Any], prefix: str
                 if not isinstance(weight, int | float) or weight <= 0 or weight > 1:
                     errors.append(f"{prefix}: rubric[{j}] weight must be between 0 and 1")
                 else:
+                    # Snap AI-generated weight to nearest 0.05 — rubric weights must be multiples of 0.05
                     snapped = round(round(float(weight) / 0.05) * 0.05, 2)
                     if snapped <= 0:
                         errors.append(f"{prefix}: rubric[{j}] weight {weight} is too small (rounds to 0)")
@@ -192,7 +192,6 @@ def _validate_content(q_type: QuestionType, content: dict[str, Any], prefix: str
 def _parse_content(
     q_type: QuestionType, content: dict[str, Any]
 ) -> SimpleContent | MultipleChoiceContent | LongTextContent | None:
-    """Parse validated content dict into the appropriate Pydantic model."""
     if q_type == QuestionType.SIMPLE:
         answers = [a.strip() for a in content["answers"]]
         return SimpleContent(answers=answers)
@@ -207,6 +206,7 @@ def _parse_content(
         rubric = [
             RubricItem(
                 point=r["point"].strip(),
+                # Must match the snapping in _parse_content above
                 weight=round(round(float(r["weight"]) / 0.05) * 0.05, 2),
                 category=r.get("category"),
             )
@@ -349,7 +349,6 @@ def edit_test_questions(
 
 
 def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:
-    """Convert a GeneratedQuestionPreview back to the AI's JSON format."""
     content: dict[str, object] = {}
     if q.question_type == QuestionType.SIMPLE:
         if not isinstance(q.content, SimpleContent):
@@ -400,6 +399,7 @@ def _call_and_validate(
     token_usage_service.record_usage(db, user_id=user.id, result=result, feature=AIFeature.TEST_GENERATION)
     questions, errors = _validate_generated_questions(result.text, requested_types)
 
+    # Some questions parsed successfully despite others failing — keep the valid subset
     if errors and questions:
         logger.warning("Partial validation: %d valid, %d rejected: %s", len(questions), len(errors), errors)
     elif errors and not questions:

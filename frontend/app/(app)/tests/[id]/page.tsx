@@ -74,6 +74,7 @@ export default function TakeTestPage({ params }: Props) {
     return <p className="text-muted-foreground">{t('test_not_found')}</p>;
   }
 
+  // A test's content spans two collections (standalone questions + groups); empty only if both are
   if ((test.questions?.length ?? 0) === 0 && (test.questionGroups?.length ?? 0) === 0) {
     return <p className="text-muted-foreground">{t('no_questions_yet')}</p>;
   }

@@ -27,6 +27,7 @@ export default function ReviewPage() {
 
   const reviewData = response?.data;
   const questions = reviewData?.questions ?? [];
+  // Whether the user has any questions at all — distinguishes "nothing to review" from "nothing exists yet"
   const hasQuestions = reviewData?.hasQuestions ?? false;
 
   if (isLoading) {

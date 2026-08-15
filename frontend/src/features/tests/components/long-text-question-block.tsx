@@ -46,6 +46,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
   }
 
   function addCriterion() {
+    // Reuse the last category so new criteria stay grouped with it by default
     const lastCategory = data.criteria.at(-1)?.category ?? '';
     onChange({ ...data, criteria: [...data.criteria, { point: '', weight: 0.1, category: lastCategory }] });
   }
@@ -194,6 +195,7 @@ function CategoryInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setOpen(true)}
+        // Delay closing so a click on a suggestion can register before blur hides the list
         onBlur={() => {
           timeoutRef.current = setTimeout(() => setOpen(false), 150);
         }}
