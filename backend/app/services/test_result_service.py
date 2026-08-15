@@ -12,5 +12,23 @@ def get_result(db: Session, *, result_id: str, current_user: User) -> TestResult
     )
 
 
-def list_results(db: Session, *, current_user: User) -> list[TestResult]:
-    return test_result_crud.list_by_user(db, user_id=current_user.id)
+def list_results(
+    db: Session,
+    *,
+    current_user: User,
+    search: str | None = None,
+    sort_by: str | None = None,
+    sort_order: str = "desc",
+    page: int = 1,
+    per_page: int = 20,
+) -> tuple[list[TestResult], int]:
+    items, total = test_result_crud.list_by_user(
+        db,
+        user_id=current_user.id,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
+    )
+    return list(items), total

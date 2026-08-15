@@ -61,7 +61,6 @@ def calculate_cost(
     input_tokens: int,
     output_tokens: int,
 ) -> Decimal | None:
-    """Calculate cost for a completion using the active price for the model."""
     openrouter_id = SDK_TO_OPENROUTER.get(model)
     if not openrouter_id:
         logger.warning("No OpenRouter mapping for model %s", model)

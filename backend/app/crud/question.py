@@ -8,6 +8,7 @@ from sqlalchemy import Select, UnaryExpression, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, joinedload
 
 from app.core.enums import QuestionStatus, QuestionType, TestStatus
+from app.crud.helpers import token_search
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test import Test
@@ -105,7 +106,7 @@ def list_by_user(
     elif grouping == "ungrouped":
         stmt = stmt.where(Question.group_id.is_(None))
     if search:
-        stmt = stmt.where(Question.prompt.ilike(f"%{search}%"))
+        stmt = stmt.where(token_search(Question.prompt, search=search))
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0

@@ -1,6 +1,6 @@
 from typing import Annotated, TypeAlias
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -14,7 +14,10 @@ from app.schemas.note import (
     NoteGenerate,
     NoteRead,
     NoteRefine,
+    NoteSortBy,
     NoteUpdate,
+    PaginatedNoteRead,
+    SortOrder,
 )
 from app.services import note_service
 
@@ -24,9 +27,33 @@ DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
-@router.get("", response_model=list[NoteRead])
-def list_(db: DbSession, current_user: CurrentUser) -> list[Note]:
-    return note_service.list_notes(db, current_user=current_user)
+@router.get("", response_model=PaginatedNoteRead)
+def list_(
+    db: DbSession,
+    current_user: CurrentUser,
+    search: str | None = None,
+    source: Annotated[list[int] | None, Query()] = None,
+    sort_by: Annotated[NoteSortBy | None, Query()] = None,
+    sort_order: Annotated[SortOrder, Query()] = "desc",
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=100),
+) -> PaginatedNoteRead:
+    items, total = note_service.list_notes(
+        db,
+        current_user=current_user,
+        search=search,
+        source=source,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
+    )
+    return PaginatedNoteRead(
+        items=[NoteRead.model_validate(n) for n in items],
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.post("/generate", response_model=NoteRead, status_code=status.HTTP_201_CREATED)

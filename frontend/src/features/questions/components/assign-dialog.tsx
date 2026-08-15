@@ -37,7 +37,7 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
     enabled: open,
   });
 
-  const tests = testsResponse?.data ?? [];
+  const tests = testsResponse?.data?.items ?? [];
 
   const { mutate: assignSingle, isPending: isSinglePending } = useMutation({
     mutationFn: () =>

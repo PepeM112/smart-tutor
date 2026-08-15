@@ -8,6 +8,7 @@ import { useCallback, useMemo } from 'react';
 
 import type { TestResultListItem } from '@/client';
 import { DataTable } from '@/components/shared/data-table';
+import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { getScoreBadgeClasses } from '@/features/history/utils/score-colors';
 import { formatDate, formatShortDate } from '@/lib/format';
@@ -15,9 +16,11 @@ import { Routes } from '@/lib/routes';
 
 type Props = {
   data: TestResultListItem[];
+  sort?: SortState;
+  onSort?: (column: string | null, order: SortDirection) => void;
 };
 
-export function HistoryTable({ data }: Props) {
+export function HistoryTable({ data, sort, onSort }: Props) {
   const router = useRouter();
   const t = useTranslations('history');
   const columns = useMemo(() => getColumns(t), [t]);
@@ -39,6 +42,8 @@ export function HistoryTable({ data }: Props) {
     <DataTable
       columns={columns}
       data={data}
+      sort={sort}
+      onSort={onSort}
       emptyMessage={t('no_history_yet')}
       onRowClick={row => router.push(Routes.RESULT_DETAIL(row.id))}
       renderPreview={renderPreview}
@@ -67,6 +72,7 @@ function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef
     {
       id: 'score',
       header: t('column_score'),
+      meta: { sortKey: 'score' },
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5">
           <ScoreBadge score={row.original.score ?? 0} />
@@ -90,6 +96,7 @@ function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef
     {
       accessorKey: 'createdAt',
       header: t('column_date'),
+      meta: { sortKey: 'created_at' },
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.createdAt)}</span>,
     },
     {

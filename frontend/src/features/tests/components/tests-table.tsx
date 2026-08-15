@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { DataTable, type MobileAction } from '@/components/shared/data-table';
+import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { getQuestionTypeInfo } from '@/features/tests/utils/question-icons';
@@ -18,9 +19,11 @@ import { Routes } from '@/lib/routes';
 
 type Props = {
   data: TestRead[];
+  sort?: SortState;
+  onSort?: (column: string | null, order: SortDirection) => void;
 };
 
-export function TestsTable({ data }: Props) {
+export function TestsTable({ data, sort, onSort }: Props) {
   const t = useTranslations('tests');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -95,6 +98,8 @@ export function TestsTable({ data }: Props) {
     <DataTable
       columns={columns}
       data={data}
+      sort={sort}
+      onSort={onSort}
       emptyMessage={t('no_tests_yet')}
       onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
       renderPreview={renderPreview}
@@ -136,6 +141,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
     {
       accessorKey: 'title',
       header: t('column_title'),
+      meta: { sortKey: 'title' },
       cell: ({ row }) => {
         const { title, description } = row.original;
         return (

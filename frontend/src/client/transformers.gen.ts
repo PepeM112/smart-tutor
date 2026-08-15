@@ -17,8 +17,13 @@ const testResultListItemSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const paginatedResponseTestResultListItemSchemaResponseTransformer = (data: any) => {
+    data.items = data.items.map((item: any) => testResultListItemSchemaResponseTransformer(item));
+    return data;
+};
+
 export const resultsListResponseTransformer = async (data: any): Promise<ResultsListResponse> => {
-    data = data.map((item: any) => testResultListItemSchemaResponseTransformer(item));
+    data = paginatedResponseTestResultListItemSchemaResponseTransformer(data);
     return data;
 };
 
@@ -52,8 +57,13 @@ const noteReadSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const paginatedResponseNoteReadSchemaResponseTransformer = (data: any) => {
+    data.items = data.items.map((item: any) => noteReadSchemaResponseTransformer(item));
+    return data;
+};
+
 export const notesListResponseTransformer = async (data: any): Promise<NotesListResponse> => {
-    data = data.map((item: any) => noteReadSchemaResponseTransformer(item));
+    data = paginatedResponseNoteReadSchemaResponseTransformer(data);
     return data;
 };
 

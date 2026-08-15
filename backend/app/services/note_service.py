@@ -26,8 +26,28 @@ _NOTE_MAX_TOKENS: dict[int, int] = {
 _DEFAULT_MAX_TOKENS = 4096
 
 
-def list_notes(db: Session, *, current_user: User) -> list[Note]:
-    return note_crud.list_by_user(db, user_id=current_user.id)
+def list_notes(
+    db: Session,
+    *,
+    current_user: User,
+    search: str | None = None,
+    source: list[int] | None = None,
+    sort_by: str | None = None,
+    sort_order: str = "desc",
+    page: int = 1,
+    per_page: int = 20,
+) -> tuple[list[Note], int]:
+    items, total = note_crud.list_by_user(
+        db,
+        user_id=current_user.id,
+        search=search,
+        source=source,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
+    )
+    return list(items), total
 
 
 def get_note(db: Session, *, note_id: str, current_user: User) -> Note:

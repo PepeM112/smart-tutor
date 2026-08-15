@@ -32,7 +32,6 @@ def record_usage(
     result: CompletionResult,
     feature: AIFeature,
 ) -> None:
-    """Persist a token usage record from a completion result."""
     provider = _PROVIDER_MAP.get(result.provider, AIProvider.UNKNOWN)
     cost = calculate_cost(
         db,
@@ -58,7 +57,6 @@ def get_usage_summary(
     user_id: str,
     days: int = 30,
 ) -> TokenUsageSummaryResponse:
-    """Return daily usage summaries for the given period."""
     end = date.today()
     start = end - timedelta(days=days - 1)
 

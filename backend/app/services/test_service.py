@@ -7,7 +7,7 @@ from app.crud import test_question_group as group_crud
 from app.models.test import Test
 from app.models.user import User
 from app.schemas.question import QuestionCreate
-from app.schemas.test import TestCreate, TestUpdate
+from app.schemas.test import SortOrder, TestCreate, TestSortBy, TestUpdate
 from app.schemas.test_question_group import TestQuestionGroupCreate
 from app.services.service_helpers import get_owned_or_404
 from app.services.versioning_service import version_test_if_needed
@@ -52,7 +52,6 @@ def _validate_order_space(
 
 
 def _get_existing_orders(test: Test) -> set[int]:
-    """Collect all order values currently used in a test (questions + groups)."""
     orders: set[int] = set()
     for q in test.questions:
         orders.add(q.order)
@@ -61,8 +60,26 @@ def _get_existing_orders(test: Test) -> set[int]:
     return orders
 
 
-def list_tests(db: Session, *, current_user: User) -> list[Test]:
-    return test_crud.list_by_user(db, user_id=current_user.id)
+def list_tests(
+    db: Session,
+    *,
+    current_user: User,
+    search: str | None = None,
+    sort_by: TestSortBy | None = None,
+    sort_order: SortOrder = "desc",
+    page: int = 1,
+    per_page: int = 20,
+) -> tuple[list[Test], int]:
+    items, total = test_crud.list_by_user(
+        db,
+        user_id=current_user.id,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
+    )
+    return list(items), total
 
 
 def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:

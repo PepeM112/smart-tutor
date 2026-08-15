@@ -807,6 +807,40 @@ export const NoteUpdateSchema = {
     title: 'NoteUpdate'
 } as const;
 
+export const PaginatedResponse_NoteRead_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/NoteRead'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[NoteRead]'
+} as const;
+
 export const PaginatedResponse_QuestionListRead_Schema = {
     properties: {
         items: {
@@ -839,6 +873,74 @@ export const PaginatedResponse_QuestionListRead_Schema = {
         'perPage'
     ],
     title: 'PaginatedResponse[QuestionListRead]'
+} as const;
+
+export const PaginatedResponse_TestRead_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/TestRead'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[TestRead]'
+} as const;
+
+export const PaginatedResponse_TestResultListItem_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/TestResultListItem'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[TestResultListItem]'
 } as const;
 
 export const QuestionAnswerSchema = {

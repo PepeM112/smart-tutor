@@ -34,7 +34,6 @@ _CONTENT_MODEL_FOR_TYPE = {
 
 
 def _validate_stored_content(new_type: QuestionType, raw_content: dict[str, object]) -> None:
-    """Validate that a question's existing stored content is compatible with a new type."""
     model = _CONTENT_MODEL_FOR_TYPE.get(new_type)
     if model is None:
         return

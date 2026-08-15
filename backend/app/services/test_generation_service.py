@@ -49,7 +49,6 @@ def _validate_generated_questions(
     raw_json: str,
     requested_types: set[QuestionType],
 ) -> tuple[list[GeneratedQuestionPreview], list[str]]:
-    """Validate AI response and return (questions, errors)."""
     errors: list[str] = []
 
     try:
@@ -128,7 +127,6 @@ def _validate_generated_questions(
 
 
 def _validate_content(q_type: QuestionType, content: dict[str, Any], prefix: str) -> list[str]:
-    """Validate content dict for a specific question type. Returns list of errors."""
     errors: list[str] = []
 
     if q_type == QuestionType.SIMPLE:
@@ -194,7 +192,6 @@ def _validate_content(q_type: QuestionType, content: dict[str, Any], prefix: str
 def _parse_content(
     q_type: QuestionType, content: dict[str, Any]
 ) -> SimpleContent | MultipleChoiceContent | LongTextContent | None:
-    """Parse validated content dict into the appropriate Pydantic model."""
     if q_type == QuestionType.SIMPLE:
         answers = [a.strip() for a in content["answers"]]
         return SimpleContent(answers=answers)
@@ -352,7 +349,6 @@ def edit_test_questions(
 
 
 def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:
-    """Convert a GeneratedQuestionPreview back to the AI's JSON format."""
     content: dict[str, object] = {}
     if q.question_type == QuestionType.SIMPLE:
         if not isinstance(q.content, SimpleContent):

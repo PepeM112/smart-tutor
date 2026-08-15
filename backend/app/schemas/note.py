@@ -1,9 +1,11 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field
 
 from app.core.enums import NoteLength, NoteSource
 from app.schemas.base import BaseSchema
+from app.schemas.pagination import PaginatedResponse
 
 
 class NoteBase(BaseSchema):
@@ -50,3 +52,9 @@ class NoteChunkEdit(BaseSchema):
 
 class NoteChunkEditResponse(BaseSchema):
     edited_text: str
+
+
+NoteSortBy = Literal["title", "updated_at", "created_at"]
+SortOrder = Literal["asc", "desc"]
+
+PaginatedNoteRead = PaginatedResponse[NoteRead]

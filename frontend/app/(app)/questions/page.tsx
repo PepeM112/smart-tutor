@@ -57,7 +57,7 @@ export default function QuestionsPage() {
   });
 
   const testOptions = useMemo(() => {
-    const tests = testsResponse?.data ?? [];
+    const tests = testsResponse?.data?.items ?? [];
     const options: { label: string; value: Primitive }[] = [{ label: t('bank'), value: 'bank' }];
     tests.forEach(test => options.push({ label: test.title, value: test.id }));
     return options;

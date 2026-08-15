@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
@@ -44,7 +44,7 @@ class Question(Base):
 
     user: Mapped["User"] = relationship()
     test: Mapped["Test"] = relationship(back_populates="questions")
-    question_group: Mapped[Optional["TestQuestionGroup"]] = relationship(back_populates="questions")
+    question_group: Mapped["TestQuestionGroup | None"] = relationship(back_populates="questions")
 
     __table_args__ = (
         UniqueConstraint("test_id", "order", name="uq_test_question_order"),
