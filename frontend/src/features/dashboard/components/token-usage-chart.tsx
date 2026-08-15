@@ -159,6 +159,7 @@ export function TokenUsageChart({ daily }: Props) {
           hide={hiddenSeries.has('openai')}
           radius={[2, 2, 0, 0]}
         />
+        {/* On mobile the cumulative axis is hidden, so the line must attach to "daily" or Recharts can't plot */}
         <Line
           yAxisId={isMobile ? 'daily' : 'cumulative'}
           dataKey="cumulative"

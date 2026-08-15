@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Send } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -40,9 +41,13 @@ export default function QuestionsPage() {
   const queryClient = useQueryClient();
   useBreadcrumb(t('title'));
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<'prompt' | 'question_type' | 'points' | 'created_at' | undefined>();
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>();
+  const sortBy = searchParams.get('sort_c') ?? undefined;
+  const sortOrder = (searchParams.get('sort_o') as 'asc' | 'desc' | null) ?? undefined;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
 
@@ -127,7 +132,7 @@ export default function QuestionsPage() {
           grouping: grouping || undefined,
           page,
           per_page: PER_PAGE,
-          sort_by: sortBy,
+          sort_by: sortBy as 'prompt' | 'question_type' | 'points' | 'created_at' | undefined,
           sort_order: sortOrder,
         },
       }),
@@ -138,11 +143,23 @@ export default function QuestionsPage() {
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
-  const handleSort = useCallback((column: string, order: 'asc' | 'desc') => {
-    setSortBy(column as typeof sortBy);
-    setSortOrder(order);
-    setPage(1);
-  }, []);
+  const handleSort = useCallback(
+    (column: string | null, order: 'asc' | 'desc' | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (column && order) {
+        params.set('sort_c', column);
+        params.set('sort_o', order);
+      } else {
+        params.delete('sort_c');
+        params.delete('sort_o');
+      }
+      params.delete('page');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      setPage(1);
+    },
+    [searchParams, pathname, router]
+  );
 
   const { mutate: bulkDelete, isPending: isBulkDeleting } = useMutation({
     mutationFn: (ids: string[]) => sdk.questionsBulkDelete({ body: { questionIds: ids } }),

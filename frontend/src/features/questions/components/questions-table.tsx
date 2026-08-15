@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 import { type QuestionType, type QuestionListRead } from '@/client';
 import { DataTable, type MobileAction } from '@/components/shared/data-table';
-import { SortableHeader } from '@/components/shared/sortable-header';
+import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -22,15 +22,10 @@ import { Routes } from '@/lib/routes';
 
 import { AssignDialog } from './assign-dialog';
 
-type SortState = {
-  column: string | null;
-  order: 'asc' | 'desc' | null;
-};
-
 type Props = {
   data: QuestionListRead[];
   sort: SortState;
-  onSort: (column: string, order: 'asc' | 'desc') => void;
+  onSort: (column: string | null, order: SortDirection) => void;
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
 };
@@ -81,8 +76,6 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
     onAssign: setAssignQuestionId,
     onDuplicate: (id: string) => duplicateQuestion(id),
     isDuplicating,
-    sort,
-    onSort,
     selectedIds,
     onToggleSelect: toggleSelect,
     onToggleAll: toggleAll,
@@ -161,6 +154,8 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
         onRowClick={row => router.push(Routes.QUESTION_EDIT(row.id))}
         renderPreview={renderPreview}
         renderActions={renderActions}
+        sort={sort}
+        onSort={onSort}
       />
       {assignQuestionId && (
         <AssignDialog
@@ -228,8 +223,6 @@ type ColumnDeps = {
   onAssign: (questionId: string) => void;
   onDuplicate: (questionId: string) => void;
   isDuplicating: boolean;
-  sort: SortState;
-  onSort: (column: string, order: 'asc' | 'desc') => void;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onToggleAll: () => void;
@@ -242,8 +235,6 @@ function useQuestionsColumns({
   onAssign,
   onDuplicate,
   isDuplicating,
-  sort,
-  onSort,
   selectedIds,
   onToggleSelect,
   onToggleAll,
@@ -274,16 +265,7 @@ function useQuestionsColumns({
     },
     {
       accessorKey: 'prompt',
-      meta: { label: t('column_prompt') },
-      header: () => (
-        <SortableHeader
-          label={t('column_prompt')}
-          column="prompt"
-          currentSort={sort.column}
-          currentOrder={sort.order}
-          onSort={onSort}
-        />
-      ),
+      meta: { label: t('column_prompt'), sortKey: 'prompt' },
       cell: ({ row }) => (
         <div className="min-w-0">
           <p className="font-medium text-foreground truncate max-w-md">{row.original.prompt}</p>
@@ -292,16 +274,7 @@ function useQuestionsColumns({
     },
     {
       id: 'type',
-      meta: { label: t('column_type') },
-      header: () => (
-        <SortableHeader
-          label={t('column_type')}
-          column="question_type"
-          currentSort={sort.column}
-          currentOrder={sort.order}
-          onSort={onSort}
-        />
-      ),
+      meta: { label: t('column_type'), sortKey: 'question_type' },
       cell: ({ row }) => <QuestionTypeBadge type={row.original.questionType} />,
     },
     {
@@ -311,16 +284,7 @@ function useQuestionsColumns({
     },
     {
       id: 'points',
-      meta: { label: t('column_points') },
-      header: () => (
-        <SortableHeader
-          label={t('column_points')}
-          column="points"
-          currentSort={sort.column}
-          currentOrder={sort.order}
-          onSort={onSort}
-        />
-      ),
+      meta: { label: t('column_points'), sortKey: 'points' },
       cell: ({ row }) => <span className="tabular-nums text-muted-foreground">{row.original.points ?? 1}</span>,
     },
     {

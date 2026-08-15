@@ -50,6 +50,7 @@ export function ConfirmDialog({
   const t = useTranslations('common');
   const finalConfirmLabel = confirmLabel ?? t('confirm');
   const finalCancelLabel = cancelLabel ?? t('cancel');
+  // Only pass "open" when the caller controls it — otherwise let AlertDialog manage its own state
   const isControlled = open !== undefined;
 
   return (

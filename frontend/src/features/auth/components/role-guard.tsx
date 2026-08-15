@@ -37,6 +37,7 @@ export function RoleGuard({ requiredRole, children }: RoleGuardProps) {
     }
   }, [hydrated, hasAccess, router]);
 
+  // Wait for Zustand persist to rehydrate before checking role — user is briefly null on first render
   if (!hydrated || !hasAccess) return null;
 
   return <>{children}</>;

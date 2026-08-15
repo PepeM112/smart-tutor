@@ -43,6 +43,7 @@ export function QuickTestDialog({ compact = false }: { compact?: boolean }) {
       onOpenChange={open => {
         if (open) {
           setTestId('');
+          // Wait for the dialog's open animation before focusing
           setTimeout(() => inputRef.current?.focus(), 50);
         }
       }}

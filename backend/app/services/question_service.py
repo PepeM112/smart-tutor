@@ -102,6 +102,7 @@ def _get_owned_test_or_404(db: Session, *, test_id: str, current_user: User) -> 
     return get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
 
 
+# Groups and standalone questions share one order sequence per test
 def _next_order_for_test(test: Test) -> int:
     max_order = max((q.order for q in test.questions), default=-1)
     max_group_order = max((g.order for g in test.question_groups), default=-1)

@@ -18,6 +18,7 @@ class User(Base, CreatedAtMixin):
     display_name: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     locale: Mapped[str] = mapped_column(String(5), default="en")
     theme: Mapped[str] = mapped_column(String(20), default="system")
+    # None falls back to Anthropic in get_user_llm_client — not the AI_GRADING_PROVIDER env var used for system calls
     ai_provider: Mapped[AIProvider | None] = mapped_column(nullable=True, default=None)
     encrypted_anthropic_key: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     encrypted_openai_key: Mapped[str | None] = mapped_column(String, nullable=True, default=None)

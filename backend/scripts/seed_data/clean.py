@@ -9,6 +9,7 @@ def clean_user_data(db: Session, user_id: str) -> None:
     user_tests = "SELECT id FROM test WHERE user_id = :uid"
     user_groups = f"SELECT id FROM test_question_group WHERE test_id IN ({user_tests})"
 
+    # Delete order follows FK dependencies: children before parents
     db.execute(
         text("DELETE FROM answer WHERE test_result_id IN (SELECT id FROM test_result WHERE user_id = :uid)"), uid
     )

@@ -109,6 +109,7 @@ def recalculate_test_result(db: Session, test_result: TestResult) -> None:
     pending = 0
     earned_pts = 0.0
     pending_pts = 0.0
+    # Total points are fixed at submission time — grading only shifts earned/pending, never the total
     total_pts = test_result.total_points
 
     for answer in answers:

@@ -109,6 +109,7 @@ function buildSearchableText(container: HTMLElement): { text: string; nodes: Tex
   let prevBlockParent: Element | null = null;
 
   let current: Text | null;
+  // SAFETY: SHOW_TEXT filter guarantees nextNode() returns only Text nodes
   while ((current = walker.nextNode() as Text | null)) {
     const blockParent = closestBlockAncestor(current, container);
     if (prevBlockParent && blockParent !== prevBlockParent) {

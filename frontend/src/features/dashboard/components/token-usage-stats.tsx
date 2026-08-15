@@ -10,6 +10,7 @@ type Props = {
   totalEstimatedCost: string | null;
 };
 
+// Show more decimal places below $1 so small AI costs don't all round to $0.00
 function formatCost(value: string): string {
   const num = parseFloat(value);
   if (num >= 1) return `$${num.toFixed(2)}`;

@@ -29,6 +29,7 @@ def fetch_and_update_prices(db: Session) -> int:
         model_id = model.get("id", "")
         if model_id not in our_models:
             continue
+        # OpenRouter reports pricing as USD per single token, not per 1K/1M tokens
         pricing = model.get("pricing", {})
         prompt_price = pricing.get("prompt")
         completion_price = pricing.get("completion")

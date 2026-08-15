@@ -105,6 +105,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
     mutationFn: (instructions: string) => {
       const allQuestions = editorItemsToPreviewInputs(items);
+      // Expand block indices to flat question indices — the AI edit API takes indices into the flat question list
       const flatIndices = flattenEditorItems(items)
         .map((entry, i) => (selectedIndices.has(entry.blockIndex) ? i : -1))
         .filter(i => i >= 0);

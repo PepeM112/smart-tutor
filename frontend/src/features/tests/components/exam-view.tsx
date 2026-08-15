@@ -316,6 +316,8 @@ function QuestionCard({
   const isSimple = question.questionType === QuestionType.SIMPLE;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isLongText = question.questionType === QuestionType.LONG_TEXT;
+  // Fall back to MEDIUM tier when lengthLimit is missing or unrecognized
+  // SAFETY: isLongText is true only when questionType === LONG_TEXT, guaranteeing LT content shape
   const longTextTier = isLongText
     ? (LONG_TEXT_LENGTH_TIERS.find(
         tier => tier.value === (content as LongTextContentStripped | undefined)?.lengthLimit
@@ -359,7 +361,8 @@ function QuestionCard({
       {/* Multiple choice checkboxes */}
       {isMC && content && (
         <div className="space-y-2">
-          {((content as MultipleChoiceContentStripped).options ?? []).map((option, idx) => {
+          {/* SAFETY: isMC is true only when questionType === MULTIPLE_CHOICE */}
+          {(((content as MultipleChoiceContentStripped).options) ?? []).map((option, idx) => {
             const checked = parseMcAnswer(answer).includes(idx);
             return (
               <div key={idx} className="flex items-center gap-3">

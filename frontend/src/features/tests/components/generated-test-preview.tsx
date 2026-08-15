@@ -58,6 +58,7 @@ export function GeneratedTestPreview() {
   });
   const noteContent = noteData?.data?.content ?? undefined;
 
+  // createTest clears the store before navigating, which would trigger this redirect — skip it with the ref guard
   useEffect(() => {
     if (!hasData && !isNavigatingRef.current) router.replace(Routes.NOTES);
   }, [hasData, router]);
@@ -298,6 +299,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
   const longTextQuestions = questions.filter(q => q.questionType === QuestionType.LONG_TEXT);
 
   mcQuestions.forEach(q => {
+    // SAFETY: filtered by questionType === MULTIPLE_CHOICE above
     const content = q.content as MultipleChoiceContent;
     items.push({
       id: crypto.randomUUID(),
@@ -316,6 +318,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
   });
 
   longTextQuestions.forEach(q => {
+    // SAFETY: filtered by questionType === LONG_TEXT above
     const content = q.content as LongTextContent;
     items.push({
       id: crypto.randomUUID(),
@@ -335,6 +338,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
     });
   });
 
+  // Combine all Simple questions into one group — the editor only shows Simple questions inside a group, never standalone
   if (simpleQuestions.length > 0) {
     items.push({
       id: crypto.randomUUID(),
@@ -345,6 +349,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
         groupType: QuestionGroupType.UNKNOWN,
         title: '',
         rows: simpleQuestions.map(q => {
+          // SAFETY: filtered by questionType === SIMPLE above
           const content = q.content as SimpleContent;
           return {
             prompt: q.prompt,

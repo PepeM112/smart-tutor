@@ -83,6 +83,7 @@ def list_by_user(
         .where(
             Question.user_id == user_id,
             Question.status == int(QuestionStatus.ACTIVE),
+            # Exclude frozen version snapshots (parent_id set); keep bank questions and current versions only
             sa.or_(Question.test_id.is_(None), Test.parent_id.is_(None)),
         )
     )
@@ -90,6 +91,7 @@ def list_by_user(
     if question_type:
         stmt = stmt.where(Question.question_type.in_(question_type))
     if test_id:
+        # "bank" is a UI sentinel mixed with real test UUIDs, meaning "include unattached questions"
         bank_requested = "bank" in test_id
         real_ids = [t for t in test_id if t != "bank"]
         if bank_requested and real_ids:

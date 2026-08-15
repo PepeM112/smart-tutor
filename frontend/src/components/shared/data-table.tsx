@@ -1,10 +1,17 @@
 'use client';
 
-import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import {
+  type ColumnDef,
+  type Header as TanStackHeader,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { ChevronDown, EllipsisVertical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type ReactNode, useState } from 'react';
 
+import { SortableHeader, type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -39,6 +46,8 @@ type Props<T> = {
   renderPreview?: (row: T) => ReactNode;
   expandable?: boolean;
   renderActions?: (row: T) => MobileAction[];
+  sort?: SortState;
+  onSort?: (column: string | null, order: SortDirection) => void;
 };
 
 export function DataTable<T>({
@@ -49,6 +58,8 @@ export function DataTable<T>({
   renderPreview,
   expandable = true,
   renderActions,
+  sort,
+  onSort,
 }: Props<T>) {
   const t = useTranslations('common');
   const { isDesktop } = useBreakpoint();
@@ -63,6 +74,20 @@ export function DataTable<T>({
 
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+
+  // Columns with meta.sortKey get a SortableHeader automatically; others render normally.
+  function renderHeader<TData>(header: TanStackHeader<TData, unknown>) {
+    if (header.isPlaceholder) return null;
+
+    const meta = header.column.columnDef.meta as { label?: string; sortKey?: string } | undefined;
+    if (meta?.sortKey && sort && onSort) {
+      const label =
+        meta.label ?? (typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : '');
+      return <SortableHeader label={label} column={meta.sortKey} sort={sort} onSort={onSort} />;
+    }
+
+    return flexRender(header.column.columnDef.header, header.getContext());
+  }
 
   if (!isDesktop && renderPreview) {
     if (isEmpty) {
@@ -99,9 +124,7 @@ export function DataTable<T>({
           {table.getHeaderGroups().map(hg => (
             <TableRow key={hg.id} className="hover:bg-transparent">
               {hg.headers.map(header => (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
+                <TableHead key={header.id}>{renderHeader(header)}</TableHead>
               ))}
             </TableRow>
           ))}

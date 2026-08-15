@@ -26,6 +26,7 @@ export function buildExamItems(test: TestRead): ExamItem[] {
   return items.sort((a, b) => a.order - b.order);
 }
 
+// met is tri-state: null = challenge pending, true/false = AI re-evaluation overrides original verdict
 export function effectiveMet(item: RubricResultItem): boolean {
   if (item.challengeResult != null && item.challengeResult.met != null) {
     return item.challengeResult.met;
@@ -41,6 +42,7 @@ export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRea
   const maxPoints = question?.points ?? 1;
 
   if (answer.status === AnswerStatus.FAILED) {
+    // -1 sentinel — callers branch on answer.status === FAILED before reading pct
     return { label: `—/${maxPoints.toFixed(2)}`, pct: -1 };
   }
 
@@ -94,6 +96,7 @@ export function isAnswerWrong(status: AnswerStatus): boolean {
   return status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
 }
 
+// PARTIAL answers earn half credit toward the group's score
 export function countCorrectInGroup(questions: QuestionRead[], answerMap: Map<string, AnswerRead>): number {
   return questions.reduce((sum, q) => {
     const status = answerMap.get(q.id)?.status;

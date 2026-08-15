@@ -14,6 +14,7 @@ import { markdownComponents } from './markdown-components';
 
 import type { Element, Root } from 'hast';
 
+// Tags rendered elements with source offsets so a text selection can map back to the markdown range (for AI edit)
 function rehypeSourcePositions() {
   return (tree: Root) => {
     visit(tree, 'element', (node: Element) => {
@@ -28,6 +29,7 @@ function rehypeSourcePositions() {
 
 // ── Wrap chars for editor keyboard shortcuts ────────────────────────
 
+// '~' doubles to '~~' because GFM strikethrough needs two tildes
 const WRAP_CHARS: Record<string, string> = { '*': '*', '`': '`', '~': '~~' };
 
 // ── Component ───────────────────────────────────────────────────────

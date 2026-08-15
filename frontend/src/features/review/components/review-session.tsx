@@ -46,6 +46,7 @@ export function ReviewSession({ initialQuestions, mode }: Props) {
         body: { userAnswer },
       }),
     onSuccess: (response, { userAnswer }) => {
+      // SAFETY: SDK returns QuestionCheckResponse on success; throwOnError handles failures
       const data = response.data as QuestionCheckResponse;
       const result: CheckResult = {
         status: data.status,

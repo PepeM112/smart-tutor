@@ -21,6 +21,7 @@ _PROVIDER_MAP: dict[str, AIProvider] = {
 def _format_cost(cost: Decimal | None) -> str | None:
     if cost is None:
         return None
+    # 10 decimal places matches the estimated_cost column's Numeric(12, 10) precision
     return str(cost.quantize(Decimal("0.0000000001")))
 
 

@@ -160,7 +160,6 @@ function SelectField({
   );
 }
 
-
 function ToggleField({
   item,
   value,
@@ -174,6 +173,7 @@ function ToggleField({
 
   const options = useMemo(() => {
     const items = item.options?.items ?? [];
+    // '__all__' sentinel maps back to undefined (no filter) on click
     const all: FilterEntity[] = [{ label: 'common.all', value: '__all__' }];
     items.forEach(opt => {
       all.push(isFilterEntity(opt) ? opt : { label: String(opt), value: opt });
@@ -194,9 +194,7 @@ function ToggleField({
             onClick={() => onChange(opt.value === '__all__' ? undefined : opt.value)}
             className={cn(
               'flex-1 basis-0 rounded-sm px-3 py-1.5 text-center text-sm font-medium transition-colors',
-              isActive
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+              isActive ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             )}
           >
             {t(opt.label)}
@@ -257,14 +255,11 @@ function SearchableMultiSelectField({
     [selected, onChange]
   );
 
-  const handleBlur = useCallback(
-    (e: React.FocusEvent) => {
-      if (containerRef.current?.contains(e.relatedTarget)) return;
-      setOpen(false);
-      setSearch('');
-    },
-    []
-  );
+  const handleBlur = useCallback((e: React.FocusEvent) => {
+    if (containerRef.current?.contains(e.relatedTarget)) return;
+    setOpen(false);
+    setSearch('');
+  }, []);
 
   return (
     <div ref={containerRef} className="relative" onBlur={handleBlur}>
@@ -277,9 +272,7 @@ function SearchableMultiSelectField({
             key={String(entity.value)}
             className="inline-flex items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
           >
-            <span className="max-w-[140px] truncate">
-              {t.has(entity.label) ? t(entity.label) : entity.label}
-            </span>
+            <span className="max-w-[140px] truncate">{t.has(entity.label) ? t(entity.label) : entity.label}</span>
             <button
               type="button"
               onClick={e => {
@@ -333,9 +326,7 @@ function SearchableMultiSelectField({
                     onClick={() => toggle(entity.value)}
                     className="flex w-full items-center gap-2 rounded-sm px-1.5 py-1.5 text-left text-sm hover:bg-muted"
                   >
-                    <Check
-                      className={cn('size-3.5 shrink-0', isChecked ? 'text-foreground' : 'text-transparent')}
-                    />
+                    <Check className={cn('size-3.5 shrink-0', isChecked ? 'text-foreground' : 'text-transparent')} />
                     <span className="truncate">{t.has(entity.label) ? t(entity.label) : entity.label}</span>
                   </button>
                 );

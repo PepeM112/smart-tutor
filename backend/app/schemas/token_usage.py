@@ -11,6 +11,7 @@ class TokenUsageRead(BaseSchema):
     feature: AIFeature
     input_tokens: int
     output_tokens: int
+    # String (not float) to preserve Decimal precision — per-token costs are too small for float
     estimated_cost: str | None
     created_at: datetime
 

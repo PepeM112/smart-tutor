@@ -7,6 +7,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { themes, type ThemePreview } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 
+// Membership here splits the picker into light/dark groups — keep in sync with lib/themes.ts
 const DARK_THEMES = new Set(['midnight', 'carbon', 'neon', 'noir']);
 
 const lightThemes = themes.filter(t => !DARK_THEMES.has(t.id));

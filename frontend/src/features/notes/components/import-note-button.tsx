@@ -36,6 +36,7 @@ export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
 
     const reader = new FileReader();
     reader.onload = () => {
+      // SAFETY: readAsText always produces a string result on success
       const content = reader.result as string;
       const title = file.name.replace(/\.md$/i, '');
       createNote({ title, content });
