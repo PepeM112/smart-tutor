@@ -362,7 +362,7 @@ function QuestionCard({
       {isMC && content && (
         <div className="space-y-2">
           {/* SAFETY: isMC is true only when questionType === MULTIPLE_CHOICE */}
-          {(((content as MultipleChoiceContentStripped).options) ?? []).map((option, idx) => {
+          {((content as MultipleChoiceContentStripped).options ?? []).map((option, idx) => {
             const checked = parseMcAnswer(answer).includes(idx);
             return (
               <div key={idx} className="flex items-center gap-3">

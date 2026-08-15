@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.crud import test_result as test_result_crud
 from app.models.test_result import TestResult
 from app.models.user import User
+from app.schemas.test_result import SortOrder, TestResultListItem, TestResultSortBy
 from app.services.service_helpers import get_owned_or_404
 
 
@@ -17,11 +18,11 @@ def list_results(
     *,
     current_user: User,
     search: str | None = None,
-    sort_by: str | None = None,
-    sort_order: str = "desc",
+    sort_by: TestResultSortBy | None = None,
+    sort_order: SortOrder = "desc",
     page: int = 1,
     per_page: int = 20,
-) -> tuple[list[TestResult], int]:
+) -> tuple[list[TestResultListItem], int]:
     items, total = test_result_crud.list_by_user(
         db,
         user_id=current_user.id,
@@ -31,4 +32,4 @@ def list_results(
         page=page,
         per_page=per_page,
     )
-    return list(items), total
+    return [TestResultListItem.model_validate(r) for r in items], total

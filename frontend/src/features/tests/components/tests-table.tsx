@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { getQuestionTypeInfo } from '@/features/tests/utils/question-icons';
 import { sdk } from '@/lib/api-client';
+import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -181,6 +182,14 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
           </div>
         );
       },
+    },
+    {
+      id: 'created',
+      header: t('column_created'),
+      meta: { sortKey: 'created_at' },
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>
+      ),
     },
     {
       id: 'actions',

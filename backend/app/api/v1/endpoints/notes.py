@@ -49,7 +49,7 @@ def list_(
         per_page=per_page,
     )
     return PaginatedNoteRead(
-        items=[NoteRead.model_validate(n) for n in items],
+        items=items,
         total=total,
         page=page,
         per_page=per_page,

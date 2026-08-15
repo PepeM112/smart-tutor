@@ -7,7 +7,7 @@ from app.crud import test_question_group as group_crud
 from app.models.test import Test
 from app.models.user import User
 from app.schemas.question import QuestionCreate
-from app.schemas.test import SortOrder, TestCreate, TestSortBy, TestUpdate
+from app.schemas.test import SortOrder, TestCreate, TestRead, TestSortBy, TestUpdate
 from app.schemas.test_question_group import TestQuestionGroupCreate
 from app.services.service_helpers import get_owned_or_404
 from app.services.versioning_service import version_test_if_needed
@@ -69,7 +69,7 @@ def list_tests(
     sort_order: SortOrder = "desc",
     page: int = 1,
     per_page: int = 20,
-) -> tuple[list[Test], int]:
+) -> tuple[list[TestRead], int]:
     items, total = test_crud.list_by_user(
         db,
         user_id=current_user.id,
@@ -79,7 +79,7 @@ def list_tests(
         page=page,
         per_page=per_page,
     )
-    return list(items), total
+    return [TestRead.model_validate(t) for t in items], total
 
 
 def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:

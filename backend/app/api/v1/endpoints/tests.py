@@ -55,7 +55,7 @@ def list_(
         per_page=per_page,
     )
     return PaginatedTestRead(
-        items=[TestRead.model_validate(t) for t in items],
+        items=items,
         total=total,
         page=page,
         per_page=per_page,

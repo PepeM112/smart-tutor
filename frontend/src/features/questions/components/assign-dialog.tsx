@@ -33,7 +33,7 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
 
   const { data: testsResponse } = useQuery({
     queryKey: ['tests'],
-    queryFn: () => sdk.testsList(),
+    queryFn: () => sdk.testsList({ query: { per_page: 100 } }),
     enabled: open,
   });
 

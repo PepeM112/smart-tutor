@@ -10,7 +10,6 @@ from app.models.user import User
 from app.schemas.test_result import (
     PaginatedTestResultListItem,
     SortOrder,
-    TestResultListItem,
     TestResultRead,
     TestResultSortBy,
 )
@@ -42,7 +41,7 @@ def list_(
         per_page=per_page,
     )
     return PaginatedTestResultListItem(
-        items=[TestResultListItem.model_validate(r) for r in items],
+        items=items,
         total=total,
         page=page,
         per_page=per_page,

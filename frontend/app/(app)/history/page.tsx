@@ -1,7 +1,6 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -12,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { HistoryTable } from '@/features/history/components/history-table';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { useFilters } from '@/hooks/use-filters';
+import { useUrlSort } from '@/hooks/use-url-sort';
 import { sdk } from '@/lib/api-client';
 import { FilterType, type FilterItem } from '@/lib/filters';
 
@@ -21,13 +21,9 @@ export default function HistoryPage() {
   const t = useTranslations('history');
   useBreadcrumb(t('title'));
 
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
   const [page, setPage] = useState(1);
-  const sortBy = searchParams.get('sort_c') ?? undefined;
-  const sortOrder = (searchParams.get('sort_o') as 'asc' | 'desc' | null) ?? undefined;
+  const resetPage = useCallback(() => setPage(1), []);
+  const { sort, sortBy, sortOrder, handleSort } = useUrlSort(['score', 'created_at'] as const, resetPage);
 
   const filterConfig: FilterItem[] = useMemo(
     () => [
@@ -71,7 +67,7 @@ export default function HistoryPage() {
           search: search || undefined,
           page,
           per_page: PER_PAGE,
-          sort_by: sortBy as 'score' | 'created_at' | undefined,
+          sort_by: sortBy,
           sort_order: sortOrder,
         },
       }),
@@ -81,32 +77,6 @@ export default function HistoryPage() {
   const total = response?.data?.total ?? 0;
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
-
-  const handleSort = useCallback(
-    (column: string | null, order: 'asc' | 'desc' | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (column && order) {
-        params.set('sort_c', column);
-        params.set('sort_o', order);
-      } else {
-        params.delete('sort_c');
-        params.delete('sort_o');
-      }
-      params.delete('page');
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-      setPage(1);
-    },
-    [searchParams, pathname, router]
-  );
-
-  const sort = useMemo(
-    () => ({
-      column: sortBy ?? null,
-      order: sortOrder ?? null,
-    }),
-    [sortBy, sortOrder]
-  );
 
   return (
     <div className="space-y-6">
@@ -134,7 +104,7 @@ export default function HistoryPage() {
       ) : (
         <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
           <HistoryTable data={items} sort={sort} onSort={handleSort} />
-          <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} />
+          <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from app.core.enums import TestStatus
@@ -36,6 +37,7 @@ class TestRead(TestBase):
     source_note_id: str | None = None
     version: int = 1
     parent_id: str | None = None
+    created_at: datetime
     questions: list[QuestionRead] = []
     question_groups: list[TestQuestionGroupRead] = []
 

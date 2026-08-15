@@ -7,7 +7,7 @@ from sqlalchemy.orm import InstrumentedAttribute, Session
 from app.core.enums import NoteSource
 from app.crud.helpers import token_search
 from app.models.note import Note
-from app.schemas.note import NoteUpdate
+from app.schemas.note import NoteSortBy, NoteUpdate, SortOrder
 
 
 def get_by_id(db: Session, *, id: str) -> Note | None:
@@ -22,7 +22,7 @@ _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
 }
 
 
-def _sort_clause(sort_by: str | None, sort_order: str) -> UnaryExpression[object]:
+def _sort_clause(sort_by: NoteSortBy | None, sort_order: SortOrder) -> UnaryExpression[object]:
     column = _SORT_COLUMNS[sort_by] if sort_by and sort_by in _SORT_COLUMNS else Note.updated_at
     clause = column.asc() if sort_order == "asc" else column.desc()
     return cast(UnaryExpression[object], clause)
@@ -34,8 +34,8 @@ def list_by_user(
     user_id: str,
     search: str | None = None,
     source: list[int] | None = None,
-    sort_by: str | None = None,
-    sort_order: str = "desc",
+    sort_by: NoteSortBy | None = None,
+    sort_order: SortOrder = "desc",
     page: int = 1,
     per_page: int = 20,
 ) -> tuple[Sequence[Note], int]:

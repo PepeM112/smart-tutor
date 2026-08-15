@@ -1237,6 +1237,10 @@ export type TestRead = {
      */
     parentId?: string | null;
     /**
+     * Createdat
+     */
+    createdAt: Date;
+    /**
      * Questions
      */
     questions?: Array<QuestionRead>;

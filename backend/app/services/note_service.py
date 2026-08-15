@@ -5,7 +5,17 @@ from app.core.enums import AIFeature, NoteLength, NoteSource
 from app.crud import note as note_crud
 from app.models.note import Note
 from app.models.user import User
-from app.schemas.note import NoteChunkEdit, NoteChunkEditResponse, NoteCreate, NoteGenerate, NoteRefine, NoteUpdate
+from app.schemas.note import (
+    NoteChunkEdit,
+    NoteChunkEditResponse,
+    NoteCreate,
+    NoteGenerate,
+    NoteRead,
+    NoteRefine,
+    NoteSortBy,
+    NoteUpdate,
+    SortOrder,
+)
 from app.services import token_usage_service
 from app.services.llm import complete_for_user
 from app.services.note_prompts import (
@@ -32,11 +42,11 @@ def list_notes(
     current_user: User,
     search: str | None = None,
     source: list[int] | None = None,
-    sort_by: str | None = None,
-    sort_order: str = "desc",
+    sort_by: NoteSortBy | None = None,
+    sort_order: SortOrder = "desc",
     page: int = 1,
     per_page: int = 20,
-) -> tuple[list[Note], int]:
+) -> tuple[list[NoteRead], int]:
     items, total = note_crud.list_by_user(
         db,
         user_id=current_user.id,
@@ -47,7 +57,7 @@ def list_notes(
         page=page,
         per_page=per_page,
     )
-    return list(items), total
+    return [NoteRead.model_validate(n) for n in items], total
 
 
 def get_note(db: Session, *, note_id: str, current_user: User) -> Note:

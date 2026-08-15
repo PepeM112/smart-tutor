@@ -1,6 +1,6 @@
 from typing import TypeAlias
 
-from sqlalchemy import ColumnElement, and_, or_
+from sqlalchemy import ColumnElement, and_, or_, true
 from sqlalchemy.orm import InstrumentedAttribute
 
 _TextColumn: TypeAlias = InstrumentedAttribute[str] | InstrumentedAttribute[str | None]
@@ -14,4 +14,7 @@ def token_search(*columns: _TextColumn, search: str) -> ColumnElement[bool]:
                AND (title ILIKE '%exam%' OR desc ILIKE '%exam%')``
     """
     tokens = search.split()
-    return and_(*(or_(*(col.ilike(f"%{t}%") for col in columns)) for t in tokens))
+    if not tokens:
+        return true()
+    escaped = [t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") for t in tokens]
+    return and_(*(or_(*(col.ilike(f"%{e}%", escape="\\") for col in columns)) for e in escaped))

@@ -2,12 +2,13 @@ from collections.abc import Sequence
 from typing import cast
 
 from sqlalchemy import UnaryExpression, func, select
-from sqlalchemy.orm import InstrumentedAttribute, Session, selectinload
+from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, selectinload
 
 from app.crud.helpers import token_search
 from app.models.answer import Answer
 from app.models.test import Test
 from app.models.test_result import TestResult
+from app.schemas.test_result import SortOrder, TestResultSortBy
 
 
 def get_by_id(db: Session, *, id: str) -> TestResult | None:
@@ -25,7 +26,7 @@ _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
 }
 
 
-def _sort_clause(sort_by: str | None, sort_order: str) -> UnaryExpression[object]:
+def _sort_clause(sort_by: TestResultSortBy | None, sort_order: SortOrder) -> UnaryExpression[object]:
     column = _SORT_COLUMNS[sort_by] if sort_by and sort_by in _SORT_COLUMNS else TestResult.created_at
     clause = column.asc() if sort_order == "asc" else column.desc()
     return cast(UnaryExpression[object], clause)
@@ -36,15 +37,15 @@ def list_by_user(
     *,
     user_id: str,
     search: str | None = None,
-    sort_by: str | None = None,
-    sort_order: str = "desc",
+    sort_by: TestResultSortBy | None = None,
+    sort_order: SortOrder = "desc",
     page: int = 1,
     per_page: int = 20,
 ) -> tuple[Sequence[TestResult], int]:
     stmt = (
         select(TestResult)
         .join(Test, TestResult.test_id == Test.id)
-        .options(selectinload(TestResult.test))
+        .options(contains_eager(TestResult.test))
         .where(TestResult.user_id == user_id)
     )
 

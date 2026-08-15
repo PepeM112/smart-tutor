@@ -2186,6 +2186,11 @@ export const TestReadSchema = {
             ],
             title: 'Parentid'
         },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
         questions: {
             items: {
                 $ref: '#/components/schemas/QuestionRead'
@@ -2208,7 +2213,8 @@ export const TestReadSchema = {
         'title',
         'id',
         'userId',
-        'status'
+        'status',
+        'createdAt'
     ],
     title: 'TestRead'
 } as const;

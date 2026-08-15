@@ -160,6 +160,7 @@
     "column_title": "Title",
     "column_questions": "Questions",
     "column_types": "Types",
+    "column_created": "Created",
     "quick_test": "Quick Test",
     "quick_test_description": "Enter the ID of the test you want to take.",
     "test_id": "Test ID",
