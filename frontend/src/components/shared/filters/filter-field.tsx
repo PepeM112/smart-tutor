@@ -67,7 +67,7 @@ function MultipleField({
   value: Primitive[] | undefined;
   onChange: (v: Primitive[] | undefined) => void;
 }) {
-  const t = useTranslations('common');
+  const t = useTranslations();
   const [inputValue, setInputValue] = useState('');
   const tags = useMemo(() => value ?? [], [value]);
 
@@ -104,7 +104,7 @@ function MultipleField({
         onKeyDown={handleKeyDown}
         onBlur={() => addTag(inputValue)}
         className="h-8 text-sm"
-        placeholder={t('type_and_enter')}
+        placeholder={t('common.type_and_enter')}
       />
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
@@ -139,7 +139,6 @@ function SelectField({
   onChange: (v: Primitive | undefined) => void;
 }) {
   const t = useTranslations();
-  const tCommon = useTranslations('common');
   const items = item.options?.items ?? [];
 
   return (
@@ -153,7 +152,7 @@ function SelectField({
       }}
       className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
     >
-      <option value="">{tCommon('all')}</option>
+      <option value="">{t('common.all')}</option>
       {items.map(opt => {
         const entity = isFilterEntity(opt) ? opt : { label: String(opt), value: opt };
         return (
@@ -218,7 +217,7 @@ function DateField({
   value: DateFilterValue | undefined;
   onChange: (v: DateFilterValue | undefined) => void;
 }) {
-  const t = useTranslations('common');
+  const t = useTranslations();
   const from = value?.from ? toLocalDateString(value.from) : '';
   const to = value?.to ? toLocalDateString(value.to) : '';
 
@@ -235,11 +234,11 @@ function DateField({
   return (
     <div className="grid grid-cols-2 gap-2">
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">{t('from')}</label>
+        <label className="mb-1 block text-xs text-muted-foreground">{t('common.from')}</label>
         <Input type="date" value={from} onChange={e => handleChange('from', e.target.value)} className="h-8 text-sm" />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">{t('to')}</label>
+        <label className="mb-1 block text-xs text-muted-foreground">{t('common.to')}</label>
         <Input type="date" value={to} onChange={e => handleChange('to', e.target.value)} className="h-8 text-sm" />
       </div>
     </div>
@@ -260,7 +259,7 @@ function RangeField({
   value: RangeFilterValue | undefined;
   onChange: (v: RangeFilterValue | undefined) => void;
 }) {
-  const t = useTranslations('common');
+  const t = useTranslations();
 
   const handleChange = (field: 'min' | 'max', raw: string) => {
     const next: RangeFilterValue = { ...value };
@@ -275,7 +274,7 @@ function RangeField({
   return (
     <div className="grid grid-cols-2 gap-2">
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">{t('min')}</label>
+        <label className="mb-1 block text-xs text-muted-foreground">{t('common.min')}</label>
         <Input
           type="number"
           value={value?.min != null ? String(value.min) : ''}
@@ -284,7 +283,7 @@ function RangeField({
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">{t('max')}</label>
+        <label className="mb-1 block text-xs text-muted-foreground">{t('common.max')}</label>
         <Input
           type="number"
           value={value?.max != null ? String(value.max) : ''}

@@ -16,17 +16,17 @@ export function VocabularyReviewTable({
   questions: QuestionRead[];
   answerMap: Map<string, AnswerRead>;
 }) {
-  const t = useTranslations('history');
+  const t = useTranslations();
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">#</TableHead>
-          <TableHead>{t('column_question')}</TableHead>
-          <TableHead>{t('column_your_answer')}</TableHead>
-          <TableHead>{t('correct_answer')}</TableHead>
-          <TableHead className="w-32 text-right">{t('column_result')}</TableHead>
+          <TableHead>{t('history.column_question')}</TableHead>
+          <TableHead>{t('history.column_your_answer')}</TableHead>
+          <TableHead>{t('history.correct_answer')}</TableHead>
+          <TableHead className="w-32 text-right">{t('history.column_result')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -43,7 +43,7 @@ export function VocabularyReviewTable({
               </TableCell>
               <TableCell>
                 <span className={cn(isWrong && 'line-through text-muted-foreground')}>
-                  {(answer && getUserAnswerDisplay(q, answer.userAnswer)) ?? t('no_answer')}
+                  {(answer && getUserAnswerDisplay(q, answer.userAnswer)) ?? t('history.no_answer')}
                 </span>
               </TableCell>
               <TableCell>

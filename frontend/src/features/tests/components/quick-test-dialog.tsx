@@ -11,8 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Routes } from '@/lib/routes';
 
 export function QuickTestDialog({ compact = false }: { compact?: boolean }) {
-  const t = useTranslations('tests');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const router = useRouter();
   const [testId, setTestId] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,14 +29,14 @@ export function QuickTestDialog({ compact = false }: { compact?: boolean }) {
           size={compact ? 'icon-lg' : 'lg'}
           variant="outline"
           icon={Zap}
-          tooltip={compact ? t('quick_test') : undefined}
+          tooltip={compact ? t('tests.quick_test') : undefined}
         >
-          {!compact && t('quick_test')}
+          {!compact && t('tests.quick_test')}
         </Button>
       }
-      title={t('quick_test')}
-      description={t('quick_test_description')}
-      confirmLabel={tCommon('go')}
+      title={t('tests.quick_test')}
+      description={t('tests.quick_test_description')}
+      confirmLabel={t('common.go')}
       disableConfirm={!testId.trim()}
       onConfirm={handleGo}
       onOpenChange={open => {
@@ -50,7 +49,7 @@ export function QuickTestDialog({ compact = false }: { compact?: boolean }) {
     >
       <Input
         ref={inputRef}
-        placeholder={t('test_id')}
+        placeholder={t('tests.test_id')}
         value={testId}
         onChange={e => setTestId(e.target.value)}
         onKeyDown={e => {

@@ -29,8 +29,8 @@ const SOURCE_OPTIONS = [
 ];
 
 export default function NotesPage() {
-  const t = useTranslations('notes');
-  useBreadcrumb(t('title'));
+  const t = useTranslations();
+  useBreadcrumb(t('notes.title'));
 
   const [page, setPage] = useState(1);
   const resetPage = useCallback(() => setPage(1), []);
@@ -39,13 +39,13 @@ export default function NotesPage() {
   const filterConfig: FilterItem[] = useMemo(
     () => [
       {
-        label: t('filter_search'),
+        label: t('notes.filter_search'),
         key: 'search',
         type: FilterType.SINGLE,
         query: 'search',
       },
       {
-        label: t('filter_source'),
+        label: t('notes.filter_source'),
         key: 'source',
         type: FilterType.TOGGLE,
         query: 'source',
@@ -113,17 +113,17 @@ export default function NotesPage() {
           <ImportNoteButton compact />
           <GenerateNoteDialog compact />
           <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.NOTE_NEW}>{t('new_note')}</Link>
+            <Link href={Routes.NOTE_NEW}>{t('notes.new_note')}</Link>
           </Button>
         </div>
       </div>
 
-      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('failed_to_load')}>
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load')}>
         {isFilteredEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-muted-foreground">{t('no_results')}</p>
+            <p className="text-sm text-muted-foreground">{t('notes.no_results')}</p>
             <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-              {t('clear_filters')}
+              {t('notes.clear_filters')}
             </Button>
           </div>
         ) : (

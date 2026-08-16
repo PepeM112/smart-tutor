@@ -13,8 +13,8 @@ import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
 
 export default function ReviewPage() {
-  const t = useTranslations('review');
-  useBreadcrumb(t('title'));
+  const t = useTranslations();
+  useBreadcrumb(t('review.title'));
   const [mode, setMode] = useState<'review' | 'practice'>('review');
 
   const {
@@ -32,20 +32,20 @@ export default function ReviewPage() {
   const hasQuestions = reviewData?.hasQuestions ?? false;
 
   return (
-    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('failed_to_load')}>
+    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('review.failed_to_load')}>
       {questions.length === 0 && !hasQuestions ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <BookOpen className="size-10 text-muted-foreground/50 mb-4" />
-          <p className="text-muted-foreground">{t('no_questions')}</p>
-          <p className="text-sm text-muted-foreground mt-1">{t('create_tests_first')}</p>
+          <p className="text-muted-foreground">{t('review.no_questions')}</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('review.create_tests_first')}</p>
         </div>
       ) : questions.length === 0 && hasQuestions ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <PartyPopper className="size-10 text-muted-foreground/50 mb-4" />
-          <p className="text-muted-foreground">{t('all_caught_up')}</p>
-          <p className="text-sm text-muted-foreground mt-1">{t('no_questions_due')}</p>
+          <p className="text-muted-foreground">{t('review.all_caught_up')}</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('review.no_questions_due')}</p>
           <Button variant="outline" className="mt-4" onClick={() => setMode('practice')}>
-            {t('practice_anyway')}
+            {t('review.practice_anyway')}
           </Button>
         </div>
       ) : (

@@ -62,7 +62,7 @@ type Props = {
 };
 
 export function TokenUsageChart({ daily }: Props) {
-  const t = useTranslations('dashboard');
+  const t = useTranslations();
   const { isMobile } = useBreakpoint();
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
 
@@ -81,7 +81,7 @@ export function TokenUsageChart({ daily }: Props) {
   };
 
   if (data.length === 0) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">{t('no_usage_data')}</p>;
+    return <p className="py-12 text-center text-sm text-muted-foreground">{t('dashboard.no_usage_data')}</p>;
   }
 
   return (
@@ -124,7 +124,7 @@ export function TokenUsageChart({ daily }: Props) {
             const nameStr = `${name as string}`;
             const providerLabel =
               nameStr === 'cumulative'
-                ? t('cumulative')
+                ? t('dashboard.cumulative')
                 : (PROVIDER_COLORS[nameStr === 'anthropic' ? AiProvider.ANTHROPIC : AiProvider.OPENAI]?.label ??
                   nameStr);
             return [formatTokens(numVal), providerLabel];
@@ -138,7 +138,7 @@ export function TokenUsageChart({ daily }: Props) {
             const isHidden = hiddenSeries.has(value);
             const providerKey =
               value === 'anthropic' ? AiProvider.ANTHROPIC : value === 'openai' ? AiProvider.OPENAI : null;
-            const label = providerKey !== null ? PROVIDER_COLORS[providerKey].label : t('cumulative');
+            const label = providerKey !== null ? PROVIDER_COLORS[providerKey].label : t('dashboard.cumulative');
             return <span className={isHidden ? 'opacity-40' : ''}>{label}</span>;
           }}
           wrapperStyle={{ cursor: 'pointer', fontSize: isMobile ? 11 : 12 }}

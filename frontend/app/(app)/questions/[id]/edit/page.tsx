@@ -10,8 +10,8 @@ import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
 
 export default function EditQuestionPage() {
-  const t = useTranslations('questions');
-  useBreadcrumb(t('edit_question'));
+  const t = useTranslations();
+  useBreadcrumb(t('questions.edit_question'));
   const params = useParams<{ id: string }>();
 
   const {
@@ -24,7 +24,7 @@ export default function EditQuestionPage() {
   });
 
   return (
-    <QueryState isLoading={isLoading} isError={isError || !question?.data} errorMessage={t('failed_to_load')}>
+    <QueryState isLoading={isLoading} isError={isError || !question?.data} errorMessage={t('questions.failed_to_load')}>
       <div className="space-y-6">{question?.data && <QuestionForm question={question.data} />}</div>
     </QueryState>
   );

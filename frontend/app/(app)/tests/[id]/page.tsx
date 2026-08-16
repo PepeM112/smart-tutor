@@ -20,7 +20,7 @@ export default function TakeTestPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
-  const t = useTranslations('tests');
+  const t = useTranslations();
 
   const {
     data: testResponse,
@@ -52,21 +52,25 @@ export default function TakeTestPage({ params }: Props) {
     },
     onError: (err: unknown) => {
       const detail = (err as { detail?: string })?.detail;
-      toast.error(detail ?? t('failed_to_submit'));
+      toast.error(detail ?? t('tests.failed_to_submit'));
     },
   });
 
-  useBreadcrumb(test?.title ?? t('take_test'), [{ label: t('title'), href: Routes.TESTS }], Routes.TESTS);
+  useBreadcrumb(
+    test?.title ?? t('tests.take_test'),
+    [{ label: t('tests.title'), href: Routes.TESTS }],
+    Routes.TESTS
+  );
 
   // A test's content spans two collections (standalone questions + groups); empty only if both are
   const isEmpty = (test?.questions?.length ?? 0) === 0 && (test?.questionGroups?.length ?? 0) === 0;
 
   return (
-    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('failed_to_load')}>
+    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
       {!test ? (
-        <p className="text-muted-foreground">{t('test_not_found')}</p>
+        <p className="text-muted-foreground">{t('tests.test_not_found')}</p>
       ) : isEmpty ? (
-        <p className="text-muted-foreground">{t('no_questions_yet')}</p>
+        <p className="text-muted-foreground">{t('tests.no_questions_yet')}</p>
       ) : (
         <ExamView test={test} onSubmit={submitExam} isSubmitting={isSubmitting} />
       )}

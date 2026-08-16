@@ -22,7 +22,7 @@ type Props = {
 
 export function HistoryTable({ data, sort, onSort }: Props) {
   const router = useRouter();
-  const t = useTranslations('history');
+  const t = useTranslations();
   const columns = useMemo(() => getColumns(t), [t]);
 
   const renderPreview = useCallback(
@@ -44,7 +44,7 @@ export function HistoryTable({ data, sort, onSort }: Props) {
       data={data}
       sort={sort}
       onSort={onSort}
-      emptyMessage={t('no_history_yet')}
+      emptyMessage={t('history.no_history_yet')}
       onRowClick={row => router.push(Routes.RESULT_DETAIL(row.id))}
       renderPreview={renderPreview}
       expandable={false}
@@ -62,23 +62,23 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef<TestResultListItem, unknown>[] {
+function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResultListItem, unknown>[] {
   return [
     {
       accessorKey: 'testTitle',
-      header: t('column_test'),
+      header: t('history.column_test'),
       cell: ({ row }) => <p className="font-medium text-foreground truncate max-w-xs">{row.original.testTitle}</p>,
     },
     {
       id: 'score',
-      header: t('column_score'),
+      header: t('history.column_score'),
       meta: { sortKey: 'score' },
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5">
           <ScoreBadge score={row.original.score ?? 0} />
           {(row.original.pendingAnswers ?? 0) > 0 && (
             <span className="inline-flex items-center rounded-md bg-feedback-partial-bg px-1.5 py-0.5 text-xs font-medium text-feedback-partial">
-              {t('column_pending')}
+              {t('history.column_pending')}
             </span>
           )}
         </div>
@@ -86,7 +86,7 @@ function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef
     },
     {
       id: 'result',
-      header: t('column_result'),
+      header: t('history.column_result'),
       cell: ({ row }) => (
         <span className="tabular-nums text-muted-foreground">
           {row.original.correctAnswers} / {row.original.totalQuestions}
@@ -95,7 +95,7 @@ function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef
     },
     {
       accessorKey: 'createdAt',
-      header: t('column_date'),
+      header: t('history.column_date'),
       meta: { sortKey: 'created_at' },
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>,
     },
@@ -109,12 +109,12 @@ function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef
             <Button
               variant="ghost"
               size="icon-lg"
-              tooltip={t('view_details')}
+              tooltip={t('history.view_details')}
               onClick={e => {
                 e.stopPropagation();
                 router.push(Routes.RESULT_DETAIL(row.original.id));
               }}
-              aria-label={t('view_details')}
+              aria-label={t('history.view_details')}
             >
               <Eye className="size-4" />
             </Button>

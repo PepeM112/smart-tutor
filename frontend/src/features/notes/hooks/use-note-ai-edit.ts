@@ -36,7 +36,7 @@ type UseNoteAiEditParams = {
 };
 
 export function useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isDesktop }: UseNoteAiEditParams) {
-  const t = useTranslations('notes_ai');
+  const t = useTranslations();
 
   const [selectionTrigger, setSelectionTrigger] = useState<SelectionTrigger | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -171,7 +171,7 @@ export function useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isD
       setSelectionTrigger(null);
       setInstructions('');
     },
-    onError: () => toast.error(t('failed_to_edit')),
+    onError: () => toast.error(t('notes_ai.failed_to_edit')),
   });
 
   function handleAcceptDiff() {
@@ -179,7 +179,7 @@ export function useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isD
     const { markdownStart, markdownEnd, originalMarkdown, editedText } = activeDiff;
     // Bail if the source text moved since this diff was computed — stored offsets would splice the wrong range
     if (content.slice(markdownStart, markdownEnd) !== originalMarkdown) {
-      toast.error(t('could_not_locate'));
+      toast.error(t('notes_ai.could_not_locate'));
       removeDiff(activeDiffIndex);
       return;
     }

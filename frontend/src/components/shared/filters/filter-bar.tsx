@@ -18,7 +18,7 @@ type Props = {
 };
 
 export function FilterBar({ filterConfig, filters, onFilterChange, onClear }: Props) {
-  const t = useTranslations('common');
+  const t = useTranslations();
   const hasActiveFilters = Object.keys(filters).length > 0;
 
   return (
@@ -32,7 +32,7 @@ export function FilterBar({ filterConfig, filters, onFilterChange, onClear }: Pr
       {hasActiveFilters && (
         <Button variant="ghost" size="sm" className="h-8 gap-1 text-muted-foreground" onClick={onClear}>
           <X className="size-3.5" />
-          {t('clear')}
+          {t('common.clear')}
         </Button>
       )}
     </div>

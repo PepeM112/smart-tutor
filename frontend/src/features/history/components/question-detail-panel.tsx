@@ -46,7 +46,7 @@ export function QuestionDetailPanel({
 }
 
 function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
-  const t = useTranslations('history');
+  const t = useTranslations();
   const status = answer?.status ?? AnswerStatus.UNKNOWN;
   const isWrong = isAnswerWrong(status);
   const correctAnswer = getCorrectAnswer(question);
@@ -56,15 +56,15 @@ function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; an
       <QuestionHint hint={question.hint} />
       <div className="space-y-2 text-sm">
         <div>
-          <p className="text-muted-foreground mb-0.5">{t('your_answer')}</p>
+          <p className="text-muted-foreground mb-0.5">{t('history.your_answer')}</p>
           <p className={cn('rounded-md bg-muted/50 p-3', isWrong && 'line-through text-muted-foreground')}>
-            {(answer && getUserAnswerDisplay(question, answer.userAnswer)) ?? t('no_answer')}
+            {(answer && getUserAnswerDisplay(question, answer.userAnswer)) ?? t('history.no_answer')}
           </p>
         </div>
         {correctAnswer && (
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
-              <p className="text-muted-foreground">{t('correct_answer')}</p>
+              <p className="text-muted-foreground">{t('history.correct_answer')}</p>
               {question.explanation && <Tooltip content={question.explanation} />}
             </div>
             <p className="rounded-md bg-muted/50 p-3 text-feedback-correct font-medium">{correctAnswer}</p>
@@ -76,7 +76,7 @@ function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; an
 }
 
 function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
-  const t = useTranslations('history');
+  const t = useTranslations();
 
   return (
     <div className="space-y-3">
@@ -85,7 +85,7 @@ function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer
       {question.explanation && (
         <div className="flex items-center gap-1.5 border-t border-border pt-2">
           <Tooltip content={question.explanation} />
-          <p className="text-xs text-muted-foreground">{t('explanation')}</p>
+          <p className="text-xs text-muted-foreground">{t('history.explanation')}</p>
         </div>
       )}
     </div>
@@ -93,7 +93,7 @@ function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer
 }
 
 function QuestionHint({ hint }: { hint?: string | null }) {
-  const t = useTranslations('review');
+  const t = useTranslations();
   if (!hint) return null;
-  return <p className="-mt-2 text-sm text-muted-foreground italic">{t('hint', { hint })}</p>;
+  return <p className="-mt-2 text-sm text-muted-foreground italic">{t('review.hint', { hint })}</p>;
 }

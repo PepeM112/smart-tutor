@@ -35,7 +35,7 @@ type PreviewItem =
   | { id: string; kind: 'long_text'; data: LongTextQuestionData };
 
 export function GeneratedTestPreview() {
-  const t = useTranslations('test_generation');
+  const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -51,7 +51,7 @@ export function GeneratedTestPreview() {
     updateItem,
     removeItem: removeListItem,
   } = useQuestionBlockList<PreviewItem>(() => toPreviewItems(initialQuestions));
-  const [testTitle, setTestTitle] = useState(() => t('test_from_note', { noteTitle: sourceNoteTitle }));
+  const [testTitle, setTestTitle] = useState(() => t('test_generation.test_from_note', { noteTitle: sourceNoteTitle }));
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
   const [columns, setColumns] = useState<1 | 2>(1);
@@ -100,7 +100,7 @@ export function GeneratedTestPreview() {
     const previewItems = toPreviewItems(initialQuestions);
     setItems(previewItems);
     clearSelection();
-    toast.success(t('reset_original'));
+    toast.success(t('test_generation.reset_original'));
   }, [initialQuestions, setItems, clearSelection, t]);
 
   const editorItems = useMemo((): EditorItem[] => items.map(i => i.data), [items]);
@@ -140,7 +140,7 @@ export function GeneratedTestPreview() {
     onSuccess: res => {
       isNavigatingRef.current = true;
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
-      toast.success(t('test_created'));
+      toast.success(t('test_generation.test_created'));
       if (res.data?.id) {
         router.push(Routes.TEST_EDIT(res.data.id));
       } else {
@@ -148,7 +148,7 @@ export function GeneratedTestPreview() {
       }
       clear();
     },
-    onError: () => toast.error(t('failed_to_create')),
+    onError: () => toast.error(t('test_generation.failed_to_create')),
   });
 
   const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
@@ -170,9 +170,9 @@ export function GeneratedTestPreview() {
       if (!res.data) return;
       setItems(toPreviewItems(res.data.questions));
       clearSelection();
-      toast.success(t('questions_refined'));
+      toast.success(t('test_generation.questions_refined'));
     },
-    onError: () => toast.error(t('failed_to_refine')),
+    onError: () => toast.error(t('test_generation.failed_to_refine')),
   });
 
   if (!hasData) {
@@ -197,7 +197,7 @@ export function GeneratedTestPreview() {
               />
             ) : (
               <>
-                <h1 className="text-lg font-semibold text-foreground">{testTitle || t('review_generated')}</h1>
+                <h1 className="text-lg font-semibold text-foreground">{testTitle || t('test_generation.review_generated')}</h1>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -209,18 +209,18 @@ export function GeneratedTestPreview() {
               </>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">{t('questions_count', { count: items.length })}</p>
+          <p className="text-sm text-muted-foreground">{t('test_generation.questions_count', { count: items.length })}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setColumns(c => (c === 1 ? 2 : 1))}
-            tooltip={columns === 1 ? t('two_column_layout') : t('one_column_layout')}
+            tooltip={columns === 1 ? t('test_generation.two_column_layout') : t('test_generation.one_column_layout')}
           >
             {columns === 1 ? <Columns2 className="size-5" /> : <Rows3 className="size-5" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleRegenerate} tooltip={t('reset_to_original')}>
+          <Button variant="ghost" size="icon" onClick={handleRegenerate} tooltip={t('test_generation.reset_to_original')}>
             <RotateCcw className="size-5" />
           </Button>
           {selectedIndices.size > 0 && (
@@ -236,7 +236,7 @@ export function GeneratedTestPreview() {
             onClick={() => createTest()}
             disabled={items.length === 0 || !testTitle.trim() || isCreating}
           >
-            {isCreating ? t('creating') : t('create_test')}
+            {isCreating ? t('test_generation.creating') : t('test_generation.create_test')}
           </Button>
         </div>
       </div>

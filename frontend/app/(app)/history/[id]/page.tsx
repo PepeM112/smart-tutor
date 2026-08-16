@@ -17,8 +17,8 @@ type Props = {
 
 export default function ResultDetailPage({ params }: Props) {
   const { id } = use(params);
-  const t = useTranslations('history');
-  useBreadcrumb(t('test_result'), [{ label: t('title'), href: Routes.HISTORY }], Routes.HISTORY);
+  const t = useTranslations();
+  useBreadcrumb(t('history.test_result'), [{ label: t('history.title'), href: Routes.HISTORY }], Routes.HISTORY);
 
   const { data: resultResponse, isLoading: isLoadingResult, isError: isResultError } = useTestResult(id);
 
@@ -40,12 +40,12 @@ export default function ResultDetailPage({ params }: Props) {
     <QueryState
       isLoading={isLoadingResult || isLoadingTest}
       isError={isResultError || isTestError}
-      errorMessage={t('failed_to_load_result')}
+      errorMessage={t('history.failed_to_load_result')}
     >
       {result && test ? (
         <ResultDetail result={result} test={test} />
       ) : (
-        <p className="text-muted-foreground">{t('result_not_found')}</p>
+        <p className="text-muted-foreground">{t('history.result_not_found')}</p>
       )}
     </QueryState>
   );

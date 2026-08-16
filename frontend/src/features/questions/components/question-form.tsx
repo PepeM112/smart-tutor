@@ -80,9 +80,7 @@ function initMCData(q?: QuestionRead): MCFormData {
 }
 
 export function QuestionForm({ question }: Props) {
-  const t = useTranslations('questions');
-  const tEditor = useTranslations('test_editor');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isEditing = !!question;
@@ -101,10 +99,10 @@ export function QuestionForm({ question }: Props) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success(isEditing ? t('question_updated') : t('question_created'));
+      toast.success(isEditing ? t('questions.question_updated') : t('questions.question_created'));
       router.push(Routes.QUESTIONS);
     },
-    onError: () => toast.error(isEditing ? t('failed_to_update') : t('failed_to_create')),
+    onError: () => toast.error(isEditing ? t('questions.failed_to_update') : t('questions.failed_to_create')),
   });
 
   function buildPayload() {
@@ -145,24 +143,24 @@ export function QuestionForm({ question }: Props) {
     <div className="max-w-2xl space-y-6">
       {!isEditing && (
         <div className="space-y-2">
-          <Label>{t('column_type')}</Label>
+          <Label>{t('questions.column_type')}</Label>
           <select
             value={String(questionType)}
             onChange={e => setQuestionType(Number(e.target.value) as QuestionType)}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value={String(QuestionType.SIMPLE)}>{tEditor('simple')}</option>
-            <option value={String(QuestionType.MULTIPLE_CHOICE)}>{t('type_multiple_choice')}</option>
+            <option value={String(QuestionType.SIMPLE)}>{t('test_editor.simple')}</option>
+            <option value={String(QuestionType.MULTIPLE_CHOICE)}>{t('questions.type_multiple_choice')}</option>
           </select>
         </div>
       )}
 
       <div className="space-y-2">
-        <Label>{tEditor('question_prompt')}</Label>
+        <Label>{t('test_editor.question_prompt')}</Label>
         <AutoTextarea
           value={data.prompt}
           onChange={e => setField('prompt', e.target.value)}
-          placeholder={tEditor('question_prompt_example')}
+          placeholder={t('test_editor.question_prompt_example')}
         />
       </div>
 
@@ -174,7 +172,7 @@ export function QuestionForm({ question }: Props) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>{tEditor('points')}</Label>
+          <Label>{t('test_editor.points')}</Label>
           <Input
             type="number"
             min={0.1}
@@ -186,16 +184,20 @@ export function QuestionForm({ question }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label>{t('hint_label')}</Label>
-        <Input value={data.hint} onChange={e => setField('hint', e.target.value)} placeholder={t('hint_placeholder')} />
+        <Label>{t('questions.hint_label')}</Label>
+        <Input
+          value={data.hint}
+          onChange={e => setField('hint', e.target.value)}
+          placeholder={t('questions.hint_placeholder')}
+        />
       </div>
 
       <div className="space-y-2">
-        <Label>{t('explanation_label')}</Label>
+        <Label>{t('questions.explanation_label')}</Label>
         <AutoTextarea
           value={data.explanation}
           onChange={e => setField('explanation', e.target.value)}
-          placeholder={t('explanation_placeholder')}
+          placeholder={t('questions.explanation_placeholder')}
         />
       </div>
 
@@ -206,10 +208,10 @@ export function QuestionForm({ question }: Props) {
           }}
           disabled={isPending}
         >
-          {isPending ? (isEditing ? t('saving') : t('creating')) : tCommon('save')}
+          {isPending ? (isEditing ? t('questions.saving') : t('questions.creating')) : t('common.save')}
         </Button>
         <Button variant="ghost" onClick={() => router.back()}>
-          {tCommon('cancel')}
+          {t('common.cancel')}
         </Button>
       </div>
     </div>
@@ -217,11 +219,11 @@ export function QuestionForm({ question }: Props) {
 }
 
 function SimpleAnswersEditor({ data, onChange }: { data: SimpleFormData; onChange: (d: SimpleFormData) => void }) {
-  const tEditor = useTranslations('test_editor');
+  const t = useTranslations();
 
   return (
     <div className="space-y-2">
-      <Label>{tEditor('simple_questions')}</Label>
+      <Label>{t('test_editor.simple_questions')}</Label>
       {data.answers.map((answer, i) => (
         <div key={i} className="flex items-center gap-2">
           <Input
@@ -231,7 +233,7 @@ function SimpleAnswersEditor({ data, onChange }: { data: SimpleFormData; onChang
               updated[i] = e.target.value;
               onChange({ ...data, answers: updated });
             }}
-            placeholder={tEditor('answer_n', { n: i + 1 })}
+            placeholder={t('test_editor.answer_n', { n: i + 1 })}
           />
           {data.answers.length > 1 && (
             <Button
@@ -251,19 +253,18 @@ function SimpleAnswersEditor({ data, onChange }: { data: SimpleFormData; onChang
         onClick={() => onChange({ ...data, answers: [...data.answers, ''] })}
       >
         <Plus className="size-4" />
-        {tEditor('add')}
+        {t('test_editor.add')}
       </Button>
     </div>
   );
 }
 
 function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: MCFormData) => void }) {
-  const t = useTranslations('questions');
-  const tEditor = useTranslations('test_editor');
+  const t = useTranslations();
 
   return (
     <div className="space-y-2">
-      <Label>{t('options_label')}</Label>
+      <Label>{t('questions.options_label')}</Label>
       {data.choices.map((choice, i) => (
         <div key={i} className="flex items-center gap-2">
           <Checkbox
@@ -281,7 +282,7 @@ function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: M
               updated[i] = { ...choice, text: e.target.value };
               onChange({ ...data, choices: updated });
             }}
-            placeholder={tEditor('option', { n: i + 1 })}
+            placeholder={t('test_editor.option', { n: i + 1 })}
             className="flex-1"
           />
           {data.choices.length > 2 && (
@@ -303,7 +304,7 @@ function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: M
           onClick={() => onChange({ ...data, choices: [...data.choices, { text: '', isCorrect: false }] })}
         >
           <Plus className="size-4" />
-          {tEditor('add_choice')}
+          {t('test_editor.add_choice')}
         </Button>
       )}
     </div>

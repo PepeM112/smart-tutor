@@ -6,9 +6,8 @@ import { useTranslations } from 'next-intl';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 
 export default function PracticePage() {
-  const t = useTranslations('practice');
-  const tCommon = useTranslations('common');
-  useBreadcrumb(t('title'));
+  const t = useTranslations();
+  useBreadcrumb(t('practice.title'));
 
   return (
     <div className="flex items-center justify-center py-24">
@@ -17,11 +16,11 @@ export default function PracticePage() {
           <Dumbbell className="size-6 text-muted-foreground" />
         </div>
         <div className="space-y-1">
-          <p className="font-semibold text-foreground">{t('practice_mode')}</p>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
+          <p className="font-semibold text-foreground">{t('practice.practice_mode')}</p>
+          <p className="text-sm text-muted-foreground">{t('practice.description')}</p>
         </div>
         <span className="text-[10px] font-medium bg-muted-foreground/20 px-2 py-0.5 rounded-full text-muted-foreground">
-          {tCommon('coming_soon')}
+          {t('common.coming_soon')}
         </span>
       </div>
     </div>

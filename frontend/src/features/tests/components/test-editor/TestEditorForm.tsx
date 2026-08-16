@@ -49,7 +49,7 @@ type Props = {
 };
 
 export function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: Props) {
-  const t = useTranslations('tests');
+  const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
@@ -100,12 +100,12 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
-      toast.success(isEdit ? t('test_updated') : t('test_created'));
+      toast.success(isEdit ? t('tests.test_updated') : t('tests.test_created'));
       router.push(Routes.TESTS);
       router.refresh();
     },
     onError: () => {
-      toast.error(isEdit ? t('error_updating') : t('error_creating'));
+      toast.error(isEdit ? t('tests.error_updating') : t('tests.error_creating'));
     },
   });
 
@@ -130,9 +130,9 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       if (!res.data) return;
       setItems(prev => mergeAiEditResult(prev, res.data.questions));
       clearSelection();
-      toast.success(t('questions_updated'));
+      toast.success(t('tests.questions_updated'));
     },
-    onError: () => toast.error(t('failed_to_edit_questions')),
+    onError: () => toast.error(t('tests.failed_to_edit_questions')),
   });
 
   function addItem(type: AddItemType) {
@@ -147,7 +147,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   useMobileBreadcrumbActions(
     <Button disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-      {isSaving ? t('saving') : t('save_test')}
+      {isSaving ? t('tests.saving') : t('tests.save_test')}
     </Button>
   );
 
@@ -157,20 +157,20 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
         <div className="space-y-3 flex-1">
           <Input
             className="w-full lg:w-1/2"
-            placeholder={t('test_name')}
+            placeholder={t('tests.test_name')}
             value={title}
             onChange={e => setTitle(e.target.value)}
           />
           <AutoTextarea
             rows={2}
-            placeholder={t('description_optional')}
+            placeholder={t('tests.description_optional')}
             value={description}
             onChange={e => setDescription(e.target.value)}
           />
         </div>
         {isDesktop && (
           <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-            {isSaving ? t('saving') : t('save_test')}
+            {isSaving ? t('tests.saving') : t('tests.save_test')}
           </Button>
         )}
       </div>

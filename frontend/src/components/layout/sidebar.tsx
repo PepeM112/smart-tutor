@@ -9,8 +9,7 @@ import { cn } from '@/lib/utils';
 import { SidebarNav } from './sidebar-nav';
 
 export function Sidebar() {
-  const tApp = useTranslations('app');
-  const t = useTranslations('sidebar');
+  const t = useTranslations();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -26,10 +25,10 @@ export function Sidebar() {
           collapsed ? 'justify-center' : 'justify-between'
         )}
       >
-        {!collapsed && <span className="text-sm font-semibold text-sidebar-foreground truncate">{tApp('title')}</span>}
+        {!collapsed && <span className="text-sm font-semibold text-sidebar-foreground truncate">{t('app.title')}</span>}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          aria-label={collapsed ? t('expand') : t('collapse')}
+          aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
           className="flex items-center justify-center size-7 rounded-md text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors shrink-0"
         >
           {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}

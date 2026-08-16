@@ -28,7 +28,7 @@ type Props = {
 };
 
 export function ReviewSession({ initialQuestions, mode }: Props) {
-  const t = useTranslations('review');
+  const t = useTranslations();
   const [questions, setQuestions] = useState<QuestionReadStripped[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answer, setAnswer] = useState('');
@@ -58,7 +58,7 @@ export function ReviewSession({ initialQuestions, mode }: Props) {
       setResults(prev => [...prev, { question: currentQuestion, userAnswer, status: data.status }]);
       setPhase('checked');
     },
-    onError: () => toast.error(t('failed_to_check')),
+    onError: () => toast.error(t('review.failed_to_check')),
   });
 
   const { mutate: loadNextBatch, isPending: isLoadingBatch } = useMutation({
@@ -76,7 +76,7 @@ export function ReviewSession({ initialQuestions, mode }: Props) {
       setResults([]);
       setPhase('answering');
     },
-    onError: () => toast.error(t('failed_to_load_batch')),
+    onError: () => toast.error(t('review.failed_to_load_batch')),
   });
 
   const handleCheck = useCallback(() => {

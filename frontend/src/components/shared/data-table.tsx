@@ -41,9 +41,9 @@ export function DataTable<T>({
   sort,
   onSort,
 }: Props<T>) {
-  const t = useTranslations('common');
+  const t = useTranslations();
   const { isDesktop } = useBreakpoint();
-  const finalEmptyMessage = emptyMessage ?? t('no_data_found');
+  const finalEmptyMessage = emptyMessage ?? t('common.no_data_found');
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({

@@ -21,8 +21,7 @@ import { SrsSection } from './srs-section';
 import type { SettingsForm } from '../types';
 
 export function SettingsPage() {
-  const t = useTranslations('settings');
-  const tc = useTranslations('common');
+  const t = useTranslations();
   const user = useAuthStore(s => s.user);
   const setUser = useAuthStore(s => s.setUser);
   const queryClient = useQueryClient();
@@ -56,10 +55,10 @@ export function SettingsPage() {
       setForm(formFromUser(updatedUser));
       setDirty(false);
       void queryClient.invalidateQueries({ queryKey: ['me'] });
-      toast.success(t('settings_saved'));
+      toast.success(t('settings.settings_saved'));
     },
     onError: () => {
-      toast.error(t('failed_to_save'));
+      toast.error(t('settings.failed_to_save'));
     },
   });
 
@@ -73,10 +72,10 @@ export function SettingsPage() {
       setUser(updatedUser);
       setForm(formFromUser(updatedUser));
       void queryClient.invalidateQueries({ queryKey: ['me'] });
-      toast.success(t('settings_saved'));
+      toast.success(t('settings.settings_saved'));
     },
     onError: () => {
-      toast.error(t('failed_to_save'));
+      toast.error(t('settings.failed_to_save'));
     },
   });
 
@@ -109,7 +108,7 @@ export function SettingsPage() {
 
       <div className="flex justify-end pt-6">
         <Button onClick={() => saveSettings()} disabled={!dirty || isSaving} size="lg">
-          {isSaving ? tc('saving') : tc('save')}
+          {isSaving ? t('common.saving') : t('common.save')}
         </Button>
       </div>
     </div>

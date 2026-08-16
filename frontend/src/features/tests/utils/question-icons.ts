@@ -10,11 +10,11 @@ type QuestionTypeInfo = {
 };
 
 const QUESTION_TYPE_MAP: Record<number, QuestionTypeInfo> = {
-  [QuestionType.SIMPLE]: { icon: Layers, labelKey: 'simple' },
-  [QuestionType.MULTIPLE_CHOICE]: { icon: ListChecks, labelKey: 'multiple_choice' },
-  [QuestionType.LONG_TEXT]: { icon: FileText, labelKey: 'long_text' },
+  [QuestionType.SIMPLE]: { icon: Layers, labelKey: 'test_editor.simple' },
+  [QuestionType.MULTIPLE_CHOICE]: { icon: ListChecks, labelKey: 'test_editor.multiple_choice' },
+  [QuestionType.LONG_TEXT]: { icon: FileText, labelKey: 'test_editor.long_text' },
 };
 
 export function getQuestionTypeInfo(type: QuestionType): QuestionTypeInfo {
-  return QUESTION_TYPE_MAP[type] ?? { icon: FileText, labelKey: 'unknown' };
+  return QUESTION_TYPE_MAP[type] ?? { icon: FileText, labelKey: 'test_editor.unknown' };
 }

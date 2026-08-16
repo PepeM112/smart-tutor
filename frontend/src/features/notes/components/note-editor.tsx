@@ -27,10 +27,7 @@ const SPLIT_KEY = 'note-editor-split-ratio';
 const DEFAULT_RATIO = 0.5;
 
 export function NoteEditor({ content, onChange, noteId }: Props) {
-  const t = useTranslations('notes_ai');
-  const tNotes = useTranslations('notes');
-  const tCommon = useTranslations('common');
-  const tSettings = useTranslations('settings');
+  const t = useTranslations();
   const aiAvailable = useAiAvailable();
   const { isDesktop } = useBreakpoint();
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
@@ -67,7 +64,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   const diffPanelContent = activeDiff && (
     <div className="flex h-full flex-col bg-card p-4">
       <div className="flex items-center justify-between mb-3 shrink-0">
-        <h3 className="text-sm font-semibold text-foreground">{t('changes')}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{t('notes_ai.changes')}</h3>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -78,22 +75,22 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
         </Button>
       </div>
 
-      <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">{t('old')}</p>
+      <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">{t('notes_ai.old')}</p>
       <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
         <MarkdownRenderer content={activeDiff.originalMarkdown} />
       </div>
 
-      <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">{t('new')}</p>
+      <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">{t('notes_ai.new')}</p>
       <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
         <MarkdownRenderer content={activeDiff.editedText} />
       </div>
 
       <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
         <Button variant="outline" size="sm" onClick={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}>
-          {tCommon('cancel')}
+          {t('common.cancel')}
         </Button>
         <Button size="sm" onClick={handleAcceptDiff}>
-          {tCommon('accept')}
+          {t('common.accept')}
         </Button>
       </div>
     </div>
@@ -133,7 +130,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
                 variant="ghost"
                 size="icon"
                 onClick={() => setDrawerMode(m => (m === 'view' ? 'edit' : 'view'))}
-                tooltip={drawerMode === 'view' ? tNotes('edit_markdown') : tNotes('preview')}
+                tooltip={drawerMode === 'view' ? t('notes.edit_markdown') : t('notes.preview')}
                 className="text-muted-foreground"
               >
                 {drawerMode === 'view' ? <Pencil className="size-5" /> : <Eye className="size-5" />}
@@ -189,20 +186,20 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
                 size="icon"
                 icon={WandSparkles}
                 disabled={!aiAvailable}
-                tooltip={!aiAvailable ? tSettings('ai_not_configured') : t('edit_with_ai')}
+                tooltip={!aiAvailable ? t('settings.ai_not_configured') : t('notes_ai.edit_with_ai')}
               />
             </FloatingCardTrigger>
             <FloatingCardContent align="start" className="w-72 space-y-3">
               <Textarea
                 autoFocus
                 rows={3}
-                placeholder={t('how_to_edit')}
+                placeholder={t('notes_ai.how_to_edit')}
                 value={instructions}
                 onChange={e => setInstructions(e.target.value)}
               />
               <div className="flex items-center justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
-                  {tCommon('cancel')}
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   size="sm"
@@ -210,7 +207,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
                   disabled={!instructions.trim() || isSubmittingEdit}
                   onClick={() => editChunk()}
                 >
-                  {isSubmittingEdit ? t('editing') : tCommon('edit')}
+                  {isSubmittingEdit ? t('notes_ai.editing') : t('common.edit')}
                 </Button>
               </div>
             </FloatingCardContent>

@@ -18,15 +18,15 @@ function formatCost(value: string): string {
 }
 
 export function TokenUsageStats({ totalInputTokens, totalOutputTokens, totalEstimatedCost }: Props) {
-  const t = useTranslations('dashboard');
+  const t = useTranslations();
   const total = totalInputTokens + totalOutputTokens;
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-      <StatCard label={t('total_tokens')} value={formatTokens(total)} />
-      <StatCard label={t('input_tokens')} value={formatTokens(totalInputTokens)} />
-      <StatCard label={t('output_tokens')} value={formatTokens(totalOutputTokens)} />
-      <StatCard label={t('estimated_cost')} value={totalEstimatedCost ? formatCost(totalEstimatedCost) : '—'} />
+      <StatCard label={t('dashboard.total_tokens')} value={formatTokens(total)} />
+      <StatCard label={t('dashboard.input_tokens')} value={formatTokens(totalInputTokens)} />
+      <StatCard label={t('dashboard.output_tokens')} value={formatTokens(totalOutputTokens)} />
+      <StatCard label={t('dashboard.estimated_cost')} value={totalEstimatedCost ? formatCost(totalEstimatedCost) : '—'} />
     </div>
   );
 }

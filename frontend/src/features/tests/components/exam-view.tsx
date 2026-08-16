@@ -35,7 +35,7 @@ type Props = {
 };
 
 export function ExamView({ test, onSubmit, isSubmitting }: Props) {
-  const t = useTranslations('exam');
+  const t = useTranslations();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const items = buildExamItems(test);
 
@@ -97,7 +97,7 @@ export function ExamView({ test, onSubmit, isSubmitting }: Props) {
               {group.points != null && group.points !== 1 && (
                 <span className="text-xs text-muted-foreground mr-1.5">[{group.points} pts]</span>
               )}
-              {group.title ?? t('question_group')}
+              {group.title ?? t('exam.question_group')}
             </p>
 
             {isVocabulary ? (
@@ -128,7 +128,7 @@ export function ExamView({ test, onSubmit, isSubmitting }: Props) {
           onClick={handleSubmit}
           disabled={isSubmitting || allQuestions.length === 0}
         >
-          {isSubmitting ? t('submitting') : t('submit_exam')}
+          {isSubmitting ? t('exam.submitting') : t('exam.submit_exam')}
         </Button>
       </div>
     </div>
@@ -160,15 +160,15 @@ type VocabularyTableProps = {
 };
 
 function VocabularyTable({ questions, answers, onTextChange }: VocabularyTableProps) {
-  const t = useTranslations('exam');
+  const t = useTranslations();
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">#</TableHead>
-          <TableHead>{t('column_prompt')}</TableHead>
-          <TableHead>{t('column_answer')}</TableHead>
+          <TableHead>{t('exam.column_prompt')}</TableHead>
+          <TableHead>{t('exam.column_answer')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -181,7 +181,7 @@ function VocabularyTable({ questions, answers, onTextChange }: VocabularyTablePr
             </TableCell>
             <TableCell>
               <Input
-                placeholder={t('type_your_answer')}
+                placeholder={t('exam.type_your_answer')}
                 value={answers[q.id] ?? ''}
                 onChange={e => onTextChange(q.id, e.target.value)}
                 className="h-8"
@@ -217,7 +217,7 @@ function QuestionCard({
   onCheckboxToggle,
   nested,
 }: QuestionCardProps) {
-  const t = useTranslations('exam');
+  const t = useTranslations();
   const content = question.content;
   const isSimple = question.questionType === QuestionType.SIMPLE;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
@@ -245,12 +245,12 @@ function QuestionCard({
         {question.prompt}
       </p>
 
-      {question.hint && <p className="text-xs text-muted-foreground italic">{t('hint', { hint: question.hint })}</p>}
+      {question.hint && <p className="text-xs text-muted-foreground italic">{t('exam.hint', { hint: question.hint })}</p>}
 
       {/* Simple text input */}
       {isSimple && (
         <Input
-          placeholder={t('type_your_answer')}
+          placeholder={t('exam.type_your_answer')}
           value={answer}
           onChange={e => onTextChange(question.id, e.target.value)}
         />
@@ -282,7 +282,7 @@ function QuestionCard({
       {isLongText && longTextTier && (
         <div className="space-y-1">
           <Textarea
-            placeholder={t('write_your_answer')}
+            placeholder={t('exam.write_your_answer')}
             value={answer}
             onChange={e => {
               if (e.target.value.length <= longTextTier.limit) {

@@ -8,14 +8,14 @@ import { fontSizes } from '@/lib/font-size';
 import { cn } from '@/lib/utils';
 
 export function FontSizePicker() {
-  const t = useTranslations('settings');
+  const t = useTranslations();
   const { fontSizeId, setFontSize } = useFontSize();
 
   return (
     <div className="space-y-3">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">{t('font_size_label')}</h3>
-        <p className="text-xs text-muted-foreground">{t('font_size_description')}</p>
+        <h3 className="text-sm font-semibold text-foreground">{t('settings.font_size_label')}</h3>
+        <p className="text-xs text-muted-foreground">{t('settings.font_size_description')}</p>
       </div>
 
       <div className="flex gap-2">

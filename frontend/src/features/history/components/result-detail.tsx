@@ -27,7 +27,7 @@ const SPLIT_RATIO_KEY = 'result-detail-split-ratio';
 const DEFAULT_SPLIT_RATIO = 0.5;
 
 export function ResultDetail({ result, test }: Props) {
-  const t = useTranslations('exam');
+  const t = useTranslations();
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const { isDesktop } = useBreakpoint();
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(
@@ -81,7 +81,7 @@ export function ResultDetail({ result, test }: Props) {
         return (
           <CompactGroupCard
             key={groupId}
-            title={group.title ?? t('question_group')}
+            title={group.title ?? t('exam.question_group')}
             correctCount={countCorrectInGroup(questions, answerMap)}
             totalCount={questions.length}
             number={itemNumbers[idx]}
@@ -150,7 +150,7 @@ function RightPanel({
   answerMap: Map<string, AnswerRead>;
   itemNumbers: number[];
 }) {
-  const t = useTranslations('exam');
+  const t = useTranslations();
 
   if (!selectedItem) return null;
 
@@ -179,7 +179,7 @@ function RightPanel({
   const { group } = groupItem;
   return (
     <GroupDetailPanel
-      title={group.title ?? t('question_group')}
+      title={group.title ?? t('exam.question_group')}
       type={group.type}
       questions={group.questions ?? []}
       answerMap={answerMap}
