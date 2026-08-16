@@ -22,7 +22,9 @@ type Props = {
  * local state along with it.
  */
 export function AiEditPopover({ selectedCount, isPending, onSubmit }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('test_generation');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
   const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
@@ -40,14 +42,14 @@ export function AiEditPopover({ selectedCount, isPending, onSubmit }: Props) {
           size="lg"
           icon={WandSparkles}
           disabled={!aiAvailable}
-          tooltip={!aiAvailable ? t('settings.ai_not_configured') : undefined}
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : undefined}
         >
-          {t('test_generation.ai_edit')}
+          {t('ai_edit')}
         </Button>
       </FloatingCardTrigger>
       <FloatingCardContent className="w-80 space-y-3">
         <Textarea
-          placeholder={t('test_generation.ai_edit_placeholder')}
+          placeholder={t('ai_edit_placeholder')}
           value={instructions}
           onChange={e => setInstructions(e.target.value)}
           rows={4}
@@ -55,11 +57,9 @@ export function AiEditPopover({ selectedCount, isPending, onSubmit }: Props) {
           autoFocus
         />
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">
-            {t('test_generation.questions_selected', { count: selectedCount })}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('questions_selected', { count: selectedCount })}</p>
           <Button size="sm" onClick={handleSubmit} disabled={!instructions.trim() || isPending}>
-            {isPending ? t('test_generation.applying') : t('common.submit')}
+            {isPending ? t('applying') : tCommon('submit')}
           </Button>
         </div>
       </FloatingCardContent>

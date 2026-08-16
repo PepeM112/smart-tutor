@@ -25,17 +25,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { getErrorDetail } from '@/lib/utils';
 
 const LENGTH_OPTIONS = [
-  { value: undefined, labelKey: 'notes_ai.length_auto' },
-  { value: NoteLength.SHORT, labelKey: 'notes_ai.length_short' },
-  { value: NoteLength.MEDIUM, labelKey: 'notes_ai.length_medium' },
-  { value: NoteLength.LONG, labelKey: 'notes_ai.length_long' },
+  { value: undefined, labelKey: 'length_auto' },
+  { value: NoteLength.SHORT, labelKey: 'length_short' },
+  { value: NoteLength.MEDIUM, labelKey: 'length_medium' },
+  { value: NoteLength.LONG, labelKey: 'length_long' },
 ] as const;
 
 export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
-  const t = useTranslations();
+  const t = useTranslations('notes_ai');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
   const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState('');
@@ -56,13 +57,13 @@ export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
       }),
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success(t('notes_ai.note_generated'));
+      toast.success(t('note_generated'));
       setOpen(false);
       resetForm();
       if (!res.data) return;
       router.push(Routes.NOTE_DETAIL(res.data.id));
     },
-    onError: (error: unknown) => toast.error(getErrorDetail(error, t('notes_ai.failed_to_generate'))),
+    onError: () => toast.error(t('failed_to_generate')),
   });
 
   function resetForm() {
@@ -79,11 +80,9 @@ export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
           size={compact ? 'icon-lg' : 'lg'}
           icon={Sparkles}
           disabled={!aiAvailable}
-          tooltip={
-            !aiAvailable ? t('settings.ai_not_configured') : compact ? t('notes_ai.generate_with_ai') : undefined
-          }
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : compact ? t('generate_with_ai') : undefined}
         >
-          {!compact && t('notes_ai.generate_with_ai')}
+          {!compact && t('generate_with_ai')}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -92,30 +91,30 @@ export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
         onEscapeKeyDown={isGenerating ? e => e.preventDefault() : undefined}
       >
         {isGenerating ? (
-          <DialogLoading title={t('notes_ai.generating_notes')} />
+          <DialogLoading title={t('generating_notes')} />
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>{t('notes_ai.generate_study_notes')}</DialogTitle>
-              <DialogDescription>{t('notes_ai.generate_description')}</DialogDescription>
+              <DialogTitle>{t('generate_study_notes')}</DialogTitle>
+              <DialogDescription>{t('generate_description')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="topic">{t('notes_ai.topic')}</Label>
+                <Label htmlFor="topic">{t('topic')}</Label>
                 <Input
                   id="topic"
-                  placeholder={t('notes_ai.topic_placeholder')}
+                  placeholder={t('topic_placeholder')}
                   value={topic}
                   onChange={e => setTopic(e.target.value)}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="guidance">{t('notes_ai.additional_guidance')}</Label>
+                <Label htmlFor="guidance">{t('additional_guidance')}</Label>
                 <Textarea
                   id="guidance"
-                  placeholder={t('notes_ai.guidance_placeholder')}
+                  placeholder={t('guidance_placeholder')}
                   value={guidance}
                   onChange={e => setGuidance(e.target.value)}
                   rows={3}
@@ -123,7 +122,7 @@ export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
               </div>
 
               <div className="space-y-2">
-                <Label>{t('notes_ai.length')}</Label>
+                <Label>{t('length')}</Label>
                 <div className="flex gap-2">
                   {LENGTH_OPTIONS.map(opt => (
                     <Button
@@ -148,7 +147,7 @@ export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
                 disabled={!topic.trim()}
                 icon={Sparkles}
               >
-                {t('common.generate')}
+                {tCommon('generate')}
               </Button>
             </DialogFooter>
           </>

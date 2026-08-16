@@ -7,27 +7,24 @@ import { useTheme } from '@/hooks/use-theme';
 import { themes, type ThemePreview } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 
-// Membership here splits the picker into light/dark groups — keep in sync with lib/themes.ts
 const DARK_THEMES = new Set(['midnight', 'carbon', 'neon', 'noir']);
 
 const lightThemes = themes.filter(t => !DARK_THEMES.has(t.id));
 const darkThemes = themes.filter(t => DARK_THEMES.has(t.id));
 
 export function ThemePicker() {
-  const t = useTranslations();
+  const t = useTranslations('settings');
   const { themeId, setTheme } = useTheme();
 
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">{t('settings.theme_label')}</h3>
-        <p className="text-xs text-muted-foreground">{t('settings.theme_description')}</p>
+        <h3 className="text-sm font-semibold text-foreground">{t('theme_label')}</h3>
+        <p className="text-xs text-muted-foreground">{t('theme_description')}</p>
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          {t('settings.theme_light_group')}
-        </p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('theme_light_group')}</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {lightThemes.map(theme => (
             <ThemeCard
@@ -41,9 +38,7 @@ export function ThemePicker() {
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          {t('settings.theme_dark_group')}
-        </p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('theme_dark_group')}</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {darkThemes.map(theme => (
             <ThemeCard

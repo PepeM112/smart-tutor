@@ -17,10 +17,8 @@ export const ThemeContext = createContext<ThemeContextValue>({
 const DARK_DEFAULT: ThemeId = 'midnight';
 
 function readStoredTheme(): ThemeId {
-  // SAFETY: setTheme only writes valid ThemeId values; the .some() check below handles stale/tampered values
   const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId | null;
   if (stored && themes.some(t => t.id === stored)) return stored;
-  // Must match the inline dark-mode check in app/layout.tsx — keep both in sync
   const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   return prefersDark ? DARK_DEFAULT : DEFAULT_THEME_ID;
 }
@@ -56,7 +54,6 @@ export function useThemeProvider(): ThemeContextValue {
 
     currentTheme = id;
     localStorage.setItem(THEME_STORAGE_KEY, id);
-    // Cookie lets layout.tsx set the theme server-side before hydration, preventing a flash
     setThemeCookie(id);
 
     const root = document.documentElement;

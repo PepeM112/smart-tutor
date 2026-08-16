@@ -22,7 +22,6 @@ export const FontSizeContext = createContext<FontSizeContextValue>({
 });
 
 function readStoredFontSize(): FontSizeId {
-  // SAFETY: setFontSize only writes valid FontSizeId values; the .some() check below handles stale/tampered values
   const stored = localStorage.getItem(FONT_SIZE_STORAGE_KEY) as FontSizeId | null;
   return stored && fontSizes.some(f => f.id === stored) ? stored : DEFAULT_FONT_SIZE_ID;
 }
@@ -58,7 +57,6 @@ export function useFontSizeProvider(): FontSizeContextValue {
 
     currentFontSize = id;
     localStorage.setItem(FONT_SIZE_STORAGE_KEY, id);
-    // Cookie lets layout.tsx set the font size server-side before hydration
     setFontSizeCookie(id);
 
     document.documentElement.style.fontSize = getFontSizeValue(id);

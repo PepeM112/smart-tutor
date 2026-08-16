@@ -15,5 +15,5 @@ class Note(Base, CreatedAtMixin, UpdatedAtMixin):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)
     content: Mapped[str] = mapped_column(Text, default="")
-    source: Mapped[int] = mapped_column(Integer, default=int(NoteSource.USER_CREATED))
+    source: Mapped[int] = mapped_column(Integer, default=int(NoteSource.UNKNOWN))
     tags: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")

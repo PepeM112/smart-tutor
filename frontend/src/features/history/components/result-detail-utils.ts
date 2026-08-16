@@ -7,7 +7,7 @@ import {
   type TestQuestionGroupRead,
   type TestRead,
 } from '@/client';
-import { isMCContent, isSimpleContent, parseMcAnswer } from '@/features/tests/utils/question-content';
+import { isMCContent, isSimpleContent } from '@/features/tests/utils/question-content';
 
 export enum ExamItemType {
   QUESTION = 'question',
@@ -26,7 +26,6 @@ export function buildExamItems(test: TestRead): ExamItem[] {
   return items.sort((a, b) => a.order - b.order);
 }
 
-// met is tri-state: null = challenge pending, true/false = AI re-evaluation overrides original verdict
 export function effectiveMet(item: RubricResultItem): boolean {
   if (item.challengeResult != null && item.challengeResult.met != null) {
     return item.challengeResult.met;
@@ -37,14 +36,9 @@ export function effectiveMet(item: RubricResultItem): boolean {
 export type QuestionScore = { label: string; pct: number };
 
 export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRead): QuestionScore | null {
-  if (!answer || answer.status === AnswerStatus.PENDING) return null;
+  if (!answer || answer.status === AnswerStatus.UNKNOWN || answer.status === AnswerStatus.PENDING) return null;
 
   const maxPoints = question?.points ?? 1;
-
-  if (answer.status === AnswerStatus.FAILED) {
-    // -1 sentinel — callers branch on answer.status === FAILED before reading pct
-    return { label: `—/${maxPoints.toFixed(2)}`, pct: -1 };
-  }
 
   if (question?.questionType === QuestionType.LONG_TEXT) {
     if (!answer.rubricResult || answer.rubricResult.length === 0) return null;
@@ -78,7 +72,10 @@ export function getCorrectAnswer(question: QuestionRead): string {
 }
 
 export function parseSelectedIndices(userAnswer: string): number[] {
-  return parseMcAnswer(userAnswer);
+  return userAnswer
+    .split(',')
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => !isNaN(n));
 }
 
 export function getUserAnswerDisplay(question: QuestionRead, userAnswer: string): string {
@@ -92,11 +89,10 @@ export function getUserAnswerDisplay(question: QuestionRead, userAnswer: string)
   return userAnswer || '';
 }
 
-export function isAnswerWrong(status: AnswerStatus | null): boolean {
+export function isAnswerWrong(status: AnswerStatus): boolean {
   return status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
 }
 
-// PARTIAL answers earn half credit toward the group's score
 export function countCorrectInGroup(questions: QuestionRead[], answerMap: Map<string, AnswerRead>): number {
   return questions.reduce((sum, q) => {
     const status = answerMap.get(q.id)?.status;

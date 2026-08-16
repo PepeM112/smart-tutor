@@ -16,10 +16,6 @@ export const Routes = {
   NOTE_NEW: '/notes/new',
   NOTE_DETAIL: (id: string) => `/notes/${id}`,
 
-  QUESTIONS: '/questions',
-  QUESTION_NEW: '/questions/new',
-  QUESTION_EDIT: (id: string) => `/questions/${id}/edit`,
-
   HISTORY: '/history',
   RESULT_DETAIL: (id: string) => `/history/${id}`,
   STATS: '/stats',

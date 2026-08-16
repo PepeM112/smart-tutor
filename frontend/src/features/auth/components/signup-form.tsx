@@ -17,7 +17,7 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 export function SignupForm() {
-  const t = useTranslations();
+  const t = useTranslations('auth');
   const [form, setForm] = useState<UserCreate>({ username: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -29,12 +29,12 @@ export function SignupForm() {
   } = useMutation({
     mutationFn: () => sdk.usersSignup({ body: form }),
     onSuccess: () => {
-      toast.success(t('auth.account_created'));
+      toast.success(t('account_created'));
       router.push(Routes.LOGIN);
       router.refresh();
     },
     onError: () => {
-      toast.error(t('auth.error_creating_account'));
+      toast.error(t('error_creating_account'));
     },
   });
 
@@ -46,13 +46,13 @@ export function SignupForm() {
   return (
     <Card className="w-full">
       <CardHeader className="text-center pb-2">
-        <CardTitle className="text-3xl font-bold py-2">{t('auth.sign_up')}</CardTitle>
-        <p className="text-sm text-muted-foreground">{t('auth.create_your_account')}</p>
+        <CardTitle className="text-3xl font-bold py-2">{t('sign_up')}</CardTitle>
+        <p className="text-sm text-muted-foreground">{t('create_your_account')}</p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username">{t('auth.username')}</Label>
+            <Label htmlFor="username">{t('username')}</Label>
             <Input
               id="username"
               value={form.username}
@@ -62,7 +62,7 @@ export function SignupForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">{t('auth.email')}</Label>
+            <Label htmlFor="email">{t('email')}</Label>
             <Input
               id="email"
               type="email"
@@ -73,7 +73,7 @@ export function SignupForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">{t('auth.password')}</Label>
+            <Label htmlFor="password">{t('password')}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -87,25 +87,25 @@ export function SignupForm() {
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
-                aria-label={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+                aria-label={showPassword ? t('hide_password') : t('show_password')}
               >
                 {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
               </button>
             </div>
           </div>
 
-          {signinError && <p className="text-sm text-destructive">{t('auth.could_not_create_account')}</p>}
+          {signinError && <p className="text-sm text-destructive">{t('could_not_create_account')}</p>}
 
           <Button type="submit" disabled={isSigningIn} className="w-full py-5 font-semibold mt-6">
-            {isSigningIn ? t('auth.creating_account') : t('auth.create_account')}
+            {isSigningIn ? t('creating_account') : t('create_account')}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          {t('auth.already_have_account')}{' '}
+          {t('already_have_account')}{' '}
           <Link href={Routes.LOGIN} className="text-primary font-bold underline">
-            {t('auth.log_in')}
+            {t('log_in')}
           </Link>
         </p>
       </CardFooter>

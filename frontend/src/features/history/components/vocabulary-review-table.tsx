@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
-import { type AnswerRead, type QuestionRead } from '@/client';
+import { AnswerStatus, type AnswerRead, type QuestionRead } from '@/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
@@ -16,23 +16,23 @@ export function VocabularyReviewTable({
   questions: QuestionRead[];
   answerMap: Map<string, AnswerRead>;
 }) {
-  const t = useTranslations();
+  const t = useTranslations('history');
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">#</TableHead>
-          <TableHead>{t('history.column_question')}</TableHead>
-          <TableHead>{t('history.column_your_answer')}</TableHead>
-          <TableHead>{t('history.correct_answer')}</TableHead>
-          <TableHead className="w-32 text-right">{t('history.column_result')}</TableHead>
+          <TableHead>{t('column_question')}</TableHead>
+          <TableHead>{t('column_your_answer')}</TableHead>
+          <TableHead>{t('correct_answer')}</TableHead>
+          <TableHead className="w-32 text-right">{t('column_result')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {questions.map((q, idx) => {
           const answer = answerMap.get(q.id);
-          const status = answer?.status ?? null;
+          const status = answer?.status ?? AnswerStatus.UNKNOWN;
           const isWrong = isAnswerWrong(status);
           return (
             <TableRow key={q.id}>
@@ -43,7 +43,7 @@ export function VocabularyReviewTable({
               </TableCell>
               <TableCell>
                 <span className={cn(isWrong && 'line-through text-muted-foreground')}>
-                  {(answer && getUserAnswerDisplay(q, answer.userAnswer)) ?? t('history.no_answer')}
+                  {(answer && getUserAnswerDisplay(q, answer.userAnswer)) ?? t('no_answer')}
                 </span>
               </TableCell>
               <TableCell>

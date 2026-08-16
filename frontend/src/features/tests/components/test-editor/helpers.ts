@@ -21,7 +21,7 @@ export function newQuestionGroup(): QuestionGroupData {
   return {
     key: crypto.randomUUID(),
     type: 'group',
-    groupType: QuestionGroupType.GENERIC,
+    groupType: QuestionGroupType.UNKNOWN,
     title: '',
     rows: [{ prompt: '', answers: [''] }],
     points: 1,
@@ -33,7 +33,6 @@ export function newLongText(): LongTextQuestionData {
     key: crypto.randomUUID(),
     type: QuestionType.LONG_TEXT,
     prompt: '',
-    // 2 = LongTextLength.MEDIUM (default tier for new questions)
     lengthLimit: 2,
     criteria: [{ point: '', weight: 0.1, category: '' }],
     points: 1,

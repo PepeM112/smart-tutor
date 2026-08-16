@@ -13,7 +13,8 @@ type Props = {
 };
 
 export function TestEditor({ testId }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('tests');
+  const tCommon = useTranslations('common');
   const {
     data: existing,
     isLoading,
@@ -25,17 +26,17 @@ export function TestEditor({ testId }: Props) {
   });
 
   if (testId && isLoading) {
-    return <p className="text-muted-foreground">{t('common.loading')}</p>;
+    return <p className="text-muted-foreground">{tCommon('loading')}</p>;
   }
 
   if (testId && isError) {
-    return <p className="text-muted-foreground">{t('tests.failed_to_load')}</p>;
+    return <p className="text-muted-foreground">{t('failed_to_load')}</p>;
   }
 
   const test = existing?.data;
 
   if (testId && !test) {
-    return <p className="text-muted-foreground">{t('tests.test_not_found')}</p>;
+    return <p className="text-muted-foreground">{t('test_not_found')}</p>;
   }
 
   return (

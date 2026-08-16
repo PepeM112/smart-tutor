@@ -2,7 +2,6 @@ import { create } from 'zustand';
 
 import type { GeneratedQuestionPreviewInput } from '@/client';
 
-// Bridges AI-generated questions from the generate dialog to the preview page (separate route); cleared once the test is created
 interface GenerationState {
   questions: GeneratedQuestionPreviewInput[];
   sourceNoteId: string;

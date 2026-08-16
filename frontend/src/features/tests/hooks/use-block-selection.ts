@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 
-// Clicks on form controls shouldn't toggle block selection
 const INTERACTIVE_SELECTOR = 'input, textarea, button, select, [role="checkbox"], [data-slot="switch"]';
 
 export function useBlockSelection() {
@@ -23,7 +22,6 @@ export function useBlockSelection() {
       const next = new Set<number>();
       prev.forEach(i => {
         if (i === index) return;
-        // Shift indices above the removed block down by one
         next.add(i > index ? i - 1 : i);
       });
       return next;
@@ -34,5 +32,5 @@ export function useBlockSelection() {
     setSelectedIndices(new Set());
   }, []);
 
-  return { selectedIndices, toggleSelection, removeAndReindex, clearSelection };
+  return { selectedIndices, setSelectedIndices, toggleSelection, removeAndReindex, clearSelection };
 }

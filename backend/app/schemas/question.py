@@ -1,10 +1,7 @@
-from typing import Literal
-
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
 from app.core.enums import LongTextLength, QuestionType
 from app.schemas.base import BaseSchema
-from app.schemas.pagination import PaginatedResponse
 
 # --- Content sub-models ---
 
@@ -42,7 +39,6 @@ class LongTextContent(BaseSchema):
     @classmethod
     def validate_rubric_weights(cls, v: list[RubricItem]) -> list[RubricItem]:
         for item in v:
-            # round() compensates for binary float imprecision (e.g. 0.15 % 0.05 ≠ 0)
             remainder = round(item.weight % 0.05, 10)
             if remainder > 1e-9 and remainder < 0.05 - 1e-9:
                 raise ValueError(f"Weight {item.weight} is not a multiple of 0.05")
@@ -144,72 +140,3 @@ class QuestionReadStripped(BaseSchema):
     order: int = 0
     points: float = 1.0
     id: str
-
-
-# --- Standalone question (question bank) schemas ---
-
-
-class QuestionCreateStandalone(BaseSchema):
-    """Create a standalone question not attached to any test."""
-
-    question_type: QuestionType
-    prompt: str
-    content: QuestionContent
-    hint: str | None = None
-    explanation: str | None = None
-    points: float = 1.0
-
-    @field_validator("content")
-    @classmethod
-    def validate_content_schema(cls, v: QuestionContent, info: ValidationInfo) -> QuestionContent:
-        q_type = info.data.get("question_type")
-        _validate_content(q_type, v)
-        return v
-
-
-class QuestionListRead(BaseSchema):
-    """Question with owning test/group names — used in the questions list page."""
-
-    id: str
-    question_type: QuestionType
-    prompt: str
-    content: QuestionContent
-    hint: str | None = None
-    explanation: str | None = None
-    test_id: str | None = None
-    group_id: str | None = None
-    order: int = 0
-    points: float = 1.0
-    origin_id: str | None = None
-    test_title: str | None = None
-    group_title: str | None = None
-
-
-class AssignQuestionRequest(BaseSchema):
-    test_id: str
-
-
-# Columns the questions list can be sorted by (see crud/question.py list_by_user).
-QuestionSortBy = Literal["prompt", "question_type", "points", "created_at"]
-SortOrder = Literal["asc", "desc"]
-QuestionGrouping = Literal["grouped", "ungrouped"]
-
-
-class BulkDeleteQuestionsRequest(BaseSchema):
-    question_ids: list[str] = Field(..., min_length=1)
-
-
-class BulkDeleteQuestionsResponse(BaseSchema):
-    deleted: int
-
-
-class BulkAssignQuestionsRequest(BaseSchema):
-    question_ids: list[str] = Field(..., min_length=1)
-    test_id: str
-
-
-class BulkAssignQuestionsResponse(BaseSchema):
-    assigned: int
-
-
-PaginatedQuestionListRead = PaginatedResponse[QuestionListRead]

@@ -8,21 +8,18 @@ import { useCallback, useMemo } from 'react';
 
 import type { TestResultListItem } from '@/client';
 import { DataTable } from '@/components/shared/data-table';
-import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { getScoreBadgeClasses } from '@/features/history/utils/score-colors';
-import { formatShortDate } from '@/lib/format';
+import { formatDate, formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
   data: TestResultListItem[];
-  sort?: SortState;
-  onSort?: (column: string | null, order: SortDirection) => void;
 };
 
-export function HistoryTable({ data, sort, onSort }: Props) {
+export function HistoryTable({ data }: Props) {
   const router = useRouter();
-  const t = useTranslations();
+  const t = useTranslations('history');
   const columns = useMemo(() => getColumns(t), [t]);
 
   const renderPreview = useCallback(
@@ -42,9 +39,7 @@ export function HistoryTable({ data, sort, onSort }: Props) {
     <DataTable
       columns={columns}
       data={data}
-      sort={sort}
-      onSort={onSort}
-      emptyMessage={t('history.no_history_yet')}
+      emptyMessage={t('no_history_yet')}
       onRowClick={row => router.push(Routes.RESULT_DETAIL(row.id))}
       renderPreview={renderPreview}
       expandable={false}
@@ -62,23 +57,22 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResultListItem, unknown>[] {
+function getColumns(t: ReturnType<typeof useTranslations<'history'>>): ColumnDef<TestResultListItem, unknown>[] {
   return [
     {
       accessorKey: 'testTitle',
-      header: t('history.column_test'),
+      header: t('column_test'),
       cell: ({ row }) => <p className="font-medium text-foreground truncate max-w-xs">{row.original.testTitle}</p>,
     },
     {
       id: 'score',
-      header: t('history.column_score'),
-      meta: { sortKey: 'score' },
+      header: t('column_score'),
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5">
           <ScoreBadge score={row.original.score ?? 0} />
           {(row.original.pendingAnswers ?? 0) > 0 && (
             <span className="inline-flex items-center rounded-md bg-feedback-partial-bg px-1.5 py-0.5 text-xs font-medium text-feedback-partial">
-              {t('history.column_pending')}
+              {t('column_pending')}
             </span>
           )}
         </div>
@@ -86,7 +80,7 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
     },
     {
       id: 'result',
-      header: t('history.column_result'),
+      header: t('column_result'),
       cell: ({ row }) => (
         <span className="tabular-nums text-muted-foreground">
           {row.original.correctAnswers} / {row.original.totalQuestions}
@@ -95,11 +89,8 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
     },
     {
       accessorKey: 'createdAt',
-      header: t('history.column_date'),
-      meta: { sortKey: 'created_at' },
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>
-      ),
+      header: t('column_date'),
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.createdAt)}</span>,
     },
     {
       id: 'actions',
@@ -111,12 +102,12 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
             <Button
               variant="ghost"
               size="icon-lg"
-              tooltip={t('history.view_details')}
+              tooltip={t('view_details')}
               onClick={e => {
                 e.stopPropagation();
                 router.push(Routes.RESULT_DETAIL(row.original.id));
               }}
-              aria-label={t('history.view_details')}
+              aria-label={t('view_details')}
             >
               <Eye className="size-4" />
             </Button>

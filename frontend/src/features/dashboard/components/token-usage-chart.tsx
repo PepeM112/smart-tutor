@@ -6,7 +6,6 @@ import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, T
 
 import { AiProvider, type TokenUsageDailySummary } from '@/client';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { formatTokens } from '@/lib/format';
 
 const PROVIDER_COLORS: Record<number, { fill: string; label: string }> = {
   [AiProvider.ANTHROPIC]: { fill: '#F97316', label: 'Anthropic' },
@@ -24,7 +23,7 @@ function buildChartData(daily: TokenUsageDailySummary[]): ChartDataPoint[] {
   const byDate = new Map<string, { anthropic: number; openai: number }>();
 
   daily.forEach(entry => {
-    const dateStr = entry.date;
+    const dateStr = entry.date instanceof Date ? entry.date.toISOString().split('T')[0] : String(entry.date);
 
     const existing = byDate.get(dateStr) ?? { anthropic: 0, openai: 0 };
     const tokens = entry.inputTokens + entry.outputTokens;
@@ -53,9 +52,14 @@ function buildChartData(daily: TokenUsageDailySummary[]): ChartDataPoint[] {
 }
 
 function formatDate(dateStr: string): string {
-  if (dateStr.includes(':')) return dateStr;
   const [, month, day] = dateStr.split('-');
   return `${month}/${day}`;
+}
+
+function formatTokens(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(value);
 }
 
 type Props = {
@@ -63,7 +67,7 @@ type Props = {
 };
 
 export function TokenUsageChart({ daily }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('dashboard');
   const { isMobile } = useBreakpoint();
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
 
@@ -82,7 +86,7 @@ export function TokenUsageChart({ daily }: Props) {
   };
 
   if (data.length === 0) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">{t('dashboard.no_usage_data')}</p>;
+    return <p className="py-12 text-center text-sm text-muted-foreground">{t('no_usage_data')}</p>;
   }
 
   return (
@@ -125,7 +129,7 @@ export function TokenUsageChart({ daily }: Props) {
             const nameStr = `${name as string}`;
             const providerLabel =
               nameStr === 'cumulative'
-                ? t('dashboard.cumulative')
+                ? t('cumulative')
                 : (PROVIDER_COLORS[nameStr === 'anthropic' ? AiProvider.ANTHROPIC : AiProvider.OPENAI]?.label ??
                   nameStr);
             return [formatTokens(numVal), providerLabel];
@@ -137,9 +141,7 @@ export function TokenUsageChart({ daily }: Props) {
           }}
           formatter={(value: string) => {
             const isHidden = hiddenSeries.has(value);
-            const providerKey =
-              value === 'anthropic' ? AiProvider.ANTHROPIC : value === 'openai' ? AiProvider.OPENAI : null;
-            const label = providerKey !== null ? PROVIDER_COLORS[providerKey].label : t('dashboard.cumulative');
+            const label = value === 'cumulative' ? t('cumulative') : value === 'anthropic' ? 'Anthropic' : 'OpenAI';
             return <span className={isHidden ? 'opacity-40' : ''}>{label}</span>;
           }}
           wrapperStyle={{ cursor: 'pointer', fontSize: isMobile ? 11 : 12 }}
@@ -160,7 +162,6 @@ export function TokenUsageChart({ daily }: Props) {
           hide={hiddenSeries.has('openai')}
           radius={[2, 2, 0, 0]}
         />
-        {/* On mobile the cumulative axis is hidden, so the line must attach to "daily" or Recharts can't plot */}
         <Line
           yAxisId={isMobile ? 'daily' : 'cumulative'}
           dataKey="cumulative"

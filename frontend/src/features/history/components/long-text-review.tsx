@@ -3,7 +3,7 @@
 import { Check, Loader2, RotateCcw, Scale, Send, ShieldCheck, Undo2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { AnswerStatus, type AnswerRead, type RubricResultItem } from '@/client';
+import { type AnswerRead, type RubricResultItem } from '@/client';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useAiAvailable } from '@/hooks/use-ai-available';
@@ -14,28 +14,27 @@ import { useChallengeMode } from '../hooks/use-challenge-mode';
 import { effectiveMet } from './result-detail-utils';
 
 export function LongTextReview({ answer }: { answer?: AnswerRead }) {
-  const t = useTranslations();
+  const tChallenge = useTranslations('challenge');
 
   if (!answer) return null;
 
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm text-muted-foreground mb-1">{t('challenge.your_answer')}</p>
+        <p className="text-sm text-muted-foreground mb-1">{tChallenge('your_answer')}</p>
         <p className="text-sm whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.userAnswer}</p>
       </div>
-      {answer.status === AnswerStatus.FAILED ? (
-        <p className="text-sm text-destructive">{t('challenge.grading_failed')}</p>
-      ) : (
-        answer.rubricResult &&
-        answer.rubricResult.length > 0 && <RubricBreakdown items={answer.rubricResult} answerId={answer.id} />
+      {answer.rubricResult && answer.rubricResult.length > 0 && (
+        <RubricBreakdown items={answer.rubricResult} answerId={answer.id} />
       )}
     </div>
   );
 }
 
 function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answerId: string }) {
-  const t = useTranslations();
+  const tChallenge = useTranslations('challenge');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
   const aiAvailable = useAiAvailable();
   const {
     isChallengeMode,
@@ -58,12 +57,12 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">
-          {t('challenge.rubric', { met: `${effectiveMetCount}/${items.length}` })}
+          {tChallenge('rubric', { met: `${effectiveMetCount}/${items.length}` })}
         </p>
         <div className="flex items-center gap-1">
           {isChallengeMode && (
             <div className="flex items-center gap-1 animate-in fade-in-0 slide-in-from-right-3 duration-200">
-              <Tooltip content={t('common.cancel')}>
+              <Tooltip content={tCommon('cancel')}>
                 <button
                   className={cn(iconBtnClass, 'text-muted-foreground hover:bg-muted')}
                   onClick={exitChallengeMode}
@@ -74,8 +73,8 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
               <Tooltip
                 content={
                   canSubmit
-                    ? `${t('challenge.submit_challenge')} (${selectedCriteria.size})`
-                    : t('challenge.select_criteria_first')
+                    ? `${tChallenge('submit_challenge')} (${selectedCriteria.size})`
+                    : tChallenge('select_criteria_first')
                 }
               >
                 <button
@@ -97,10 +96,10 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
               <Tooltip
                 content={
                   !aiAvailable
-                    ? t('settings.ai_not_configured')
+                    ? tSettings('ai_not_configured')
                     : canChallenge
-                      ? t('challenge.challenge_grade')
-                      : t('challenge.all_criteria_reviewed')
+                      ? tChallenge('challenge_grade')
+                      : tChallenge('all_criteria_reviewed')
                 }
               >
                 <button
@@ -152,7 +151,7 @@ function CriterionCard({
   onToggle: () => void;
   onArgumentChange: (value: string) => void;
 }) {
-  const t = useTranslations();
+  const tChallenge = useTranslations('challenge');
   const cr = item.challengeResult;
   const isPending = cr != null && cr.met == null;
   const isOverturned = cr != null && cr.met === true;
@@ -208,7 +207,7 @@ function CriterionCard({
       {isSelected && (
         <div className="mt-4 ml-6" onClick={e => e.stopPropagation()}>
           <Textarea
-            placeholder={t('challenge.explain_criterion')}
+            placeholder={tChallenge('explain_criterion')}
             value={argument}
             onChange={e => onArgumentChange(e.target.value)}
             rows={2}
@@ -254,20 +253,20 @@ function CriterionIcon({
 }
 
 function ChallengeVerdict({ variant }: { variant: 'overturned' | 'pending' }) {
-  const t = useTranslations();
+  const tChallenge = useTranslations('challenge');
 
   if (variant === 'overturned') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-feedback-correct-bg px-2 py-0.5 text-[0.65rem] font-medium text-feedback-correct ring-1 ring-feedback-correct-border shrink-0">
         <ShieldCheck className="size-3" />
-        {t('challenge.overturned')}
+        {tChallenge('overturned')}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-feedback-partial-bg px-2 py-0.5 text-[0.65rem] font-medium text-feedback-partial ring-1 ring-feedback-partial-border shrink-0">
       <Loader2 className="size-3 animate-spin" />
-      {t('challenge.re_evaluating')}
+      {tChallenge('re_evaluating')}
     </span>
   );
 }

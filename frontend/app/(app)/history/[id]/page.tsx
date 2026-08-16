@@ -1,11 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { use } from 'react';
 
-import { QueryState } from '@/components/shared/query-state';
-import { ResultDetail } from '@/features/history/components/result-detail';
+import ResultDetail from '@/features/history/components/result-detail';
 import { useTestResult } from '@/features/history/hooks/use-test-result';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
@@ -17,8 +17,8 @@ type Props = {
 
 export default function ResultDetailPage({ params }: Props) {
   const { id } = use(params);
-  const t = useTranslations();
-  useBreadcrumb(t('history.test_result'), [{ label: t('history.title'), href: Routes.HISTORY }], Routes.HISTORY);
+  const t = useTranslations('history');
+  useBreadcrumb(t('test_result'), [{ label: t('title'), href: Routes.HISTORY }], Routes.HISTORY);
 
   const { data: resultResponse, isLoading: isLoadingResult, isError: isResultError } = useTestResult(id);
 
@@ -36,17 +36,21 @@ export default function ResultDetailPage({ params }: Props) {
 
   const test = testResponse?.data;
 
-  return (
-    <QueryState
-      isLoading={isLoadingResult || isLoadingTest}
-      isError={isResultError || isTestError}
-      errorMessage={t('history.failed_to_load_result')}
-    >
-      {result && test ? (
-        <ResultDetail result={result} test={test} />
-      ) : (
-        <p className="text-muted-foreground">{t('history.result_not_found')}</p>
-      )}
-    </QueryState>
-  );
+  if (isLoadingResult || isLoadingTest) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isResultError || isTestError) {
+    return <p className="text-muted-foreground">{t('failed_to_load_result')}</p>;
+  }
+
+  if (!result || !test) {
+    return <p className="text-muted-foreground">{t('result_not_found')}</p>;
+  }
+
+  return <ResultDetail result={result} test={test} />;
 }

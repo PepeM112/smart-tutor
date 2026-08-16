@@ -10,31 +10,28 @@ import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { DataTable, type MobileAction } from '@/components/shared/data-table';
-import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { getQuestionTypeInfo } from '@/features/tests/utils/question-icons';
 import { sdk } from '@/lib/api-client';
-import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
   data: TestRead[];
-  sort?: SortState;
-  onSort?: (column: string | null, order: SortDirection) => void;
 };
 
-export function TestsTable({ data, sort, onSort }: Props) {
-  const t = useTranslations();
+export function TestsTable({ data }: Props) {
+  const t = useTranslations('tests');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
   const { mutate: deleteTest, isPending: deleteIsPending } = useMutation({
     mutationFn: (id: string) => sdk.testsDelete({ path: { test_id: id } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
-      toast.success(t('tests.test_deleted'));
+      toast.success(t('test_deleted'));
     },
-    onError: () => toast.error(t('tests.failed_to_delete')),
+    onError: () => toast.error(t('failed_to_delete')),
   });
 
   const columns = useTestsColumns({ deleteTest, isDeleting: deleteIsPending });
@@ -63,44 +60,42 @@ export function TestsTable({ data, sort, onSort }: Props) {
   const renderActions = useCallback(
     (test: TestRead): MobileAction[] => [
       {
-        label: t('common.edit'),
+        label: tCommon('edit'),
         icon: Pencil,
         onClick: () => router.push(Routes.TEST_EDIT(test.id)),
       },
       {
-        label: t('tests.copy_id'),
+        label: t('copy_id'),
         icon: Copy,
         onClick: () => {
           void navigator.clipboard.writeText(test.id);
-          toast.success(t('common.copied'));
+          toast.success(tCommon('copied'));
         },
       },
       {
-        label: t('tests.take_test_action'),
+        label: t('take_test_action'),
         icon: Dumbbell,
         onClick: () => router.push(Routes.TEST_DETAIL(test.id)),
       },
       {
-        label: t('common.delete'),
+        label: tCommon('delete'),
         icon: Trash2,
         variant: 'destructive',
         onClick: () => deleteTest(test.id),
         confirm: {
-          title: t('tests.delete_test'),
-          description: t('tests.delete_test_confirm', { title: test.title }),
+          title: t('delete_test'),
+          description: t('delete_test_confirm', { title: test.title }),
         },
       },
     ],
-    [t, router, deleteTest]
+    [t, tCommon, router, deleteTest]
   );
 
   return (
     <DataTable
       columns={columns}
       data={data}
-      sort={sort}
-      onSort={onSort}
-      emptyMessage={t('tests.no_tests_yet')}
+      emptyMessage={t('no_tests_yet')}
       onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
       renderPreview={renderPreview}
       renderActions={renderActions}
@@ -113,12 +108,11 @@ function countByType(questions: QuestionRead[], type: QuestionType): number {
 }
 
 function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number }) {
-  const t = useTranslations();
   if (count === 0) return null;
-  const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
+  const { icon: Icon, label } = getQuestionTypeInfo(type);
   return (
     <span
-      title={`${count} ${t(labelKey)}`}
+      title={`${count} ${label}`}
       className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
     >
       <Icon className="size-3.5" />
@@ -133,14 +127,14 @@ type ColumnDeps = {
 };
 
 function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<TestRead, unknown>[] {
-  const t = useTranslations();
+  const t = useTranslations('tests');
+  const tCommon = useTranslations('common');
   const router = useRouter();
 
   return [
     {
       accessorKey: 'title',
-      header: t('tests.column_title'),
-      meta: { sortKey: 'title' },
+      header: t('column_title'),
       cell: ({ row }) => {
         const { title, description } = row.original;
         return (
@@ -153,7 +147,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
     },
     {
       id: 'questions',
-      header: t('tests.column_questions'),
+      header: t('column_questions'),
       cell: ({ row }) => {
         const questions = row.original.questions ?? [];
         return <span className="tabular-nums text-muted-foreground">{questions.length}</span>;
@@ -161,7 +155,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
     },
     {
       id: 'types',
-      header: t('tests.column_types'),
+      header: t('column_types'),
       cell: ({ row }) => {
         const questions = row.original.questions ?? [];
         const simple = countByType(questions, QuestionType.SIMPLE);
@@ -182,14 +176,6 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
       },
     },
     {
-      id: 'created',
-      header: t('tests.column_created'),
-      meta: { sortKey: 'created_at' },
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>
-      ),
-    },
-    {
       id: 'actions',
       header: '',
       cell: ({ row }) => (
@@ -197,25 +183,25 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip={t('common.edit')}
+            tooltip={tCommon('edit')}
             onClick={e => {
               e.stopPropagation();
               router.push(Routes.TEST_EDIT(row.original.id));
             }}
-            aria-label={t('common.edit')}
+            aria-label={tCommon('edit')}
           >
             <Pencil className="size-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip={t('tests.copy_id')}
+            tooltip={t('copy_id')}
             onClick={e => {
               e.stopPropagation();
               void navigator.clipboard.writeText(row.original.id);
-              toast.success(t('common.copied'));
+              toast.success(tCommon('copied'));
             }}
-            aria-label={t('tests.copy_id')}
+            aria-label={t('copy_id')}
           >
             <Copy className="size-4" />
           </Button>
@@ -223,12 +209,12 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
             variant="ghost"
             size="icon-lg"
             className="text-feedback-partial hover:text-feedback-partial"
-            tooltip={t('tests.take_test_action')}
+            tooltip={t('take_test_action')}
             onClick={e => {
               e.stopPropagation();
               router.push(Routes.TEST_DETAIL(row.original.id));
             }}
-            aria-label={t('tests.take_test_action')}
+            aria-label={t('take_test_action')}
           >
             <Dumbbell className="size-4" />
           </Button>
@@ -238,17 +224,17 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
                 variant="ghost"
                 size="icon-lg"
                 className="text-destructive hover:text-destructive"
-                tooltip={t('common.delete')}
+                tooltip={tCommon('delete')}
                 onClick={e => e.stopPropagation()}
                 disabled={isDeleting}
-                aria-label={t('common.delete')}
+                aria-label={tCommon('delete')}
               >
                 <Trash2 className="size-4" />
               </Button>
             }
-            title={t('tests.delete_test')}
-            description={t('tests.delete_test_confirm', { title: row.original.title })}
-            confirmLabel={t('common.delete')}
+            title={t('delete_test')}
+            description={t('delete_test_confirm', { title: row.original.title })}
+            confirmLabel={tCommon('delete')}
             confirmClassName="bg-destructive text-white hover:bg-destructive/90"
             onConfirm={() => deleteTest(row.original.id)}
           />

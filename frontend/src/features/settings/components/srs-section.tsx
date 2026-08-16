@@ -15,26 +15,26 @@ type Props = {
 };
 
 export function SrsSection({ form, updateField }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('settings');
 
   return (
-    <SettingsSection title={t('settings.srs_preferences')} description={t('settings.srs_description')}>
+    <SettingsSection title={t('srs_preferences')} description={t('srs_description')}>
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="dailyReviewLimit">{t('settings.daily_review_limit')}</Label>
-          <p className="text-xs text-muted-foreground">{t('settings.daily_review_limit_description')}</p>
+          <Label htmlFor="dailyReviewLimit">{t('daily_review_limit')}</Label>
+          <p className="text-xs text-muted-foreground">{t('daily_review_limit_description')}</p>
           <Input
             id="dailyReviewLimit"
             type="number"
             min={1}
-            placeholder={t('settings.unlimited')}
+            placeholder={t('unlimited')}
             value={form.dailyReviewLimit}
             onChange={e => updateField('dailyReviewLimit', e.target.value)}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="initialEaseFactor">{t('settings.initial_ease_factor')}</Label>
-          <p className="text-xs text-muted-foreground">{t('settings.initial_ease_factor_description')}</p>
+          <Label htmlFor="initialEaseFactor">{t('initial_ease_factor')}</Label>
+          <p className="text-xs text-muted-foreground">{t('initial_ease_factor_description')}</p>
           <Input
             id="initialEaseFactor"
             type="number"

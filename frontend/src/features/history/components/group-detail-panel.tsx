@@ -7,7 +7,7 @@ import { QuestionDetailPanel } from './question-detail-panel';
 import { countCorrectInGroup } from './result-detail-utils';
 import { VocabularyReviewTable } from './vocabulary-review-table';
 
-export function GroupDetailPanel({
+export default function GroupDetailPanel({
   title,
   type,
   questions,

@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import Annotated, TypeAlias
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -10,15 +9,7 @@ from app.models.test import Test
 from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.correction import TestSubmission
-from app.schemas.test import (
-    PaginatedTestRead,
-    SortOrder,
-    TestCreate,
-    TestRead,
-    TestReadStripped,
-    TestSortBy,
-    TestUpdate,
-)
+from app.schemas.test import TestCreate, TestRead, TestReadStripped, TestUpdate
 from app.schemas.test_generation import (
     QuestionEditRequest,
     TestGenerationRequest,
@@ -36,37 +27,9 @@ DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
-@router.get("", response_model=PaginatedTestRead)
-def list_(
-    db: DbSession,
-    current_user: CurrentUser,
-    search: str | None = None,
-    question_type: Annotated[list[int] | None, Query()] = None,
-    created_from: datetime | None = None,
-    created_to: datetime | None = None,
-    sort_by: Annotated[TestSortBy | None, Query()] = None,
-    sort_order: Annotated[SortOrder, Query()] = "desc",
-    page: int = Query(default=1, ge=1),
-    per_page: int = Query(default=20, ge=1, le=100),
-) -> PaginatedTestRead:
-    items, total = test_service.list_tests(
-        db,
-        current_user=current_user,
-        search=search,
-        question_type=question_type,
-        created_from=created_from,
-        created_to=created_to,
-        sort_by=sort_by,
-        sort_order=sort_order,
-        page=page,
-        per_page=per_page,
-    )
-    return PaginatedTestRead(
-        items=items,
-        total=total,
-        page=page,
-        per_page=per_page,
-    )
+@router.get("", response_model=list[TestRead])
+def list_(db: DbSession, current_user: CurrentUser) -> list[Test]:
+    return test_service.list_tests(db, current_user=current_user)
 
 
 @router.get("/{test_id}", response_model=TestRead)

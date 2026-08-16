@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 
 import { NoteSource, type NoteRead } from '@/client';
 import { DataTable, type MobileAction } from '@/components/shared/data-table';
-import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/api-client';
@@ -19,24 +18,23 @@ import { Routes } from '@/lib/routes';
 
 type Props = {
   data: NoteRead[];
-  sort?: SortState;
-  onSort?: (column: string | null, order: SortDirection) => void;
 };
 
-export function NotesList({ data, sort, onSort }: Props) {
-  const t = useTranslations();
+export function NotesList({ data }: Props) {
+  const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { mutate: deleteNote, isPending: isDeleting } = useMutation({
+  const { mutate: deleteNote, isPending: deleteIsPending } = useMutation({
     mutationFn: (id: string) => sdk.notesDelete({ path: { note_id: id } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success(t('notes.note_deleted'));
+      toast.success(t('note_deleted'));
     },
-    onError: () => toast.error(t('notes.failed_to_delete')),
+    onError: () => toast.error(t('failed_to_delete')),
   });
 
-  const columns = useNotesColumns({ deleteNote, isDeleting });
+  const columns = useNotesColumns({ deleteNote, isDeleting: deleteIsPending });
 
   const renderPreview = useCallback((note: NoteRead) => {
     const preview =
@@ -52,39 +50,37 @@ export function NotesList({ data, sort, onSort }: Props) {
   const renderActions = useCallback(
     (note: NoteRead): MobileAction[] => [
       {
-        label: t('common.edit'),
+        label: tCommon('edit'),
         icon: Pencil,
         onClick: () => router.push(Routes.NOTE_DETAIL(note.id)),
       },
       {
-        label: t('common.export'),
+        label: tCommon('export'),
         icon: Download,
         onClick: () => {
           downloadMarkdown(note.title, note.content ?? '');
-          toast.success(t('common.downloaded'));
+          toast.success(tCommon('downloaded'));
         },
       },
       {
-        label: t('common.delete'),
+        label: tCommon('delete'),
         icon: Trash2,
         variant: 'destructive',
         onClick: () => deleteNote(note.id),
         confirm: {
-          title: t('notes.delete_note'),
-          description: t('notes.delete_note_confirm', { title: note.title }),
+          title: t('delete_note'),
+          description: t('delete_note_confirm', { title: note.title }),
         },
       },
     ],
-    [t, router, deleteNote]
+    [t, tCommon, router, deleteNote]
   );
 
   return (
     <DataTable
       columns={columns}
       data={data}
-      sort={sort}
-      onSort={onSort}
-      emptyMessage={t('notes.no_notes_yet')}
+      emptyMessage={t('no_notes_yet')}
       onRowClick={row => router.push(Routes.NOTE_DETAIL(row.id))}
       renderPreview={renderPreview}
       expandable={false}
@@ -104,10 +100,10 @@ function downloadMarkdown(title: string, content: string) {
 }
 
 function SourceBadge({ source }: { source: NoteSource }) {
-  const t = useTranslations();
+  const t = useTranslations('notes');
   const isAI = source === NoteSource.AI_GENERATED;
   const Icon = isAI ? Bot : User;
-  const label = isAI ? t('notes.source_ai') : t('notes.source_manual');
+  const label = isAI ? t('source_ai') : t('source_manual');
 
   return (
     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -123,14 +119,14 @@ type ColumnDeps = {
 };
 
 function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
-  const t = useTranslations();
+  const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
   const router = useRouter();
 
   return [
     {
       accessorKey: 'title',
-      header: t('notes.column_title'),
-      meta: { sortKey: 'title' },
+      header: t('column_title'),
       cell: ({ row }) => {
         const { title, description } = row.original;
         const preview = description && description.length > 80 ? `${description.slice(0, 80)}...` : description;
@@ -144,13 +140,12 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
     },
     {
       id: 'source',
-      header: t('notes.column_source'),
+      header: t('column_source'),
       cell: ({ row }) => <SourceBadge source={row.original.source} />,
     },
     {
       id: 'updated',
-      header: t('notes.column_updated'),
-      meta: { sortKey: 'updated_at' },
+      header: t('column_updated'),
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">{formatShortDate(row.original.updatedAt)}</span>
       ),
@@ -163,25 +158,25 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip={t('common.edit')}
+            tooltip={tCommon('edit')}
             onClick={e => {
               e.stopPropagation();
               router.push(Routes.NOTE_DETAIL(row.original.id));
             }}
-            aria-label={t('common.edit')}
+            aria-label={tCommon('edit')}
           >
             <Pencil className="size-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip={t('common.export')}
+            tooltip={tCommon('export')}
             onClick={e => {
               e.stopPropagation();
               downloadMarkdown(row.original.title, row.original.content ?? '');
-              toast.success(t('common.downloaded'));
+              toast.success(tCommon('downloaded'));
             }}
-            aria-label={t('common.export')}
+            aria-label={tCommon('export')}
           >
             <Download className="size-4" />
           </Button>
@@ -191,17 +186,17 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
                 variant="ghost"
                 size="icon-lg"
                 className="text-destructive hover:text-destructive"
-                tooltip={t('common.delete')}
+                tooltip={tCommon('delete')}
                 onClick={e => e.stopPropagation()}
                 disabled={isDeleting}
-                aria-label={t('common.delete')}
+                aria-label={tCommon('delete')}
               >
                 <Trash2 className="size-4" />
               </Button>
             }
-            title={t('notes.delete_note')}
-            description={t('notes.delete_note_confirm', { title: row.original.title })}
-            confirmLabel={t('common.delete')}
+            title={t('delete_note')}
+            description={t('delete_note_confirm', { title: row.original.title })}
+            confirmLabel={tCommon('delete')}
             confirmClassName="bg-destructive text-white hover:bg-destructive/90"
             onConfirm={() => deleteNote(row.original.id)}
           />

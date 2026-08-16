@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Integer, Row, cast, func, select
+from sqlalchemy import Row, cast, func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.types import Date
 
@@ -56,30 +56,5 @@ def get_daily_summary(
         )
         .group_by(cast(TokenUsage.created_at, Date), TokenUsage.provider)
         .order_by(cast(TokenUsage.created_at, Date))
-    )
-    return list(db.execute(stmt).all())
-
-
-def get_hourly_summary(
-    db: Session,
-    *,
-    user_id: str,
-    target_date: date,
-) -> list[Row[tuple[int, int, int, int, Decimal | None]]]:
-    hour_col = cast(func.extract("hour", TokenUsage.created_at), Integer)
-    stmt = (
-        select(
-            hour_col.label("hour"),
-            TokenUsage.provider,
-            func.sum(TokenUsage.input_tokens).label("input_tokens"),
-            func.sum(TokenUsage.output_tokens).label("output_tokens"),
-            func.sum(TokenUsage.estimated_cost).label("estimated_cost"),
-        )
-        .where(
-            TokenUsage.user_id == user_id,
-            cast(TokenUsage.created_at, Date) == target_date,
-        )
-        .group_by(hour_col, TokenUsage.provider)
-        .order_by(hour_col)
     )
     return list(db.execute(stmt).all())

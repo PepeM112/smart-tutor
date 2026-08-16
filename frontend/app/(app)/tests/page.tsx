@@ -4,143 +4,47 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useCallback, useMemo, useState } from 'react';
 
-import { QuestionType } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { Pagination } from '@/components/shared/pagination';
-import { QueryState } from '@/components/shared/query-state';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { QuickTestDialog } from '@/features/tests/components/quick-test-dialog';
 import { TestsTable } from '@/features/tests/components/tests-table';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { useFilters } from '@/hooks/use-filters';
-import { useUrlSort } from '@/hooks/use-url-sort';
 import { sdk } from '@/lib/api-client';
-import { FilterType, type DateFilterValue, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
-const PER_PAGE = 20;
-
-const QUESTION_TYPE_OPTIONS = [
-  { label: 'questions.type_simple', value: QuestionType.SIMPLE },
-  { label: 'questions.type_multiple_choice', value: QuestionType.MULTIPLE_CHOICE },
-  { label: 'questions.type_long_text', value: QuestionType.LONG_TEXT },
-];
-
 export default function TestsPage() {
-  const t = useTranslations();
-  useBreadcrumb(t('tests.title'));
-
-  const [page, setPage] = useState(1);
-  const resetPage = useCallback(() => setPage(1), []);
-  const { sort, sortBy, sortOrder, handleSort } = useUrlSort(['title', 'created_at'] as const, resetPage);
-
-  const filterConfig: FilterItem[] = useMemo(
-    () => [
-      {
-        label: t('tests.filter_search'),
-        key: 'search',
-        type: FilterType.SINGLE,
-        query: 'search',
-      },
-      {
-        label: t('tests.filter_type'),
-        key: 'question_type',
-        type: FilterType.MULTIPLE_SELECT,
-        query: 'question_type',
-        options: { items: QUESTION_TYPE_OPTIONS, number: true },
-      },
-      {
-        label: t('tests.filter_date'),
-        key: 'created',
-        type: FilterType.DATE,
-        query: 'created',
-      },
-    ],
-    [t]
-  );
-
-  const { filters, getValue, setFilter: rawSetFilter, clearFilters: rawClearFilters } = useFilters(filterConfig);
-
-  const setFilter = useCallback(
-    (key: string, value: Parameters<typeof rawSetFilter>[1]) => {
-      rawSetFilter(key, value);
-      setPage(1);
-    },
-    [rawSetFilter]
-  );
-
-  const clearFilters = useCallback(() => {
-    rawClearFilters();
-    setPage(1);
-  }, [rawClearFilters]);
-
-  const search = getValue<string>('search');
-  const questionType = getValue<Primitive[]>('question_type');
-  const created = getValue<DateFilterValue>('created');
+  const t = useTranslations('tests');
+  useBreadcrumb(t('title'));
 
   const {
-    data: response,
+    data: tests,
     isLoading,
-    isFetching,
     isError,
   } = useQuery({
-    queryKey: ['tests', { search, questionType, created, page, sortBy, sortOrder }],
-    queryFn: () =>
-      sdk.testsList({
-        query: {
-          search: search || undefined,
-          question_type: questionType?.length ? (questionType as number[]) : undefined,
-          created_from: created?.from ?? undefined,
-          created_to: created?.to ?? undefined,
-          page,
-          per_page: PER_PAGE,
-          sort_by: sortBy,
-          sort_order: sortOrder,
-        },
-      }),
+    queryKey: ['tests'],
+    queryFn: () => sdk.testsList(),
   });
-
-  const items = response?.data?.items ?? [];
-  const total = response?.data?.total ?? 0;
-  const hasActiveFilters = Object.keys(filters).length > 0;
-  const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-2">
-          <FilterPopover
-            filterConfig={filterConfig}
-            filters={filters}
-            onFilterChange={setFilter}
-            onClear={clearFilters}
-          />
-        </div>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
         <div className="flex items-center gap-2 self-end lg:self-auto">
           <QuickTestDialog compact />
           <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.TEST_NEW}>{t('tests.create_test')}</Link>
+            <Link href={Routes.TEST_NEW}>{t('create_test')}</Link>
           </Button>
         </div>
       </div>
 
-      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
-        {isFilteredEmpty ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-muted-foreground">{t('tests.no_results')}</p>
-            <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-              {t('tests.clear_filters')}
-            </Button>
-          </div>
-        ) : (
-          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-            <TestsTable data={items} sort={sort} onSort={handleSort} />
-            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-          </div>
-        )}
-      </QueryState>
+      {isLoading ? (
+        <LoadingSpinner />
+      ) : isError ? (
+        <p className="text-muted-foreground">{t('failed_to_load')}</p>
+      ) : (
+        <TestsTable data={tests?.data ?? []} />
+      )}
     </div>
   );
 }

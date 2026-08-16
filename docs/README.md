@@ -22,7 +22,7 @@ This folder documents **how features work and why they were built this way**. Fo
 
 ## Project Status
 
-**Core features:** Tests with three question types (Simple, Multiple Choice, Long Text), question groups, weighted exam scoring with partial credit, SRS-based review sessions, results history, study notes with AI generation, soft delete for tests, Question Bank (standalone questions with filtering/sorting/pagination/bulk actions).
+**Core features:** Tests with three question types (Simple, Multiple Choice, Long Text), question groups, weighted exam scoring with partial credit, SRS-based review sessions, results history, study notes with AI generation, soft delete for tests.
 
 **AI features:** AI grading for Long Text (Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini), challenge/re-evaluation of AI grading, AI test generation from notes (all three question types), AI chunk editing for notes and test questions, token usage tracking with cost estimation.
 

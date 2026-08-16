@@ -372,13 +372,5 @@ def seed_tests(db: Session, user_id: str) -> dict[str, Test]:
     ]
     db.add(t4)
 
-    # Set user_id on all questions (required NOT NULL field)
-    for test in [t1, t2, t3, t4]:
-        for q in test.questions:
-            q.user_id = user_id
-        for g in test.question_groups:
-            for q in g.questions:
-                q.user_id = user_id
-
     db.flush()
     return {"spanish_vocab": t1, "geography": t2, "spanish_mc": t3, "history": t4}

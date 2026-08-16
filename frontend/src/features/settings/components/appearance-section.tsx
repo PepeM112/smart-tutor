@@ -7,10 +7,10 @@ import { SettingsSection } from './settings-section';
 import { ThemePicker } from './theme-picker';
 
 export function AppearanceSection() {
-  const t = useTranslations();
+  const t = useTranslations('settings');
 
   return (
-    <SettingsSection title={t('settings.appearance')}>
+    <SettingsSection title={t('appearance')}>
       <div className="space-y-6">
         <ThemePicker />
         <FontSizePicker />

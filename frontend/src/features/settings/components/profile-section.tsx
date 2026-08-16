@@ -17,26 +17,26 @@ type Props = {
 };
 
 export function ProfileSection({ user, form, updateField }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('settings');
 
   return (
-    <SettingsSection title={t('settings.profile')}>
+    <SettingsSection title={t('profile')}>
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="displayName">{t('settings.display_name')}</Label>
+          <Label htmlFor="displayName">{t('display_name')}</Label>
           <Input
             id="displayName"
-            placeholder={t('settings.display_name_placeholder')}
+            placeholder={t('display_name_placeholder')}
             value={form.displayName}
             onChange={e => updateField('displayName', e.target.value)}
           />
         </div>
         <div className="space-y-1.5">
-          <Label>{t('settings.username')}</Label>
+          <Label>{t('username')}</Label>
           <Input value={user.username} disabled />
         </div>
         <div className="space-y-1.5">
-          <Label>{t('settings.email')}</Label>
+          <Label>{t('email')}</Label>
           <Input value={user.email} disabled />
         </div>
       </div>

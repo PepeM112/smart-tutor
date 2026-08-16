@@ -5,7 +5,7 @@ from pydantic_core import CoreSchema
 
 
 class NamedIntEnum(int, Enum):
-    """Int-backed enum whose member names are emitted in the OpenAPI schema."""
+    """Ensures TypeScript Enums have names (UNKNOWN = 0) instead of just numbers."""
 
     @classmethod
     def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler) -> dict[str, object]:
@@ -15,33 +15,39 @@ class NamedIntEnum(int, Enum):
 
 
 class UserStatus(NamedIntEnum):
+    UNKNOWN = 0
     ACTIVE = 1
     DELETED = 2
     BLOCKED = 3
 
 
 class UserRole(NamedIntEnum):
+    UNKNOWN = 0
     ADMIN = 1
     USER = 2
 
 
 class TestStatus(NamedIntEnum):
+    UNKNOWN = 0
     ACTIVE = 1
     DELETED = 2
 
 
 class QuestionStatus(NamedIntEnum):
+    UNKNOWN = 0
     ACTIVE = 1
     DELETED = 2
 
 
 class QuestionType(NamedIntEnum):
+    UNKNOWN = 0
     SIMPLE = 1
     MULTIPLE_CHOICE = 2
     LONG_TEXT = 3
 
 
 class AnswerStatus(NamedIntEnum):
+    UNKNOWN = 0
     CORRECT = 1
     WRONG = 2
     PARTIAL = 3
@@ -50,6 +56,7 @@ class AnswerStatus(NamedIntEnum):
 
 
 class LongTextLength(NamedIntEnum):
+    UNKNOWN = 0
     SHORT = 1
     MEDIUM = 2
     LONG = 3
@@ -63,27 +70,31 @@ LONG_TEXT_CHAR_LIMITS: dict[int, int] = {
 
 
 class QuestionGroupType(NamedIntEnum):
-    GENERIC = 1
-    VOCABULARY = 2
+    UNKNOWN = 0
+    VOCABULARY = 1
 
 
 class NoteSource(NamedIntEnum):
+    UNKNOWN = 0
     USER_CREATED = 1
     AI_GENERATED = 2
 
 
 class NoteLength(NamedIntEnum):
+    UNKNOWN = 0
     SHORT = 1
     MEDIUM = 2
     LONG = 3
 
 
 class AIProvider(NamedIntEnum):
+    UNKNOWN = 0
     ANTHROPIC = 1
     OPENAI = 2
 
 
 class AIFeature(NamedIntEnum):
+    UNKNOWN = 0
     GRADING = 1
     CHALLENGE = 2
     NOTE_GENERATION = 3

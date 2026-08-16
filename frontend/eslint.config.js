@@ -74,6 +74,7 @@ export default defineConfig([
         },
       ],
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }], // enforces `import type { X }`
+      '@typescript-eslint/prefer-nullish-coalescing': 'warn', // prefer ?? instead of || for nullable values
       'no-unused-vars': 'off', // Turned off because @typescript-eslint/no-unused-vars is used
       'no-undef': 'off', // TS already handles this
 

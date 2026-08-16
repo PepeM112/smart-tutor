@@ -110,7 +110,7 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 **Decision:** The `points` field lives directly on `Question` and `TestQuestionGroup`, not on a separate Exam entity.
 
-**Why:** Questions belong to at most one test (`test_id` is nullable — bank questions have none). Assigning a bank question to a test creates a copy, not a shared reference. Putting points directly on the models is unambiguous. An Exam entity would only be needed for teacher-student flows, which don't exist yet.
+**Why:** Questions belong to exactly one test (via `test_id` FK). There's no question sharing between tests. Putting points directly on the models is unambiguous. An Exam entity would only be needed for teacher-student flows, which don't exist yet.
 
 ---
 
@@ -217,22 +217,6 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** User API keys are encrypted with Fernet symmetric encryption before storage.
 
 **Why:** API keys in plaintext in the DB would be a breach liability. Fernet provides authenticated encryption (encrypt + HMAC). The encryption key is an env var (`ENCRYPTION_KEY`), not stored in the DB. Trade-off: if the encryption key is lost, all stored API keys become unrecoverable — but that's preferable to storing them in plain text.
-
----
-
-## Edit-in-Place for Bank Questions (No Copy-on-Write)
-
-**Decision:** Bank questions (standalone, `test_id = NULL`) are edited in place. No versioning or frozen copies.
-
-**Why:** SRS state is tied to the question's ID via `UserQuestionState`. Copy-on-write would create a new question ID, losing the user's review history. Test-level versioning (`version_test_if_needed()`) already protects exam history for test-owned questions — bank questions have no exam results to protect.
-
----
-
-## Bulk Operations Skip Unowned Items
-
-**Decision:** `bulk_delete` and `bulk_assign` silently skip questions the user doesn't own, rather than failing the entire batch.
-
-**Why:** A batch of 20 IDs with 1 stale/unowned entry shouldn't block the other 19. The response includes counts of processed vs skipped items so the frontend knows what happened. This is a UX trade-off — failing the whole batch would require the user to identify and remove the bad ID manually.
 
 ---
 

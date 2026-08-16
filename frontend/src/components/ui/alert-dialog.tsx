@@ -4,17 +4,11 @@ import * as React from 'react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-function AlertDialogRoot(props: React.ComponentProps<typeof AlertDialog.Root>) {
-  return <AlertDialog.Root data-slot="alert-dialog" {...props} />;
-}
+const AlertDialogRoot = AlertDialog.Root;
 
-function AlertDialogTrigger(props: React.ComponentProps<typeof AlertDialog.Trigger>) {
-  return <AlertDialog.Trigger data-slot="alert-dialog-trigger" {...props} />;
-}
+const AlertDialogTrigger = AlertDialog.Trigger;
 
-function AlertDialogPortal(props: React.ComponentProps<typeof AlertDialog.Portal>) {
-  return <AlertDialog.Portal data-slot="alert-dialog-portal" {...props} />;
-}
+const AlertDialogPortal = AlertDialog.Portal;
 
 const AlertDialogOverlay = React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<typeof AlertDialog.Overlay>>(
   ({ className, ...props }, ref) => (
@@ -39,7 +33,7 @@ const AlertDialogContent = React.forwardRef<HTMLDivElement, React.ComponentProps
         ref={ref}
         data-slot="alert-dialog-content"
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 w-full max-w-[calc(100%-2rem)] sm:max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl bg-popover p-6 ring-1 ring-foreground/10',
+          'fixed left-1/2 top-1/2 z-50 w-full max-w-[calc(100%-2rem)] sm:max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl bg-background p-6 ring-1 ring-foreground/10',
           'data-[state=open]:animate-in data-[state=closed]:animate-out',
           'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
           'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.user_question_state import ReviewMode, ReviewResponse
+from app.schemas.user_question_state import ReviewResponse
 from app.services import review_service
 from app.services.question_helpers import build_stripped_question
 
@@ -21,7 +21,7 @@ def list_(
     db: DbSession,
     current_user: CurrentUser,
     limit: int = Query(default=10, ge=1, le=50),
-    mode: Annotated[ReviewMode, Query()] = "review",
+    mode: str = Query(default="review", pattern="^(review|practice)$"),
 ) -> ReviewResponse:
     """Fetch questions for review. SRS-prioritised by default, random in practice mode."""
     effective_limit = min(limit, current_user.daily_review_limit) if current_user.daily_review_limit else limit

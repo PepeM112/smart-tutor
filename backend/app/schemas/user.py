@@ -57,7 +57,6 @@ class UserUpdate(BaseSchema):
     @field_validator("initial_ease_factor")
     @classmethod
     def _validate_ease_factor(cls, v: float | None) -> float | None:
-        # 1.3 is SM-2's floor for ease factor — below it, intervals shrink indefinitely
         if v is not None and not (1.3 <= v <= 5.0):
             raise ValueError("initial_ease_factor must be between 1.3 and 5.0")
         return v

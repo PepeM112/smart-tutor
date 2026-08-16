@@ -44,7 +44,6 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies();
   const theme = cookieStore.get(THEME_COOKIE)?.value;
-  // SAFETY: cookie value is set by useFontSizeProvider which only writes valid FontSizeId values
   const fontSize = cookieStore.get(FONT_SIZE_COOKIE)?.value as FontSizeId | undefined;
   const fontSizeStyle = fontSize ? { fontSize: getFontSizeValue(fontSize) } : undefined;
   const locale = await getLocale();
@@ -53,13 +52,12 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      {...(theme && { 'data-theme': theme })}
+      {...(theme ? { 'data-theme': theme } : {})}
       style={fontSizeStyle}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
-        {/* Runs before hydration to prevent dark-mode flash — mirrors next-themes' localStorage check */}
         {!theme && (
           <script
             dangerouslySetInnerHTML={{

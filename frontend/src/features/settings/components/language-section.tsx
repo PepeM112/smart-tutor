@@ -14,12 +14,12 @@ import { cn } from '@/lib/utils';
 import { SettingsSection } from './settings-section';
 
 const LANGUAGES = [
-  { value: 'en', labelKey: 'settings.english', flag: '🇬🇧' },
-  { value: 'es', labelKey: 'settings.spanish', flag: '🇪🇸' },
+  { value: 'en', labelKey: 'english', flag: '🇬🇧' },
+  { value: 'es', labelKey: 'spanish', flag: '🇪🇸' },
 ] as const;
 
 export function LanguageSection() {
-  const t = useTranslations();
+  const t = useTranslations('settings');
   const router = useRouter();
   const currentLocale = useLocale();
   const [isPending, startTransition] = useTransition();
@@ -31,7 +31,6 @@ export function LanguageSection() {
       return result.data!;
     },
     onSuccess: updatedUser => {
-      // Server components read locale from this cookie, so it must be set before router.refresh()
       document.cookie = `locale=${updatedUser.locale};path=/;max-age=31536000`;
       setUser(updatedUser);
       startTransition(() => {
@@ -39,14 +38,14 @@ export function LanguageSection() {
       });
     },
     onError: () => {
-      toast.error(t('settings.failed_to_save'));
+      toast.error(t('failed_to_save'));
     },
   });
 
   return (
-    <SettingsSection title={t('settings.language')} description={t('settings.language_description')}>
+    <SettingsSection title={t('language')} description={t('language_description')}>
       <div className="space-y-3">
-        <Label>{t('settings.language')}</Label>
+        <Label>{t('language')}</Label>
         <div className={cn('flex gap-2', isPending && 'opacity-50 pointer-events-none')}>
           {LANGUAGES.map(({ value, labelKey, flag }) => (
             <button

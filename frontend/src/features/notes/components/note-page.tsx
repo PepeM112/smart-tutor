@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
-import { QueryState } from '@/components/shared/query-state';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GenerateTestDialog } from '@/features/tests/components/generate-test-dialog';
@@ -25,7 +25,7 @@ type Props = {
 };
 
 export function NotePage({ noteId }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('notes');
   const {
     data: note,
     isLoading,
@@ -35,19 +35,24 @@ export function NotePage({ noteId }: Props) {
     queryFn: () => sdk.notesGet({ path: { note_id: noteId } }),
   });
 
-  return (
-    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
-      {note?.data ? (
-        <NoteForm key={note.data.id} note={note.data} />
-      ) : (
-        <p className="text-muted-foreground">{t('notes.note_not_found')}</p>
-      )}
-    </QueryState>
-  );
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (isError) {
+    return <p className="text-muted-foreground">{t('failed_to_load_note')}</p>;
+  }
+
+  if (!note?.data) {
+    return <p className="text-muted-foreground">{t('note_not_found')}</p>;
+  }
+
+  return <NoteForm key={note.data.id} note={note.data} />;
 }
 
 function NoteForm({ note }: { note: NoteRead }) {
-  const t = useTranslations();
+  const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
   const [isEditingHeader, setIsEditingHeader] = useState(false);
@@ -89,10 +94,10 @@ function NoteForm({ note }: { note: NoteRead }) {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success(t('notes.note_saved'));
+      toast.success(t('note_saved'));
       setIsDirty(false);
     },
-    onError: () => toast.error(t('notes.failed_to_save')),
+    onError: () => toast.error(t('failed_to_save')),
   });
 
   function markDirty() {
@@ -102,7 +107,7 @@ function NoteForm({ note }: { note: NoteRead }) {
   useMobileBreadcrumbActions(
     isDirty ? (
       <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
-        {isSaving ? t('notes.saving') : t('common.save')}
+        {isSaving ? t('saving') : tCommon('save')}
       </Button>
     ) : undefined
   );
@@ -127,7 +132,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                       if (e.key === 'Escape') cancelHeader();
                     }}
                     className="w-80 max-w-full text-sm lg:text-lg lg:font-semibold"
-                    placeholder={t('notes.note_title')}
+                    placeholder={t('note_title')}
                     autoFocus
                   />
                   <Button variant="secondary" size="icon" onClick={confirmHeader}>
@@ -144,7 +149,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                     setDescription(e.target.value);
                     markDirty();
                   }}
-                  placeholder={t('notes.description_optional')}
+                  placeholder={t('description_optional')}
                 />
                 <TagInput
                   tags={tags}
@@ -156,7 +161,7 @@ function NoteForm({ note }: { note: NoteRead }) {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-foreground">{title || t('notes.untitled')}</h1>
+                <h1 className="text-lg font-semibold text-foreground">{title || t('untitled')}</h1>
                 <Button variant="ghost" size="icon-sm" onClick={startEditingHeader} className="text-muted-foreground">
                   <Pencil className="size-3.5" />
                 </Button>
@@ -185,7 +190,7 @@ function NoteForm({ note }: { note: NoteRead }) {
           <div className="flex items-center gap-2 self-end lg:self-auto">
             {isDesktop && isDirty && (
               <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
-                {isSaving ? t('notes.saving') : t('common.save')}
+                {isSaving ? t('saving') : tCommon('save')}
               </Button>
             )}
             <RefineNoteDialog

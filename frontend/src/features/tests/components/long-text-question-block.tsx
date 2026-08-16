@@ -38,7 +38,7 @@ type Props = {
 };
 
 export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('test_editor');
 
   function updateCriterion(idx: number, patch: Partial<Criterion>) {
     const updated = data.criteria.map((c, i) => (i === idx ? { ...c, ...patch } : c));
@@ -46,7 +46,6 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
   }
 
   function addCriterion() {
-    // Reuse the last category so new criteria stay grouped with it by default
     const lastCategory = data.criteria.at(-1)?.category ?? '';
     onChange({ ...data, criteria: [...data.criteria, { point: '', weight: 0.1, category: lastCategory }] });
   }
@@ -57,7 +56,6 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
   }
 
   const totalWeight = data.criteria.reduce((sum, c) => sum + c.weight, 0);
-  const isWeightValid = Math.abs(totalWeight - 1.0) < 0.001;
   const uniqueCategories = useMemo(
     () => [...new Set(data.criteria.map(c => c.category).filter(Boolean))],
     [data.criteria]
@@ -75,7 +73,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
       <div className="flex flex-wrap items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
-          placeholder={`${t('test_editor.question_prompt')} (${t('test_editor.question_prompt_example')})`}
+          placeholder={`${t('question_prompt')} (${t('question_prompt_example')})`}
           value={data.prompt}
           onChange={e => onChange({ ...data, prompt: e.target.value })}
           className="flex-1"
@@ -87,7 +85,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         >
           {LONG_TEXT_LENGTH_TIERS.map(tier => (
             <option key={tier.value} value={tier.value}>
-              {t(tier.labelKey)}
+              {tier.label}
             </option>
           ))}
         </select>
@@ -96,17 +94,17 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
           min={0.5}
           step={0.5}
           value={data.points}
-          onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
+          onChange={e => onChange({ ...data, points: Number(e.target.value) })}
           className="w-20 shrink-0 text-center"
-          title={t('test_editor.points')}
+          title={t('points')}
         />
         <QuestionBlockAction onRemove={onRemove} />
       </div>
 
       {/* Rubric criteria */}
       <div className="space-y-2">
-        <p className={cn('text-sm font-medium', isWeightValid ? 'text-muted-foreground' : 'text-destructive')}>
-          {t('test_editor.rubric_criteria', { total: totalWeight.toFixed(2) })}
+        <p className="text-sm font-medium text-muted-foreground">
+          {t('rubric_criteria', { total: totalWeight.toFixed(2) })}
         </p>
 
         {data.criteria.map((criterion, ci) => (
@@ -118,7 +116,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
             />
             <AutoTextarea
               rows={1}
-              placeholder={t('test_editor.criterion_placeholder')}
+              placeholder={t('criterion_placeholder')}
               value={criterion.point}
               onChange={e => updateCriterion(ci, { point: e.target.value })}
               className="flex-1"
@@ -129,7 +127,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
               max={1}
               step={0.05}
               value={criterion.weight}
-              onChange={e => updateCriterion(ci, { weight: parseFloat(e.target.value) || 0.05 })}
+              onChange={e => updateCriterion(ci, { weight: Number(e.target.value) })}
               className="w-20 shrink-0 text-center"
             />
             {data.criteria.length > 1 && (
@@ -154,7 +152,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
       >
         <Plus className="size-3.5" />
-        {t('test_editor.add_criterion')}
+        {t('add_criterion')}
       </Button>
     </div>
   );
@@ -169,7 +167,7 @@ function CategoryInput({
   onChange: (value: string) => void;
   suggestions: string[];
 }) {
-  const t = useTranslations();
+  const t = useTranslations('test_editor');
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -191,11 +189,10 @@ function CategoryInput({
   return (
     <div className="relative w-32 shrink-0">
       <Input
-        placeholder={t('test_editor.category')}
+        placeholder={t('category')}
         value={value}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setOpen(true)}
-        // Delay closing so a click on a suggestion can register before blur hides the list
         onBlur={() => {
           timeoutRef.current = setTimeout(() => setOpen(false), 150);
         }}

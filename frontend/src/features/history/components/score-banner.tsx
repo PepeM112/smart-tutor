@@ -15,7 +15,7 @@ type Props = {
 };
 
 export function ScoreBanner({ result, testTitle, isOlderVersion }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('history');
   const score = result.score ?? 0;
   const pending = result.pendingAnswers ?? 0;
 
@@ -25,20 +25,20 @@ export function ScoreBanner({ result, testTitle, isOlderVersion }: Props) {
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-semibold">{testTitle}</h1>
           {isOlderVersion && (
-            <Tooltip content={t('history.older_version_notice')}>
+            <Tooltip content={t('older_version_notice')}>
               <Info className="size-4 text-muted-foreground shrink-0" />
             </Tooltip>
           )}
         </div>
         {result.totalPoints != null && result.totalPoints > 0 && (
           <p className="text-sm text-muted-foreground tabular-nums">
-            {result.earnedPoints} / {result.totalPoints} {t('history.pts')}
+            {result.earnedPoints} / {result.totalPoints} {t('pts')}
           </p>
         )}
         {pending > 0 && (
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
-            {t('history.pending_questions', { count: pending })}
+            {t('pending_questions', { count: pending })}
           </p>
         )}
       </div>

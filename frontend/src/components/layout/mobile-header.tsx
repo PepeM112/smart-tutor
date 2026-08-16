@@ -10,7 +10,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SidebarNav } from './sidebar-nav';
 
 export function MobileHeader() {
-  const t = useTranslations();
+  const tApp = useTranslations('app');
+  const tSidebar = useTranslations('sidebar');
   const [open, setOpen] = useState(false);
 
   return (
@@ -21,19 +22,19 @@ export function MobileHeader() {
             variant="ghost"
             size="icon-sm"
             className="text-sidebar-foreground hover:bg-sidebar-accent"
-            aria-label={t('sidebar.open_menu')}
+            aria-label={tSidebar('open_menu')}
           >
             <Menu size={20} />
           </Button>
         </SheetTrigger>
         <SheetContent side="left">
           <div className="flex items-center border-b border-sidebar-border px-3 py-3.5">
-            <span className="text-sm font-semibold text-sidebar-foreground truncate">{t('app.title')}</span>
+            <span className="text-sm font-semibold text-sidebar-foreground truncate">{tApp('title')}</span>
           </div>
           <SidebarNav onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
-      <span className="text-sm font-semibold text-sidebar-foreground truncate">{t('app.title')}</span>
+      <span className="text-sm font-semibold text-sidebar-foreground truncate">{tApp('title')}</span>
     </header>
   );
 }

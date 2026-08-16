@@ -7,7 +7,6 @@ from app.core.enums import AnswerStatus
 from app.crud import user_question_state as uqs_crud
 from app.schemas.user_question_state import SRSStateResponse
 
-# SM-2's 0-5 quality scale — the algorithm treats quality >= 3 as successful recall
 SM2_QUALITY_MAP = {
     AnswerStatus.CORRECT: 5,
     AnswerStatus.PARTIAL: 3,
@@ -45,7 +44,6 @@ def apply_sm2(
         new_interval = 1
         new_repetitions = 0
 
-    # Standard SM-2 ease-factor update formula (SuperMemo, 1987)
     new_ease = ease_factor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)
     new_ease = max(EASE_FLOOR, new_ease)
 

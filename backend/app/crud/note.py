@@ -1,13 +1,9 @@
-from collections.abc import Sequence
-from typing import cast
-
-from sqlalchemy import UnaryExpression, func, select
-from sqlalchemy.orm import InstrumentedAttribute, Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.core.enums import NoteSource
-from app.crud.helpers import token_search
 from app.models.note import Note
-from app.schemas.note import NoteSortBy, NoteUpdate, SortOrder
+from app.schemas.note import NoteUpdate
 
 
 def get_by_id(db: Session, *, id: str) -> Note | None:
@@ -15,43 +11,9 @@ def get_by_id(db: Session, *, id: str) -> Note | None:
     return db.scalars(stmt).first()
 
 
-_SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
-    "title": Note.title,
-    "updated_at": Note.updated_at,
-    "created_at": Note.id,  # ULID is time-sortable
-}
-
-
-def _sort_clause(sort_by: NoteSortBy | None, sort_order: SortOrder) -> UnaryExpression[object]:
-    column = _SORT_COLUMNS[sort_by] if sort_by and sort_by in _SORT_COLUMNS else Note.updated_at
-    clause = column.asc() if sort_order == "asc" else column.desc()
-    return cast(UnaryExpression[object], clause)
-
-
-def list_by_user(
-    db: Session,
-    *,
-    user_id: str,
-    search: str | None = None,
-    source: list[int] | None = None,
-    sort_by: NoteSortBy | None = None,
-    sort_order: SortOrder = "desc",
-    page: int = 1,
-    per_page: int = 20,
-) -> tuple[Sequence[Note], int]:
-    stmt = select(Note).where(Note.user_id == user_id)
-
-    if search:
-        stmt = stmt.where(token_search(Note.title, search=search))
-    if source:
-        stmt = stmt.where(Note.source.in_(source))
-
-    count_stmt = select(func.count()).select_from(stmt.subquery())
-    total = db.scalar(count_stmt) or 0
-
-    stmt = stmt.order_by(_sort_clause(sort_by, sort_order)).offset((page - 1) * per_page).limit(per_page)
-    notes = db.scalars(stmt).all()
-    return notes, total
+def list_by_user(db: Session, *, user_id: str) -> list[Note]:
+    stmt = select(Note).where(Note.user_id == user_id).order_by(Note.updated_at.desc())
+    return list(db.scalars(stmt).all())
 
 
 def create(

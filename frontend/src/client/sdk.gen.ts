@@ -2,8 +2,8 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import { notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesListResponseTransformer, notesRefineResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, testsCreateResponseTransformer, testsGetResponseTransformer, testsListResponseTransformer, testsSubmitResponseTransformer, testsUpdateResponseTransformer } from './transformers.gen';
-import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, DefaultHealthData, DefaultHealthResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesListData, NotesListErrors, NotesListResponses, NotesRefineData, NotesRefineErrors, NotesRefineResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsAssignToTestData, QuestionsAssignToTestErrors, QuestionsAssignToTestResponses, QuestionsBulkAssignData, QuestionsBulkAssignErrors, QuestionsBulkAssignResponses, QuestionsBulkDeleteData, QuestionsBulkDeleteErrors, QuestionsBulkDeleteResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsCreateData, QuestionsCreateErrors, QuestionsCreateResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsDuplicateData, QuestionsDuplicateErrors, QuestionsDuplicateResponses, QuestionsGetData, QuestionsGetErrors, QuestionsGetResponses, QuestionsListData, QuestionsListErrors, QuestionsListResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
+import { notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesListResponseTransformer, notesRefineResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, testsSubmitResponseTransformer, tokenUsageGetUsageResponseTransformer } from './transformers.gen';
+import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, DefaultHealthData, DefaultHealthResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesListData, NotesListErrors, NotesListResponses, NotesRefineData, NotesRefineErrors, NotesRefineResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -74,17 +74,12 @@ export const usersUpdateMe = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * List
  */
-export const testsList = <ThrowOnError extends boolean = false>(options?: Options<TestsListData, ThrowOnError>) => (options?.client ?? client).get<TestsListResponses, TestsListErrors, ThrowOnError>({
-    responseTransformer: testsListResponseTransformer,
-    url: '/api/v1/tests',
-    ...options
-});
+export const testsList = <ThrowOnError extends boolean = false>(options?: Options<TestsListData, ThrowOnError>) => (options?.client ?? client).get<TestsListResponses, TestsListErrors, ThrowOnError>({ url: '/api/v1/tests', ...options });
 
 /**
  * Create
  */
 export const testsCreate = <ThrowOnError extends boolean = false>(options: Options<TestsCreateData, ThrowOnError>) => (options.client ?? client).post<TestsCreateResponses, TestsCreateErrors, ThrowOnError>({
-    responseTransformer: testsCreateResponseTransformer,
     url: '/api/v1/tests',
     ...options,
     headers: {
@@ -101,17 +96,12 @@ export const testsDelete = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Get
  */
-export const testsGet = <ThrowOnError extends boolean = false>(options: Options<TestsGetData, ThrowOnError>) => (options.client ?? client).get<TestsGetResponses, TestsGetErrors, ThrowOnError>({
-    responseTransformer: testsGetResponseTransformer,
-    url: '/api/v1/tests/{test_id}',
-    ...options
-});
+export const testsGet = <ThrowOnError extends boolean = false>(options: Options<TestsGetData, ThrowOnError>) => (options.client ?? client).get<TestsGetResponses, TestsGetErrors, ThrowOnError>({ url: '/api/v1/tests/{test_id}', ...options });
 
 /**
  * Update
  */
 export const testsUpdate = <ThrowOnError extends boolean = false>(options: Options<TestsUpdateData, ThrowOnError>) => (options.client ?? client).put<TestsUpdateResponses, TestsUpdateErrors, ThrowOnError>({
-    responseTransformer: testsUpdateResponseTransformer,
     url: '/api/v1/tests/{test_id}',
     ...options,
     headers: {
@@ -193,31 +183,9 @@ export const resultsGet = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
- * List
- */
-export const questionsList = <ThrowOnError extends boolean = false>(options?: Options<QuestionsListData, ThrowOnError>) => (options?.client ?? client).get<QuestionsListResponses, QuestionsListErrors, ThrowOnError>({ url: '/api/v1/questions', ...options });
-
-/**
- * Create
- */
-export const questionsCreate = <ThrowOnError extends boolean = false>(options: Options<QuestionsCreateData, ThrowOnError>) => (options.client ?? client).post<QuestionsCreateResponses, QuestionsCreateErrors, ThrowOnError>({
-    url: '/api/v1/questions',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Delete
  */
 export const questionsDelete = <ThrowOnError extends boolean = false>(options: Options<QuestionsDeleteData, ThrowOnError>) => (options.client ?? client).delete<QuestionsDeleteResponses, QuestionsDeleteErrors, ThrowOnError>({ url: '/api/v1/questions/{question_id}', ...options });
-
-/**
- * Get
- */
-export const questionsGet = <ThrowOnError extends boolean = false>(options: Options<QuestionsGetData, ThrowOnError>) => (options.client ?? client).get<QuestionsGetResponses, QuestionsGetErrors, ThrowOnError>({ url: '/api/v1/questions/{question_id}', ...options });
 
 /**
  * Update
@@ -239,53 +207,6 @@ export const questionsUpdate = <ThrowOnError extends boolean = false>(options: O
 export const questionsCheck = <ThrowOnError extends boolean = false>(options: Options<QuestionsCheckData, ThrowOnError>) => (options.client ?? client).post<QuestionsCheckResponses, QuestionsCheckErrors, ThrowOnError>({
     responseTransformer: questionsCheckResponseTransformer,
     url: '/api/v1/questions/{question_id}/check',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Assign To Test
- */
-export const questionsAssignToTest = <ThrowOnError extends boolean = false>(options: Options<QuestionsAssignToTestData, ThrowOnError>) => (options.client ?? client).post<QuestionsAssignToTestResponses, QuestionsAssignToTestErrors, ThrowOnError>({
-    url: '/api/v1/questions/{question_id}/assign',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Duplicate
- *
- * Copy a question (test-owned or bank) into the user's bank as a new standalone question.
- */
-export const questionsDuplicate = <ThrowOnError extends boolean = false>(options: Options<QuestionsDuplicateData, ThrowOnError>) => (options.client ?? client).post<QuestionsDuplicateResponses, QuestionsDuplicateErrors, ThrowOnError>({ url: '/api/v1/questions/{question_id}/duplicate', ...options });
-
-/**
- * Bulk Delete
- *
- * Delete every owned question in the batch. Questions the user doesn't own are skipped, not failed.
- */
-export const questionsBulkDelete = <ThrowOnError extends boolean = false>(options: Options<QuestionsBulkDeleteData, ThrowOnError>) => (options.client ?? client).post<QuestionsBulkDeleteResponses, QuestionsBulkDeleteErrors, ThrowOnError>({
-    url: '/api/v1/questions/bulk-delete',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Bulk Assign
- *
- * Copy every owned question in the batch into the target test. Unowned questions are skipped, not failed.
- */
-export const questionsBulkAssign = <ThrowOnError extends boolean = false>(options: Options<QuestionsBulkAssignData, ThrowOnError>) => (options.client ?? client).post<QuestionsBulkAssignResponses, QuestionsBulkAssignErrors, ThrowOnError>({
-    url: '/api/v1/questions/bulk-assign',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -402,7 +323,11 @@ export const notesEditChunk = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Get Usage
  */
-export const tokenUsageGetUsage = <ThrowOnError extends boolean = false>(options?: Options<TokenUsageGetUsageData, ThrowOnError>) => (options?.client ?? client).get<TokenUsageGetUsageResponses, TokenUsageGetUsageErrors, ThrowOnError>({ url: '/api/v1/token-usage', ...options });
+export const tokenUsageGetUsage = <ThrowOnError extends boolean = false>(options?: Options<TokenUsageGetUsageData, ThrowOnError>) => (options?.client ?? client).get<TokenUsageGetUsageResponses, TokenUsageGetUsageErrors, ThrowOnError>({
+    responseTransformer: tokenUsageGetUsageResponseTransformer,
+    url: '/api/v1/token-usage',
+    ...options
+});
 
 /**
  * Health

@@ -1,12 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { use } from 'react';
 import { toast } from 'sonner';
 
-import { QueryState } from '@/components/shared/query-state';
 import { ExamView } from '@/features/tests/components/exam-view';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
@@ -20,7 +20,7 @@ export default function TakeTestPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
-  const t = useTranslations();
+  const t = useTranslations('tests');
 
   const {
     data: testResponse,
@@ -52,24 +52,31 @@ export default function TakeTestPage({ params }: Props) {
     },
     onError: (err: unknown) => {
       const detail = (err as { detail?: string })?.detail;
-      toast.error(detail ?? t('tests.failed_to_submit'));
+      toast.error(detail ?? t('failed_to_submit'));
     },
   });
 
-  useBreadcrumb(test?.title ?? t('tests.take_test'), [{ label: t('tests.title'), href: Routes.TESTS }], Routes.TESTS);
+  useBreadcrumb(test?.title ?? t('take_test'), [{ label: t('title'), href: Routes.TESTS }], Routes.TESTS);
 
-  // A test's content spans two collections (standalone questions + groups); empty only if both are
-  const isEmpty = (test?.questions?.length ?? 0) === 0 && (test?.questionGroups?.length ?? 0) === 0;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  return (
-    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
-      {!test ? (
-        <p className="text-muted-foreground">{t('tests.test_not_found')}</p>
-      ) : isEmpty ? (
-        <p className="text-muted-foreground">{t('tests.no_questions_yet')}</p>
-      ) : (
-        <ExamView test={test} onSubmit={submitExam} isSubmitting={isSubmitting} />
-      )}
-    </QueryState>
-  );
+  if (isError) {
+    return <p className="text-muted-foreground">{t('failed_to_load')}</p>;
+  }
+
+  if (!test) {
+    return <p className="text-muted-foreground">{t('test_not_found')}</p>;
+  }
+
+  if ((test.questions?.length ?? 0) === 0 && (test.questionGroups?.length ?? 0) === 0) {
+    return <p className="text-muted-foreground">{t('no_questions_yet')}</p>;
+  }
+
+  return <ExamView test={test} onSubmit={submitExam} isSubmitting={isSubmitting} result={null} />;
 }

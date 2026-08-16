@@ -20,26 +20,27 @@ type Props = {
 };
 
 export function AddQuestionDropdown({ onSelect }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('test_editor');
+  const tTestGeneration = useTranslations('test_generation');
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline">
           <Plus data-icon="inline-start" />
-          {t('test_editor.add_question')}
+          {t('add_question')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
         {(
           [
-            { addType: 'group' as const, questionType: QuestionType.SIMPLE, label: t('test_editor.simple_questions') },
+            { addType: 'group' as const, questionType: QuestionType.SIMPLE, label: t('simple_questions') },
             {
               addType: 'mc' as const,
               questionType: QuestionType.MULTIPLE_CHOICE,
-              label: t('test_generation.multiple_choice'),
+              label: tTestGeneration('multiple_choice'),
             },
-            { addType: 'long' as const, questionType: QuestionType.LONG_TEXT, label: t('test_editor.long_text') },
+            { addType: 'long' as const, questionType: QuestionType.LONG_TEXT, label: t('long_text') },
           ] as const
         ).map(({ addType, questionType, label }) => {
           const { icon: Icon } = getQuestionTypeInfo(questionType);

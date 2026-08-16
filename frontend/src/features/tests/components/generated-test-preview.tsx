@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Columns2, Pencil, Rows3, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { GeneratedQuestionPreviewInput, LongTextContent, MultipleChoiceContent, SimpleContent } from '@/client';
@@ -14,10 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { cn, getErrorDetail } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 import { useBlockSelection } from '../hooks/use-block-selection';
-import { useQuestionBlockList } from '../hooks/use-question-block-list';
 import { useGenerationStore } from '../store/use-generation-store';
 
 import { AiEditPopover } from './ai-edit-popover';
@@ -35,7 +34,7 @@ type PreviewItem =
   | { id: string; kind: 'long_text'; data: LongTextQuestionData };
 
 export function GeneratedTestPreview() {
-  const t = useTranslations();
+  const t = useTranslations('test_generation');
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -45,17 +44,11 @@ export function GeneratedTestPreview() {
   const hasData = useGenerationStore(s => s.questions.length > 0);
   const clear = useGenerationStore(s => s.clear);
 
-  const {
-    items,
-    setItems,
-    updateItem,
-    removeItem: removeListItem,
-  } = useQuestionBlockList<PreviewItem>(() => toPreviewItems(initialQuestions));
-  const [testTitle, setTestTitle] = useState(() => t('test_generation.test_from_note', { noteTitle: sourceNoteTitle }));
+  const [items, setItems] = useState<PreviewItem[]>(() => toPreviewItems(initialQuestions));
+  const [testTitle, setTestTitle] = useState(() => t('test_from_note', { noteTitle: sourceNoteTitle }));
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
   const [columns, setColumns] = useState<1 | 2>(1);
-  const isNavigatingRef = useRef(false);
 
   const { data: noteData } = useQuery({
     queryKey: ['notes', sourceNoteId],
@@ -64,9 +57,8 @@ export function GeneratedTestPreview() {
   });
   const noteContent = noteData?.data?.content ?? undefined;
 
-  // createTest clears the store before navigating, which would trigger this redirect — skip it with the ref guard
   useEffect(() => {
-    if (!hasData && !isNavigatingRef.current) router.replace(Routes.NOTES);
+    if (!hasData) router.replace(Routes.NOTES);
   }, [hasData, router]);
 
   // beforeunload guard
@@ -79,12 +71,24 @@ export function GeneratedTestPreview() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasData, items.length]);
 
+  const updateMcItem = useCallback((index: number, data: MultipleChoiceQuestionData) => {
+    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'mc' as const, data } : item)));
+  }, []);
+
+  const updateGroupItem = useCallback((index: number, data: QuestionGroupData) => {
+    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'group' as const, data } : item)));
+  }, []);
+
+  const updateLongTextItem = useCallback((index: number, data: LongTextQuestionData) => {
+    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'long_text' as const, data } : item)));
+  }, []);
+
   const removeItem = useCallback(
     (index: number) => {
-      removeListItem(index);
+      setItems(prev => prev.filter((_, i) => i !== index));
       removeAndReindex(index);
     },
-    [removeListItem, removeAndReindex]
+    [removeAndReindex]
   );
 
   const handleRefined = useCallback(
@@ -93,15 +97,15 @@ export function GeneratedTestPreview() {
       setItems(previewItems);
       clearSelection();
     },
-    [setItems, clearSelection]
+    [clearSelection]
   );
 
   const handleRegenerate = useCallback(() => {
     const previewItems = toPreviewItems(initialQuestions);
     setItems(previewItems);
     clearSelection();
-    toast.success(t('test_generation.reset_original'));
-  }, [initialQuestions, setItems, clearSelection, t]);
+    toast.success(t('reset_original'));
+  }, [initialQuestions, clearSelection, t]);
 
   const editorItems = useMemo((): EditorItem[] => items.map(i => i.data), [items]);
 
@@ -138,17 +142,16 @@ export function GeneratedTestPreview() {
       });
     },
     onSuccess: res => {
-      isNavigatingRef.current = true;
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
-      toast.success(t('test_generation.test_created'));
+      toast.success(t('test_created'));
+      clear();
       if (res.data?.id) {
         router.push(Routes.TEST_EDIT(res.data.id));
       } else {
         router.push(Routes.TESTS);
       }
-      clear();
     },
-    onError: () => toast.error(t('test_generation.failed_to_create')),
+    onError: () => toast.error(t('failed_to_create')),
   });
 
   const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
@@ -170,9 +173,9 @@ export function GeneratedTestPreview() {
       if (!res.data) return;
       setItems(toPreviewItems(res.data.questions));
       clearSelection();
-      toast.success(t('test_generation.questions_refined'));
+      toast.success(t('questions_refined'));
     },
-    onError: (error: unknown) => toast.error(getErrorDetail(error, t('test_generation.failed_to_refine'))),
+    onError: () => toast.error(t('failed_to_refine')),
   });
 
   if (!hasData) {
@@ -197,9 +200,7 @@ export function GeneratedTestPreview() {
               />
             ) : (
               <>
-                <h1 className="text-lg font-semibold text-foreground">
-                  {testTitle || t('test_generation.review_generated')}
-                </h1>
+                <h1 className="text-lg font-semibold text-foreground">{testTitle || t('review_generated')}</h1>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -211,25 +212,18 @@ export function GeneratedTestPreview() {
               </>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {t('test_generation.questions_count', { count: items.length })}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('questions_count', { count: items.length })}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setColumns(c => (c === 1 ? 2 : 1))}
-            tooltip={columns === 1 ? t('test_generation.two_column_layout') : t('test_generation.one_column_layout')}
+            tooltip={columns === 1 ? t('two_column_layout') : t('one_column_layout')}
           >
             {columns === 1 ? <Columns2 className="size-5" /> : <Rows3 className="size-5" />}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRegenerate}
-            tooltip={t('test_generation.reset_to_original')}
-          >
+          <Button variant="ghost" size="icon" onClick={handleRegenerate} tooltip={t('reset_to_original')}>
             <RotateCcw className="size-5" />
           </Button>
           {selectedIndices.size > 0 && (
@@ -245,7 +239,7 @@ export function GeneratedTestPreview() {
             onClick={() => createTest()}
             disabled={items.length === 0 || !testTitle.trim() || isCreating}
           >
-            {isCreating ? t('test_generation.creating') : t('test_generation.create_test')}
+            {isCreating ? t('creating') : t('create_test')}
           </Button>
         </div>
       </div>
@@ -260,7 +254,7 @@ export function GeneratedTestPreview() {
               <MultipleChoiceQuestionBlock
                 key={item.id}
                 data={item.data}
-                onChange={data => updateItem(i, { ...item, data })}
+                onChange={data => updateMcItem(i, data)}
                 onRemove={() => removeItem(i)}
                 selected={selected}
                 onClick={onClick}
@@ -272,7 +266,7 @@ export function GeneratedTestPreview() {
               <LongTextQuestionBlock
                 key={item.id}
                 data={item.data}
-                onChange={data => updateItem(i, { ...item, data })}
+                onChange={data => updateLongTextItem(i, data)}
                 onRemove={() => removeItem(i)}
                 selected={selected}
                 onClick={onClick}
@@ -283,7 +277,7 @@ export function GeneratedTestPreview() {
             <QuestionGroupBlock
               key={item.id}
               data={item.data}
-              onChange={data => updateItem(i, { ...item, data })}
+              onChange={data => updateGroupItem(i, data)}
               onRemove={() => removeItem(i)}
               selected={selected}
               onClick={onClick}
@@ -302,7 +296,6 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
   const longTextQuestions = questions.filter(q => q.questionType === QuestionType.LONG_TEXT);
 
   mcQuestions.forEach(q => {
-    // SAFETY: filtered by questionType === MULTIPLE_CHOICE above
     const content = q.content as MultipleChoiceContent;
     items.push({
       id: crypto.randomUUID(),
@@ -321,7 +314,6 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
   });
 
   longTextQuestions.forEach(q => {
-    // SAFETY: filtered by questionType === LONG_TEXT above
     const content = q.content as LongTextContent;
     items.push({
       id: crypto.randomUUID(),
@@ -341,7 +333,6 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
     });
   });
 
-  // Combine all Simple questions into one group — the editor only shows Simple questions inside a group, never standalone
   if (simpleQuestions.length > 0) {
     items.push({
       id: crypto.randomUUID(),
@@ -349,10 +340,9 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
       data: {
         key: crypto.randomUUID(),
         type: 'group',
-        groupType: QuestionGroupType.GENERIC,
+        groupType: QuestionGroupType.UNKNOWN,
         title: '',
         rows: simpleQuestions.map(q => {
-          // SAFETY: filtered by questionType === SIMPLE above
           const content = q.content as SimpleContent;
           return {
             prompt: q.prompt,

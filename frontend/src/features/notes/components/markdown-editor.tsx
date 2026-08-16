@@ -14,7 +14,6 @@ import { markdownComponents } from './markdown-components';
 
 import type { Element, Root } from 'hast';
 
-// Tags rendered elements with source offsets so a text selection can map back to the markdown range (for AI edit)
 function rehypeSourcePositions() {
   return (tree: Root) => {
     visit(tree, 'element', (node: Element) => {
@@ -29,7 +28,6 @@ function rehypeSourcePositions() {
 
 // ── Wrap chars for editor keyboard shortcuts ────────────────────────
 
-// '~' doubles to '~~' because GFM strikethrough needs two tildes
 const WRAP_CHARS: Record<string, string> = { '*': '*', '`': '`', '~': '~~' };
 
 // ── Component ───────────────────────────────────────────────────────
@@ -55,7 +53,7 @@ export function MarkdownEditor({
   mode: controlledMode,
   onModeChange,
 }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('notes');
   const viewRef = useRef<HTMLDivElement>(null);
   const [internalMode, setInternalMode] = useState<'view' | 'edit'>('view');
   const isControlled = controlledMode !== undefined;
@@ -112,7 +110,7 @@ export function MarkdownEditor({
               setInternalMode(next);
               onModeChange?.(next);
             }}
-            tooltip={mode === 'view' ? t('notes.edit_markdown') : t('notes.preview')}
+            tooltip={mode === 'view' ? t('edit_markdown') : t('preview')}
             className="text-muted-foreground"
           >
             {mode === 'view' ? <Pencil className="size-4" /> : <Eye className="size-4" />}
@@ -140,7 +138,7 @@ export function MarkdownEditor({
               </ReactMarkdown>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground/50 italic">{t('notes.start_writing')}</p>
+            <p className="text-sm text-muted-foreground/50 italic">{t('start_writing')}</p>
           )}
         </div>
       ) : (
@@ -148,7 +146,7 @@ export function MarkdownEditor({
           value={content}
           onChange={e => onChange?.(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t('notes.start_writing')}
+          placeholder={t('start_writing')}
           className="w-full h-full resize-none scrollbar-none bg-transparent p-4 lg:p-6 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
           spellCheck={false}
           autoFocus

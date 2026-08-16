@@ -22,7 +22,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
-import { getErrorDetail } from '@/lib/utils';
 
 type Props = {
   noteId: string;
@@ -31,14 +30,17 @@ type Props = {
 };
 
 export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('test_generation');
   const PROGRESS_MESSAGES = [
-    t('test_generation.refine_progress_reading'),
-    t('test_generation.refine_progress_reviewing'),
-    t('test_generation.refine_progress_applying'),
-    t('test_generation.refine_progress_refining'),
-    t('test_generation.refine_progress_wrapping'),
+    t('refine_progress_reading'),
+    t('refine_progress_reviewing'),
+    t('refine_progress_applying'),
+    t('refine_progress_refining'),
+    t('refine_progress_wrapping'),
   ];
+  const tNotesAi = useTranslations('notes_ai');
+  const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
   const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
@@ -57,9 +59,9 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
       onRefined(res.data.questions);
       setOpen(false);
       setInstructions('');
-      toast.success(t('test_generation.questions_refined'));
+      toast.success(t('questions_refined'));
     },
-    onError: (error: unknown) => toast.error(getErrorDetail(error, t('test_generation.failed_to_refine'))),
+    onError: () => toast.error(t('failed_to_refine')),
   });
 
   return (
@@ -70,9 +72,9 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
           size="lg"
           icon={WandSparkles}
           disabled={!aiAvailable}
-          tooltip={!aiAvailable ? t('settings.ai_not_configured') : undefined}
+          tooltip={!aiAvailable ? tSettings('ai_not_configured') : undefined}
         >
-          {t('test_generation.refine_with_ai')}
+          {t('refine_with_ai')}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -81,36 +83,34 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
         onEscapeKeyDown={isRefining ? e => e.preventDefault() : undefined}
       >
         {isRefining ? (
-          <DialogLoading title={t('test_generation.refining_questions')} messages={PROGRESS_MESSAGES} />
+          <DialogLoading title={t('refining_questions')} messages={PROGRESS_MESSAGES} />
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>{t('test_generation.refine_questions_title')}</DialogTitle>
-              <DialogDescription>{t('test_generation.refine_description')}</DialogDescription>
+              <DialogTitle>{t('refine_questions_title')}</DialogTitle>
+              <DialogDescription>{t('refine_description')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="refine-instructions">{t('notes_ai.instructions')}</Label>
+                <Label htmlFor="refine-instructions">{tNotesAi('instructions')}</Label>
                 <Textarea
                   id="refine-instructions"
-                  placeholder={t('test_generation.refine_placeholder')}
+                  placeholder={t('refine_placeholder')}
                   value={instructions}
                   onChange={e => setInstructions(e.target.value)}
                   rows={5}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                {t('test_generation.questions_sent', { count: currentQuestions.length })}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('questions_sent', { count: currentQuestions.length })}</p>
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
-                {t('common.cancel')}
+                {tCommon('cancel')}
               </Button>
               <Button onClick={() => refine()} disabled={!instructions.trim()} icon={WandSparkles}>
-                {t('common.refine')}
+                {tCommon('refine')}
               </Button>
             </DialogFooter>
           </>

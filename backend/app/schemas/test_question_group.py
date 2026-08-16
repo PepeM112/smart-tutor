@@ -4,7 +4,7 @@ from app.schemas.question import QuestionCreate, QuestionRead, QuestionReadStrip
 
 
 class TestQuestionGroupBase(BaseSchema):
-    type: QuestionGroupType = QuestionGroupType.GENERIC
+    type: QuestionGroupType = QuestionGroupType.UNKNOWN
     order: int = 0
     title: str | None = None
     points: float = 1.0

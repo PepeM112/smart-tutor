@@ -109,7 +109,6 @@ def recalculate_test_result(db: Session, test_result: TestResult) -> None:
     pending = 0
     earned_pts = 0.0
     pending_pts = 0.0
-    # Total points are fixed at submission time — grading only shifts earned/pending, never the total
     total_pts = test_result.total_points
 
     for answer in answers:
@@ -121,11 +120,8 @@ def recalculate_test_result(db: Session, test_result: TestResult) -> None:
             correct += 1
             earned_pts += q.points
         elif status == AnswerStatus.PARTIAL:
-            if QuestionType(q.question_type) == QuestionType.LONG_TEXT:
-                content = LongTextContent.model_validate(q.content)
-                earned_pts += _score_from_rubric_result(content, answer.rubric_result or [], q.points)
-            else:
-                earned_pts += q.points * 0.5
+            content = LongTextContent.model_validate(q.content)
+            earned_pts += _score_from_rubric_result(content, answer.rubric_result or [], q.points)
         elif status == AnswerStatus.PENDING:
             pending += 1
             pending_pts += q.points

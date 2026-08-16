@@ -9,6 +9,10 @@ export type ClientOptions = {
  */
 export enum AiProvider {
     /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
+    /**
      * ANTHROPIC
      */
     ANTHROPIC = 1,
@@ -50,6 +54,10 @@ export type AnswerRead = {
  */
 export enum AnswerStatus {
     /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
+    /**
      * CORRECT
      */
     CORRECT = 1,
@@ -70,16 +78,6 @@ export enum AnswerStatus {
      */
     FAILED = 5
 }
-
-/**
- * AssignQuestionRequest
- */
-export type AssignQuestionRequest = {
-    /**
-     * Testid
-     */
-    testId: string;
-};
 
 /**
  * Body_usersLogin
@@ -109,50 +107,6 @@ export type BodyUsersLogin = {
      * Client Secret
      */
     client_secret?: string | null;
-};
-
-/**
- * BulkAssignQuestionsRequest
- */
-export type BulkAssignQuestionsRequest = {
-    /**
-     * Questionids
-     */
-    questionIds: Array<string>;
-    /**
-     * Testid
-     */
-    testId: string;
-};
-
-/**
- * BulkAssignQuestionsResponse
- */
-export type BulkAssignQuestionsResponse = {
-    /**
-     * Assigned
-     */
-    assigned: number;
-};
-
-/**
- * BulkDeleteQuestionsRequest
- */
-export type BulkDeleteQuestionsRequest = {
-    /**
-     * Questionids
-     */
-    questionIds: Array<string>;
-};
-
-/**
- * BulkDeleteQuestionsResponse
- */
-export type BulkDeleteQuestionsResponse = {
-    /**
-     * Deleted
-     */
-    deleted: number;
 };
 
 /**
@@ -272,6 +226,10 @@ export type LongTextContentStripped = {
  */
 export enum LongTextLength {
     /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
+    /**
      * SHORT
      */
     SHORT = 1,
@@ -383,6 +341,10 @@ export type NoteGenerate = {
  */
 export enum NoteLength {
     /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
+    /**
      * SHORT
      */
     SHORT = 1,
@@ -450,6 +412,10 @@ export type NoteRefine = {
  */
 export enum NoteSource {
     /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
+    /**
      * USER_CREATED
      */
     USER_CREATED = 1,
@@ -479,94 +445,6 @@ export type NoteUpdate = {
      * Tags
      */
     tags?: Array<string> | null;
-};
-
-/**
- * PaginatedResponse[NoteRead]
- */
-export type PaginatedResponseNoteRead = {
-    /**
-     * Items
-     */
-    items: Array<NoteRead>;
-    /**
-     * Total
-     */
-    total: number;
-    /**
-     * Page
-     */
-    page: number;
-    /**
-     * Perpage
-     */
-    perPage: number;
-};
-
-/**
- * PaginatedResponse[QuestionListRead]
- */
-export type PaginatedResponseQuestionListRead = {
-    /**
-     * Items
-     */
-    items: Array<QuestionListRead>;
-    /**
-     * Total
-     */
-    total: number;
-    /**
-     * Page
-     */
-    page: number;
-    /**
-     * Perpage
-     */
-    perPage: number;
-};
-
-/**
- * PaginatedResponse[TestRead]
- */
-export type PaginatedResponseTestRead = {
-    /**
-     * Items
-     */
-    items: Array<TestRead>;
-    /**
-     * Total
-     */
-    total: number;
-    /**
-     * Page
-     */
-    page: number;
-    /**
-     * Perpage
-     */
-    perPage: number;
-};
-
-/**
- * PaginatedResponse[TestResultListItem]
- */
-export type PaginatedResponseTestResultListItem = {
-    /**
-     * Items
-     */
-    items: Array<TestResultListItem>;
-    /**
-     * Total
-     */
-    total: number;
-    /**
-     * Page
-     */
-    page: number;
-    /**
-     * Perpage
-     */
-    perPage: number;
 };
 
 /**
@@ -655,35 +533,6 @@ export type QuestionCreate = {
 };
 
 /**
- * QuestionCreateStandalone
- *
- * Create a standalone question not attached to any test.
- */
-export type QuestionCreateStandalone = {
-    questionType: QuestionType;
-    /**
-     * Prompt
-     */
-    prompt: string;
-    /**
-     * Content
-     */
-    content: SimpleContent | MultipleChoiceContent | LongTextContent;
-    /**
-     * Hint
-     */
-    hint?: string | null;
-    /**
-     * Explanation
-     */
-    explanation?: string | null;
-    /**
-     * Points
-     */
-    points?: number;
-};
-
-/**
  * QuestionEditRequest
  */
 export type QuestionEditRequest = {
@@ -710,71 +559,14 @@ export type QuestionEditRequest = {
  */
 export enum QuestionGroupType {
     /**
-     * GENERIC
+     * UNKNOWN
      */
-    GENERIC = 1,
+    UNKNOWN = 0,
     /**
      * VOCABULARY
      */
-    VOCABULARY = 2
+    VOCABULARY = 1
 }
-
-/**
- * QuestionListRead
- *
- * Question with owning test/group names — used in the questions list page.
- */
-export type QuestionListRead = {
-    /**
-     * Id
-     */
-    id: string;
-    questionType: QuestionType;
-    /**
-     * Prompt
-     */
-    prompt: string;
-    /**
-     * Content
-     */
-    content: SimpleContent | MultipleChoiceContent | LongTextContent;
-    /**
-     * Hint
-     */
-    hint?: string | null;
-    /**
-     * Explanation
-     */
-    explanation?: string | null;
-    /**
-     * Testid
-     */
-    testId?: string | null;
-    /**
-     * Groupid
-     */
-    groupId?: string | null;
-    /**
-     * Order
-     */
-    order?: number;
-    /**
-     * Points
-     */
-    points?: number;
-    /**
-     * Originid
-     */
-    originId?: string | null;
-    /**
-     * Testtitle
-     */
-    testTitle?: string | null;
-    /**
-     * Grouptitle
-     */
-    groupTitle?: string | null;
-};
 
 /**
  * QuestionRead
@@ -872,6 +664,10 @@ export type QuestionReadStripped = {
  * QuestionType
  */
 export enum QuestionType {
+    /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
     /**
      * SIMPLE
      */
@@ -1213,10 +1009,6 @@ export type TestRead = {
      */
     parentId?: string | null;
     /**
-     * Createdat
-     */
-    createdAt: Date;
-    /**
      * Questions
      */
     questions?: Array<QuestionRead>;
@@ -1378,6 +1170,10 @@ export type TestResultRead = {
  */
 export enum TestStatus {
     /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
+    /**
      * ACTIVE
      */
     ACTIVE = 1,
@@ -1428,7 +1224,7 @@ export type TokenUsageDailySummary = {
     /**
      * Date
      */
-    date: string;
+    date: Date;
     provider: AiProvider;
     /**
      * Inputtokens
@@ -1538,6 +1334,10 @@ export type UserRead = {
  */
 export enum UserRole {
     /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
+    /**
      * ADMIN
      */
     ADMIN = 1,
@@ -1551,6 +1351,10 @@ export enum UserRole {
  * UserStatus
  */
 export enum UserStatus {
+    /**
+     * UNKNOWN
+     */
+    UNKNOWN = 0,
     /**
      * ACTIVE
      */
@@ -1772,40 +1576,7 @@ export type UsersUpdateMeResponse = UsersUpdateMeResponses[keyof UsersUpdateMeRe
 export type TestsListData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * Search
-         */
-        search?: string | null;
-        /**
-         * Question Type
-         */
-        question_type?: Array<number> | null;
-        /**
-         * Created From
-         */
-        created_from?: Date | null;
-        /**
-         * Created To
-         */
-        created_to?: Date | null;
-        /**
-         * Sort By
-         */
-        sort_by?: 'title' | 'created_at' | null;
-        /**
-         * Sort Order
-         */
-        sort_order?: 'asc' | 'desc';
-        /**
-         * Page
-         */
-        page?: number;
-        /**
-         * Per Page
-         */
-        per_page?: number;
-    };
+    query?: never;
     url: '/api/v1/tests';
 };
 
@@ -1820,9 +1591,11 @@ export type TestsListError = TestsListErrors[keyof TestsListErrors];
 
 export type TestsListResponses = {
     /**
+     * Response Testslist
+     *
      * Successful Response
      */
-    200: PaginatedResponseTestRead;
+    200: Array<TestRead>;
 };
 
 export type TestsListResponse = TestsListResponses[keyof TestsListResponses];
@@ -2080,44 +1853,7 @@ export type TestsSubmitResponse = TestsSubmitResponses[keyof TestsSubmitResponse
 export type ResultsListData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * Search
-         */
-        search?: string | null;
-        /**
-         * Score Min
-         */
-        score_min?: number | null;
-        /**
-         * Score Max
-         */
-        score_max?: number | null;
-        /**
-         * Created From
-         */
-        created_from?: Date | null;
-        /**
-         * Created To
-         */
-        created_to?: Date | null;
-        /**
-         * Sort By
-         */
-        sort_by?: 'score' | 'created_at' | null;
-        /**
-         * Sort Order
-         */
-        sort_order?: 'asc' | 'desc';
-        /**
-         * Page
-         */
-        page?: number;
-        /**
-         * Per Page
-         */
-        per_page?: number;
-    };
+    query?: never;
     url: '/api/v1/results';
 };
 
@@ -2132,9 +1868,11 @@ export type ResultsListError = ResultsListErrors[keyof ResultsListErrors];
 
 export type ResultsListResponses = {
     /**
+     * Response Resultslist
+     *
      * Successful Response
      */
-    200: PaginatedResponseTestResultListItem;
+    200: Array<TestResultListItem>;
 };
 
 export type ResultsListResponse = ResultsListResponses[keyof ResultsListResponses];
@@ -2169,89 +1907,6 @@ export type ResultsGetResponses = {
 
 export type ResultsGetResponse = ResultsGetResponses[keyof ResultsGetResponses];
 
-export type QuestionsListData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Question Type
-         */
-        question_type?: Array<number> | null;
-        /**
-         * Test Id
-         */
-        test_id?: Array<string> | null;
-        /**
-         * Search
-         */
-        search?: string | null;
-        /**
-         * Grouping
-         */
-        grouping?: 'grouped' | 'ungrouped' | null;
-        /**
-         * Sort By
-         */
-        sort_by?: 'prompt' | 'question_type' | 'points' | 'created_at' | null;
-        /**
-         * Sort Order
-         */
-        sort_order?: 'asc' | 'desc';
-        /**
-         * Page
-         */
-        page?: number;
-        /**
-         * Per Page
-         */
-        per_page?: number;
-    };
-    url: '/api/v1/questions';
-};
-
-export type QuestionsListErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type QuestionsListError = QuestionsListErrors[keyof QuestionsListErrors];
-
-export type QuestionsListResponses = {
-    /**
-     * Successful Response
-     */
-    200: PaginatedResponseQuestionListRead;
-};
-
-export type QuestionsListResponse = QuestionsListResponses[keyof QuestionsListResponses];
-
-export type QuestionsCreateData = {
-    body: QuestionCreateStandalone;
-    path?: never;
-    query?: never;
-    url: '/api/v1/questions';
-};
-
-export type QuestionsCreateErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type QuestionsCreateError = QuestionsCreateErrors[keyof QuestionsCreateErrors];
-
-export type QuestionsCreateResponses = {
-    /**
-     * Successful Response
-     */
-    201: QuestionRead;
-};
-
-export type QuestionsCreateResponse = QuestionsCreateResponses[keyof QuestionsCreateResponses];
-
 export type QuestionsDeleteData = {
     body?: never;
     path: {
@@ -2281,36 +1936,6 @@ export type QuestionsDeleteResponses = {
 };
 
 export type QuestionsDeleteResponse = QuestionsDeleteResponses[keyof QuestionsDeleteResponses];
-
-export type QuestionsGetData = {
-    body?: never;
-    path: {
-        /**
-         * Question Id
-         */
-        question_id: string;
-    };
-    query?: never;
-    url: '/api/v1/questions/{question_id}';
-};
-
-export type QuestionsGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type QuestionsGetError = QuestionsGetErrors[keyof QuestionsGetErrors];
-
-export type QuestionsGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: QuestionRead;
-};
-
-export type QuestionsGetResponse = QuestionsGetResponses[keyof QuestionsGetResponses];
 
 export type QuestionsUpdateData = {
     body: QuestionUpdate;
@@ -2372,116 +1997,6 @@ export type QuestionsCheckResponses = {
 
 export type QuestionsCheckResponse = QuestionsCheckResponses[keyof QuestionsCheckResponses];
 
-export type QuestionsAssignToTestData = {
-    body: AssignQuestionRequest;
-    path: {
-        /**
-         * Question Id
-         */
-        question_id: string;
-    };
-    query?: never;
-    url: '/api/v1/questions/{question_id}/assign';
-};
-
-export type QuestionsAssignToTestErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type QuestionsAssignToTestError = QuestionsAssignToTestErrors[keyof QuestionsAssignToTestErrors];
-
-export type QuestionsAssignToTestResponses = {
-    /**
-     * Successful Response
-     */
-    201: QuestionRead;
-};
-
-export type QuestionsAssignToTestResponse = QuestionsAssignToTestResponses[keyof QuestionsAssignToTestResponses];
-
-export type QuestionsDuplicateData = {
-    body?: never;
-    path: {
-        /**
-         * Question Id
-         */
-        question_id: string;
-    };
-    query?: never;
-    url: '/api/v1/questions/{question_id}/duplicate';
-};
-
-export type QuestionsDuplicateErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type QuestionsDuplicateError = QuestionsDuplicateErrors[keyof QuestionsDuplicateErrors];
-
-export type QuestionsDuplicateResponses = {
-    /**
-     * Successful Response
-     */
-    201: QuestionRead;
-};
-
-export type QuestionsDuplicateResponse = QuestionsDuplicateResponses[keyof QuestionsDuplicateResponses];
-
-export type QuestionsBulkDeleteData = {
-    body: BulkDeleteQuestionsRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/questions/bulk-delete';
-};
-
-export type QuestionsBulkDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type QuestionsBulkDeleteError = QuestionsBulkDeleteErrors[keyof QuestionsBulkDeleteErrors];
-
-export type QuestionsBulkDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    200: BulkDeleteQuestionsResponse;
-};
-
-export type QuestionsBulkDeleteResponse = QuestionsBulkDeleteResponses[keyof QuestionsBulkDeleteResponses];
-
-export type QuestionsBulkAssignData = {
-    body: BulkAssignQuestionsRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/questions/bulk-assign';
-};
-
-export type QuestionsBulkAssignErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type QuestionsBulkAssignError = QuestionsBulkAssignErrors[keyof QuestionsBulkAssignErrors];
-
-export type QuestionsBulkAssignResponses = {
-    /**
-     * Successful Response
-     */
-    200: BulkAssignQuestionsResponse;
-};
-
-export type QuestionsBulkAssignResponse = QuestionsBulkAssignResponses[keyof QuestionsBulkAssignResponses];
-
 export type AnswersChallengeData = {
     body: ChallengeRequest;
     path: {
@@ -2523,7 +2038,7 @@ export type ReviewListData = {
         /**
          * Mode
          */
-        mode?: 'review' | 'practice';
+        mode?: string;
     };
     url: '/api/v1/review/questions';
 };
@@ -2549,32 +2064,7 @@ export type ReviewListResponse = ReviewListResponses[keyof ReviewListResponses];
 export type NotesListData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * Search
-         */
-        search?: string | null;
-        /**
-         * Source
-         */
-        source?: Array<number> | null;
-        /**
-         * Sort By
-         */
-        sort_by?: 'title' | 'updated_at' | 'created_at' | null;
-        /**
-         * Sort Order
-         */
-        sort_order?: 'asc' | 'desc';
-        /**
-         * Page
-         */
-        page?: number;
-        /**
-         * Per Page
-         */
-        per_page?: number;
-    };
+    query?: never;
     url: '/api/v1/notes';
 };
 
@@ -2589,9 +2079,11 @@ export type NotesListError = NotesListErrors[keyof NotesListErrors];
 
 export type NotesListResponses = {
     /**
+     * Response Noteslist
+     *
      * Successful Response
      */
-    200: PaginatedResponseNoteRead;
+    200: Array<NoteRead>;
 };
 
 export type NotesListResponse = NotesListResponses[keyof NotesListResponses];

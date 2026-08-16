@@ -73,7 +73,6 @@ def _validate_challenge_eligibility(
             )
         cr = entry.get("challenge_result")
         if cr is not None:
-            # Re-challenge allowed only if prior attempt failed transiently — a real verdict blocks it
             is_transient_failure = (
                 isinstance(cr, dict) and cr.get("met") is False and cr.get("reason") == "Challenge processing failed"
             )
@@ -108,7 +107,6 @@ def challenge_answer(
             **rubric_result[idx],
             "challenge_result": {
                 "argument": criterion.argument,
-                # met: None = awaiting AI verdict; True/False once resolved
                 "met": None,
                 "reason": "",
             },

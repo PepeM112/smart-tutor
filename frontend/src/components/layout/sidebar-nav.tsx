@@ -36,30 +36,30 @@ type NavSection = {
 
 const sections: NavSection[] = [
   {
-    labelKey: 'sidebar.learning',
+    labelKey: 'learning',
     items: [
-      { labelKey: 'sidebar.dashboard', href: Routes.DASHBOARD, icon: LayoutDashboard },
-      { labelKey: 'sidebar.review_now', href: Routes.REVIEW, icon: RefreshCw },
+      { labelKey: 'dashboard', href: Routes.DASHBOARD, icon: LayoutDashboard },
+      { labelKey: 'review_now', href: Routes.REVIEW, icon: RefreshCw },
     ],
   },
   {
-    labelKey: 'sidebar.library',
+    labelKey: 'library',
     items: [
-      { labelKey: 'sidebar.tests', href: Routes.TESTS, icon: BookOpen },
-      { labelKey: 'sidebar.notes', href: Routes.NOTES, icon: FileText },
-      { labelKey: 'sidebar.questions', href: Routes.QUESTIONS, icon: Grid3X3 },
+      { labelKey: 'tests', href: Routes.TESTS, icon: BookOpen },
+      { labelKey: 'notes', href: Routes.NOTES, icon: FileText },
+      { labelKey: 'questions', href: null, icon: Grid3X3, disabled: true },
     ],
   },
   {
-    labelKey: 'sidebar.analytics',
+    labelKey: 'analytics',
     items: [
-      { labelKey: 'sidebar.test_history', href: Routes.HISTORY, icon: History },
-      { labelKey: 'sidebar.progress_stats', href: Routes.STATS, icon: BarChart2, disabled: true },
+      { labelKey: 'test_history', href: Routes.HISTORY, icon: History },
+      { labelKey: 'progress_stats', href: Routes.STATS, icon: BarChart2, disabled: true },
     ],
   },
   {
-    labelKey: 'sidebar.dev',
-    items: [{ labelKey: 'sidebar.sandbox', href: Routes.SANDBOX, icon: FlaskConical, requiredRole: UserRole.ADMIN }],
+    labelKey: 'dev',
+    items: [{ labelKey: 'sandbox', href: Routes.SANDBOX, icon: FlaskConical, requiredRole: UserRole.ADMIN }],
   },
 ];
 
@@ -69,7 +69,7 @@ type SidebarNavProps = {
 };
 
 export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
-  const t = useTranslations();
+  const t = useTranslations('sidebar');
   const pathname = usePathname();
   const userRole = useAuthStore(s => s.user?.role);
 
@@ -94,7 +94,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
                     return (
                       <li key={item.labelKey}>
                         <span
-                          title={collapsed ? `${label} (${t('sidebar.soon')})` : undefined}
+                          title={collapsed ? `${label} (${t('soon')})` : undefined}
                           className={cn(
                             'flex items-center gap-3 rounded-lg text-sm cursor-not-allowed opacity-40 text-sidebar-muted py-2',
                             collapsed ? 'justify-center px-0' : 'px-3'
@@ -105,7 +105,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
                             <>
                               <span className="truncate flex-1">{label}</span>
                               <span className="text-[10px] font-medium bg-sidebar-accent px-1.5 py-0.5 rounded-full">
-                                {t('sidebar.soon')}
+                                {t('soon')}
                               </span>
                             </>
                           )}
@@ -143,7 +143,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
         <Link
           href={Routes.SETTINGS}
           onClick={onNavigate}
-          title={collapsed ? t('sidebar.profile_and_settings') : undefined}
+          title={collapsed ? t('profile_and_settings') : undefined}
           className={cn(
             'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
             'text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground',
@@ -152,7 +152,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
           )}
         >
           <Settings size={17} className="shrink-0" />
-          {!collapsed && <span>{t('sidebar.profile_and_settings')}</span>}
+          {!collapsed && <span>{t('profile_and_settings')}</span>}
         </Link>
         <LogoutButton collapsed={collapsed} />
       </div>

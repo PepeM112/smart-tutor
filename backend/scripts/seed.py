@@ -15,7 +15,6 @@ sys.path.insert(0, os.path.dirname(script_dir))
 
 from seed_data.clean import clean_user_data  # noqa: E402
 from seed_data.notes import seed_notes  # noqa: E402
-from seed_data.questions import seed_bank_questions  # noqa: E402
 from seed_data.test_results import seed_history_result, seed_spanish_result  # noqa: E402
 from seed_data.test_versioning import seed_versioned_edit  # noqa: E402
 from seed_data.tests import seed_tests  # noqa: E402
@@ -52,10 +51,6 @@ print("Simulating test edit (versioning)... ", end="", flush=True)
 seed_versioned_edit(db, tests["spanish_vocab"])
 print("done")
 
-print("Creating bank questions... ", end="", flush=True)
-bank_questions = seed_bank_questions(db, user_id)
-print(f"done ({len(bank_questions)} questions)")
-
 print("Creating notes... ", end="", flush=True)
 notes = seed_notes(db, user_id)
 print(f"done ({len(notes)} notes)")
@@ -69,7 +64,4 @@ total_q = sum(len(t.questions) + sum(len(g.questions) for g in t.question_groups
 db.commit()
 db.close()
 
-print(
-    f"\nSeed complete: {total_q} test questions, {len(bank_questions)} bank questions, "
-    f"{len(notes)} notes, {token_count} token usage records"
-)
+print(f"\nSeed complete: {total_q} questions, {len(notes)} notes, {token_count} token usage records")
