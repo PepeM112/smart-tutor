@@ -86,7 +86,11 @@ const STATUS_STYLES: Partial<Record<AnswerStatus, StatusStyle>> = {
   },
 };
 
-export const getStatusTextColor = (status: AnswerStatus | null) => (status != null ? STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE : DEFAULT_STATUS_STYLE).text;
-export const getStatusRingColor = (status: AnswerStatus | null) => (status != null ? STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE : DEFAULT_STATUS_STYLE).ring;
-export const getStatusBgColor = (status: AnswerStatus | null) => (status != null ? STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE : DEFAULT_STATUS_STYLE).bg;
-export const getStatusStyles = (status: AnswerStatus | null) => (status != null ? STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE : DEFAULT_STATUS_STYLE);
+export const getStatusTextColor = (status: AnswerStatus | null) =>
+  (status != null ? (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE).text;
+export const getStatusRingColor = (status: AnswerStatus | null) =>
+  (status != null ? (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE).ring;
+export const getStatusBgColor = (status: AnswerStatus | null) =>
+  (status != null ? (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE).bg;
+export const getStatusStyles = (status: AnswerStatus | null) =>
+  status != null ? (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE;

@@ -25,8 +25,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
-import { getErrorDetail } from '@/lib/utils';
 import { Routes } from '@/lib/routes';
+import { getErrorDetail } from '@/lib/utils';
 
 import { useGenerationStore } from '../store/use-generation-store';
 

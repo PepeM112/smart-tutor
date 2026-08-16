@@ -26,7 +26,10 @@ export function TokenUsageStats({ totalInputTokens, totalOutputTokens, totalEsti
       <StatCard label={t('dashboard.total_tokens')} value={formatTokens(total)} />
       <StatCard label={t('dashboard.input_tokens')} value={formatTokens(totalInputTokens)} />
       <StatCard label={t('dashboard.output_tokens')} value={formatTokens(totalOutputTokens)} />
-      <StatCard label={t('dashboard.estimated_cost')} value={totalEstimatedCost ? formatCost(totalEstimatedCost) : '—'} />
+      <StatCard
+        label={t('dashboard.estimated_cost')}
+        value={totalEstimatedCost ? formatCost(totalEstimatedCost) : '—'}
+      />
     </div>
   );
 }

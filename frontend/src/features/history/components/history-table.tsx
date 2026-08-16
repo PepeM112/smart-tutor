@@ -97,7 +97,9 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
       accessorKey: 'createdAt',
       header: t('history.column_date'),
       meta: { sortKey: 'created_at' },
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>
+      ),
     },
     {
       id: 'actions',

@@ -15,7 +15,7 @@ type UseUrlSortReturn<T extends string> = {
 
 export function useUrlSort<T extends string>(
   validSortKeys: readonly T[],
-  onSortChange?: () => void,
+  onSortChange?: () => void
 ): UseUrlSortReturn<T> {
   const router = useRouter();
   const pathname = usePathname();
@@ -24,13 +24,9 @@ export function useUrlSort<T extends string>(
   const rawSortBy = searchParams.get('sort_c');
   const rawSortOrder = searchParams.get('sort_o');
 
-  const sortBy = rawSortBy && (validSortKeys as readonly string[]).includes(rawSortBy)
-    ? (rawSortBy as T)
-    : undefined;
+  const sortBy = rawSortBy && (validSortKeys as readonly string[]).includes(rawSortBy) ? (rawSortBy as T) : undefined;
 
-  const sortOrder = rawSortOrder === 'asc' || rawSortOrder === 'desc'
-    ? rawSortOrder
-    : undefined;
+  const sortOrder = rawSortOrder === 'asc' || rawSortOrder === 'desc' ? rawSortOrder : undefined;
 
   const handleSort = useCallback(
     (column: string | null, order: 'asc' | 'desc' | null) => {
@@ -46,13 +42,10 @@ export function useUrlSort<T extends string>(
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
       onSortChange?.();
     },
-    [searchParams, pathname, router, onSortChange],
+    [searchParams, pathname, router, onSortChange]
   );
 
-  const sort = useMemo<SortState>(
-    () => ({ column: sortBy ?? null, order: sortOrder ?? null }),
-    [sortBy, sortOrder],
-  );
+  const sort = useMemo<SortState>(() => ({ column: sortBy ?? null, order: sortOrder ?? null }), [sortBy, sortOrder]);
 
   return { sort, sortBy, sortOrder, handleSort };
 }

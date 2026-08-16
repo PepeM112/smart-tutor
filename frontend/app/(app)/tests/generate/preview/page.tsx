@@ -8,11 +8,7 @@ import { Routes } from '@/lib/routes';
 
 export default function GeneratePreviewPage() {
   const t = useTranslations();
-  useBreadcrumb(
-    t('test_generation.review_generated'),
-    [{ label: t('notes.title'), href: Routes.NOTES }],
-    Routes.NOTES
-  );
+  useBreadcrumb(t('test_generation.review_generated'), [{ label: t('notes.title'), href: Routes.NOTES }], Routes.NOTES);
 
   return <GeneratedTestPreview />;
 }

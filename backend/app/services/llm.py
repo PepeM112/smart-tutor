@@ -197,9 +197,8 @@ def _classify_provider_error(exc: Exception) -> HTTPException | None:
         error_code = error_detail.get("code", "") if isinstance(error_detail, dict) else ""
 
         # Content filter / safety block
-        is_content_filter = (
-            exc.status_code == 400
-            and ("content filtering" in message.lower() or error_code == "content_policy_violation")
+        is_content_filter = exc.status_code == 400 and (
+            "content filtering" in message.lower() or error_code == "content_policy_violation"
         )
         if is_content_filter:
             logger.warning("AI output blocked by content filter: %s", message)

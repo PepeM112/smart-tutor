@@ -56,11 +56,7 @@ export default function TakeTestPage({ params }: Props) {
     },
   });
 
-  useBreadcrumb(
-    test?.title ?? t('tests.take_test'),
-    [{ label: t('tests.title'), href: Routes.TESTS }],
-    Routes.TESTS
-  );
+  useBreadcrumb(test?.title ?? t('tests.take_test'), [{ label: t('tests.title'), href: Routes.TESTS }], Routes.TESTS);
 
   // A test's content spans two collections (standalone questions + groups); empty only if both are
   const isEmpty = (test?.questions?.length ?? 0) === 0 && (test?.questionGroups?.length ?? 0) === 0;

@@ -55,7 +55,9 @@ export function AiEditPopover({ selectedCount, isPending, onSubmit }: Props) {
           autoFocus
         />
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">{t('test_generation.questions_selected', { count: selectedCount })}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('test_generation.questions_selected', { count: selectedCount })}
+          </p>
           <Button size="sm" onClick={handleSubmit} disabled={!instructions.trim() || isPending}>
             {isPending ? t('test_generation.applying') : t('common.submit')}
           </Button>

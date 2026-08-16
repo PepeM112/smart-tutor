@@ -37,7 +37,14 @@ type UseNoteAiEditParams = {
   isDesktop: boolean;
 };
 
-export function useNoteAiEdit({ content, onChange, noteId, viewContainer, viewContainerRef, isDesktop }: UseNoteAiEditParams) {
+export function useNoteAiEdit({
+  content,
+  onChange,
+  noteId,
+  viewContainer,
+  viewContainerRef,
+  isDesktop,
+}: UseNoteAiEditParams) {
   const t = useTranslations();
 
   const [selectionTrigger, setSelectionTrigger] = useState<SelectionTrigger | null>(null);

@@ -100,7 +100,9 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
                   rows={5}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">{t('test_generation.questions_sent', { count: currentQuestions.length })}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('test_generation.questions_sent', { count: currentQuestions.length })}
+              </p>
             </div>
 
             <DialogFooter>

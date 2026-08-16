@@ -245,7 +245,9 @@ function QuestionCard({
         {question.prompt}
       </p>
 
-      {question.hint && <p className="text-xs text-muted-foreground italic">{t('exam.hint', { hint: question.hint })}</p>}
+      {question.hint && (
+        <p className="text-xs text-muted-foreground italic">{t('exam.hint', { hint: question.hint })}</p>
+      )}
 
       {/* Simple text input */}
       {isSimple && (

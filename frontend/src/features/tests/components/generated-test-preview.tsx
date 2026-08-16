@@ -197,7 +197,9 @@ export function GeneratedTestPreview() {
               />
             ) : (
               <>
-                <h1 className="text-lg font-semibold text-foreground">{testTitle || t('test_generation.review_generated')}</h1>
+                <h1 className="text-lg font-semibold text-foreground">
+                  {testTitle || t('test_generation.review_generated')}
+                </h1>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -209,7 +211,9 @@ export function GeneratedTestPreview() {
               </>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">{t('test_generation.questions_count', { count: items.length })}</p>
+          <p className="text-sm text-muted-foreground">
+            {t('test_generation.questions_count', { count: items.length })}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -220,7 +224,12 @@ export function GeneratedTestPreview() {
           >
             {columns === 1 ? <Columns2 className="size-5" /> : <Rows3 className="size-5" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleRegenerate} tooltip={t('test_generation.reset_to_original')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRegenerate}
+            tooltip={t('test_generation.reset_to_original')}
+          >
             <RotateCcw className="size-5" />
           </Button>
           {selectedIndices.size > 0 && (
