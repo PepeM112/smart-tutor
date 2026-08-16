@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
+import { getErrorDetail } from '@/lib/utils';
 
 type Props = {
   noteId: string;
@@ -58,7 +59,7 @@ export function RefineTestDialog({ noteId, currentQuestions, onRefined }: Props)
       setInstructions('');
       toast.success(t('test_generation.questions_refined'));
     },
-    onError: () => toast.error(t('test_generation.failed_to_refine')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('test_generation.failed_to_refine'))),
   });
 
   return (

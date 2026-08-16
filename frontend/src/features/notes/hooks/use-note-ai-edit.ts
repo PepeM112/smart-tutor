@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { useTextHighlight } from '@/hooks/use-text-highlight';
 import { sdk } from '@/lib/api-client';
+import { getErrorDetail } from '@/lib/utils';
 
 import { getMarkdownRangeFromSelection } from '../utils/markdown-selection';
 
@@ -171,7 +172,7 @@ export function useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isD
       setSelectionTrigger(null);
       setInstructions('');
     },
-    onError: () => toast.error(t('notes_ai.failed_to_edit')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('notes_ai.failed_to_edit'))),
   });
 
   function handleAcceptDiff() {

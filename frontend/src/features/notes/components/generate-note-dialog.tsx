@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
+import { getErrorDetail } from '@/lib/utils';
 
 const LENGTH_OPTIONS = [
   { value: undefined, labelKey: 'notes_ai.length_auto' },
@@ -61,7 +62,7 @@ export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
       if (!res.data) return;
       router.push(Routes.NOTE_DETAIL(res.data.id));
     },
-    onError: () => toast.error(t('notes_ai.failed_to_generate')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('notes_ai.failed_to_generate'))),
   });
 
   function resetForm() {

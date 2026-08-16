@@ -20,6 +20,7 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
+import { getErrorDetail } from '@/lib/utils';
 
 import { useBlockSelection } from '../../hooks/use-block-selection';
 import { useQuestionBlockList } from '../../hooks/use-question-block-list';
@@ -132,7 +133,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       clearSelection();
       toast.success(t('tests.questions_updated'));
     },
-    onError: () => toast.error(t('tests.failed_to_edit_questions')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('tests.failed_to_edit_questions'))),
   });
 
   function addItem(type: AddItemType) {

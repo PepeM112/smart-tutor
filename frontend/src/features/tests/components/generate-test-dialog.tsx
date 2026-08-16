@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
+import { getErrorDetail } from '@/lib/utils';
 import { Routes } from '@/lib/routes';
 
 import { useGenerationStore } from '../store/use-generation-store';
@@ -86,7 +87,7 @@ export function GenerateTestDialog({ noteId, noteTitle, compact = false }: Props
       resetForm();
       router.push(Routes.TEST_GENERATE_PREVIEW);
     },
-    onError: () => toast.error(t('test_generation.failed_to_generate')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('test_generation.failed_to_generate'))),
   });
 
   const hasTypeSelected = includeSimple || includeMC || includeLongText;

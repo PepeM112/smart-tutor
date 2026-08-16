@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { cn } from '@/lib/utils';
+import { cn, getErrorDetail } from '@/lib/utils';
 
 import { useBlockSelection } from '../hooks/use-block-selection';
 import { useQuestionBlockList } from '../hooks/use-question-block-list';
@@ -172,7 +172,7 @@ export function GeneratedTestPreview() {
       clearSelection();
       toast.success(t('test_generation.questions_refined'));
     },
-    onError: () => toast.error(t('test_generation.failed_to_refine')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('test_generation.failed_to_refine'))),
   });
 
   if (!hasData) {

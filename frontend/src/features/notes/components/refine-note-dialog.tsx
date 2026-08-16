@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
+import { getErrorDetail } from '@/lib/utils';
 
 type Props = {
   noteId: string;
@@ -50,7 +51,7 @@ export function RefineNoteDialog({ noteId, onRefined, compact = false }: Props &
       setInstructions('');
       toast.success(t('notes_ai.note_refined'));
     },
-    onError: () => toast.error(t('notes_ai.failed_to_refine')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('notes_ai.failed_to_refine'))),
   });
 
   return (

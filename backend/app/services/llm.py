@@ -184,6 +184,51 @@ def get_user_llm_client(user: User) -> LLMClient:
     raise ValueError(f"Unknown AI provider: {provider}")
 
 
+def _classify_provider_error(exc: Exception) -> HTTPException | None:
+    """Map known provider SDK errors to appropriate HTTP responses."""
+    from anthropic import APIStatusError as AnthropicAPIError
+    from openai import APIStatusError as OpenAIAPIError
+
+    if isinstance(exc, (AnthropicAPIError, OpenAIAPIError)):
+        error_body = getattr(exc, "body", {}) or {}
+        error_detail = error_body.get("error", {}) if isinstance(error_body, dict) else {}
+        message = error_detail.get("message", "") if isinstance(error_detail, dict) else str(error_detail)
+
+        # Content filter / safety block
+        if exc.status_code == 400 and "content filtering" in message.lower():
+            logger.warning("AI output blocked by content filter: %s", message)
+            return HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="The AI provider's content filter blocked this request. Try rephrasing your input.",
+            )
+
+        # Authentication / invalid API key
+        if exc.status_code == 401:
+            logger.error("AI provider rejected API key: %s", message)
+            return HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your AI API key was rejected. Please check it in Settings.",
+            )
+
+        # Rate limiting
+        if exc.status_code == 429:
+            logger.warning("AI provider rate limit hit: %s", message)
+            return HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI rate limit reached. Please wait a moment and try again.",
+            )
+
+        # Upstream overloaded (Anthropic 529 / OpenAI 503)
+        if exc.status_code in (503, 529):
+            logger.warning("AI provider overloaded (status=%d): %s", exc.status_code, message)
+            return HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The AI service is temporarily overloaded. Please try again shortly.",
+            )
+
+    return None
+
+
 def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
     try:
         return llm.complete(system=system, user_prompt=user_prompt, max_tokens=max_tokens)
@@ -194,6 +239,9 @@ def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens
             detail="AI service returned an invalid response. Please try again.",
         ) from exc
     except Exception as exc:
+        classified = _classify_provider_error(exc)
+        if classified:
+            raise classified from exc
         logger.exception("Unexpected error during LLM call")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
