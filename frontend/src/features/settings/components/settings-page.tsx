@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/features/auth/store/auth-store';
 import { sdk } from '@/lib/api-client';
 
-import { buildSettingsPayload } from '../utils';
+import { buildSettingsPayload, DEFAULT_EASE_FACTOR } from '../utils';
 
 import { AiSection } from './ai-section';
 import { AppearanceSection } from './appearance-section';
@@ -123,6 +123,6 @@ function formFromUser(user: UserRead | null): SettingsForm {
     anthropicApiKey: '',
     openaiApiKey: '',
     dailyReviewLimit: user?.dailyReviewLimit != null ? String(user.dailyReviewLimit) : '',
-    initialEaseFactor: String(user?.initialEaseFactor ?? 2.5),
+    initialEaseFactor: String(user?.initialEaseFactor ?? DEFAULT_EASE_FACTOR),
   };
 }

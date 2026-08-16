@@ -32,7 +32,10 @@ def record_usage(
     result: CompletionResult,
     feature: AIFeature,
 ) -> None:
-    provider = _PROVIDER_MAP.get(result.provider, AIProvider.ANTHROPIC)
+    provider = _PROVIDER_MAP.get(result.provider)
+    if provider is None:
+        logger.warning("Unknown AI provider %r — defaulting to ANTHROPIC for token tracking", result.provider)
+        provider = AIProvider.ANTHROPIC
     cost = calculate_cost(
         db,
         model=result.model,

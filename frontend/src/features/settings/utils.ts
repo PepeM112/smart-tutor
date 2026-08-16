@@ -2,6 +2,8 @@ import { type UserRead, type UserUpdate } from '@/client';
 
 import type { SettingsForm } from './types';
 
+export const DEFAULT_EASE_FACTOR = 2.5;
+
 /**
  * Compares the settings form against the current user and returns only the
  * fields that changed, as a `UserUpdate` payload. Pure — no side effects.
@@ -32,7 +34,7 @@ export function buildSettingsPayload(form: SettingsForm, user: UserRead | null):
   }
 
   const ease = parseFloat(form.initialEaseFactor);
-  if (!isNaN(ease) && ease !== (user?.initialEaseFactor ?? 2.5)) {
+  if (!isNaN(ease) && ease !== (user?.initialEaseFactor ?? DEFAULT_EASE_FACTOR)) {
     payload.initialEaseFactor = ease;
   }
 

@@ -31,7 +31,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   const aiAvailable = useAiAvailable();
   const { isDesktop } = useBreakpoint();
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
-  const [, setViewContainer] = useState<HTMLDivElement | null>(null);
+  const [viewContainer, setViewContainer] = useState<HTMLDivElement | null>(null);
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(SPLIT_KEY, DEFAULT_RATIO);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -55,7 +55,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     activeDiff,
     removeDiff,
     handleAcceptDiff,
-  } = useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isDesktop });
+  } = useNoteAiEdit({ content, onChange, noteId, viewContainer, viewContainerRef, isDesktop });
 
   const hasDiffPanel = activeDiff !== null;
 

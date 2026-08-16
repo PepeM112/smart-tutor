@@ -194,8 +194,14 @@ def _classify_provider_error(exc: Exception) -> HTTPException | None:
         error_detail = error_body.get("error", {}) if isinstance(error_body, dict) else {}
         message = error_detail.get("message", "") if isinstance(error_detail, dict) else str(error_detail)
 
+        error_code = error_detail.get("code", "") if isinstance(error_detail, dict) else ""
+
         # Content filter / safety block
-        if exc.status_code == 400 and "content filtering" in message.lower():
+        is_content_filter = (
+            exc.status_code == 400
+            and ("content filtering" in message.lower() or error_code == "content_policy_violation")
+        )
+        if is_content_filter:
             logger.warning("AI output blocked by content filter: %s", message)
             return HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

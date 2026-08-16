@@ -32,11 +32,12 @@ type UseNoteAiEditParams = {
   content: string;
   onChange: (content: string) => void;
   noteId?: string;
+  viewContainer: HTMLDivElement | null;
   viewContainerRef: React.RefObject<HTMLDivElement | null>;
   isDesktop: boolean;
 };
 
-export function useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isDesktop }: UseNoteAiEditParams) {
+export function useNoteAiEdit({ content, onChange, noteId, viewContainer, viewContainerRef, isDesktop }: UseNoteAiEditParams) {
   const t = useTranslations();
 
   const [selectionTrigger, setSelectionTrigger] = useState<SelectionTrigger | null>(null);
@@ -64,8 +65,8 @@ export function useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isD
   // ── Selection detection (desktop only) ─────────────────────────
 
   useEffect(() => {
-    if (!noteId || !isDesktop || !viewContainerRef.current) return;
-    const container = viewContainerRef.current;
+    if (!noteId || !isDesktop || !viewContainer) return;
+    const container = viewContainer;
 
     function commitSelection() {
       if (popoverOpenRef.current) return;
@@ -125,8 +126,7 @@ export function useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isD
       document.removeEventListener('selectionchange', handleSelectionChange);
       container.removeEventListener('scroll', commitSelection);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- viewContainerRef.current is read as the "container mounted" signal
-  }, [noteId, isDesktop, viewContainerRef.current]);
+  }, [noteId, isDesktop, viewContainer]);
 
   // ── Handlers ────────────────────────────────────────────────────
 
@@ -213,7 +213,6 @@ export function useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isD
     handleOpenChange,
     editChunk,
     isSubmittingEdit,
-    diffs,
     activeDiffIndex,
     setActiveDiffIndex,
     activeDiff,

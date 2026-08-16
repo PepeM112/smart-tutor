@@ -17,7 +17,7 @@ class TestQuestionGroup(Base):
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
     test_id: Mapped[str] = mapped_column(String(26), ForeignKey("test.id"))
-    type: Mapped[int] = mapped_column(Integer, default=int(QuestionGroupType.VOCABULARY))
+    type: Mapped[int] = mapped_column(Integer, default=int(QuestionGroupType.GENERIC))
     order: Mapped[int] = mapped_column(Integer)
     title: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     points: Mapped[float] = mapped_column(Float, default=1.0, server_default="1.0")
