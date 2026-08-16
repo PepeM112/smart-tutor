@@ -29,6 +29,7 @@ def fetch_and_update_prices(db: Session) -> int:
         model_id = model.get("id", "")
         if model_id not in our_models:
             continue
+        # OpenRouter reports pricing as USD per single token, not per 1K/1M tokens
         pricing = model.get("pricing", {})
         prompt_price = pricing.get("prompt")
         completion_price = pricing.get("completion")
@@ -60,7 +61,6 @@ def calculate_cost(
     input_tokens: int,
     output_tokens: int,
 ) -> Decimal | None:
-    """Calculate cost for a completion using the active price for the model."""
     openrouter_id = SDK_TO_OPENROUTER.get(model)
     if not openrouter_id:
         logger.warning("No OpenRouter mapping for model %s", model)

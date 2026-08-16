@@ -6,15 +6,15 @@ import type { LucideIcon } from 'lucide-react';
 
 type QuestionTypeInfo = {
   icon: LucideIcon;
-  label: string;
+  labelKey: string;
 };
 
 const QUESTION_TYPE_MAP: Record<number, QuestionTypeInfo> = {
-  [QuestionType.SIMPLE]: { icon: Layers, label: 'Simple' },
-  [QuestionType.MULTIPLE_CHOICE]: { icon: ListChecks, label: 'Multiple Choice' },
-  [QuestionType.LONG_TEXT]: { icon: FileText, label: 'Long Text' },
+  [QuestionType.SIMPLE]: { icon: Layers, labelKey: 'test_editor.simple' },
+  [QuestionType.MULTIPLE_CHOICE]: { icon: ListChecks, labelKey: 'test_editor.multiple_choice' },
+  [QuestionType.LONG_TEXT]: { icon: FileText, labelKey: 'test_editor.long_text' },
 };
 
 export function getQuestionTypeInfo(type: QuestionType): QuestionTypeInfo {
-  return QUESTION_TYPE_MAP[type] ?? { icon: FileText, label: 'Unknown' };
+  return QUESTION_TYPE_MAP[type] ?? { icon: FileText, labelKey: 'test_editor.unknown' };
 }

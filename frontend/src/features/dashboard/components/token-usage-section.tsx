@@ -11,17 +11,17 @@ import { TokenUsageChart } from './token-usage-chart';
 import { TokenUsageStats } from './token-usage-stats';
 
 const TIME_RANGES = [
-  { key: 'range_1d', days: 1 },
-  { key: 'range_1w', days: 7 },
-  { key: 'range_1m', days: 30 },
-  { key: 'range_3m', days: 90 },
-  { key: 'range_1y', days: 365 },
+  { key: 'dashboard.range_1d', days: 1 },
+  { key: 'dashboard.range_1w', days: 7 },
+  { key: 'dashboard.range_1m', days: 30 },
+  { key: 'dashboard.range_3m', days: 90 },
+  { key: 'dashboard.range_1y', days: 365 },
 ] as const;
 
 const DEFAULT_RANGE = 30;
 
 export function TokenUsageSection() {
-  const t = useTranslations('dashboard');
+  const t = useTranslations();
   const [days, setDays] = useState(DEFAULT_RANGE);
 
   const { data, isLoading } = useQuery({
@@ -35,7 +35,7 @@ export function TokenUsageSection() {
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:space-y-0">
-        <CardTitle>{t('token_usage')}</CardTitle>
+        <CardTitle>{t('dashboard.token_usage')}</CardTitle>
         <div className="flex gap-1 self-start rounded-md border border-border p-0.5 sm:self-auto">
           {TIME_RANGES.map(range => (
             <button

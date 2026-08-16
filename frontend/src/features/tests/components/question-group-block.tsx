@@ -36,7 +36,7 @@ type Props = {
 };
 
 export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick }: Props) {
-  const t = useTranslations('test_editor');
+  const t = useTranslations();
   const vocabId = useId();
   const canRemoveRow = data.rows.length > 1;
 
@@ -83,7 +83,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
     >
       <div className="flex items-start gap-2 mb-3">
         <Input
-          placeholder={t('group_title')}
+          placeholder={t('test_editor.group_title')}
           value={data.title}
           onChange={e => onChange({ ...data, title: e.target.value })}
           className="flex-1"
@@ -93,9 +93,9 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
           min={0.5}
           step={0.5}
           value={data.points}
-          onChange={e => onChange({ ...data, points: Number(e.target.value) })}
+          onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
           className="w-20 shrink-0 text-center"
-          title={t('points')}
+          title={t('test_editor.points')}
         />
         <QuestionBlockAction onRemove={onRemove} />
       </div>
@@ -107,12 +107,12 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
           onCheckedChange={checked =>
             onChange({
               ...data,
-              groupType: checked ? QuestionGroupType.VOCABULARY : QuestionGroupType.UNKNOWN,
+              groupType: checked ? QuestionGroupType.VOCABULARY : QuestionGroupType.GENERIC,
             })
           }
         />
         <Label htmlFor={vocabId} className="text-sm text-muted-foreground cursor-pointer">
-          {t('vocabulary_mode')}
+          {t('test_editor.vocabulary_mode')}
         </Label>
       </div>
 
@@ -121,7 +121,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
           <div key={i} className="space-y-1.5">
             <div className="flex items-center gap-2">
               <Input
-                placeholder={t('prompt')}
+                placeholder={t('test_editor.prompt')}
                 value={row.prompt}
                 onChange={e => updateRow(i, { prompt: e.target.value })}
                 className="flex-1"
@@ -141,7 +141,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
               {row.answers.map((answer, ai) => (
                 <div key={ai} className="flex items-center gap-1">
                   <Input
-                    placeholder={t('answer_n', { n: ai + 1 })}
+                    placeholder={t('test_editor.answer_n', { n: ai + 1 })}
                     value={answer}
                     onChange={e => updateAnswer(i, ai, e.target.value)}
                     className="w-36"
@@ -178,7 +178,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
         className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
       >
         <Plus className="size-3.5" />
-        {t('add')}
+        {t('test_editor.add')}
       </Button>
     </div>
   );

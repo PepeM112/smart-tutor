@@ -19,7 +19,7 @@ import { NoteEditor } from './note-editor';
 import { TagInput } from './tag-input';
 
 export function NewNotePage() {
-  const t = useTranslations('notes');
+  const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
@@ -45,16 +45,16 @@ export function NewNotePage() {
       }),
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success(t('note_created'));
+      toast.success(t('notes.note_created'));
       if (!res.data) return;
       router.push(Routes.NOTE_DETAIL(res.data.id));
     },
-    onError: () => toast.error(t('failed_to_create')),
+    onError: () => toast.error(t('notes.failed_to_create')),
   });
 
   useMobileBreadcrumbActions(
     <Button icon={Save} onClick={() => createNote()} disabled={!title.trim() || isCreating}>
-      {isCreating ? t('creating') : t('create')}
+      {isCreating ? t('notes.creating') : t('notes.create')}
     </Button>
   );
 
@@ -70,7 +70,7 @@ export function NewNotePage() {
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   className="w-80 max-w-full text-sm"
-                  placeholder={t('note_title')}
+                  placeholder={t('notes.note_title')}
                   autoFocus
                 />
                 {!isDesktop && (
@@ -83,13 +83,13 @@ export function NewNotePage() {
                 rows={2}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder={t('description_optional')}
+                placeholder={t('notes.description_optional')}
               />
               <TagInput tags={tags} onChange={setTags} />
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground truncate">{title || t('note_title')}</span>
+              <span className="text-sm font-medium text-foreground truncate">{title || t('notes.note_title')}</span>
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -103,7 +103,7 @@ export function NewNotePage() {
         </div>
         {isDesktop && (
           <Button icon={Save} onClick={() => createNote()} disabled={!title.trim() || isCreating}>
-            {isCreating ? t('creating') : t('create')}
+            {isCreating ? t('notes.creating') : t('notes.create')}
           </Button>
         )}
       </div>

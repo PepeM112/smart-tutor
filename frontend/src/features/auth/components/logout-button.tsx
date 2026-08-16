@@ -17,7 +17,7 @@ type LogoutButtonProps = {
 
 export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
   const router = useRouter();
-  const t = useTranslations('auth');
+  const t = useTranslations();
   const logout = useAuthStore(state => state.logout);
 
   const handleLogout = async () => {
@@ -36,19 +36,19 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
       trigger={
         <Button
           variant="ghost"
-          title={collapsed ? t('log_out') : undefined}
+          title={collapsed ? t('auth.log_out') : undefined}
           className={cn(
             'w-full text-sidebar-muted hover:text-red-300 hover:bg-sidebar-accent',
             collapsed ? 'justify-center size-9 px-0' : 'justify-start gap-3 h-9 px-3'
           )}
         >
           <LogOut size={17} className="shrink-0" />
-          {!collapsed && <span>{t('log_out')}</span>}
+          {!collapsed && <span>{t('auth.log_out')}</span>}
         </Button>
       }
-      title={t('log_out_title')}
-      description={t('log_out_description')}
-      confirmLabel={t('log_out')}
+      title={t('auth.log_out_title')}
+      description={t('auth.log_out_description')}
+      confirmLabel={t('auth.log_out')}
       confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90 border-none"
       onConfirm={handleLogout}
     />

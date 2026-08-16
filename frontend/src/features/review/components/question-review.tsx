@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { parseMcAnswer, toggleMcOption } from '@/features/tests/utils/question-content';
 import { cn } from '@/lib/utils';
 
-import { feedbackBg, feedbackTextColor } from '../helpers';
+import { feedbackBg, feedbackTextColor, statusLabelKey } from '../helpers';
 
 export type CheckResult = {
   status: AnswerStatus;
@@ -40,30 +41,17 @@ export function QuestionReview({
   onNext,
   isLast,
 }: Props) {
-  const t = useTranslations('review');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isSimple = question.questionType === QuestionType.SIMPLE;
+  // SAFETY: isMC check below guards all MC-specific access; content is opaque JSON from the API
   const content = question.content as Record<string, unknown> | undefined;
   const isChecked = checkResult !== null;
 
-  const statusLabel = (status: AnswerStatus): string => {
-    switch (status) {
-      case AnswerStatus.CORRECT:
-        return t('status_correct');
-      case AnswerStatus.PARTIAL:
-        return t('status_partial');
-      case AnswerStatus.WRONG:
-        return t('status_wrong');
-      default:
-        return t('status_pending');
-    }
-  };
+  const statusLabel = (status: AnswerStatus) => t(statusLabelKey(status));
 
   const handleCheckboxToggle = (index: number) => {
-    const selected = answer ? answer.split(',').map(Number) : [];
-    const updated = selected.includes(index) ? selected.filter(i => i !== index) : [...selected, index];
-    onAnswerChange(updated.sort((a, b) => a - b).join(','));
+    onAnswerChange(toggleMcOption(answer, index));
   };
 
   return (
@@ -72,13 +60,13 @@ export function QuestionReview({
         <div className="text-center space-y-2">
           <p className="text-lg font-semibold">{question.prompt}</p>
           {question.hint && (
-            <p className="text-sm text-muted-foreground italic">{t('hint', { hint: question.hint })}</p>
+            <p className="text-sm text-muted-foreground italic">{t('review.hint', { hint: question.hint })}</p>
           )}
         </div>
 
         {isSimple && (
           <Input
-            placeholder={t('type_your_answer')}
+            placeholder={t('review.type_your_answer')}
             value={answer}
             onChange={e => onAnswerChange(e.target.value)}
             onKeyDown={e => {
@@ -108,7 +96,7 @@ export function QuestionReview({
 
         {!isChecked && (
           <Button className="w-full" size="lg" onClick={onCheck} disabled={isChecking || !answer.trim()}>
-            {isChecking ? <Loader2 className="animate-spin" /> : tCommon('check')}
+            {isChecking ? <Loader2 className="animate-spin" /> : t('common.check')}
           </Button>
         )}
       </div>
@@ -123,7 +111,7 @@ export function QuestionReview({
               </p>
               {isSimple && checkResult.status !== AnswerStatus.CORRECT && checkResult.correctAnswers && (
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {t('correct_answer')}{' '}
+                  {t('review.correct_answer')}{' '}
                   <span className="text-feedback-correct font-medium">{checkResult.correctAnswers.join(', ')}</span>
                 </p>
               )}
@@ -134,6 +122,7 @@ export function QuestionReview({
             <p className="text-sm text-muted-foreground mt-3 border-t border-border/50 pt-3">{question.explanation}</p>
           )}
 
+          {/* Dev-only: exposes raw SRS state for debugging the spaced-repetition algorithm */}
           {process.env.NEXT_PUBLIC_DEV_MODE === 'true' && checkResult.srsState && (
             <div className="mt-3 border-t border-border/50 pt-3">
               <p className="text-xs font-mono text-muted-foreground">
@@ -148,7 +137,7 @@ export function QuestionReview({
 
           <div className="mt-4 flex justify-end">
             <Button size="lg" icon={ArrowRight} onClick={onNext}>
-              {isLast ? tCommon('finish') : tCommon('next')}
+              {isLast ? t('common.finish') : t('common.next')}
             </Button>
           </div>
         </div>
@@ -179,7 +168,7 @@ function MultipleChoiceInput({
   answer: string;
   onToggle: (index: number) => void;
 }) {
-  const selected = answer ? answer.split(',').map(Number) : [];
+  const selected = parseMcAnswer(answer);
 
   return (
     <div className="space-y-2">
@@ -218,14 +207,7 @@ function MultipleChoiceReview({
   answer: string;
   correctIndices: number[];
 }) {
-  const selectedSet = new Set(
-    answer
-      ? answer
-          .split(',')
-          .map(s => parseInt(s.trim(), 10))
-          .filter(n => !isNaN(n))
-      : []
-  );
+  const selectedSet = new Set(parseMcAnswer(answer));
   const correctSet = new Set(correctIndices);
 
   return (

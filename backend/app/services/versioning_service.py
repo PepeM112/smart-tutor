@@ -102,6 +102,7 @@ def _clone_test(db: Session, *, test: Test) -> tuple[Test, dict[str, str]]:
 
         frozen_group_id = group_id_map.get(question.group_id) if question.group_id else None
         frozen_q = Question(
+            user_id=question.user_id,
             question_type=question.question_type,
             prompt=question.prompt,
             content=copy.deepcopy(question.content),

@@ -23,7 +23,19 @@
     "no_data_found": "No se encontraron datos.",
     "copied": "Copiado",
     "downloaded": "Descargado",
-    "saving": "Guardando…"
+    "saving": "Guardando…",
+    "select": "Seleccionar…",
+    "filters": "Filtros",
+    "clear": "Limpiar",
+    "clear_all": "Limpiar todo",
+    "all": "Todos",
+    "type_and_enter": "Escribe y pulsa Enter",
+    "search": "Buscar…",
+    "selected_count": "{count} seleccionados",
+    "from": "Desde",
+    "to": "Hasta",
+    "min": "Mín",
+    "max": "Máx"
   },
   "app": {
     "title": "SmartTutor",
@@ -152,9 +164,72 @@
     "column_title": "Título",
     "column_questions": "Preguntas",
     "column_types": "Tipos",
+    "column_created": "Creado",
     "quick_test": "Test Rápido",
     "quick_test_description": "Introduce el ID del test que quieres hacer.",
-    "test_id": "ID del Test"
+    "test_id": "ID del Test",
+    "filter_search": "Buscar",
+    "filter_type": "Tipo",
+    "filter_date": "Fecha",
+    "no_results": "Ningún test coincide con tus filtros.",
+    "clear_filters": "Limpiar filtros"
+  },
+  "questions": {
+    "title": "Preguntas",
+    "subtitle": "Explora y gestiona todas tus preguntas de todos los tests.",
+    "new_question": "Nueva Pregunta",
+    "edit_question": "Editar Pregunta",
+    "failed_to_load": "Error al cargar las preguntas. Inténtalo de nuevo.",
+    "no_questions_yet": "Aún no hay preguntas. ¡Crea la primera!",
+    "question_deleted": "Pregunta eliminada",
+    "failed_to_delete": "Error al eliminar la pregunta",
+    "delete_question": "Eliminar pregunta",
+    "delete_question_confirm": "¿Estás seguro de que quieres eliminar esta pregunta? Esta acción no se puede deshacer.",
+    "question_created": "Pregunta creada",
+    "question_updated": "Pregunta actualizada",
+    "failed_to_create": "Error al crear la pregunta",
+    "failed_to_update": "Error al actualizar la pregunta",
+    "assign_to_test": "Asignar a test",
+    "assign_question": "Asignar Pregunta a Test",
+    "assign_description": "Selecciona un test para copiar esta pregunta.",
+    "assign_description_bulk": "Selecciona un test para asignar {count} preguntas.",
+    "question_assigned": "Pregunta asignada al test",
+    "failed_to_assign": "Error al asignar la pregunta",
+    "bank": "Banco",
+    "column_prompt": "Enunciado",
+    "column_type": "Tipo",
+    "column_location": "Ubicación",
+    "column_points": "Puntos",
+    "filter_type": "Tipo",
+    "filter_test": "Test",
+    "filter_grouping": "Agrupación",
+    "filter_search": "Buscar",
+    "search_placeholder": "Buscar por enunciado…",
+    "creating": "Creando…",
+    "saving": "Guardando…",
+    "no_results": "Ninguna pregunta coincide con tus filtros.",
+    "clear_filters": "Limpiar filtros",
+    "duplicate": "Duplicar",
+    "question_duplicated": "Pregunta duplicada al banco.",
+    "failed_to_duplicate": "Error al duplicar la pregunta.",
+    "select_all": "Seleccionar todo",
+    "deselect_all": "Deseleccionar todo",
+    "selected_count": "{count} seleccionadas",
+    "bulk_delete": "Eliminar seleccionadas",
+    "bulk_delete_confirm": "¿Estás seguro de que quieres eliminar {count} preguntas? Esta acción no se puede deshacer.",
+    "bulk_deleted": "{count} preguntas eliminadas.",
+    "bulk_assign": "Asignar seleccionadas a test",
+    "bulk_assigned": "{count} preguntas asignadas al test.",
+    "type_simple": "Simple",
+    "type_multiple_choice": "Opción Múltiple",
+    "type_long_text": "Texto Largo",
+    "grouping_grouped": "En un grupo",
+    "grouping_standalone": "Individual",
+    "hint_label": "Pista",
+    "hint_placeholder": "Pista opcional mostrada antes de responder",
+    "explanation_label": "Explicación",
+    "explanation_placeholder": "Explicación opcional mostrada después de responder",
+    "options_label": "Opciones"
   },
   "exam": {
     "submit_exam": "Enviar Examen",
@@ -168,7 +243,8 @@
     "question_group": "Grupo de Preguntas",
     "column_prompt": "Enunciado",
     "column_answer": "Respuesta",
-    "column_result": "Resultado"
+    "column_result": "Resultado",
+    "hint": "Pista: {hint}"
   },
   "notes": {
     "title": "Notas",
@@ -205,7 +281,11 @@
     "preview": "Vista previa",
     "start_writing": "Empieza a escribir en Markdown…",
     "add_tags": "Añadir etiquetas…",
-    "remove_tag": "Eliminar etiqueta {tag}"
+    "remove_tag": "Eliminar etiqueta {tag}",
+    "filter_search": "Buscar",
+    "filter_source": "Origen",
+    "no_results": "Ninguna nota coincide con tus filtros.",
+    "clear_filters": "Limpiar filtros"
   },
   "notes_ai": {
     "generate_with_ai": "Generar con IA",
@@ -316,7 +396,8 @@
     "medium_chars": "Medio (~1800 chars)",
     "long_chars": "Largo (~5000 chars)",
     "unknown": "Desconocido",
-    "simple_questions": "Preguntas simples"
+    "simple_questions": "Preguntas simples",
+    "multiple_choice": "Opción Múltiple"
   },
   "history": {
     "title": "Historial de Tests",
@@ -341,7 +422,12 @@
     "pts": "pts",
     "view_details": "Ver detalles",
     "pending_questions": "{count, plural, one {# pregunta} other {# preguntas}} pendiente de revisión IA",
-    "older_version_notice": "Existe una versión más reciente de este test. Este resultado refleja la versión que hiciste."
+    "older_version_notice": "Existe una versión más reciente de este test. Este resultado refleja la versión que hiciste.",
+    "filter_search": "Buscar",
+    "filter_score": "Nota",
+    "filter_date": "Fecha",
+    "no_results": "Ningún resultado coincide con tus filtros.",
+    "clear_filters": "Limpiar filtros"
   },
   "challenge": {
     "challenge_grade": "Impugnar nota",
@@ -356,7 +442,8 @@
     "challenge_submitted": "Impugnación enviada — reevaluando…",
     "challenge_failed": "Error en la impugnación: {error}",
     "challenge_overturned": "Impugnación resuelta — {count, plural, one {# criterio revocado} other {# criterios revocados}}",
-    "challenge_upheld": "Impugnación resuelta — calificación original confirmada"
+    "challenge_upheld": "Impugnación resuelta — calificación original confirmada",
+    "grading_failed": "La corrección falló. Intenta enviar la respuesta de nuevo."
   },
   "stats": {
     "title": "Estadísticas de Progreso",

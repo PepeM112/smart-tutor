@@ -6,13 +6,26 @@ All learning content is user-created. The hierarchy is:
 
 ```
 User
+ ├── Question (bank — standalone, no test)
  └── Test
-      ├── Question (standalone)
+      ├── Question (standalone within test)
       └── QuestionGroup
-           └── Question (grouped)
+           └── Question (grouped within test)
 ```
 
+Questions have a `user_id` FK for direct ownership. A question's `test_id` is **nullable** — questions with `test_id = NULL` are **bank questions** (standalone, not part of any test). Bank questions are owned via `user_id` directly.
+
 A **Test** is a named collection of questions (e.g. "Spanish Vocabulary Chapter 3"). Tests belong to a single user and are never shared. A test can optionally track its origin via `source_note_id` — a reference to the Note it was generated from (see [AI Test Generation](test-generation.md)). This is `null` for manually-created tests.
+
+### Question Bank
+
+Bank questions exist independently of any test. They can be created, edited, and deleted from the Questions list page. Key behaviors:
+
+- **Edit-in-place**: Bank questions are edited directly — no copy-on-write versioning. SRS state (tied to question ID) is preserved. Test-level `version_test_if_needed()` only applies to test-owned questions.
+- **Assign to test**: Copies the bank question into a test. The copy's `origin_id` points to the bank question (star topology, same as test versioning). The original bank question remains unchanged.
+- **Duplicate to bank**: Any question (test-owned or bank) can be duplicated as a new standalone bank question.
+- **SRS exclusion**: Bank questions are excluded from SRS review — SRS queries filter by test. This is a known limitation, acceptable for now.
+- **`origin_id` dual purpose**: This field is used for both test versioning (frozen copy → canonical) and bank-to-test provenance (test copy → bank source). Both use the same star topology.
 
 A **QuestionGroup** is an organizational layer within a test. It groups related questions under a shared title and type. The main use case is vocabulary: a group titled "Translate to Spanish" with type `VOCABULARY` containing multiple translation questions. Groups and standalone questions share the same order space within a test, so a test's content can interleave individual questions and groups. Each group has a `points` value (default 1.0) that determines its weight in exam scoring.
 

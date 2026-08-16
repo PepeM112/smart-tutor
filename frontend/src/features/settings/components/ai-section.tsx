@@ -25,21 +25,21 @@ type Props = {
 };
 
 const PROVIDERS = [
-  { value: AiProvider.ANTHROPIC, labelKey: 'anthropic', modelKey: 'model_claude_haiku' },
-  { value: AiProvider.OPENAI, labelKey: 'openai', modelKey: 'model_gpt4o_mini' },
+  { value: AiProvider.ANTHROPIC, labelKey: 'settings.anthropic', modelKey: 'settings.model_claude_haiku' },
+  { value: AiProvider.OPENAI, labelKey: 'settings.openai', modelKey: 'settings.model_gpt4o_mini' },
 ] as const;
 
 export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, removeKey, isRemovingKey }: Props) {
-  const t = useTranslations('settings');
+  const t = useTranslations();
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
 
   return (
-    <SettingsSection title={t('ai_configuration')} description={t('ai_description')}>
+    <SettingsSection title={t('settings.ai_configuration')} description={t('settings.ai_description')}>
       <div className="space-y-5">
         {/* Provider selector */}
         <div className="space-y-2">
-          <Label>{t('ai_provider')}</Label>
+          <Label>{t('settings.ai_provider')}</Label>
           <div className="flex gap-2">
             {PROVIDERS.map(({ value, labelKey, modelKey }) => (
               <button
@@ -62,11 +62,11 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
         {/* Anthropic API Key */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="anthropicKey">{t('anthropic_api_key')}</Label>
+            <Label htmlFor="anthropicKey">{t('settings.anthropic_api_key')}</Label>
             {hasAnthropicKey && (
               <span className="flex items-center gap-1 text-xs text-feedback-correct">
                 <Check className="size-3" />
-                {t('api_key_configured')}
+                {t('settings.api_key_configured')}
               </span>
             )}
           </div>
@@ -75,7 +75,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
               <Input
                 id="anthropicKey"
                 type={showAnthropicKey ? 'text' : 'password'}
-                placeholder={hasAnthropicKey ? '••••••••••••••••' : t('api_key_placeholder')}
+                placeholder={hasAnthropicKey ? '••••••••••••••••' : t('settings.api_key_placeholder')}
                 value={form.anthropicApiKey}
                 onChange={e => updateField('anthropicApiKey', e.target.value)}
                 autoComplete="off"
@@ -87,7 +87,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
                   onClick={() => setShowAnthropicKey(!showAnthropicKey)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   tabIndex={-1}
-                  aria-label={showAnthropicKey ? t('hide_key') : t('show_key')}
+                  aria-label={showAnthropicKey ? t('settings.hide_key') : t('settings.show_key')}
                 >
                   {showAnthropicKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                 </button>
@@ -96,13 +96,18 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
             {hasAnthropicKey && (
               <ConfirmDialog
                 trigger={
-                  <Button variant="destructive" size="icon-sm" tooltip={t('remove_key')} disabled={isRemovingKey}>
+                  <Button
+                    variant="destructive"
+                    size="icon-sm"
+                    tooltip={t('settings.remove_key')}
+                    disabled={isRemovingKey}
+                  >
                     <X className="size-3.5" />
                   </Button>
                 }
-                title={t('remove_key_title')}
-                description={t('remove_key_confirm')}
-                confirmLabel={t('remove_key')}
+                title={t('settings.remove_key_title')}
+                description={t('settings.remove_key_confirm')}
+                confirmLabel={t('settings.remove_key')}
                 confirmClassName="bg-destructive text-white hover:bg-destructive/90"
                 onConfirm={() => removeKey('anthropic')}
               />
@@ -113,11 +118,11 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
         {/* OpenAI API Key */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="openaiKey">{t('openai_api_key')}</Label>
+            <Label htmlFor="openaiKey">{t('settings.openai_api_key')}</Label>
             {hasOpenaiKey && (
               <span className="flex items-center gap-1 text-xs text-feedback-correct">
                 <Check className="size-3" />
-                {t('api_key_configured')}
+                {t('settings.api_key_configured')}
               </span>
             )}
           </div>
@@ -126,7 +131,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
               <Input
                 id="openaiKey"
                 type={showOpenaiKey ? 'text' : 'password'}
-                placeholder={hasOpenaiKey ? '••••••••••••••••' : t('api_key_placeholder')}
+                placeholder={hasOpenaiKey ? '••••••••••••••••' : t('settings.api_key_placeholder')}
                 value={form.openaiApiKey}
                 onChange={e => updateField('openaiApiKey', e.target.value)}
                 autoComplete="off"
@@ -138,7 +143,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
                   onClick={() => setShowOpenaiKey(!showOpenaiKey)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   tabIndex={-1}
-                  aria-label={showOpenaiKey ? t('hide_key') : t('show_key')}
+                  aria-label={showOpenaiKey ? t('settings.hide_key') : t('settings.show_key')}
                 >
                   {showOpenaiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                 </button>
@@ -147,13 +152,18 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
             {hasOpenaiKey && (
               <ConfirmDialog
                 trigger={
-                  <Button variant="destructive" size="icon-sm" tooltip={t('remove_key')} disabled={isRemovingKey}>
+                  <Button
+                    variant="destructive"
+                    size="icon-sm"
+                    tooltip={t('settings.remove_key')}
+                    disabled={isRemovingKey}
+                  >
                     <X className="size-3.5" />
                   </Button>
                 }
-                title={t('remove_key_title')}
-                description={t('remove_key_confirm')}
-                confirmLabel={t('remove_key')}
+                title={t('settings.remove_key_title')}
+                description={t('settings.remove_key_confirm')}
+                confirmLabel={t('settings.remove_key')}
                 confirmClassName="bg-destructive text-white hover:bg-destructive/90"
                 onConfirm={() => removeKey('openai')}
               />
