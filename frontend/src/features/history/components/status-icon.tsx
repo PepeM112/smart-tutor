@@ -13,7 +13,7 @@ const STATUS_ICONS = {
   [AnswerStatus.FAILED]: CircleX,
 } as const;
 
-export function StatusIcon({ status, className }: { status: AnswerStatus; className?: string }) {
+export function StatusIcon({ status, className }: { status: AnswerStatus | null; className?: string }) {
   const base = cn('size-5 shrink-0', className);
   const Icon = STATUS_ICONS[status as keyof typeof STATUS_ICONS];
 

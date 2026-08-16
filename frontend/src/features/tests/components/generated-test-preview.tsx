@@ -14,9 +14,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { cn } from '@/lib/utils';
+import { cn, getErrorDetail } from '@/lib/utils';
 
 import { useBlockSelection } from '../hooks/use-block-selection';
+import { useQuestionBlockList } from '../hooks/use-question-block-list';
 import { useGenerationStore } from '../store/use-generation-store';
 
 import { AiEditPopover } from './ai-edit-popover';
@@ -34,7 +35,7 @@ type PreviewItem =
   | { id: string; kind: 'long_text'; data: LongTextQuestionData };
 
 export function GeneratedTestPreview() {
-  const t = useTranslations('test_generation');
+  const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -44,8 +45,13 @@ export function GeneratedTestPreview() {
   const hasData = useGenerationStore(s => s.questions.length > 0);
   const clear = useGenerationStore(s => s.clear);
 
-  const [items, setItems] = useState<PreviewItem[]>(() => toPreviewItems(initialQuestions));
-  const [testTitle, setTestTitle] = useState(() => t('test_from_note', { noteTitle: sourceNoteTitle }));
+  const {
+    items,
+    setItems,
+    updateItem,
+    removeItem: removeListItem,
+  } = useQuestionBlockList<PreviewItem>(() => toPreviewItems(initialQuestions));
+  const [testTitle, setTestTitle] = useState(() => t('test_generation.test_from_note', { noteTitle: sourceNoteTitle }));
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
   const [columns, setColumns] = useState<1 | 2>(1);
@@ -73,24 +79,12 @@ export function GeneratedTestPreview() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasData, items.length]);
 
-  const updateMcItem = useCallback((index: number, data: MultipleChoiceQuestionData) => {
-    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'mc' as const, data } : item)));
-  }, []);
-
-  const updateGroupItem = useCallback((index: number, data: QuestionGroupData) => {
-    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'group' as const, data } : item)));
-  }, []);
-
-  const updateLongTextItem = useCallback((index: number, data: LongTextQuestionData) => {
-    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'long_text' as const, data } : item)));
-  }, []);
-
   const removeItem = useCallback(
     (index: number) => {
-      setItems(prev => prev.filter((_, i) => i !== index));
+      removeListItem(index);
       removeAndReindex(index);
     },
-    [removeAndReindex]
+    [removeListItem, removeAndReindex]
   );
 
   const handleRefined = useCallback(
@@ -99,15 +93,15 @@ export function GeneratedTestPreview() {
       setItems(previewItems);
       clearSelection();
     },
-    [clearSelection]
+    [setItems, clearSelection]
   );
 
   const handleRegenerate = useCallback(() => {
     const previewItems = toPreviewItems(initialQuestions);
     setItems(previewItems);
     clearSelection();
-    toast.success(t('reset_original'));
-  }, [initialQuestions, clearSelection, t]);
+    toast.success(t('test_generation.reset_original'));
+  }, [initialQuestions, setItems, clearSelection, t]);
 
   const editorItems = useMemo((): EditorItem[] => items.map(i => i.data), [items]);
 
@@ -146,7 +140,7 @@ export function GeneratedTestPreview() {
     onSuccess: res => {
       isNavigatingRef.current = true;
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
-      toast.success(t('test_created'));
+      toast.success(t('test_generation.test_created'));
       if (res.data?.id) {
         router.push(Routes.TEST_EDIT(res.data.id));
       } else {
@@ -154,7 +148,7 @@ export function GeneratedTestPreview() {
       }
       clear();
     },
-    onError: () => toast.error(t('failed_to_create')),
+    onError: () => toast.error(t('test_generation.failed_to_create')),
   });
 
   const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
@@ -176,9 +170,9 @@ export function GeneratedTestPreview() {
       if (!res.data) return;
       setItems(toPreviewItems(res.data.questions));
       clearSelection();
-      toast.success(t('questions_refined'));
+      toast.success(t('test_generation.questions_refined'));
     },
-    onError: () => toast.error(t('failed_to_refine')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('test_generation.failed_to_refine'))),
   });
 
   if (!hasData) {
@@ -203,7 +197,9 @@ export function GeneratedTestPreview() {
               />
             ) : (
               <>
-                <h1 className="text-lg font-semibold text-foreground">{testTitle || t('review_generated')}</h1>
+                <h1 className="text-lg font-semibold text-foreground">
+                  {testTitle || t('test_generation.review_generated')}
+                </h1>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -215,18 +211,25 @@ export function GeneratedTestPreview() {
               </>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">{t('questions_count', { count: items.length })}</p>
+          <p className="text-sm text-muted-foreground">
+            {t('test_generation.questions_count', { count: items.length })}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setColumns(c => (c === 1 ? 2 : 1))}
-            tooltip={columns === 1 ? t('two_column_layout') : t('one_column_layout')}
+            tooltip={columns === 1 ? t('test_generation.two_column_layout') : t('test_generation.one_column_layout')}
           >
             {columns === 1 ? <Columns2 className="size-5" /> : <Rows3 className="size-5" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleRegenerate} tooltip={t('reset_to_original')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRegenerate}
+            tooltip={t('test_generation.reset_to_original')}
+          >
             <RotateCcw className="size-5" />
           </Button>
           {selectedIndices.size > 0 && (
@@ -242,7 +245,7 @@ export function GeneratedTestPreview() {
             onClick={() => createTest()}
             disabled={items.length === 0 || !testTitle.trim() || isCreating}
           >
-            {isCreating ? t('creating') : t('create_test')}
+            {isCreating ? t('test_generation.creating') : t('test_generation.create_test')}
           </Button>
         </div>
       </div>
@@ -257,7 +260,7 @@ export function GeneratedTestPreview() {
               <MultipleChoiceQuestionBlock
                 key={item.id}
                 data={item.data}
-                onChange={data => updateMcItem(i, data)}
+                onChange={data => updateItem(i, { ...item, data })}
                 onRemove={() => removeItem(i)}
                 selected={selected}
                 onClick={onClick}
@@ -269,7 +272,7 @@ export function GeneratedTestPreview() {
               <LongTextQuestionBlock
                 key={item.id}
                 data={item.data}
-                onChange={data => updateLongTextItem(i, data)}
+                onChange={data => updateItem(i, { ...item, data })}
                 onRemove={() => removeItem(i)}
                 selected={selected}
                 onClick={onClick}
@@ -280,7 +283,7 @@ export function GeneratedTestPreview() {
             <QuestionGroupBlock
               key={item.id}
               data={item.data}
-              onChange={data => updateGroupItem(i, data)}
+              onChange={data => updateItem(i, { ...item, data })}
               onRemove={() => removeItem(i)}
               selected={selected}
               onClick={onClick}
@@ -346,7 +349,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
       data: {
         key: crypto.randomUUID(),
         type: 'group',
-        groupType: QuestionGroupType.UNKNOWN,
+        groupType: QuestionGroupType.GENERIC,
         title: '',
         rows: simpleQuestions.map(q => {
           // SAFETY: filtered by questionType === SIMPLE above

@@ -36,8 +36,8 @@ const SIZES: ButtonSize[] = ['xs', 'sm', 'default', 'lg', 'icon-xs', 'icon-sm', 
 const ICON_SIZES: ButtonSize[] = ['icon-xs', 'icon-sm', 'icon', 'icon-lg'];
 
 export default function SandboxPage() {
-  const t = useTranslations('sidebar');
-  useBreadcrumb(t('sandbox'));
+  const t = useTranslations();
+  useBreadcrumb(t('sidebar.sandbox'));
   const [switchA, setSwitchA] = useState(false);
   const [switchB, setSwitchB] = useState(true);
   const [checkA, setCheckA] = useState(false);

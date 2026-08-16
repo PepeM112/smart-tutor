@@ -31,8 +31,7 @@ type Props = {
 };
 
 export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionChange }: Props) {
-  const t = useTranslations('questions');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [assignQuestionId, setAssignQuestionId] = useState<string | null>(null);
@@ -41,18 +40,18 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
     mutationFn: (id: string) => sdk.questionsDelete({ path: { question_id: id } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success(t('question_deleted'));
+      toast.success(t('questions.question_deleted'));
     },
-    onError: () => toast.error(t('failed_to_delete')),
+    onError: () => toast.error(t('questions.failed_to_delete')),
   });
 
   const { mutate: duplicateQuestion, isPending: isDuplicating } = useMutation({
     mutationFn: (id: string) => sdk.questionsDuplicate({ path: { question_id: id } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success(t('question_duplicated'));
+      toast.success(t('questions.question_duplicated'));
     },
-    onError: () => toast.error(t('failed_to_duplicate')),
+    onError: () => toast.error(t('questions.failed_to_duplicate')),
   });
 
   function toggleSelect(id: string) {
@@ -95,7 +94,7 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
             </Tooltip>
           ) : (
             <span className="text-[10px] font-medium bg-primary/10 px-1.5 py-0.5 rounded-full text-primary">
-              {t('bank')}
+              {t('questions.bank')}
             </span>
           )}
           {question.groupTitle && (
@@ -115,34 +114,34 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
   const renderActions = useCallback(
     (question: QuestionListRead): MobileAction[] => [
       {
-        label: tCommon('edit'),
+        label: t('common.edit'),
         icon: Pencil,
         onClick: () => router.push(Routes.QUESTION_EDIT(question.id)),
       },
       {
-        label: t('duplicate'),
+        label: t('questions.duplicate'),
         icon: Copy,
         onClick: () => {
           duplicateQuestion(question.id);
         },
       },
       {
-        label: t('assign_to_test'),
+        label: t('questions.assign_to_test'),
         icon: Send,
         onClick: () => setAssignQuestionId(question.id),
       },
       {
-        label: tCommon('delete'),
+        label: t('common.delete'),
         icon: Trash2,
         variant: 'destructive',
         onClick: () => deleteQuestion(question.id),
         confirm: {
-          title: t('delete_question'),
-          description: t('delete_question_confirm'),
+          title: t('questions.delete_question'),
+          description: t('questions.delete_question_confirm'),
         },
       },
     ],
-    [t, tCommon, router, deleteQuestion, duplicateQuestion]
+    [t, router, deleteQuestion, duplicateQuestion]
   );
 
   return (
@@ -150,7 +149,7 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
       <DataTable
         columns={columns}
         data={data}
-        emptyMessage={t('no_questions_yet')}
+        emptyMessage={t('questions.no_questions_yet')}
         onRowClick={row => router.push(Routes.QUESTION_EDIT(row.id))}
         renderPreview={renderPreview}
         renderActions={renderActions}
@@ -171,7 +170,7 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
 }
 
 function QuestionTypeBadge({ type }: { type: QuestionType }) {
-  const t = useTranslations('test_editor');
+  const t = useTranslations();
   const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
   return (
     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -182,13 +181,13 @@ function QuestionTypeBadge({ type }: { type: QuestionType }) {
 }
 
 function LocationCell({ question }: { question: QuestionListRead }) {
-  const t = useTranslations('questions');
+  const t = useTranslations();
 
   if (!question.testId) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
         <Archive className="size-3" />
-        {t('bank')}
+        {t('questions.bank')}
       </span>
     );
   }
@@ -240,8 +239,7 @@ function useQuestionsColumns({
   onToggleAll,
   allSelected,
 }: ColumnDeps): ColumnDef<QuestionListRead, unknown>[] {
-  const t = useTranslations('questions');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const router = useRouter();
 
   return [
@@ -251,7 +249,7 @@ function useQuestionsColumns({
         <Checkbox
           checked={allSelected}
           onCheckedChange={onToggleAll}
-          aria-label={allSelected ? t('deselect_all') : t('select_all')}
+          aria-label={allSelected ? t('questions.deselect_all') : t('questions.select_all')}
         />
       ),
       cell: ({ row }) => (
@@ -265,7 +263,7 @@ function useQuestionsColumns({
     },
     {
       accessorKey: 'prompt',
-      meta: { label: t('column_prompt'), sortKey: 'prompt' },
+      meta: { label: t('questions.column_prompt'), sortKey: 'prompt' },
       cell: ({ row }) => (
         <div className="min-w-0">
           <p className="font-medium text-foreground truncate max-w-md">{row.original.prompt}</p>
@@ -274,17 +272,17 @@ function useQuestionsColumns({
     },
     {
       id: 'type',
-      meta: { label: t('column_type'), sortKey: 'question_type' },
+      meta: { label: t('questions.column_type'), sortKey: 'question_type' },
       cell: ({ row }) => <QuestionTypeBadge type={row.original.questionType} />,
     },
     {
       id: 'location',
-      header: t('column_location'),
+      header: t('questions.column_location'),
       cell: ({ row }) => <LocationCell question={row.original} />,
     },
     {
       id: 'points',
-      meta: { label: t('column_points'), sortKey: 'points' },
+      meta: { label: t('questions.column_points'), sortKey: 'points' },
       cell: ({ row }) => <span className="tabular-nums text-muted-foreground">{row.original.points ?? 1}</span>,
     },
     {
@@ -295,37 +293,37 @@ function useQuestionsColumns({
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip={tCommon('edit')}
+            tooltip={t('common.edit')}
             onClick={e => {
               e.stopPropagation();
               router.push(Routes.QUESTION_EDIT(row.original.id));
             }}
-            aria-label={tCommon('edit')}
+            aria-label={t('common.edit')}
           >
             <Pencil className="size-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip={t('duplicate')}
+            tooltip={t('questions.duplicate')}
             disabled={isDuplicating}
             onClick={e => {
               e.stopPropagation();
               onDuplicate(row.original.id);
             }}
-            aria-label={t('duplicate')}
+            aria-label={t('questions.duplicate')}
           >
             <Copy className="size-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon-lg"
-            tooltip={t('assign_to_test')}
+            tooltip={t('questions.assign_to_test')}
             onClick={e => {
               e.stopPropagation();
               onAssign(row.original.id);
             }}
-            aria-label={t('assign_to_test')}
+            aria-label={t('questions.assign_to_test')}
           >
             <Send className="size-4" />
           </Button>
@@ -335,17 +333,17 @@ function useQuestionsColumns({
                 variant="ghost"
                 size="icon-lg"
                 className="text-destructive hover:text-destructive"
-                tooltip={tCommon('delete')}
+                tooltip={t('common.delete')}
                 onClick={e => e.stopPropagation()}
                 disabled={isDeleting}
-                aria-label={tCommon('delete')}
+                aria-label={t('common.delete')}
               >
                 <Trash2 className="size-4" />
               </Button>
             }
-            title={t('delete_question')}
-            description={t('delete_question_confirm')}
-            confirmLabel={tCommon('delete')}
+            title={t('questions.delete_question')}
+            description={t('questions.delete_question_confirm')}
+            confirmLabel={t('common.delete')}
             confirmClassName="bg-destructive text-white hover:bg-destructive/90"
             onConfirm={() => deleteQuestion(row.original.id)}
           />

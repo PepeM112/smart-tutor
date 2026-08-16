@@ -25,8 +25,7 @@ type Props = {
 };
 
 export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Props) {
-  const t = useTranslations('questions');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const queryClient = useQueryClient();
   const [selectedTestId, setSelectedTestId] = useState('');
   const isBulk = questionIds.length > 1;
@@ -47,12 +46,12 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success(t('question_assigned'));
+      toast.success(t('questions.question_assigned'));
       onOpenChange(false);
       setSelectedTestId('');
       onSuccess?.();
     },
-    onError: () => toast.error(t('failed_to_assign')),
+    onError: () => toast.error(t('questions.failed_to_assign')),
   });
 
   const { mutate: assignBulk, isPending: isBulkPending } = useMutation({
@@ -62,12 +61,12 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success(t('bulk_assigned'));
+      toast.success(t('questions.bulk_assigned'));
       onOpenChange(false);
       setSelectedTestId('');
       onSuccess?.();
     },
-    onError: () => toast.error(t('failed_to_assign')),
+    onError: () => toast.error(t('questions.failed_to_assign')),
   });
 
   const isPending = isSinglePending || isBulkPending;
@@ -81,20 +80,22 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('assign_question')}</DialogTitle>
+          <DialogTitle>{t('questions.assign_question')}</DialogTitle>
           <DialogDescription>
-            {isBulk ? t('assign_description_bulk', { count: questionIds.length }) : t('assign_description')}
+            {isBulk
+              ? t('questions.assign_description_bulk', { count: questionIds.length })
+              : t('questions.assign_description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2 py-4">
-          <Label>{t('filter_test')}</Label>
+          <Label>{t('questions.filter_test')}</Label>
           <select
             value={selectedTestId}
             onChange={e => setSelectedTestId(e.target.value)}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="">{tCommon('select')}</option>
+            <option value="">{t('common.select')}</option>
             {tests.map(test => (
               <option key={test.id} value={test.id}>
                 {test.title}
@@ -105,10 +106,10 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {tCommon('cancel')}
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleAssign} disabled={!selectedTestId || isPending}>
-            {t('assign_to_test')}
+            {t('questions.assign_to_test')}
           </Button>
         </DialogFooter>
       </DialogContent>

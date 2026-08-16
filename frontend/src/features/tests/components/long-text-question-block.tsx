@@ -38,7 +38,7 @@ type Props = {
 };
 
 export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
-  const t = useTranslations('test_editor');
+  const t = useTranslations();
 
   function updateCriterion(idx: number, patch: Partial<Criterion>) {
     const updated = data.criteria.map((c, i) => (i === idx ? { ...c, ...patch } : c));
@@ -75,7 +75,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
       <div className="flex flex-wrap items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
-          placeholder={`${t('question_prompt')} (${t('question_prompt_example')})`}
+          placeholder={`${t('test_editor.question_prompt')} (${t('test_editor.question_prompt_example')})`}
           value={data.prompt}
           onChange={e => onChange({ ...data, prompt: e.target.value })}
           className="flex-1"
@@ -98,7 +98,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
           value={data.points}
           onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
           className="w-20 shrink-0 text-center"
-          title={t('points')}
+          title={t('test_editor.points')}
         />
         <QuestionBlockAction onRemove={onRemove} />
       </div>
@@ -106,7 +106,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
       {/* Rubric criteria */}
       <div className="space-y-2">
         <p className={cn('text-sm font-medium', isWeightValid ? 'text-muted-foreground' : 'text-destructive')}>
-          {t('rubric_criteria', { total: totalWeight.toFixed(2) })}
+          {t('test_editor.rubric_criteria', { total: totalWeight.toFixed(2) })}
         </p>
 
         {data.criteria.map((criterion, ci) => (
@@ -118,7 +118,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
             />
             <AutoTextarea
               rows={1}
-              placeholder={t('criterion_placeholder')}
+              placeholder={t('test_editor.criterion_placeholder')}
               value={criterion.point}
               onChange={e => updateCriterion(ci, { point: e.target.value })}
               className="flex-1"
@@ -154,7 +154,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         className="mt-5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
       >
         <Plus className="size-3.5" />
-        {t('add_criterion')}
+        {t('test_editor.add_criterion')}
       </Button>
     </div>
   );
@@ -169,7 +169,7 @@ function CategoryInput({
   onChange: (value: string) => void;
   suggestions: string[];
 }) {
-  const t = useTranslations('test_editor');
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -191,7 +191,7 @@ function CategoryInput({
   return (
     <div className="relative w-32 shrink-0">
       <Input
-        placeholder={t('category')}
+        placeholder={t('test_editor.category')}
         value={value}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setOpen(true)}

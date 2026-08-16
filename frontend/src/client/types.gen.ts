@@ -9,10 +9,6 @@ export type ClientOptions = {
  */
 export enum AiProvider {
     /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
-    /**
      * ANTHROPIC
      */
     ANTHROPIC = 1,
@@ -53,10 +49,6 @@ export type AnswerRead = {
  * AnswerStatus
  */
 export enum AnswerStatus {
-    /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
     /**
      * CORRECT
      */
@@ -280,10 +272,6 @@ export type LongTextContentStripped = {
  */
 export enum LongTextLength {
     /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
-    /**
      * SHORT
      */
     SHORT = 1,
@@ -395,10 +383,6 @@ export type NoteGenerate = {
  */
 export enum NoteLength {
     /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
-    /**
      * SHORT
      */
     SHORT = 1,
@@ -465,10 +449,6 @@ export type NoteRefine = {
  * NoteSource
  */
 export enum NoteSource {
-    /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
     /**
      * USER_CREATED
      */
@@ -730,13 +710,13 @@ export type QuestionEditRequest = {
  */
 export enum QuestionGroupType {
     /**
-     * UNKNOWN
+     * GENERIC
      */
-    UNKNOWN = 0,
+    GENERIC = 1,
     /**
      * VOCABULARY
      */
-    VOCABULARY = 1
+    VOCABULARY = 2
 }
 
 /**
@@ -892,10 +872,6 @@ export type QuestionReadStripped = {
  * QuestionType
  */
 export enum QuestionType {
-    /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
     /**
      * SIMPLE
      */
@@ -1402,10 +1378,6 @@ export type TestResultRead = {
  */
 export enum TestStatus {
     /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
-    /**
      * ACTIVE
      */
     ACTIVE = 1,
@@ -1456,7 +1428,7 @@ export type TokenUsageDailySummary = {
     /**
      * Date
      */
-    date: Date;
+    date: string;
     provider: AiProvider;
     /**
      * Inputtokens
@@ -1566,10 +1538,6 @@ export type UserRead = {
  */
 export enum UserRole {
     /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
-    /**
      * ADMIN
      */
     ADMIN = 1,
@@ -1583,10 +1551,6 @@ export enum UserRole {
  * UserStatus
  */
 export enum UserStatus {
-    /**
-     * UNKNOWN
-     */
-    UNKNOWN = 0,
     /**
      * ACTIVE
      */

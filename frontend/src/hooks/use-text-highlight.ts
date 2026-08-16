@@ -261,12 +261,16 @@ function removeHighlights(marks: HTMLElement[]): void {
  * Highlights are applied via direct DOM manipulation and are safe as long
  * as the container's React subtree doesn't re-render while they're active.
  */
+export type TextHighlightHandle = {
+  clearHighlights: () => void;
+};
+
 export function useTextHighlight(
   containerRef: React.RefObject<HTMLElement | null>,
   texts: string[],
   activeIndex: number | null,
   onClick: (index: number) => void
-): void {
+): TextHighlightHandle {
   const marksMapRef = useRef<Map<number, HTMLElement[]>>(new Map());
   const onClickRef = useRef(onClick);
   useEffect(() => {
@@ -320,4 +324,14 @@ export function useTextHighlight(
       });
     });
   }, [activeIndex]);
+
+  const handle = useRef<TextHighlightHandle>({
+    clearHighlights: () => {
+      const marksMap = marksMapRef.current;
+      marksMap.forEach(marks => removeHighlights(marks));
+      marksMap.clear();
+    },
+  });
+
+  return handle.current;
 }

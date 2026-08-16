@@ -108,7 +108,7 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
   return {
     key: crypto.randomUUID(),
     type: 'group',
-    groupType: g.type ?? QuestionGroupType.UNKNOWN,
+    groupType: g.type ?? QuestionGroupType.GENERIC,
     title: g.title ?? '',
     rows: (g.questions ?? []).map(q => {
       // SAFETY: group questions are always SIMPLE type with { answers: string[] } content
@@ -146,7 +146,7 @@ export function fromApiToEditorItems(
         const syntheticGroup: TestQuestionGroupRead = {
           id: '',
           testId: '',
-          type: QuestionGroupType.UNKNOWN,
+          type: QuestionGroupType.GENERIC,
           order: q.order ?? 0,
           title: null,
           points: q.points ?? 1,

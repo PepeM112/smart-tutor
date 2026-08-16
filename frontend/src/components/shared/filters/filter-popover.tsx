@@ -17,14 +17,14 @@ type Props = {
 };
 
 export function FilterPopover({ filterConfig, filters, onFilterChange, onClear }: Props) {
-  const t = useTranslations('common');
+  const t = useTranslations();
   const activeCount = Object.keys(filters).length;
 
   return (
     <FloatingCard>
       <FloatingCardTrigger asChild>
         <Button variant="outline" size="lg" icon={Filter} className={activeCount > 0 ? 'pr-3' : ''}>
-          {t('filters')}
+          {t('common.filters')}
           {activeCount > 0 && (
             <span className="ml-0.5 rounded-full bg-foreground text-background px-1.5 py-0.5 text-[10px] font-semibold leading-none">
               {activeCount}
@@ -47,7 +47,7 @@ export function FilterPopover({ filterConfig, filters, onFilterChange, onClear }
             onClick={onClear}
           >
             <X className="size-3.5" />
-            {t('clear_all')}
+            {t('common.clear_all')}
           </Button>
         )}
       </FloatingCardContent>

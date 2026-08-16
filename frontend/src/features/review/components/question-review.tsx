@@ -41,8 +41,7 @@ export function QuestionReview({
   onNext,
   isLast,
 }: Props) {
-  const t = useTranslations('review');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isSimple = question.questionType === QuestionType.SIMPLE;
   // SAFETY: isMC check below guards all MC-specific access; content is opaque JSON from the API
@@ -61,13 +60,13 @@ export function QuestionReview({
         <div className="text-center space-y-2">
           <p className="text-lg font-semibold">{question.prompt}</p>
           {question.hint && (
-            <p className="text-sm text-muted-foreground italic">{t('hint', { hint: question.hint })}</p>
+            <p className="text-sm text-muted-foreground italic">{t('review.hint', { hint: question.hint })}</p>
           )}
         </div>
 
         {isSimple && (
           <Input
-            placeholder={t('type_your_answer')}
+            placeholder={t('review.type_your_answer')}
             value={answer}
             onChange={e => onAnswerChange(e.target.value)}
             onKeyDown={e => {
@@ -97,7 +96,7 @@ export function QuestionReview({
 
         {!isChecked && (
           <Button className="w-full" size="lg" onClick={onCheck} disabled={isChecking || !answer.trim()}>
-            {isChecking ? <Loader2 className="animate-spin" /> : tCommon('check')}
+            {isChecking ? <Loader2 className="animate-spin" /> : t('common.check')}
           </Button>
         )}
       </div>
@@ -112,7 +111,7 @@ export function QuestionReview({
               </p>
               {isSimple && checkResult.status !== AnswerStatus.CORRECT && checkResult.correctAnswers && (
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {t('correct_answer')}{' '}
+                  {t('review.correct_answer')}{' '}
                   <span className="text-feedback-correct font-medium">{checkResult.correctAnswers.join(', ')}</span>
                 </p>
               )}
@@ -138,7 +137,7 @@ export function QuestionReview({
 
           <div className="mt-4 flex justify-end">
             <Button size="lg" icon={ArrowRight} onClick={onNext}>
-              {isLast ? tCommon('finish') : tCommon('next')}
+              {isLast ? t('common.finish') : t('common.next')}
             </Button>
           </div>
         </div>

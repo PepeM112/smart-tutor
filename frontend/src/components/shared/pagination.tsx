@@ -25,13 +25,23 @@ export function Pagination({ page, perPage, total, onPageChange, disabled }: Pro
         {from}–{to} / {total}
       </p>
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="icon-lg" disabled={disabled || page <= 1} onClick={() => onPageChange(page - 1)}>
+        <Button
+          variant="outline"
+          size="icon-lg"
+          disabled={disabled || page <= 1}
+          onClick={() => onPageChange(page - 1)}
+        >
           <ChevronLeft className="size-4" />
         </Button>
         <span className="px-2 text-sm tabular-nums text-muted-foreground">
           {page} / {totalPages}
         </span>
-        <Button variant="outline" size="icon-lg" disabled={disabled || page >= totalPages} onClick={() => onPageChange(page + 1)}>
+        <Button
+          variant="outline"
+          size="icon-lg"
+          disabled={disabled || page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+        >
           <ChevronRight className="size-4" />
         </Button>
       </div>

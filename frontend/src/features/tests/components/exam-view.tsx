@@ -8,23 +8,18 @@ import {
   LongTextLength,
   QuestionGroupType,
   QuestionType,
-  type AnswerStatus,
   type LongTextContentStripped,
   type MultipleChoiceContentStripped,
   type QuestionReadStripped,
   type TestQuestionGroupReadStripped,
   type TestReadStripped,
-  type TestResultRead,
 } from '@/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { feedbackTextColor, statusLabelKey } from '@/features/review/helpers';
-import { cn } from '@/lib/utils';
 
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
 import { parseMcAnswer, toggleMcOption } from '../utils/question-content';
@@ -37,13 +32,10 @@ type Props = {
   test: TestReadStripped;
   onSubmit: (answers: Record<string, string>) => void;
   isSubmitting: boolean;
-  result: TestResultRead | null;
 };
 
-export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
-  const t = useTranslations('exam');
-  const tReview = useTranslations('review');
-  const statusLabel = (s: AnswerStatus) => tReview(statusLabelKey(s));
+export function ExamView({ test, onSubmit, isSubmitting }: Props) {
+  const t = useTranslations();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const items = buildExamItems(test);
 
@@ -65,14 +57,6 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
   const handleSubmit = () => {
     onSubmit(answers);
   };
-
-  const getAnswerStatus = (questionId: string): AnswerStatus | null => {
-    if (!result) return null;
-    const answer = result.answers?.find(a => a.questionId === questionId);
-    return answer ? answer.status : null;
-  };
-
-  const statusColor = feedbackTextColor;
 
   let itemNumber = 0;
 
@@ -96,10 +80,6 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
               answer={answers[item.question.id] ?? ''}
               onTextChange={handleTextChange}
               onCheckboxToggle={handleCheckboxToggle}
-              status={getAnswerStatus(item.question.id)}
-              statusLabel={statusLabel}
-              statusColor={statusColor}
-              disabled={!!result}
             />
           );
         }
@@ -117,19 +97,11 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
               {group.points != null && group.points !== 1 && (
                 <span className="text-xs text-muted-foreground mr-1.5">[{group.points} pts]</span>
               )}
-              {group.title ?? t('question_group')}
+              {group.title ?? t('exam.question_group')}
             </p>
 
             {isVocabulary ? (
-              <VocabularyTable
-                questions={questions}
-                answers={answers}
-                onTextChange={handleTextChange}
-                getAnswerStatus={getAnswerStatus}
-                statusLabel={statusLabel}
-                statusColor={statusColor}
-                disabled={!!result}
-              />
+              <VocabularyTable questions={questions} answers={answers} onTextChange={handleTextChange} />
             ) : (
               <div className="space-y-3">
                 {questions.map(q => (
@@ -139,10 +111,6 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
                     answer={answers[q.id] ?? ''}
                     onTextChange={handleTextChange}
                     onCheckboxToggle={handleCheckboxToggle}
-                    status={getAnswerStatus(q.id)}
-                    statusLabel={statusLabel}
-                    statusColor={statusColor}
-                    disabled={!!result}
                     nested
                   />
                 ))}
@@ -152,49 +120,17 @@ export function ExamView({ test, onSubmit, isSubmitting, result }: Props) {
         );
       })}
 
-      {/* Score banner */}
-      {result && (
-        <Card>
-          <CardContent className="flex items-center justify-between py-4">
-            <div>
-              <p className="text-lg font-semibold">
-                {t('score', { score: (result.score ?? 0).toFixed(1) })}
-                {result.totalPoints != null && result.totalPoints > 0 && (
-                  <span className="text-base font-normal text-muted-foreground ml-2">
-                    {t('points', { earned: result.earnedPoints ?? 0, total: result.totalPoints })}
-                  </span>
-                )}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {t('correct_count', {
-                  correct: result.correctAnswers,
-                  total: result.totalQuestions - (result.pendingAnswers ?? 0),
-                })}
-              </p>
-              {result.pendingAnswers != null && result.pendingAnswers > 0 && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  {t('pending_review', { count: result.pendingAnswers })}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Submit button */}
-      {!result && (
-        <div className="flex justify-end pt-2">
-          <Button
-            size="lg"
-            icon={isSubmitting ? Loader2 : Send}
-            onClick={handleSubmit}
-            disabled={isSubmitting || allQuestions.length === 0}
-          >
-            {isSubmitting ? t('submitting') : t('submit_exam')}
-          </Button>
-        </div>
-      )}
+      <div className="flex justify-end pt-2">
+        <Button
+          size="lg"
+          icon={isSubmitting ? Loader2 : Send}
+          onClick={handleSubmit}
+          disabled={isSubmitting || allQuestions.length === 0}
+        >
+          {isSubmitting ? t('exam.submitting') : t('exam.submit_exam')}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -221,60 +157,38 @@ type VocabularyTableProps = {
   questions: QuestionReadStripped[];
   answers: Record<string, string>;
   onTextChange: (id: string, value: string) => void;
-  getAnswerStatus: (id: string) => AnswerStatus | null;
-  statusLabel: (s: AnswerStatus) => string;
-  statusColor: (s: AnswerStatus) => string;
-  disabled: boolean;
 };
 
-function VocabularyTable({
-  questions,
-  answers,
-  onTextChange,
-  getAnswerStatus,
-  statusLabel,
-  statusColor,
-  disabled,
-}: VocabularyTableProps) {
-  const t = useTranslations('exam');
+function VocabularyTable({ questions, answers, onTextChange }: VocabularyTableProps) {
+  const t = useTranslations();
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">#</TableHead>
-          <TableHead>{t('column_prompt')}</TableHead>
-          <TableHead>{t('column_answer')}</TableHead>
-          <TableHead className="w-32 text-right">{t('column_result')}</TableHead>
+          <TableHead>{t('exam.column_prompt')}</TableHead>
+          <TableHead>{t('exam.column_answer')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {questions.map((q, idx) => {
-          const status = getAnswerStatus(q.id);
-          return (
-            <TableRow key={q.id}>
-              <TableCell className="text-muted-foreground font-medium">{idx + 1}</TableCell>
-              <TableCell className="font-medium">
-                {q.prompt}
-                {q.hint && <span className="text-xs text-muted-foreground italic ml-2">({q.hint})</span>}
-              </TableCell>
-              <TableCell>
-                <Input
-                  placeholder={t('type_your_answer')}
-                  value={answers[q.id] ?? ''}
-                  onChange={e => onTextChange(q.id, e.target.value)}
-                  disabled={disabled}
-                  className="h-8"
-                />
-              </TableCell>
-              <TableCell className="text-right">
-                {status !== null && (
-                  <span className={cn('text-sm font-medium', statusColor(status))}>{statusLabel(status)}</span>
-                )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
+        {questions.map((q, idx) => (
+          <TableRow key={q.id}>
+            <TableCell className="text-muted-foreground font-medium">{idx + 1}</TableCell>
+            <TableCell className="font-medium">
+              {q.prompt}
+              {q.hint && <span className="text-xs text-muted-foreground italic ml-2">({q.hint})</span>}
+            </TableCell>
+            <TableCell>
+              <Input
+                placeholder={t('exam.type_your_answer')}
+                value={answers[q.id] ?? ''}
+                onChange={e => onTextChange(q.id, e.target.value)}
+                className="h-8"
+              />
+            </TableCell>
+          </TableRow>
+        ))}
       </TableBody>
     </Table>
   );
@@ -291,10 +205,6 @@ type QuestionCardProps = {
   answer: string;
   onTextChange: (id: string, value: string) => void;
   onCheckboxToggle: (id: string, index: number) => void;
-  status: AnswerStatus | null;
-  statusLabel: (s: AnswerStatus) => string;
-  statusColor: (s: AnswerStatus) => string;
-  disabled: boolean;
   nested?: boolean;
 };
 
@@ -305,13 +215,9 @@ function QuestionCard({
   answer,
   onTextChange,
   onCheckboxToggle,
-  status,
-  statusLabel,
-  statusColor,
-  disabled,
   nested,
 }: QuestionCardProps) {
-  const t = useTranslations('exam');
+  const t = useTranslations();
   const content = question.content;
   const isSimple = question.questionType === QuestionType.SIMPLE;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
@@ -333,28 +239,22 @@ function QuestionCard({
 
   return wrapper(
     <>
-      <div className="flex items-start justify-between gap-2">
-        <p className="font-medium">
-          {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
-          {pointsLabel != null && <span className="text-xs text-muted-foreground mr-1.5">[{pointsLabel} pts]</span>}
-          {question.prompt}
-        </p>
-        {status !== null && (
-          <span className={cn('text-sm font-medium whitespace-nowrap', statusColor(status))}>
-            {statusLabel(status)}
-          </span>
-        )}
-      </div>
+      <p className="font-medium">
+        {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
+        {pointsLabel != null && <span className="text-xs text-muted-foreground mr-1.5">[{pointsLabel} pts]</span>}
+        {question.prompt}
+      </p>
 
-      {question.hint && <p className="text-xs text-muted-foreground italic">{t('hint', { hint: question.hint })}</p>}
+      {question.hint && (
+        <p className="text-xs text-muted-foreground italic">{t('exam.hint', { hint: question.hint })}</p>
+      )}
 
       {/* Simple text input */}
       {isSimple && (
         <Input
-          placeholder={t('type_your_answer')}
+          placeholder={t('exam.type_your_answer')}
           value={answer}
           onChange={e => onTextChange(question.id, e.target.value)}
-          disabled={disabled}
         />
       )}
 
@@ -370,7 +270,6 @@ function QuestionCard({
                   id={`${question.id}-opt-${idx}`}
                   checked={checked}
                   onCheckedChange={() => onCheckboxToggle(question.id, idx)}
-                  disabled={disabled}
                 />
                 <Label htmlFor={`${question.id}-opt-${idx}`} className="text-sm cursor-pointer">
                   {option}
@@ -385,14 +284,13 @@ function QuestionCard({
       {isLongText && longTextTier && (
         <div className="space-y-1">
           <Textarea
-            placeholder={t('write_your_answer')}
+            placeholder={t('exam.write_your_answer')}
             value={answer}
             onChange={e => {
               if (e.target.value.length <= longTextTier.limit) {
                 onTextChange(question.id, e.target.value);
               }
             }}
-            disabled={disabled}
             rows={
               longTextTier.value === LongTextLength.SHORT ? 4 : longTextTier.value === LongTextLength.MEDIUM ? 10 : 20
             }
@@ -401,11 +299,6 @@ function QuestionCard({
             {answer.length} / {longTextTier.limit}
           </p>
         </div>
-      )}
-
-      {/* Show explanation after submission if available */}
-      {status !== null && question.explanation && (
-        <p className="text-xs text-muted-foreground border-t border-border pt-2">{question.explanation}</p>
       )}
     </>
   );

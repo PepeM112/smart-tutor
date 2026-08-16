@@ -12,8 +12,7 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
-  const t = useTranslations('notes');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -23,11 +22,11 @@ export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
       sdk.notesCreate({ body: { title: vars.title, content: vars.content } }),
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success(t('note_imported'));
+      toast.success(t('notes.note_imported'));
       if (!res.data) return;
       router.push(Routes.NOTE_DETAIL(res.data.id));
     },
-    onError: () => toast.error(t('failed_to_import')),
+    onError: () => toast.error(t('notes.failed_to_import')),
   });
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -62,9 +61,9 @@ export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
         icon={Upload}
         onClick={() => fileRef.current?.click()}
         disabled={isImporting}
-        tooltip={compact ? (isImporting ? t('importing') : tCommon('import')) : undefined}
+        tooltip={compact ? (isImporting ? t('notes.importing') : t('common.import')) : undefined}
       >
-        {!compact && (isImporting ? t('importing') : tCommon('import'))}
+        {!compact && (isImporting ? t('notes.importing') : t('common.import'))}
       </Button>
     </>
   );

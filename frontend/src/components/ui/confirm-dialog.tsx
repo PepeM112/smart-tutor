@@ -47,9 +47,9 @@ export function ConfirmDialog({
   open,
   onOpenChange,
 }: ConfirmDialogProps) {
-  const t = useTranslations('common');
-  const finalConfirmLabel = confirmLabel ?? t('confirm');
-  const finalCancelLabel = cancelLabel ?? t('cancel');
+  const t = useTranslations();
+  const finalConfirmLabel = confirmLabel ?? t('common.confirm');
+  const finalCancelLabel = cancelLabel ?? t('common.cancel');
   // Only pass "open" when the caller controls it — otherwise let AlertDialog manage its own state
   const isControlled = open !== undefined;
 

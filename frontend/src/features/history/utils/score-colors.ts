@@ -50,7 +50,15 @@ export const getScoreCircleClasses = (pct: number) => TIER_STYLES[getScoreTier(p
 export const getScoreBadgeClasses = (pct: number) => TIER_STYLES[getScoreTier(pct)].badge;
 export const getScoreStyles = (pct: number) => TIER_STYLES[getScoreTier(pct)];
 
-const STATUS_STYLES: Record<AnswerStatus, { text: string; ring: string; bg: string }> = {
+type StatusStyle = { text: string; ring: string; bg: string };
+
+const DEFAULT_STATUS_STYLE: StatusStyle = {
+  text: 'text-muted-foreground',
+  ring: 'ring-foreground/10',
+  bg: 'bg-foreground/5',
+};
+
+const STATUS_STYLES: Partial<Record<AnswerStatus, StatusStyle>> = {
   [AnswerStatus.CORRECT]: {
     text: 'text-feedback-correct',
     ring: 'ring-feedback-correct/40',
@@ -71,11 +79,6 @@ const STATUS_STYLES: Record<AnswerStatus, { text: string; ring: string; bg: stri
     ring: 'ring-destructive/40',
     bg: 'bg-feedback-wrong-bg',
   },
-  [AnswerStatus.UNKNOWN]: {
-    text: 'text-muted-foreground',
-    ring: 'ring-foreground/10',
-    bg: 'bg-foreground/5',
-  },
   [AnswerStatus.PENDING]: {
     text: 'text-muted-foreground',
     ring: 'ring-foreground/10',
@@ -83,9 +86,11 @@ const STATUS_STYLES: Record<AnswerStatus, { text: string; ring: string; bg: stri
   },
 };
 
-const DEFAULT_STATUS_STYLE = STATUS_STYLES[AnswerStatus.UNKNOWN];
-
-export const getStatusTextColor = (status: AnswerStatus) => (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE).text;
-export const getStatusRingColor = (status: AnswerStatus) => (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE).ring;
-export const getStatusBgColor = (status: AnswerStatus) => (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE).bg;
-export const getStatusStyles = (status: AnswerStatus) => STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE;
+export const getStatusTextColor = (status: AnswerStatus | null) =>
+  (status != null ? (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE).text;
+export const getStatusRingColor = (status: AnswerStatus | null) =>
+  (status != null ? (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE).ring;
+export const getStatusBgColor = (status: AnswerStatus | null) =>
+  (status != null ? (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE).bg;
+export const getStatusStyles = (status: AnswerStatus | null) =>
+  status != null ? (STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE;

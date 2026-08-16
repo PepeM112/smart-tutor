@@ -7,36 +7,16 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ChevronDown, EllipsisVertical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode } from 'react';
 
+import { type MobileAction } from '@/components/shared/actions-menu';
+import { MobileCard } from '@/components/shared/mobile-card';
 import { SortableHeader, type SortDirection, type SortState } from '@/components/shared/sortable-header';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { cn } from '@/lib/utils';
 
-import type { LucideIcon } from 'lucide-react';
-
-export type MobileAction = {
-  label: string;
-  icon: LucideIcon;
-  onClick: () => void;
-  variant?: 'destructive';
-  node?: ReactNode;
-  confirm?: {
-    title: string;
-    description: string;
-  };
-};
+export type { MobileAction };
 
 type Props<T> = {
   columns: ColumnDef<T, unknown>[];
@@ -61,9 +41,9 @@ export function DataTable<T>({
   sort,
   onSort,
 }: Props<T>) {
-  const t = useTranslations('common');
+  const t = useTranslations();
   const { isDesktop } = useBreakpoint();
-  const finalEmptyMessage = emptyMessage ?? t('no_data_found');
+  const finalEmptyMessage = emptyMessage ?? t('common.no_data_found');
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -95,7 +75,7 @@ export function DataTable<T>({
     }
 
     return (
-      <div className="space-y-2">
+      <div data-slot="data-table" className="space-y-2">
         {rows.map(row => (
           <MobileCard
             key={row.id}
@@ -118,7 +98,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+    <div data-slot="data-table" className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map(hg => (
@@ -151,117 +131,6 @@ export function DataTable<T>({
           )}
         </TableBody>
       </Table>
-    </div>
-  );
-}
-
-type CellData = {
-  id: string;
-  headerLabel: ReactNode;
-  content: ReactNode;
-};
-
-type MobileCardProps<T> = {
-  data: T;
-  preview: ReactNode;
-  expandable: boolean;
-  actions?: MobileAction[];
-  onRowClick?: (row: T) => void | Promise<void>;
-  cells: CellData[];
-};
-
-function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }: MobileCardProps<T>) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const hasActions = actions && actions.length > 0;
-  const isClickable = expandable || !!onRowClick;
-
-  function handleCardClick() {
-    if (expandable) setIsExpanded(prev => !prev);
-    else if (onRowClick) void onRowClick(data);
-  }
-
-  const expandableCells = cells.filter(cell => cell.headerLabel != null && cell.headerLabel !== '');
-
-  return (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
-      <div
-        className={cn('flex items-center gap-3 p-3', isClickable && 'cursor-pointer active:bg-muted/50')}
-        onClick={handleCardClick}
-      >
-        {expandable && (
-          <ChevronDown
-            className={cn('size-4 shrink-0 text-muted-foreground transition-transform', isExpanded && 'rotate-180')}
-          />
-        )}
-        <div className="flex-1 min-w-0">{preview}</div>
-        {hasActions && <ActionsMenu actions={actions} />}
-      </div>
-
-      {expandable && isExpanded && (
-        <div className="border-t border-border px-4 py-3">
-          <dl className="space-y-2">
-            {expandableCells.map(cell => (
-              <div key={cell.id} className="flex items-baseline justify-between gap-4">
-                <dt className="text-xs text-muted-foreground shrink-0">{cell.headerLabel}</dt>
-                <dd className="text-sm text-right">{cell.content}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ActionsMenu({ actions }: { actions: MobileAction[] }) {
-  const [pendingConfirm, setPendingConfirm] = useState<MobileAction | null>(null);
-
-  return (
-    <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-      {actions.length > 0 && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-lg" className="text-muted-foreground">
-              <EllipsisVertical className="size-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-40">
-            {actions.map(action => (
-              <DropdownMenuItem
-                key={action.label}
-                onClick={() => {
-                  if (action.confirm) setPendingConfirm(action);
-                  else action.onClick();
-                }}
-                variant={action.variant === 'destructive' ? 'destructive' : 'default'}
-                className="gap-2.5 px-3 py-2.5 text-sm"
-              >
-                <action.icon className="size-4" />
-                {action.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-      {pendingConfirm?.confirm && (
-        <ConfirmDialog
-          trigger={<span className="hidden" />}
-          open={!!pendingConfirm}
-          onOpenChange={open => {
-            if (!open) setPendingConfirm(null);
-          }}
-          title={pendingConfirm.confirm.title}
-          description={pendingConfirm.confirm.description}
-          confirmLabel={pendingConfirm.label}
-          confirmClassName={
-            pendingConfirm.variant === 'destructive' ? 'bg-destructive text-white hover:bg-destructive/90' : undefined
-          }
-          onConfirm={() => {
-            pendingConfirm.onClick();
-            setPendingConfirm(null);
-          }}
-        />
-      )}
     </div>
   );
 }

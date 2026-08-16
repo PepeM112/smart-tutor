@@ -7,7 +7,7 @@ import type { RubricResultItem } from '@/client';
 import { sdk } from '@/lib/api-client';
 
 export function useChallengeMode(items: RubricResultItem[], answerId: string) {
-  const t = useTranslations('challenge');
+  const t = useTranslations();
   const [isChallengeMode, setIsChallengeMode] = useState(false);
   const [selectedCriteria, setSelectedCriteria] = useState<Map<number, string>>(new Map());
   const queryClient = useQueryClient();
@@ -24,14 +24,14 @@ export function useChallengeMode(items: RubricResultItem[], answerId: string) {
         },
       }),
     onSuccess: () => {
-      toast.success(t('challenge_submitted'));
+      toast.success(t('challenge.challenge_submitted'));
       setIsChallengeMode(false);
       setSelectedCriteria(new Map());
       void queryClient.invalidateQueries({ queryKey: ['results'] });
     },
     onError: (error: Error & { status?: number; body?: { detail?: string } }) => {
       const detail = error.body?.detail ?? error.message;
-      toast.error(t('challenge_failed', { error: detail }));
+      toast.error(t('challenge.challenge_failed', { error: detail }));
     },
   });
 
@@ -48,9 +48,9 @@ export function useChallengeMode(items: RubricResultItem[], answerId: string) {
       wasPending.current = false;
       const overturned = items.filter(i => i.challengeResult?.met === true).length;
       if (overturned > 0) {
-        toast.success(t('challenge_overturned', { count: overturned }));
+        toast.success(t('challenge.challenge_overturned', { count: overturned }));
       } else {
-        toast.info(t('challenge_upheld'));
+        toast.info(t('challenge.challenge_upheld'));
       }
     }
   }, [hasPendingChallenge, items, t]);

@@ -8,8 +8,8 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { QuestionType } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Pagination } from '@/components/shared/pagination';
+import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
 import { QuickTestDialog } from '@/features/tests/components/quick-test-dialog';
 import { TestsTable } from '@/features/tests/components/tests-table';
@@ -29,8 +29,8 @@ const QUESTION_TYPE_OPTIONS = [
 ];
 
 export default function TestsPage() {
-  const t = useTranslations('tests');
-  useBreadcrumb(t('title'));
+  const t = useTranslations();
+  useBreadcrumb(t('tests.title'));
 
   const [page, setPage] = useState(1);
   const resetPage = useCallback(() => setPage(1), []);
@@ -39,20 +39,20 @@ export default function TestsPage() {
   const filterConfig: FilterItem[] = useMemo(
     () => [
       {
-        label: t('filter_search'),
+        label: t('tests.filter_search'),
         key: 'search',
         type: FilterType.SINGLE,
         query: 'search',
       },
       {
-        label: t('filter_type'),
+        label: t('tests.filter_type'),
         key: 'question_type',
         type: FilterType.MULTIPLE_SELECT,
         query: 'question_type',
         options: { items: QUESTION_TYPE_OPTIONS, number: true },
       },
       {
-        label: t('filter_date'),
+        label: t('tests.filter_date'),
         key: 'created',
         type: FilterType.DATE,
         query: 'created',
@@ -121,28 +121,26 @@ export default function TestsPage() {
         <div className="flex items-center gap-2 self-end lg:self-auto">
           <QuickTestDialog compact />
           <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.TEST_NEW}>{t('create_test')}</Link>
+            <Link href={Routes.TEST_NEW}>{t('tests.create_test')}</Link>
           </Button>
         </div>
       </div>
 
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : isError ? (
-        <p className="text-muted-foreground">{t('failed_to_load')}</p>
-      ) : isFilteredEmpty ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-muted-foreground">{t('no_results')}</p>
-          <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-            {t('clear_filters')}
-          </Button>
-        </div>
-      ) : (
-        <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-          <TestsTable data={items} sort={sort} onSort={handleSort} />
-          <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-        </div>
-      )}
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
+        {isFilteredEmpty ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm text-muted-foreground">{t('tests.no_results')}</p>
+            <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
+              {t('tests.clear_filters')}
+            </Button>
+          </div>
+        ) : (
+          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+            <TestsTable data={items} sort={sort} onSort={handleSort} />
+            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+          </div>
+        )}
+      </QueryState>
     </div>
   );
 }

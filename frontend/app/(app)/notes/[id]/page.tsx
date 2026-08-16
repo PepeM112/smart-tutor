@@ -13,8 +13,8 @@ type Props = {
 
 export default function NoteDetailRoutePage({ params }: Props) {
   const { id } = use(params);
-  const t = useTranslations('notes');
-  useBreadcrumb(t('note'), [{ label: t('title'), href: Routes.NOTES }], Routes.NOTES);
+  const t = useTranslations();
+  useBreadcrumb(t('notes.note'), [{ label: t('notes.title'), href: Routes.NOTES }], Routes.NOTES);
 
   return <NotePage noteId={id} />;
 }

@@ -20,8 +20,7 @@ export function BatchSummary({
   isLoading: boolean;
   exhausted: boolean;
 }) {
-  const t = useTranslations('review');
-  const tCommon = useTranslations('common');
+  const t = useTranslations();
   const correct = results.filter(r => r.status === AnswerStatus.CORRECT).length;
   const partial = results.filter(r => r.status === AnswerStatus.PARTIAL).length;
   const wrong = results.filter(r => r.status === AnswerStatus.WRONG).length;
@@ -39,14 +38,14 @@ export function BatchSummary({
     <div className="flex flex-col items-center justify-center gap-8 py-12">
       <div className={cn('w-full max-w-md rounded-xl border p-6 text-center', bannerColor)}>
         <p className="text-3xl font-bold tabular-nums">{score.toFixed(0)}%</p>
-        <p className="text-sm text-muted-foreground mt-1">{t('correct', { correct, partial, wrong, total })}</p>
+        <p className="text-sm text-muted-foreground mt-1">{t('review.correct', { correct, partial, wrong, total })}</p>
       </div>
 
       {exhausted ? (
-        <p className="text-sm text-muted-foreground">{t('all_reviewed')}</p>
+        <p className="text-sm text-muted-foreground">{t('review.all_reviewed')}</p>
       ) : (
         <Button size="lg" icon={isLoading ? Loader2 : RefreshCw} onClick={onContinue} disabled={isLoading}>
-          {isLoading ? tCommon('loading') : t('keep_reviewing')}
+          {isLoading ? t('common.loading') : t('review.keep_reviewing')}
         </Button>
       )}
     </div>
