@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/features/auth/store/auth-store';
 import { sdk } from '@/lib/api-client';
 
+import { buildSettingsPayload, DEFAULT_EASE_FACTOR } from '../utils';
+
 import { AiSection } from './ai-section';
 import { AppearanceSection } from './appearance-section';
 import { LanguageSection } from './language-section';
@@ -19,8 +21,7 @@ import { SrsSection } from './srs-section';
 import type { SettingsForm } from '../types';
 
 export function SettingsPage() {
-  const t = useTranslations('settings');
-  const tc = useTranslations('common');
+  const t = useTranslations();
   const user = useAuthStore(s => s.user);
   const setUser = useAuthStore(s => s.setUser);
   const queryClient = useQueryClient();
@@ -38,48 +39,26 @@ export function SettingsPage() {
 
   const { mutate: saveSettings, isPending: isSaving } = useMutation({
     mutationFn: async () => {
-      const payload: UserUpdate = {};
+      const payload = buildSettingsPayload(form, user);
 
-      if (form.displayName !== (user?.displayName ?? '')) {
-        payload.displayName = form.displayName || null;
-      }
-
-      if (form.aiProvider !== (user?.aiProvider ?? null)) {
-        payload.aiProvider = form.aiProvider;
-      }
-
-      if (form.anthropicApiKey) {
-        payload.anthropicApiKey = form.anthropicApiKey;
-      }
-
-      if (form.openaiApiKey) {
-        payload.openaiApiKey = form.openaiApiKey;
-      }
-
-      const limit = form.dailyReviewLimit ? parseInt(form.dailyReviewLimit, 10) : null;
-      if (limit !== (user?.dailyReviewLimit ?? null)) {
-        payload.dailyReviewLimit = limit;
-      }
-
-      const ease = parseFloat(form.initialEaseFactor);
-      if (!isNaN(ease) && ease !== (user?.initialEaseFactor ?? 2.5)) {
-        payload.initialEaseFactor = ease;
-      }
-
-      if (Object.keys(payload).length === 0) return user!;
+      if (Object.keys(payload).length === 0) return null;
 
       const result = await sdk.usersUpdateMe({ body: payload });
       return result.data!;
     },
-    onSuccess: (updatedUser: UserRead) => {
+    onSuccess: (updatedUser: UserRead | null) => {
+      if (!updatedUser) {
+        setDirty(false);
+        return;
+      }
       setUser(updatedUser);
       setForm(formFromUser(updatedUser));
       setDirty(false);
       void queryClient.invalidateQueries({ queryKey: ['me'] });
-      toast.success(t('settings_saved'));
+      toast.success(t('settings.settings_saved'));
     },
     onError: () => {
-      toast.error(t('failed_to_save'));
+      toast.error(t('settings.failed_to_save'));
     },
   });
 
@@ -92,10 +71,11 @@ export function SettingsPage() {
     onSuccess: (updatedUser: UserRead) => {
       setUser(updatedUser);
       setForm(formFromUser(updatedUser));
-      toast.success(t('settings_saved'));
+      void queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success(t('settings.settings_saved'));
     },
     onError: () => {
-      toast.error(t('failed_to_save'));
+      toast.error(t('settings.failed_to_save'));
     },
   });
 
@@ -128,7 +108,7 @@ export function SettingsPage() {
 
       <div className="flex justify-end pt-6">
         <Button onClick={() => saveSettings()} disabled={!dirty || isSaving} size="lg">
-          {isSaving ? tc('saving') : tc('save')}
+          {isSaving ? t('common.saving') : t('common.save')}
         </Button>
       </div>
     </div>
@@ -139,9 +119,10 @@ function formFromUser(user: UserRead | null): SettingsForm {
   return {
     displayName: user?.displayName ?? '',
     aiProvider: user?.aiProvider ?? null,
+    // API keys are write-only — the backend never echoes them back, so form starts blank
     anthropicApiKey: '',
     openaiApiKey: '',
     dailyReviewLimit: user?.dailyReviewLimit != null ? String(user.dailyReviewLimit) : '',
-    initialEaseFactor: String(user?.initialEaseFactor ?? 2.5),
+    initialEaseFactor: String(user?.initialEaseFactor ?? DEFAULT_EASE_FACTOR),
   };
 }

@@ -1,5 +1,9 @@
+from datetime import datetime
+from typing import Literal
+
 from app.core.enums import TestStatus
 from app.schemas.base import BaseSchema
+from app.schemas.pagination import PaginatedResponse
 from app.schemas.question import QuestionCreate, QuestionRead, QuestionReadStripped
 from app.schemas.test_question_group import (
     TestQuestionGroupCreate,
@@ -33,6 +37,7 @@ class TestRead(TestBase):
     source_note_id: str | None = None
     version: int = 1
     parent_id: str | None = None
+    created_at: datetime
     questions: list[QuestionRead] = []
     question_groups: list[TestQuestionGroupRead] = []
 
@@ -43,3 +48,10 @@ class TestReadStripped(TestBase):
     status: TestStatus
     questions: list[QuestionReadStripped] = []
     question_groups: list[TestQuestionGroupReadStripped] = []
+
+
+# Columns the tests list can be sorted by (see crud/test.py list_by_user).
+TestSortBy = Literal["title", "created_at"]
+SortOrder = Literal["asc", "desc"]
+
+PaginatedTestRead = PaginatedResponse[TestRead]

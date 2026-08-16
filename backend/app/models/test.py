@@ -24,6 +24,7 @@ class Test(Base, CreatedAtMixin):
         String(26), ForeignKey("note.id", ondelete="SET NULL"), nullable=True, default=None
     )
     version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    # Points to the original Test this was copied from (copy-on-write versioning); NULL means this is the original
     parent_id: Mapped[str | None] = mapped_column(
         String(26), ForeignKey("test.id", ondelete="SET NULL"), nullable=True, default=None, index=True
     )

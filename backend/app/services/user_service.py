@@ -56,6 +56,7 @@ def update_user(db: Session, *, current_user: User, data: UserUpdate) -> User:
 
     if "anthropic_api_key" in update_data:
         key = update_data.pop("anthropic_api_key")
+        # Empty/falsy key clears the stored credential instead of encrypting an empty string
         update_data["encrypted_anthropic_key"] = encrypt(key) if key else None
     if "openai_api_key" in update_data:
         key = update_data.pop("openai_api_key")

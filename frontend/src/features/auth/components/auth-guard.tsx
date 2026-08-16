@@ -51,6 +51,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const user = data?.data ?? null;
 
   if (isError) {
+    // Non-auth errors (network blip, 5xx) fall back to last-known user instead of logging out
     const cachedUser = useAuthStore.getState().user;
     if (cachedUser) {
       return <>{children}</>;

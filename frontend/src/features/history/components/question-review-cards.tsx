@@ -32,9 +32,18 @@ export function CompactQuestionCard({
   onClick: () => void;
 }) {
   const score = computeQuestionScore(answer, question);
+  const isFailed = answer?.status === AnswerStatus.FAILED;
 
-  const ringClass = score ? getScoreRingColor(score.pct) : getStatusRingColor(answer?.status ?? AnswerStatus.UNKNOWN);
-  const bgClass = score ? getScoreBgColor(score.pct) : getStatusBgColor(answer?.status ?? AnswerStatus.UNKNOWN);
+  const ringClass = isFailed
+    ? getStatusRingColor(AnswerStatus.FAILED)
+    : score
+      ? getScoreRingColor(score.pct)
+      : getStatusRingColor(answer?.status ?? null);
+  const bgClass = isFailed
+    ? getStatusBgColor(AnswerStatus.FAILED)
+    : score
+      ? getScoreBgColor(score.pct)
+      : getStatusBgColor(answer?.status ?? null);
 
   return (
     <Card
@@ -48,6 +57,16 @@ export function CompactQuestionCard({
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer select-none'
       )}
       onClick={disabled ? undefined : onClick}
+      onKeyDown={
+        disabled
+          ? undefined
+          : e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+      }
     >
       <CardContent className="p-0">
         <div className="flex items-start justify-between gap-2">
@@ -55,7 +74,9 @@ export function CompactQuestionCard({
             <span className="text-muted-foreground mr-1.5">{number}.</span>
             {question.prompt}
           </p>
-          {score ? (
+          {isFailed ? (
+            <span className="text-sm font-semibold text-destructive shrink-0">{score?.label}</span>
+          ) : score ? (
             <span className={cn('text-sm font-semibold tabular-nums shrink-0', getScoreTextColor(score.pct))}>
               {score.label}
             </span>
@@ -93,6 +114,12 @@ export function CompactGroupCard({
       tabIndex={0}
       className={cn('p-4 ring-1 transition-colors cursor-pointer select-none', ringClass, isSelected && bgClass)}
       onClick={onClick}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <CardContent className="p-0">
         <NumberedScoreRow number={number} title={title} correctCount={correctCount} totalCount={totalCount} />

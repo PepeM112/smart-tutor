@@ -12,8 +12,8 @@ type Props = {
 
 export default function EditTestPage({ params }: Props) {
   const { id } = use(params);
-  const t = useTranslations('tests');
-  useBreadcrumb(t('edit_test'), [{ label: t('title'), href: Routes.TESTS }], Routes.TESTS);
+  const t = useTranslations();
+  useBreadcrumb(t('tests.edit_test'), [{ label: t('tests.title'), href: Routes.TESTS }], Routes.TESTS);
 
   return <TestEditor testId={id} />;
 }

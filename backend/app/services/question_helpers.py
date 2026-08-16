@@ -1,5 +1,3 @@
-"""Shared helpers for question content manipulation."""
-
 from typing import TypedDict
 
 from app.core.enums import QuestionGroupType, QuestionType
@@ -38,7 +36,6 @@ def strip_question_answers(question: Question) -> StrippedQuestionContent:
 
 
 def build_stripped_question(question: Question) -> QuestionReadStripped:
-    """Build a QuestionReadStripped from an ORM Question with answers removed."""
     return QuestionReadStripped(
         id=question.id,
         question_type=QuestionType(question.question_type),
@@ -54,7 +51,6 @@ def build_stripped_question(question: Question) -> QuestionReadStripped:
 
 
 def build_stripped_test(test: Test) -> TestReadStripped:
-    """Build a TestReadStripped from an ORM Test with answers removed from all questions."""
     return TestReadStripped(
         id=test.id,
         title=test.title,
@@ -83,7 +79,6 @@ class CorrectAnswerFields(TypedDict, total=False):
 
 
 def get_correct_answer_fields(question: Question) -> CorrectAnswerFields:
-    """Extract correct-answer fields for the check response."""
     raw: dict[str, object] = question.content or {}
     q_type = QuestionType(question.question_type)
     if q_type == QuestionType.SIMPLE:

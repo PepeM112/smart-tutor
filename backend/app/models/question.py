@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
@@ -11,6 +11,7 @@ from app.models.base import generate_ulid
 if TYPE_CHECKING:
     from app.models.test import Test
     from app.models.test_question_group import TestQuestionGroup
+    from app.models.user import User
 
 
 class Question(Base):
@@ -29,18 +30,21 @@ class Question(Base):
     content: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
     hint: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown before answering
     explanation: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown after answering
+    user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"), index=True)
     test_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test.id"))
     # Organizational grouping within a test (e.g. a "Vocabulary" section with a shared title)
     group_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test_question_group.id"), nullable=True)
     order: Mapped[int] = mapped_column(Integer, default=0)
     points: Mapped[float] = mapped_column(Float, default=1.0, server_default="1.0")
     status: Mapped[int] = mapped_column(Integer, default=int(QuestionStatus.ACTIVE), server_default="1")
+    # Links a copied/versioned question back to its source (set during test-version copy or bank duplication)
     origin_id: Mapped[str | None] = mapped_column(
         String(26), ForeignKey("question.id", ondelete="SET NULL"), nullable=True, default=None
     )
 
+    user: Mapped["User"] = relationship()
     test: Mapped["Test"] = relationship(back_populates="questions")
-    question_group: Mapped[Optional["TestQuestionGroup"]] = relationship(back_populates="questions")
+    question_group: Mapped["TestQuestionGroup | None"] = relationship(back_populates="questions")
 
     __table_args__ = (
         UniqueConstraint("test_id", "order", name="uq_test_question_order"),

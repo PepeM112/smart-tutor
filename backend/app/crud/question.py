@@ -1,16 +1,27 @@
+import copy
 from collections.abc import Sequence
 from datetime import datetime, timezone
+from typing import cast
 
-from sqlalchemy import Select, func, select
-from sqlalchemy.orm import Session, joinedload
+import sqlalchemy as sa
+from sqlalchemy import Select, UnaryExpression, func, select
+from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, joinedload
 
 from app.core.enums import QuestionStatus, QuestionType, TestStatus
+from app.crud.helpers import token_search
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test import Test
 from app.models.test_question_group import TestQuestionGroup
 from app.models.user_question_state import UserQuestionState
-from app.schemas.question import QuestionCreate, QuestionUpdate
+from app.schemas.question import (
+    QuestionCreate,
+    QuestionCreateStandalone,
+    QuestionGrouping,
+    QuestionSortBy,
+    QuestionUpdate,
+    SortOrder,
+)
 
 
 def get_by_id(db: Session, *, id: str) -> Question | None:
@@ -22,15 +33,115 @@ def list_by_test(db: Session, *, test_id: str) -> Sequence[Question]:
     return db.scalars(select(Question).where(Question.test_id == test_id)).all()
 
 
+def list_by_ids(db: Session, *, ids: list[str]) -> Sequence[Question]:
+    """Fetch questions by id, unordered. Used by bulk operations to resolve ownership."""
+    stmt = select(Question).options(joinedload(Question.question_group)).where(Question.id.in_(ids))
+    return db.scalars(stmt).all()
+
+
+# Columns the questions list can be sorted by. Question has no `created_at`
+# column — ULIDs are lexicographically sortable by creation time, so `id` is
+# an accurate proxy and matches the existing default ordering.
+_SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
+    "prompt": Question.prompt,
+    "question_type": Question.question_type,
+    "points": Question.points,
+    "created_at": Question.id,
+}
+
+
+def _sort_clause(sort_by: QuestionSortBy | None, sort_order: SortOrder) -> UnaryExpression[object]:
+    column = _SORT_COLUMNS[sort_by] if sort_by and sort_by in _SORT_COLUMNS else Question.id
+    clause = column.asc() if sort_order == "asc" else column.desc()
+    # Columns have different underlying Python types (str/int/float), so pyright infers a
+    # union here — UnaryExpression's type param is invariant and can't unify them. Safe to
+    # erase to `object` since the clause is only ever passed straight into `order_by()`.
+    return cast(UnaryExpression[object], clause)
+
+
+def list_by_user(
+    db: Session,
+    *,
+    user_id: str,
+    question_type: list[int] | None = None,
+    test_id: list[str] | None = None,
+    search: str | None = None,
+    grouping: QuestionGrouping | None = None,
+    sort_by: QuestionSortBy | None = None,
+    sort_order: SortOrder = "desc",
+    page: int = 1,
+    per_page: int = 20,
+) -> tuple[Sequence[Question], int]:
+    """Paginated list of a user's questions with optional filters.
+
+    Returns (questions, total_count).
+    """
+    stmt = (
+        select(Question)
+        .outerjoin(Test, Question.test_id == Test.id)
+        .outerjoin(TestQuestionGroup, Question.group_id == TestQuestionGroup.id)
+        .options(contains_eager(Question.test), contains_eager(Question.question_group))
+        .where(
+            Question.user_id == user_id,
+            Question.status == int(QuestionStatus.ACTIVE),
+            # Exclude frozen version snapshots (parent_id set); keep bank questions and current versions only
+            sa.or_(Question.test_id.is_(None), Test.parent_id.is_(None)),
+        )
+    )
+
+    if question_type:
+        stmt = stmt.where(Question.question_type.in_(question_type))
+    if test_id:
+        # "bank" is a UI sentinel mixed with real test UUIDs, meaning "include unattached questions"
+        bank_requested = "bank" in test_id
+        real_ids = [t for t in test_id if t != "bank"]
+        if bank_requested and real_ids:
+            stmt = stmt.where(sa.or_(Question.test_id.is_(None), Question.test_id.in_(real_ids)))
+        elif bank_requested:
+            stmt = stmt.where(Question.test_id.is_(None))
+        elif real_ids:
+            stmt = stmt.where(Question.test_id.in_(real_ids))
+    if grouping == "grouped":
+        stmt = stmt.where(Question.group_id.is_not(None))
+    elif grouping == "ungrouped":
+        stmt = stmt.where(Question.group_id.is_(None))
+    if search:
+        stmt = stmt.where(token_search(Question.prompt, search=search))
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = db.scalar(count_stmt) or 0
+
+    stmt = stmt.order_by(_sort_clause(sort_by, sort_order)).offset((page - 1) * per_page).limit(per_page)
+    questions = db.scalars(stmt).all()
+    return questions, total
+
+
+def create_one(db: Session, *, data: QuestionCreateStandalone, user_id: str) -> Question:
+    obj = Question(
+        user_id=user_id,
+        question_type=int(data.question_type),
+        prompt=data.prompt,
+        content=data.content.model_dump(),
+        hint=data.hint,
+        explanation=data.explanation,
+        points=data.points,
+    )
+    db.add(obj)
+    db.flush()
+    return obj
+
+
 def create_many(
     db: Session,
     *,
     questions: list[QuestionCreate],
+    user_id: str,
     test_id: str | None = None,
     group_id: str | None = None,
 ) -> list[Question]:
     objs = [
         Question(
+            user_id=user_id,
             test_id=test_id,
             group_id=group_id,
             question_type=int(q.question_type),
@@ -45,6 +156,45 @@ def create_many(
     db.add_all(objs)
     db.flush()
     return objs
+
+
+def duplicate_to_bank(db: Session, *, source: Question, user_id: str) -> Question:
+    """Copy a question (test-owned or bank) into the user's bank as a new standalone question.
+
+    SRS state is intentionally not copied — the duplicate starts fresh.
+    """
+    obj = Question(
+        user_id=user_id,
+        question_type=source.question_type,
+        prompt=source.prompt,
+        content=copy.deepcopy(source.content),
+        hint=source.hint,
+        explanation=source.explanation,
+        points=source.points,
+        origin_id=source.id,
+    )
+    db.add(obj)
+    db.flush()
+    return obj
+
+
+def copy_to_test(db: Session, *, source: Question, user_id: str, test_id: str, order: int) -> Question:
+    """Copy a question into a test at the given order. Used by single and bulk assign."""
+    obj = Question(
+        user_id=user_id,
+        question_type=source.question_type,
+        prompt=source.prompt,
+        content=copy.deepcopy(source.content),
+        hint=source.hint,
+        explanation=source.explanation,
+        test_id=test_id,
+        order=order,
+        points=source.points,
+        origin_id=source.id,
+    )
+    db.add(obj)
+    db.flush()
+    return obj
 
 
 def update(db: Session, *, question: Question, data: QuestionUpdate) -> Question:

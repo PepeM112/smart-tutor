@@ -3,13 +3,11 @@
 export const AIProviderSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2
     ],
     title: 'AIProvider',
     'x-enum-varnames': [
-        'UNKNOWN',
         'ANTHROPIC',
         'OPENAI'
     ]
@@ -71,7 +69,6 @@ export const AnswerReadSchema = {
 export const AnswerStatusSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3,
@@ -80,13 +77,26 @@ export const AnswerStatusSchema = {
     ],
     title: 'AnswerStatus',
     'x-enum-varnames': [
-        'UNKNOWN',
         'CORRECT',
         'WRONG',
         'PARTIAL',
         'PENDING',
         'FAILED'
     ]
+} as const;
+
+export const AssignQuestionRequestSchema = {
+    properties: {
+        testId: {
+            type: 'string',
+            title: 'Testid'
+        }
+    },
+    type: 'object',
+    required: [
+        'testId'
+    ],
+    title: 'AssignQuestionRequest'
 } as const;
 
 export const Body_usersLoginSchema = {
@@ -147,6 +157,75 @@ export const Body_usersLoginSchema = {
         'password'
     ],
     title: 'Body_usersLogin'
+} as const;
+
+export const BulkAssignQuestionsRequestSchema = {
+    properties: {
+        questionIds: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Questionids'
+        },
+        testId: {
+            type: 'string',
+            title: 'Testid'
+        }
+    },
+    type: 'object',
+    required: [
+        'questionIds',
+        'testId'
+    ],
+    title: 'BulkAssignQuestionsRequest'
+} as const;
+
+export const BulkAssignQuestionsResponseSchema = {
+    properties: {
+        assigned: {
+            type: 'integer',
+            title: 'Assigned'
+        }
+    },
+    type: 'object',
+    required: [
+        'assigned'
+    ],
+    title: 'BulkAssignQuestionsResponse'
+} as const;
+
+export const BulkDeleteQuestionsRequestSchema = {
+    properties: {
+        questionIds: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Questionids'
+        }
+    },
+    type: 'object',
+    required: [
+        'questionIds'
+    ],
+    title: 'BulkDeleteQuestionsRequest'
+} as const;
+
+export const BulkDeleteQuestionsResponseSchema = {
+    properties: {
+        deleted: {
+            type: 'integer',
+            title: 'Deleted'
+        }
+    },
+    type: 'object',
+    required: [
+        'deleted'
+    ],
+    title: 'BulkDeleteQuestionsResponse'
 } as const;
 
 export const ChallengeRequestSchema = {
@@ -361,14 +440,12 @@ export const LongTextContentStrippedSchema = {
 export const LongTextLengthSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3
     ],
     title: 'LongTextLength',
     'x-enum-varnames': [
-        'UNKNOWN',
         'SHORT',
         'MEDIUM',
         'LONG'
@@ -557,14 +634,12 @@ export const NoteGenerateSchema = {
 export const NoteLengthSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3
     ],
     title: 'NoteLength',
     'x-enum-varnames': [
-        'UNKNOWN',
         'SHORT',
         'MEDIUM',
         'LONG'
@@ -656,13 +731,11 @@ export const NoteRefineSchema = {
 export const NoteSourceSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2
     ],
     title: 'NoteSource',
     'x-enum-varnames': [
-        'UNKNOWN',
         'USER_CREATED',
         'AI_GENERATED'
     ]
@@ -722,6 +795,142 @@ export const NoteUpdateSchema = {
     },
     type: 'object',
     title: 'NoteUpdate'
+} as const;
+
+export const PaginatedResponse_NoteRead_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/NoteRead'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[NoteRead]'
+} as const;
+
+export const PaginatedResponse_QuestionListRead_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/QuestionListRead'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[QuestionListRead]'
+} as const;
+
+export const PaginatedResponse_TestRead_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/TestRead'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[TestRead]'
+} as const;
+
+export const PaginatedResponse_TestResultListItem_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/TestResultListItem'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[TestResultListItem]'
 } as const;
 
 export const QuestionAnswerSchema = {
@@ -898,6 +1107,67 @@ export const QuestionCreateSchema = {
     title: 'QuestionCreate'
 } as const;
 
+export const QuestionCreateStandaloneSchema = {
+    properties: {
+        questionType: {
+            $ref: '#/components/schemas/QuestionType'
+        },
+        prompt: {
+            type: 'string',
+            title: 'Prompt'
+        },
+        content: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SimpleContent'
+                },
+                {
+                    $ref: '#/components/schemas/MultipleChoiceContent'
+                },
+                {
+                    $ref: '#/components/schemas/LongTextContent'
+                }
+            ],
+            title: 'Content'
+        },
+        hint: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hint'
+        },
+        explanation: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Explanation'
+        },
+        points: {
+            type: 'number',
+            title: 'Points',
+            default: 1
+        }
+    },
+    type: 'object',
+    required: [
+        'questionType',
+        'prompt',
+        'content'
+    ],
+    title: 'QuestionCreateStandalone',
+    description: 'Create a standalone question not attached to any test.'
+} as const;
+
 export const QuestionEditRequestSchema = {
     properties: {
         selectedIndices: {
@@ -945,14 +1215,140 @@ export const QuestionEditRequestSchema = {
 export const QuestionGroupTypeSchema = {
     type: 'integer',
     enum: [
-        0,
-        1
+        1,
+        2
     ],
     title: 'QuestionGroupType',
     'x-enum-varnames': [
-        'UNKNOWN',
+        'GENERIC',
         'VOCABULARY'
     ]
+} as const;
+
+export const QuestionListReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        questionType: {
+            $ref: '#/components/schemas/QuestionType'
+        },
+        prompt: {
+            type: 'string',
+            title: 'Prompt'
+        },
+        content: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SimpleContent'
+                },
+                {
+                    $ref: '#/components/schemas/MultipleChoiceContent'
+                },
+                {
+                    $ref: '#/components/schemas/LongTextContent'
+                }
+            ],
+            title: 'Content'
+        },
+        hint: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hint'
+        },
+        explanation: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Explanation'
+        },
+        testId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Testid'
+        },
+        groupId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Groupid'
+        },
+        order: {
+            type: 'integer',
+            title: 'Order',
+            default: 0
+        },
+        points: {
+            type: 'number',
+            title: 'Points',
+            default: 1
+        },
+        originId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Originid'
+        },
+        testTitle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Testtitle'
+        },
+        groupTitle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Grouptitle'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'questionType',
+        'prompt',
+        'content'
+    ],
+    title: 'QuestionListRead',
+    description: 'Question with owning test/group names — used in the questions list page.'
 } as const;
 
 export const QuestionReadSchema = {
@@ -1154,14 +1550,12 @@ export const QuestionReadStrippedSchema = {
 export const QuestionTypeSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3
     ],
     title: 'QuestionType',
     'x-enum-varnames': [
-        'UNKNOWN',
         'SIMPLE',
         'MULTIPLE_CHOICE',
         'LONG_TEXT'
@@ -1574,7 +1968,7 @@ export const TestQuestionGroupCreateSchema = {
     properties: {
         type: {
             $ref: '#/components/schemas/QuestionGroupType',
-            default: 0
+            default: 1
         },
         order: {
             type: 'integer',
@@ -1614,7 +2008,7 @@ export const TestQuestionGroupReadSchema = {
     properties: {
         type: {
             $ref: '#/components/schemas/QuestionGroupType',
-            default: 0
+            default: 1
         },
         order: {
             type: 'integer',
@@ -1677,7 +2071,7 @@ export const TestQuestionGroupReadStrippedSchema = {
     properties: {
         type: {
             $ref: '#/components/schemas/QuestionGroupType',
-            default: 0
+            default: 1
         },
         order: {
             type: 'integer',
@@ -1780,6 +2174,11 @@ export const TestReadSchema = {
             ],
             title: 'Parentid'
         },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
         questions: {
             items: {
                 $ref: '#/components/schemas/QuestionRead'
@@ -1802,7 +2201,8 @@ export const TestReadSchema = {
         'title',
         'id',
         'userId',
-        'status'
+        'status',
+        'createdAt'
     ],
     title: 'TestRead'
 } as const;
@@ -2027,13 +2427,11 @@ export const TestResultReadSchema = {
 export const TestStatusSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2
     ],
     title: 'TestStatus',
     'x-enum-varnames': [
-        'UNKNOWN',
         'ACTIVE',
         'DELETED'
     ]
@@ -2118,7 +2516,6 @@ export const TokenUsageDailySummarySchema = {
     properties: {
         date: {
             type: 'string',
-            format: 'date',
             title: 'Date'
         },
         provider: {
@@ -2310,13 +2707,11 @@ export const UserReadSchema = {
 export const UserRoleSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2
     ],
     title: 'UserRole',
     'x-enum-varnames': [
-        'UNKNOWN',
         'ADMIN',
         'USER'
     ]
@@ -2325,14 +2720,12 @@ export const UserRoleSchema = {
 export const UserStatusSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3
     ],
     title: 'UserStatus',
     'x-enum-varnames': [
-        'UNKNOWN',
         'ACTIVE',
         'DELETED',
         'BLOCKED'

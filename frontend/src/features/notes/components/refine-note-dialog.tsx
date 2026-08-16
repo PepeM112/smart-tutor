@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { sdk } from '@/lib/api-client';
+import { getErrorDetail } from '@/lib/utils';
 
 type Props = {
   noteId: string;
@@ -28,9 +29,7 @@ type Props = {
 };
 
 export function RefineNoteDialog({ noteId, onRefined, compact = false }: Props & { compact?: boolean }) {
-  const t = useTranslations('notes_ai');
-  const tCommon = useTranslations('common');
-  const tSettings = useTranslations('settings');
+  const t = useTranslations();
   const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
@@ -50,9 +49,9 @@ export function RefineNoteDialog({ noteId, onRefined, compact = false }: Props &
       onRefined(data.content ?? '');
       setOpen(false);
       setInstructions('');
-      toast.success(t('note_refined'));
+      toast.success(t('notes_ai.note_refined'));
     },
-    onError: () => toast.error(t('failed_to_refine')),
+    onError: (error: unknown) => toast.error(getErrorDetail(error, t('notes_ai.failed_to_refine'))),
   });
 
   return (
@@ -63,9 +62,9 @@ export function RefineNoteDialog({ noteId, onRefined, compact = false }: Props &
           size={compact ? 'icon-lg' : 'lg'}
           icon={WandSparkles}
           disabled={!aiAvailable}
-          tooltip={!aiAvailable ? tSettings('ai_not_configured') : compact ? t('refine_with_ai') : undefined}
+          tooltip={!aiAvailable ? t('settings.ai_not_configured') : compact ? t('notes_ai.refine_with_ai') : undefined}
         >
-          {!compact && t('refine_with_ai')}
+          {!compact && t('notes_ai.refine_with_ai')}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -74,20 +73,20 @@ export function RefineNoteDialog({ noteId, onRefined, compact = false }: Props &
         onEscapeKeyDown={isRefining ? e => e.preventDefault() : undefined}
       >
         {isRefining ? (
-          <DialogLoading title={t('refining_notes')} />
+          <DialogLoading title={t('notes_ai.refining_notes')} />
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>{t('refine_study_notes')}</DialogTitle>
-              <DialogDescription>{t('refine_description')}</DialogDescription>
+              <DialogTitle>{t('notes_ai.refine_study_notes')}</DialogTitle>
+              <DialogDescription>{t('notes_ai.refine_description')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="refine-note-instructions">{t('instructions')}</Label>
+                <Label htmlFor="refine-note-instructions">{t('notes_ai.instructions')}</Label>
                 <Textarea
                   id="refine-note-instructions"
-                  placeholder={t('refine_placeholder')}
+                  placeholder={t('notes_ai.refine_placeholder')}
                   value={instructions}
                   onChange={e => setInstructions(e.target.value)}
                   rows={5}
@@ -103,7 +102,7 @@ export function RefineNoteDialog({ noteId, onRefined, compact = false }: Props &
                 disabled={!instructions.trim()}
                 icon={WandSparkles}
               >
-                {tCommon('refine')}
+                {t('common.refine')}
               </Button>
             </DialogFooter>
           </>

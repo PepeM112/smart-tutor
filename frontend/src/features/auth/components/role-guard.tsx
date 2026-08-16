@@ -1,30 +1,44 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 import { type UserRole } from '@/client';
 import { Routes } from '@/lib/routes';
 
 import { useAuthStore } from '../store/auth-store';
 
+function subscribeToHydration(callback: () => void) {
+  return useAuthStore.persist.onFinishHydration(callback);
+}
+
+function getHydrated() {
+  return useAuthStore.persist.hasHydrated();
+}
+
+function getServerHydrated() {
+  return false;
+}
+
 type RoleGuardProps = {
   requiredRole: UserRole;
   children: React.ReactNode;
 };
 
-export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
+export function RoleGuard({ requiredRole, children }: RoleGuardProps) {
   const router = useRouter();
+  const hydrated = useSyncExternalStore(subscribeToHydration, getHydrated, getServerHydrated);
   const userRole = useAuthStore(s => s.user?.role);
   const hasAccess = userRole === requiredRole;
 
   useEffect(() => {
-    if (!hasAccess) {
+    if (hydrated && !hasAccess) {
       router.replace(Routes.DASHBOARD);
     }
-  }, [hasAccess, router]);
+  }, [hydrated, hasAccess, router]);
 
-  if (!hasAccess) return null;
+  // Wait for Zustand persist to rehydrate before checking role — user is briefly null on first render
+  if (!hydrated || !hasAccess) return null;
 
   return <>{children}</>;
 }

@@ -1,8 +1,15 @@
-from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from collections.abc import Sequence
+from datetime import datetime
+from typing import cast
 
+from sqlalchemy import UnaryExpression, func, select
+from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, selectinload
+
+from app.crud.helpers import token_search
 from app.models.answer import Answer
+from app.models.test import Test
 from app.models.test_result import TestResult
+from app.schemas.test_result import SortOrder, TestResultSortBy
 
 
 def get_by_id(db: Session, *, id: str) -> TestResult | None:
@@ -14,14 +21,56 @@ def get_by_id(db: Session, *, id: str) -> TestResult | None:
     return db.scalars(stmt).first()
 
 
-def list_by_user(db: Session, *, user_id: str) -> list[TestResult]:
+_SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
+    "score": TestResult.score,
+    "created_at": TestResult.created_at,
+}
+
+
+def _sort_clause(sort_by: TestResultSortBy | None, sort_order: SortOrder) -> UnaryExpression[object]:
+    column = _SORT_COLUMNS[sort_by] if sort_by and sort_by in _SORT_COLUMNS else TestResult.created_at
+    clause = column.asc() if sort_order == "asc" else column.desc()
+    return cast(UnaryExpression[object], clause)
+
+
+def list_by_user(
+    db: Session,
+    *,
+    user_id: str,
+    search: str | None = None,
+    score_min: float | None = None,
+    score_max: float | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+    sort_by: TestResultSortBy | None = None,
+    sort_order: SortOrder = "desc",
+    page: int = 1,
+    per_page: int = 20,
+) -> tuple[Sequence[TestResult], int]:
     stmt = (
         select(TestResult)
-        .options(selectinload(TestResult.test))
+        .join(Test, TestResult.test_id == Test.id)
+        .options(contains_eager(TestResult.test))
         .where(TestResult.user_id == user_id)
-        .order_by(TestResult.created_at.desc())
     )
-    return list(db.scalars(stmt).all())
+
+    if search:
+        stmt = stmt.where(token_search(Test.title, search=search))
+    if score_min is not None:
+        stmt = stmt.where(TestResult.score >= score_min)
+    if score_max is not None:
+        stmt = stmt.where(TestResult.score <= score_max)
+    if created_from:
+        stmt = stmt.where(TestResult.created_at >= created_from)
+    if created_to:
+        stmt = stmt.where(TestResult.created_at <= created_to)
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = db.scalar(count_stmt) or 0
+
+    stmt = stmt.order_by(_sort_clause(sort_by, sort_order)).offset((page - 1) * per_page).limit(per_page)
+    results = db.scalars(stmt).all()
+    return results, total
 
 
 def create(

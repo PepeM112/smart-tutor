@@ -8,6 +8,7 @@ export function useAutoResize(value?: string) {
   const resize = useCallback(() => {
     const el = ref.current;
     if (!el) return;
+    // Reset first — otherwise scrollHeight keeps the old value and the textarea cannot shrink
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   }, []);
