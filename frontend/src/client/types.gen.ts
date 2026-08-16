@@ -1428,7 +1428,7 @@ export type TokenUsageDailySummary = {
     /**
      * Date
      */
-    date: Date;
+    date: string;
     provider: AiProvider;
     /**
      * Inputtokens

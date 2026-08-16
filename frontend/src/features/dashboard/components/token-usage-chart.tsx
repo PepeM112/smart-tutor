@@ -24,7 +24,7 @@ function buildChartData(daily: TokenUsageDailySummary[]): ChartDataPoint[] {
   const byDate = new Map<string, { anthropic: number; openai: number }>();
 
   daily.forEach(entry => {
-    const dateStr = entry.date instanceof Date ? entry.date.toISOString().split('T')[0] : String(entry.date);
+    const dateStr = entry.date;
 
     const existing = byDate.get(dateStr) ?? { anthropic: 0, openai: 0 };
     const tokens = entry.inputTokens + entry.outputTokens;
@@ -53,6 +53,7 @@ function buildChartData(daily: TokenUsageDailySummary[]): ChartDataPoint[] {
 }
 
 function formatDate(dateStr: string): string {
+  if (dateStr.includes(':')) return dateStr;
   const [, month, day] = dateStr.split('-');
   return `${month}/${day}`;
 }

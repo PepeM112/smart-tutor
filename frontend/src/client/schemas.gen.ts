@@ -2516,7 +2516,6 @@ export const TokenUsageDailySummarySchema = {
     properties: {
         date: {
             type: 'string',
-            format: 'date',
             title: 'Date'
         },
         provider: {
