@@ -95,13 +95,19 @@ export function QuestionReview({
           ))}
 
         {!isChecked && (
-          <Button className="w-full" size="lg" onClick={onCheck} disabled={isChecking || !answer.trim()}>
+          <Button
+            className="w-full h-14 text-base font-semibold sm:h-12"
+            size="lg"
+            onClick={onCheck}
+            disabled={isChecking || !answer.trim()}
+          >
             {isChecking ? <Loader2 className="animate-spin" /> : t('common.check')}
           </Button>
         )}
       </div>
 
       {isChecked && checkResult && (
+        <>
         <div className={cn('mx-auto max-w-2xl rounded-xl border p-5', feedbackBg(checkResult.status))}>
           <div className="flex items-center gap-3">
             <StatusIcon status={checkResult.status} />
@@ -134,13 +140,19 @@ export function QuestionReview({
               </p>
             </div>
           )}
-
-          <div className="mt-4 flex justify-end">
-            <Button size="lg" icon={ArrowRight} onClick={onNext}>
-              {isLast ? t('common.finish') : t('common.next')}
-            </Button>
-          </div>
         </div>
+
+        <div className="mx-auto max-w-2xl">
+          <Button
+            className="w-full h-14 text-base font-semibold sm:h-12"
+            size="lg"
+            icon={ArrowRight}
+            onClick={onNext}
+          >
+            {isLast ? t('common.finish') : t('common.next')}
+          </Button>
+        </div>
+        </>
       )}
     </>
   );
