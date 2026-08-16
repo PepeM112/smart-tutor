@@ -1,12 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { use } from 'react';
 import { toast } from 'sonner';
 
+import { QueryState } from '@/components/shared/query-state';
 import { ExamView } from '@/features/tests/components/exam-view';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
@@ -58,26 +58,18 @@ export default function TakeTestPage({ params }: Props) {
 
   useBreadcrumb(test?.title ?? t('take_test'), [{ label: t('title'), href: Routes.TESTS }], Routes.TESTS);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return <p className="text-muted-foreground">{t('failed_to_load')}</p>;
-  }
-
-  if (!test) {
-    return <p className="text-muted-foreground">{t('test_not_found')}</p>;
-  }
-
   // A test's content spans two collections (standalone questions + groups); empty only if both are
-  if ((test.questions?.length ?? 0) === 0 && (test.questionGroups?.length ?? 0) === 0) {
-    return <p className="text-muted-foreground">{t('no_questions_yet')}</p>;
-  }
+  const isEmpty = (test?.questions?.length ?? 0) === 0 && (test?.questionGroups?.length ?? 0) === 0;
 
-  return <ExamView test={test} onSubmit={submitExam} isSubmitting={isSubmitting} result={null} />;
+  return (
+    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('failed_to_load')}>
+      {!test ? (
+        <p className="text-muted-foreground">{t('test_not_found')}</p>
+      ) : isEmpty ? (
+        <p className="text-muted-foreground">{t('no_questions_yet')}</p>
+      ) : (
+        <ExamView test={test} onSubmit={submitExam} isSubmitting={isSubmitting} />
+      )}
+    </QueryState>
+  );
 }

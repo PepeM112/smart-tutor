@@ -17,6 +17,7 @@ import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 import { useBlockSelection } from '../hooks/use-block-selection';
+import { useQuestionBlockList } from '../hooks/use-question-block-list';
 import { useGenerationStore } from '../store/use-generation-store';
 
 import { AiEditPopover } from './ai-edit-popover';
@@ -44,7 +45,12 @@ export function GeneratedTestPreview() {
   const hasData = useGenerationStore(s => s.questions.length > 0);
   const clear = useGenerationStore(s => s.clear);
 
-  const [items, setItems] = useState<PreviewItem[]>(() => toPreviewItems(initialQuestions));
+  const {
+    items,
+    setItems,
+    updateItem,
+    removeItem: removeListItem,
+  } = useQuestionBlockList<PreviewItem>(() => toPreviewItems(initialQuestions));
   const [testTitle, setTestTitle] = useState(() => t('test_from_note', { noteTitle: sourceNoteTitle }));
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
@@ -73,24 +79,12 @@ export function GeneratedTestPreview() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasData, items.length]);
 
-  const updateMcItem = useCallback((index: number, data: MultipleChoiceQuestionData) => {
-    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'mc' as const, data } : item)));
-  }, []);
-
-  const updateGroupItem = useCallback((index: number, data: QuestionGroupData) => {
-    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'group' as const, data } : item)));
-  }, []);
-
-  const updateLongTextItem = useCallback((index: number, data: LongTextQuestionData) => {
-    setItems(prev => prev.map((item, i) => (i === index ? { ...item, kind: 'long_text' as const, data } : item)));
-  }, []);
-
   const removeItem = useCallback(
     (index: number) => {
-      setItems(prev => prev.filter((_, i) => i !== index));
+      removeListItem(index);
       removeAndReindex(index);
     },
-    [removeAndReindex]
+    [removeListItem, removeAndReindex]
   );
 
   const handleRefined = useCallback(
@@ -99,7 +93,7 @@ export function GeneratedTestPreview() {
       setItems(previewItems);
       clearSelection();
     },
-    [clearSelection]
+    [setItems, clearSelection]
   );
 
   const handleRegenerate = useCallback(() => {
@@ -107,7 +101,7 @@ export function GeneratedTestPreview() {
     setItems(previewItems);
     clearSelection();
     toast.success(t('reset_original'));
-  }, [initialQuestions, clearSelection, t]);
+  }, [initialQuestions, setItems, clearSelection, t]);
 
   const editorItems = useMemo((): EditorItem[] => items.map(i => i.data), [items]);
 
@@ -257,7 +251,7 @@ export function GeneratedTestPreview() {
               <MultipleChoiceQuestionBlock
                 key={item.id}
                 data={item.data}
-                onChange={data => updateMcItem(i, data)}
+                onChange={data => updateItem(i, { ...item, data })}
                 onRemove={() => removeItem(i)}
                 selected={selected}
                 onClick={onClick}
@@ -269,7 +263,7 @@ export function GeneratedTestPreview() {
               <LongTextQuestionBlock
                 key={item.id}
                 data={item.data}
-                onChange={data => updateLongTextItem(i, data)}
+                onChange={data => updateItem(i, { ...item, data })}
                 onRemove={() => removeItem(i)}
                 selected={selected}
                 onClick={onClick}
@@ -280,7 +274,7 @@ export function GeneratedTestPreview() {
             <QuestionGroupBlock
               key={item.id}
               data={item.data}
-              onChange={data => updateGroupItem(i, data)}
+              onChange={data => updateItem(i, { ...item, data })}
               onRemove={() => removeItem(i)}
               selected={selected}
               onClick={onClick}

@@ -8,8 +8,8 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { NoteSource } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Pagination } from '@/components/shared/pagination';
+import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
 import { GenerateNoteDialog } from '@/features/notes/components/generate-note-dialog';
 import { ImportNoteButton } from '@/features/notes/components/import-note-button';
@@ -34,10 +34,7 @@ export default function NotesPage() {
 
   const [page, setPage] = useState(1);
   const resetPage = useCallback(() => setPage(1), []);
-  const { sort, sortBy, sortOrder, handleSort } = useUrlSort(
-    ['title', 'updated_at', 'created_at'] as const,
-    resetPage,
-  );
+  const { sort, sortBy, sortOrder, handleSort } = useUrlSort(['title', 'updated_at', 'created_at'] as const, resetPage);
 
   const filterConfig: FilterItem[] = useMemo(
     () => [
@@ -121,23 +118,21 @@ export default function NotesPage() {
         </div>
       </div>
 
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : isError ? (
-        <p className="text-muted-foreground">{t('failed_to_load')}</p>
-      ) : isFilteredEmpty ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-muted-foreground">{t('no_results')}</p>
-          <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-            {t('clear_filters')}
-          </Button>
-        </div>
-      ) : (
-        <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-          <NotesList data={items} sort={sort} onSort={handleSort} />
-          <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-        </div>
-      )}
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('failed_to_load')}>
+        {isFilteredEmpty ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm text-muted-foreground">{t('no_results')}</p>
+            <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
+              {t('clear_filters')}
+            </Button>
+          </div>
+        ) : (
+          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+            <NotesList data={items} sort={sort} onSort={handleSort} />
+            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+          </div>
+        )}
+      </QueryState>
     </div>
   );
 }

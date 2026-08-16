@@ -9,8 +9,8 @@ import { toast } from 'sonner';
 
 import { QuestionType } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { Pagination } from '@/components/shared/pagination';
+import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AssignDialog } from '@/features/questions/components/assign-dialog';
@@ -45,7 +45,7 @@ export default function QuestionsPage() {
   const resetPage = useCallback(() => setPage(1), []);
   const { sort, sortBy, sortOrder, handleSort } = useUrlSort(
     ['prompt', 'question_type', 'points', 'created_at'] as const,
-    resetPage,
+    resetPage
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
@@ -193,29 +193,27 @@ export default function QuestionsPage() {
         </div>
       )}
 
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : isError ? (
-        <p className="text-muted-foreground">{t('failed_to_load')}</p>
-      ) : isFilteredEmpty ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-muted-foreground">{t('no_results')}</p>
-          <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-            {t('clear_filters')}
-          </Button>
-        </div>
-      ) : (
-        <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-          <QuestionsTable
-            data={items}
-            sort={sort}
-            onSort={handleSort}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-          />
-          <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-        </div>
-      )}
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('failed_to_load')}>
+        {isFilteredEmpty ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm text-muted-foreground">{t('no_results')}</p>
+            <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
+              {t('clear_filters')}
+            </Button>
+          </div>
+        ) : (
+          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+            <QuestionsTable
+              data={items}
+              sort={sort}
+              onSort={handleSort}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+            />
+            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+          </div>
+        )}
+      </QueryState>
 
       {bulkAssignOpen && selectedIds.size > 0 && (
         <AssignDialog

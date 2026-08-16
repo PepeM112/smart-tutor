@@ -22,6 +22,7 @@ import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
 
 import { useBlockSelection } from '../../hooks/use-block-selection';
+import { useQuestionBlockList } from '../../hooks/use-question-block-list';
 import { type AddItemType, AddQuestionDropdown } from '../add-question-dropdown';
 import { AiEditPopover } from '../ai-edit-popover';
 import { LongTextQuestionBlock } from '../long-text-question-block';
@@ -56,7 +57,13 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
-  const [items, setItems] = useState<EditorItem[]>(initialItems);
+  const {
+    items,
+    setItems,
+    addItem: appendItem,
+    updateItem,
+    removeItem: removeListItem,
+  } = useQuestionBlockList<EditorItem>(initialItems);
   const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
 
   const { mutate: saveTest, isPending: isSaving } = useMutation({
@@ -130,15 +137,11 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   function addItem(type: AddItemType) {
     const factories = { group: newQuestionGroup, mc: newMultipleChoice, long: newLongText };
-    setItems(prev => [...prev, factories[type]()]);
-  }
-
-  function updateItem(idx: number, data: EditorItem) {
-    setItems(prev => prev.map((item, i) => (i === idx ? data : item)));
+    appendItem(factories[type]());
   }
 
   function removeItem(idx: number) {
-    setItems(prev => prev.filter((_, i) => i !== idx));
+    removeListItem(idx);
     removeAndReindex(idx);
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useLayoutEffect, useMemo } from 'react';
 
 import { type BreadcrumbItem, useBreadcrumbStore } from '@/store/use-breadcrumb-store';
 
@@ -12,7 +12,10 @@ export function useBreadcrumb(title: string, crumbs?: BreadcrumbItem[], back?: s
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const stableCrumbs = useMemo(() => crumbs, [JSON.stringify(crumbs)]);
 
-  useEffect(() => {
+  // Layout effect (not a passive effect) so the store update — and the Breadcrumb
+  // header's re-render — commits before the browser paints. A plain useEffect runs
+  // after paint, which is what caused the one-frame blank header on navigation.
+  useLayoutEffect(() => {
     set(title, stableCrumbs, back);
     return () => reset();
   }, [set, reset, title, stableCrumbs, back]);

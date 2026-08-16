@@ -1,10 +1,8 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
 import { Eye, Pencil, WandSparkles, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { useCallback, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
@@ -13,10 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useResizableSplit } from '@/hooks/use-resizable-split';
-import { useTextHighlight } from '@/hooks/use-text-highlight';
-import { sdk } from '@/lib/api-client';
 
-import { getMarkdownRangeFromSelection } from '../utils/markdown-selection';
+import { useNoteAiEdit } from '../hooks/use-note-ai-edit';
 
 import { MarkdownEditor } from './markdown-editor';
 import { MarkdownRenderer } from './markdown-renderer';
@@ -30,23 +26,6 @@ type Props = {
 const SPLIT_KEY = 'note-editor-split-ratio';
 const DEFAULT_RATIO = 0.5;
 
-type SelectionTrigger = {
-  plainText: string;
-  markdown: string;
-  markdownStart: number;
-  markdownEnd: number;
-  top: number;
-  left: number;
-};
-
-type DiffState = {
-  selectedText: string;
-  originalMarkdown: string;
-  markdownStart: number;
-  markdownEnd: number;
-  editedText: string;
-};
-
 export function NoteEditor({ content, onChange, noteId }: Props) {
   const t = useTranslations('notes_ai');
   const tNotes = useTranslations('notes');
@@ -55,176 +34,33 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   const aiAvailable = useAiAvailable();
   const { isDesktop } = useBreakpoint();
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
-  const [viewContainer, setViewContainer] = useState<HTMLDivElement | null>(null);
+  const [, setViewContainer] = useState<HTMLDivElement | null>(null);
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(SPLIT_KEY, DEFAULT_RATIO);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('edit');
-  const [selectionTrigger, setSelectionTrigger] = useState<SelectionTrigger | null>(null);
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [instructions, setInstructions] = useState('');
-  const [diffs, setDiffs] = useState<DiffState[]>([]);
-  const [activeDiffIndex, setActiveDiffIndex] = useState<number | null>(null);
-
-  const popoverOpenRef = useRef(popoverOpen);
-  useEffect(() => {
-    popoverOpenRef.current = popoverOpen;
-  }, [popoverOpen]);
-
-  const contentRef = useRef(content);
-  useEffect(() => {
-    contentRef.current = content;
-  }, [content]);
 
   const handleViewContainerChange = useCallback((el: HTMLDivElement | null) => {
     viewContainerRef.current = el;
     setViewContainer(el);
   }, []);
 
-  const highlightTexts = useMemo(() => diffs.map(d => d.selectedText), [diffs]);
-  const handleHighlightClick = useCallback((index: number) => setActiveDiffIndex(index), []);
-  useTextHighlight(viewContainerRef, highlightTexts, activeDiffIndex, handleHighlightClick);
+  const {
+    selectionTrigger,
+    popoverOpen,
+    instructions,
+    setInstructions,
+    handleOpenChange,
+    editChunk,
+    isSubmittingEdit,
+    activeDiffIndex,
+    setActiveDiffIndex,
+    activeDiff,
+    removeDiff,
+    handleAcceptDiff,
+  } = useNoteAiEdit({ content, onChange, noteId, viewContainerRef, isDesktop });
 
-  const activeDiff = activeDiffIndex !== null ? diffs[activeDiffIndex] : null;
   const hasDiffPanel = activeDiff !== null;
-
-  // ── Selection detection (desktop only) ─────────────────────────
-
-  useEffect(() => {
-    if (!noteId || !isDesktop || !viewContainer) return;
-    const container = viewContainer;
-
-    function commitSelection() {
-      if (popoverOpenRef.current) return;
-
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.anchorNode || !container.contains(sel.anchorNode)) {
-        setSelectionTrigger(null);
-        return;
-      }
-
-      const plainText = sel.toString().trim();
-      if (!plainText) {
-        setSelectionTrigger(null);
-        return;
-      }
-
-      const range = getMarkdownRangeFromSelection(container, contentRef.current);
-      if (!range) {
-        setSelectionTrigger(null);
-        return;
-      }
-
-      const rects = sel.getRangeAt(0).getClientRects();
-      const lastRect = rects[rects.length - 1];
-      if (!lastRect) return;
-      setSelectionTrigger({
-        plainText,
-        markdown: range.markdown,
-        markdownStart: range.start,
-        markdownEnd: range.end,
-        top: lastRect.top + lastRect.height / 2,
-        left: lastRect.right,
-      });
-    }
-
-    function handleMouseUp() {
-      requestAnimationFrame(commitSelection);
-    }
-
-    function handleKeyUp(e: KeyboardEvent) {
-      if (e.key === 'Shift') commitSelection();
-    }
-
-    function handleSelectionChange() {
-      if (popoverOpenRef.current) return;
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) setSelectionTrigger(null);
-    }
-
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('keyup', handleKeyUp);
-    document.addEventListener('selectionchange', handleSelectionChange);
-    container.addEventListener('scroll', commitSelection, { passive: true });
-    return () => {
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('keyup', handleKeyUp);
-      document.removeEventListener('selectionchange', handleSelectionChange);
-      container.removeEventListener('scroll', commitSelection);
-    };
-  }, [noteId, isDesktop, viewContainer]);
-
-  // ── Handlers ────────────────────────────────────────────────────
-
-  function handleOpenChange(open: boolean) {
-    setPopoverOpen(open);
-    if (!open) {
-      setSelectionTrigger(null);
-      setInstructions('');
-    }
-  }
-
-  function removeDiff(index: number) {
-    setDiffs(prev => prev.filter((_, i) => i !== index));
-    setActiveDiffIndex(null);
-  }
-
-  const { mutate: editChunk, isPending: isSubmittingEdit } = useMutation({
-    mutationFn: async () => {
-      if (!noteId || !selectionTrigger) return null;
-      const res = await sdk.notesEditChunk({
-        path: { note_id: noteId },
-        body: {
-          fullText: content,
-          selectedText: selectionTrigger.markdown,
-          instructions,
-        },
-      });
-      return res.data;
-    },
-    onSuccess: data => {
-      if (!data || !selectionTrigger) return;
-      setDiffs(prev => [
-        ...prev,
-        {
-          selectedText: selectionTrigger.plainText,
-          originalMarkdown: selectionTrigger.markdown,
-          markdownStart: selectionTrigger.markdownStart,
-          markdownEnd: selectionTrigger.markdownEnd,
-          editedText: data.editedText,
-        },
-      ]);
-      setPopoverOpen(false);
-      setSelectionTrigger(null);
-      setInstructions('');
-    },
-    onError: () => toast.error(t('failed_to_edit')),
-  });
-
-  function handleAcceptDiff() {
-    if (activeDiffIndex === null || !activeDiff) return;
-    const { markdownStart, markdownEnd, originalMarkdown, editedText } = activeDiff;
-    // Bail if the source text moved since this diff was computed — stored offsets would splice the wrong range
-    if (content.slice(markdownStart, markdownEnd) !== originalMarkdown) {
-      toast.error(t('could_not_locate'));
-      removeDiff(activeDiffIndex);
-      return;
-    }
-    onChange(content.slice(0, markdownStart) + editedText + content.slice(markdownEnd));
-
-    // Accepting this diff changes text length, so shift all pending diffs after it by the delta
-    const delta = editedText.length - originalMarkdown.length;
-    setDiffs(prev =>
-      prev
-        .filter((_, i) => i !== activeDiffIndex)
-        .map(d =>
-          d.markdownStart > markdownStart
-            ? { ...d, markdownStart: d.markdownStart + delta, markdownEnd: d.markdownEnd + delta }
-            : d
-        )
-    );
-    setActiveDiffIndex(null);
-  }
 
   // ── Diff panel content (shared between desktop side pane and mobile drawer) ──
 

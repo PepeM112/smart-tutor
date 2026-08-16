@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
-import { LoadingSpinner } from '@/components/shared/loading-spinner';
+import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GenerateTestDialog } from '@/features/tests/components/generate-test-dialog';
@@ -35,19 +35,15 @@ export function NotePage({ noteId }: Props) {
     queryFn: () => sdk.notesGet({ path: { note_id: noteId } }),
   });
 
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  if (isError) {
-    return <p className="text-muted-foreground">{t('failed_to_load_note')}</p>;
-  }
-
-  if (!note?.data) {
-    return <p className="text-muted-foreground">{t('note_not_found')}</p>;
-  }
-
-  return <NoteForm key={note.data.id} note={note.data} />;
+  return (
+    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('failed_to_load_note')}>
+      {note?.data ? (
+        <NoteForm key={note.data.id} note={note.data} />
+      ) : (
+        <p className="text-muted-foreground">{t('note_not_found')}</p>
+      )}
+    </QueryState>
+  );
 }
 
 function NoteForm({ note }: { note: NoteRead }) {
