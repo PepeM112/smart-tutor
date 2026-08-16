@@ -38,12 +38,12 @@ export function CompactQuestionCard({
     ? getStatusRingColor(AnswerStatus.FAILED)
     : score
       ? getScoreRingColor(score.pct)
-      : getStatusRingColor(answer?.status ?? AnswerStatus.UNKNOWN);
+      : getStatusRingColor(answer?.status ?? null);
   const bgClass = isFailed
     ? getStatusBgColor(AnswerStatus.FAILED)
     : score
       ? getScoreBgColor(score.pct)
-      : getStatusBgColor(answer?.status ?? AnswerStatus.UNKNOWN);
+      : getStatusBgColor(answer?.status ?? null);
 
   return (
     <Card

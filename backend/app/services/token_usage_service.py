@@ -32,7 +32,7 @@ def record_usage(
     result: CompletionResult,
     feature: AIFeature,
 ) -> None:
-    provider = _PROVIDER_MAP.get(result.provider, AIProvider.UNKNOWN)
+    provider = _PROVIDER_MAP.get(result.provider, AIProvider.ANTHROPIC)
     cost = calculate_cost(
         db,
         model=result.model,

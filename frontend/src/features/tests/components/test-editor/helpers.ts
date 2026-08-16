@@ -21,7 +21,7 @@ export function newQuestionGroup(): QuestionGroupData {
   return {
     key: crypto.randomUUID(),
     type: 'group',
-    groupType: QuestionGroupType.UNKNOWN,
+    groupType: QuestionGroupType.GENERIC,
     title: '',
     rows: [{ prompt: '', answers: [''] }],
     points: 1,

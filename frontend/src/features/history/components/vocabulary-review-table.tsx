@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
-import { AnswerStatus, type AnswerRead, type QuestionRead } from '@/client';
+import { type AnswerRead, type QuestionRead } from '@/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +32,7 @@ export function VocabularyReviewTable({
       <TableBody>
         {questions.map((q, idx) => {
           const answer = answerMap.get(q.id);
-          const status = answer?.status ?? AnswerStatus.UNKNOWN;
+          const status = answer?.status ?? null;
           const isWrong = isAnswerWrong(status);
           return (
             <TableRow key={q.id}>

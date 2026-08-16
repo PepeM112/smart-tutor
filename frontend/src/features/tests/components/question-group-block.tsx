@@ -107,7 +107,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
           onCheckedChange={checked =>
             onChange({
               ...data,
-              groupType: checked ? QuestionGroupType.VOCABULARY : QuestionGroupType.UNKNOWN,
+              groupType: checked ? QuestionGroupType.VOCABULARY : QuestionGroupType.GENERIC,
             })
           }
         />

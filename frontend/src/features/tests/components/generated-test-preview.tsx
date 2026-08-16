@@ -340,7 +340,7 @@ function toPreviewItems(questions: GeneratedQuestionPreviewInput[]): PreviewItem
       data: {
         key: crypto.randomUUID(),
         type: 'group',
-        groupType: QuestionGroupType.UNKNOWN,
+        groupType: QuestionGroupType.GENERIC,
         title: '',
         rows: simpleQuestions.map(q => {
           // SAFETY: filtered by questionType === SIMPLE above

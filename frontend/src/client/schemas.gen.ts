@@ -3,13 +3,11 @@
 export const AIProviderSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2
     ],
     title: 'AIProvider',
     'x-enum-varnames': [
-        'UNKNOWN',
         'ANTHROPIC',
         'OPENAI'
     ]
@@ -71,7 +69,6 @@ export const AnswerReadSchema = {
 export const AnswerStatusSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3,
@@ -80,7 +77,6 @@ export const AnswerStatusSchema = {
     ],
     title: 'AnswerStatus',
     'x-enum-varnames': [
-        'UNKNOWN',
         'CORRECT',
         'WRONG',
         'PARTIAL',
@@ -444,14 +440,12 @@ export const LongTextContentStrippedSchema = {
 export const LongTextLengthSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3
     ],
     title: 'LongTextLength',
     'x-enum-varnames': [
-        'UNKNOWN',
         'SHORT',
         'MEDIUM',
         'LONG'
@@ -640,14 +634,12 @@ export const NoteGenerateSchema = {
 export const NoteLengthSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3
     ],
     title: 'NoteLength',
     'x-enum-varnames': [
-        'UNKNOWN',
         'SHORT',
         'MEDIUM',
         'LONG'
@@ -739,13 +731,11 @@ export const NoteRefineSchema = {
 export const NoteSourceSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2
     ],
     title: 'NoteSource',
     'x-enum-varnames': [
-        'UNKNOWN',
         'USER_CREATED',
         'AI_GENERATED'
     ]
@@ -1225,12 +1215,12 @@ export const QuestionEditRequestSchema = {
 export const QuestionGroupTypeSchema = {
     type: 'integer',
     enum: [
-        0,
-        1
+        1,
+        2
     ],
     title: 'QuestionGroupType',
     'x-enum-varnames': [
-        'UNKNOWN',
+        'GENERIC',
         'VOCABULARY'
     ]
 } as const;
@@ -1560,14 +1550,12 @@ export const QuestionReadStrippedSchema = {
 export const QuestionTypeSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3
     ],
     title: 'QuestionType',
     'x-enum-varnames': [
-        'UNKNOWN',
         'SIMPLE',
         'MULTIPLE_CHOICE',
         'LONG_TEXT'
@@ -1980,7 +1968,7 @@ export const TestQuestionGroupCreateSchema = {
     properties: {
         type: {
             $ref: '#/components/schemas/QuestionGroupType',
-            default: 0
+            default: 1
         },
         order: {
             type: 'integer',
@@ -2020,7 +2008,7 @@ export const TestQuestionGroupReadSchema = {
     properties: {
         type: {
             $ref: '#/components/schemas/QuestionGroupType',
-            default: 0
+            default: 1
         },
         order: {
             type: 'integer',
@@ -2083,7 +2071,7 @@ export const TestQuestionGroupReadStrippedSchema = {
     properties: {
         type: {
             $ref: '#/components/schemas/QuestionGroupType',
-            default: 0
+            default: 1
         },
         order: {
             type: 'integer',
@@ -2439,13 +2427,11 @@ export const TestResultReadSchema = {
 export const TestStatusSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2
     ],
     title: 'TestStatus',
     'x-enum-varnames': [
-        'UNKNOWN',
         'ACTIVE',
         'DELETED'
     ]
@@ -2722,13 +2708,11 @@ export const UserReadSchema = {
 export const UserRoleSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2
     ],
     title: 'UserRole',
     'x-enum-varnames': [
-        'UNKNOWN',
         'ADMIN',
         'USER'
     ]
@@ -2737,14 +2721,12 @@ export const UserRoleSchema = {
 export const UserStatusSchema = {
     type: 'integer',
     enum: [
-        0,
         1,
         2,
         3
     ],
     title: 'UserStatus',
     'x-enum-varnames': [
-        'UNKNOWN',
         'ACTIVE',
         'DELETED',
         'BLOCKED'

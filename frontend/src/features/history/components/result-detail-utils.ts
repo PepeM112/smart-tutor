@@ -37,7 +37,7 @@ export function effectiveMet(item: RubricResultItem): boolean {
 export type QuestionScore = { label: string; pct: number };
 
 export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRead): QuestionScore | null {
-  if (!answer || answer.status === AnswerStatus.UNKNOWN || answer.status === AnswerStatus.PENDING) return null;
+  if (!answer || answer.status === AnswerStatus.PENDING) return null;
 
   const maxPoints = question?.points ?? 1;
 
@@ -92,7 +92,7 @@ export function getUserAnswerDisplay(question: QuestionRead, userAnswer: string)
   return userAnswer || '';
 }
 
-export function isAnswerWrong(status: AnswerStatus): boolean {
+export function isAnswerWrong(status: AnswerStatus | null): boolean {
   return status === AnswerStatus.WRONG || status === AnswerStatus.PARTIAL;
 }
 

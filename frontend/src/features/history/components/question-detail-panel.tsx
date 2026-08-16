@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
-import { AnswerStatus, type AnswerRead, type QuestionRead, QuestionType } from '@/client';
+import { type AnswerRead, type QuestionRead, QuestionType } from '@/client';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -47,7 +47,7 @@ export function QuestionDetailPanel({
 
 function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
   const t = useTranslations();
-  const status = answer?.status ?? AnswerStatus.UNKNOWN;
+  const status = answer?.status ?? null;
   const isWrong = isAnswerWrong(status);
   const correctAnswer = getCorrectAnswer(question);
 
