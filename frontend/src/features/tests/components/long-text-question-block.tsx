@@ -1,10 +1,10 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { CircleMinus, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import type { QuestionType } from '@/client';
+import { LongTextLength, type QuestionType } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
 
 import { QuestionBlockAction } from './question-block-action';
+import { QuestionCardHeader } from './question-card-header';
 
 export type Criterion = {
   point: string;
@@ -35,9 +36,31 @@ type Props = {
   onRemove: () => void;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
+  isEditing?: boolean;
 };
 
-export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
+const LENGTH_LABEL_KEYS: Record<number, string> = {
+  [LongTextLength.SHORT]: 'test_editor.length_short',
+  [LongTextLength.MEDIUM]: 'test_editor.length_medium',
+  [LongTextLength.LONG]: 'test_editor.length_long',
+};
+
+function formatPoints(points: number): string {
+  return points === 1 ? '1pt' : `${points}pts`;
+}
+
+export function LongTextQuestionBlock({
+  data,
+  onChange,
+  onRemove,
+  selected,
+  onClick,
+  expanded = true,
+  onToggleExpand,
+  isEditing = true,
+}: Props) {
   const t = useTranslations();
 
   function updateCriterion(idx: number, patch: Partial<Criterion>) {
@@ -46,7 +69,6 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
   }
 
   function addCriterion() {
-    // Reuse the last category so new criteria stay grouped with it by default
     const lastCategory = data.criteria.at(-1)?.category ?? '';
     onChange({ ...data, criteria: [...data.criteria, { point: '', weight: 0.1, category: lastCategory }] });
   }
@@ -62,7 +84,36 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
     () => [...new Set(data.criteria.map(c => c.category).filter(Boolean))],
     [data.criteria]
   );
+  const lengthChip = t(LENGTH_LABEL_KEYS[data.lengthLimit] ?? LENGTH_LABEL_KEYS[LongTextLength.SHORT]);
 
+  // View mode: collapsed or expanded read-only
+  if (!isEditing) {
+    return (
+      <div
+        onClick={onClick}
+        className={cn(
+          'rounded-xl border border-border bg-card shadow-card overflow-hidden',
+          selected && 'bg-accent ring-1 ring-primary'
+        )}
+      >
+        <QuestionCardHeader
+          title={data.prompt || t('test_editor.question_prompt')}
+          points={formatPoints(data.points)}
+          expanded={expanded}
+          onToggle={() => onToggleExpand?.()}
+          onRemove={onRemove}
+          chip={lengthChip}
+        />
+        {expanded && (
+          <div className="border-t border-border px-4 py-3">
+            <CriteriaReadOnly criteria={data.criteria} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Edit mode
   return (
     <div
       onClick={onClick}
@@ -71,7 +122,6 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         selected && 'bg-accent ring-1 ring-primary'
       )}
     >
-      {/* Prompt + length tier + delete */}
       <div className="flex flex-wrap items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
@@ -103,7 +153,6 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         <QuestionBlockAction onRemove={onRemove} />
       </div>
 
-      {/* Rubric criteria */}
       <div className="space-y-2">
         <p className={cn('text-sm font-medium', isWeightValid ? 'text-muted-foreground' : 'text-destructive')}>
           {t('test_editor.rubric_criteria', { total: totalWeight.toFixed(2) })}
@@ -139,14 +188,13 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
                 onClick={() => removeCriterion(ci)}
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
-                <Trash2 className="size-3.5" />
+                <CircleMinus className="size-3.5" />
               </Button>
             )}
           </div>
         ))}
       </div>
 
-      {/* Add criterion button */}
       <Button
         variant="outline"
         size="sm"
@@ -156,6 +204,43 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         <Plus className="size-3.5" />
         {t('test_editor.add_criterion')}
       </Button>
+    </div>
+  );
+}
+
+function CriteriaReadOnly({ criteria }: { criteria: Criterion[] }) {
+  const grouped = useMemo(() => {
+    const groups: { category: string; items: Criterion[] }[] = [];
+    criteria.forEach(c => {
+      const cat = c.category || '';
+      const existing = groups.find(g => g.category === cat);
+      if (existing) existing.items.push(c);
+      else groups.push({ category: cat, items: [c] });
+    });
+    return groups;
+  }, [criteria]);
+
+  return (
+    <div className="space-y-4">
+      {grouped.map((group, gi) => (
+        <div key={gi}>
+          {group.category && (
+            <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground mb-1.5">
+              {group.category}
+            </span>
+          )}
+          <ul className="space-y-0.5">
+            {group.items.map((c, ci) => (
+              <li key={ci} className="flex items-baseline gap-4 text-sm">
+                <span className="shrink-0 tabular-nums text-xs text-muted-foreground w-5 text-right">
+                  {(c.weight * 100).toFixed(0)}%
+                </span>
+                <span>{c.point || <span className="text-muted-foreground italic">—</span>}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -195,7 +280,6 @@ function CategoryInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setOpen(true)}
-        // Delay closing so a click on a suggestion can register before blur hides the list
         onBlur={() => {
           timeoutRef.current = setTimeout(() => setOpen(false), 150);
         }}

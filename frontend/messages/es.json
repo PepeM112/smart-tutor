@@ -397,7 +397,12 @@
     "long_chars": "Largo (~5000 chars)",
     "unknown": "Desconocido",
     "simple_questions": "Preguntas simples",
-    "multiple_choice": "Opción Múltiple"
+    "multiple_choice": "Opción Múltiple",
+    "edit_questions": "Editar",
+    "done_editing": "Listo",
+    "length_short": "Corto",
+    "length_medium": "Medio",
+    "length_long": "Largo"
   },
   "history": {
     "title": "Historial de Tests",

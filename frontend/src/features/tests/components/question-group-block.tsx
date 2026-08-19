@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { CircleMinus, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 
@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
 import { QuestionBlockAction } from './question-block-action';
+import { QuestionCardHeader } from './question-card-header';
 
 export type SimpleRow = {
   prompt: string;
@@ -33,9 +34,25 @@ type Props = {
   onRemove: () => void;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
+  isEditing?: boolean;
 };
 
-export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick }: Props) {
+function formatPoints(points: number): string {
+  return points === 1 ? '1pt' : `${points}pts`;
+}
+
+export function QuestionGroupBlock({
+  data,
+  onChange,
+  onRemove,
+  selected,
+  onClick,
+  expanded = true,
+  onToggleExpand,
+  isEditing = true,
+}: Props) {
   const t = useTranslations();
   const vocabId = useId();
   const canRemoveRow = data.rows.length > 1;
@@ -73,6 +90,73 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
 
   const isVocab = data.groupType === QuestionGroupType.VOCABULARY;
 
+  const isSingleQuestion = !data.title && data.rows.length === 1;
+
+  // View mode: single standalone question — flat card, no expand/collapse
+  if (!isEditing && isSingleQuestion) {
+    const row = data.rows[0];
+    return (
+      <div
+        onClick={onClick}
+        className={cn(
+          'rounded-xl border border-border bg-card px-4 py-3 shadow-card',
+          selected && 'bg-accent ring-1 ring-primary'
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">
+              {row.prompt || <span className="text-muted-foreground italic">—</span>}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
+            </p>
+          </div>
+          <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+            {formatPoints(data.points)}
+          </span>
+          <QuestionBlockAction onRemove={onRemove} />
+        </div>
+      </div>
+    );
+  }
+
+  // View mode: group — collapsed or expanded read-only
+  if (!isEditing) {
+    return (
+      <div
+        onClick={onClick}
+        className={cn(
+          'rounded-xl border border-border bg-card shadow-card overflow-hidden',
+          selected && 'bg-accent ring-1 ring-primary'
+        )}
+      >
+        <QuestionCardHeader
+          title={data.title || t('test_editor.group_title')}
+          points={formatPoints(data.points)}
+          expanded={expanded}
+          onToggle={() => onToggleExpand?.()}
+          onRemove={onRemove}
+        />
+        {expanded && (
+          <div className="border-t border-border px-4 py-3 space-y-2">
+            {data.rows.map((row, i) => (
+              <div key={i} className="space-y-0.5">
+                <p className="text-sm font-medium">
+                  {row.prompt || <span className="text-muted-foreground italic">—</span>}
+                </p>
+                <p className="text-xs text-muted-foreground pl-2">
+                  {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Edit mode
   return (
     <div
       onClick={onClick}
@@ -133,7 +217,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
                   onClick={() => removeRow(i)}
                   className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <Trash2 className="size-3.5" />
+                  <CircleMinus className="size-3.5" />
                 </Button>
               )}
             </div>
@@ -153,7 +237,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
                       onClick={() => removeAnswer(i, ai)}
                       className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
-                      <Trash2 className="size-3" />
+                      <CircleMinus className="size-3" />
                     </Button>
                   )}
                 </div>

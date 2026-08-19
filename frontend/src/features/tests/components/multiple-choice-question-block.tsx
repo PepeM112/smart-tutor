@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Check, CircleMinus, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import type { QuestionType } from '@/client';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 import { QuestionBlockAction } from './question-block-action';
+import { QuestionCardHeader } from './question-card-header';
 
 export type Choice = {
   text: string;
@@ -34,9 +35,25 @@ type Props = {
   onRemove: () => void;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
+  isEditing?: boolean;
 };
 
-export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
+function formatPoints(points: number): string {
+  return points === 1 ? '1pt' : `${points}pts`;
+}
+
+export function MultipleChoiceQuestionBlock({
+  data,
+  onChange,
+  onRemove,
+  selected,
+  onClick,
+  expanded = true,
+  onToggleExpand,
+  isEditing = true,
+}: Props) {
   const t = useTranslations();
   const canRemoveChoice = data.choices.length > MIN_CHOICES;
   const canAddChoice = data.choices.length < MAX_CHOICES;
@@ -56,6 +73,44 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
     onChange({ ...data, choices: data.choices.filter((_, i) => i !== choiceIdx) });
   }
 
+  // View mode: collapsed or expanded read-only
+  if (!isEditing) {
+    return (
+      <div
+        onClick={onClick}
+        className={cn(
+          'rounded-xl border border-border bg-card shadow-card overflow-hidden',
+          selected && 'bg-accent ring-1 ring-primary'
+        )}
+      >
+        <QuestionCardHeader
+          title={data.prompt || t('test_editor.question_prompt')}
+          points={formatPoints(data.points)}
+          expanded={expanded}
+          onToggle={() => onToggleExpand?.()}
+          onRemove={onRemove}
+        />
+        {expanded && (
+          <div className="border-t border-border px-4 py-3 space-y-1">
+            {data.choices.map((choice, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                {choice.isCorrect ? (
+                  <Check className="size-3.5 shrink-0 text-feedback-correct" />
+                ) : (
+                  <X className="size-3.5 shrink-0 text-muted-foreground/40" />
+                )}
+                <span className={cn(choice.isCorrect && 'text-feedback-correct font-medium')}>
+                  {choice.text || <span className="text-muted-foreground italic">—</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Edit mode
   return (
     <div
       onClick={onClick}
@@ -105,7 +160,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
                 onClick={() => removeChoice(ci)}
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
-                <Trash2 className="size-3.5" />
+                <CircleMinus className="size-3.5" />
               </Button>
             )}
           </div>
