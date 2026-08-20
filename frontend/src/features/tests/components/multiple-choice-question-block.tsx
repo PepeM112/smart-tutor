@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Check, CircleMinus, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import type { QuestionType } from '@/client';
@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 import { QuestionBlockAction } from './question-block-action';
+import { QuestionBlockWrapper } from './question-block-wrapper';
+import { QuestionCardHeader } from './question-card-header';
 
 export type Choice = {
   text: string;
@@ -34,9 +36,10 @@ type Props = {
   onRemove: () => void;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  isEditing?: boolean;
 };
 
-export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
+export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected, onClick, isEditing = true }: Props) {
   const t = useTranslations();
   const canRemoveChoice = data.choices.length > MIN_CHOICES;
   const canAddChoice = data.choices.length < MAX_CHOICES;
@@ -56,14 +59,35 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
     onChange({ ...data, choices: data.choices.filter((_, i) => i !== choiceIdx) });
   }
 
+  // View mode
+  if (!isEditing) {
+    return (
+      <QuestionBlockWrapper mode="view" selected={selected} onClick={onClick}>
+        <QuestionCardHeader
+          title={data.prompt || t('test_editor.question_prompt')}
+          points={t('common.points_abbr', { count: data.points })}
+        />
+        <div className="px-6 pb-4 space-y-1 sm:px-8">
+          {data.choices.map((choice, i) => (
+            <div key={i} className="flex items-center gap-2 text-[0.8rem]">
+              {choice.isCorrect ? (
+                <Check className="size-3.5 shrink-0 text-feedback-correct" />
+              ) : (
+                <X className="size-3.5 shrink-0 text-muted-foreground/40" />
+              )}
+              <span className={cn(choice.isCorrect && 'text-feedback-correct font-medium')}>
+                {choice.text || <span className="text-muted-foreground italic">—</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+      </QuestionBlockWrapper>
+    );
+  }
+
+  // Edit mode
   return (
-    <div
-      onClick={onClick}
-      className={cn(
-        'cursor-pointer rounded-xl border border-border bg-card p-4 shadow-card',
-        selected && 'bg-accent ring-1 ring-primary'
-      )}
-    >
+    <QuestionBlockWrapper mode="edit" selected={selected} onClick={onClick}>
       <div className="flex items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
@@ -78,7 +102,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
           step={0.5}
           value={data.points}
           onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
-          className="w-20 shrink-0 text-center"
+          className="w-15 shrink-0 text-center"
           title={t('test_editor.points')}
         />
         <QuestionBlockAction onRemove={onRemove} />
@@ -101,11 +125,11 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
             {canRemoveChoice && (
               <Button
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 onClick={() => removeChoice(ci)}
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
-                <Trash2 className="size-3.5" />
+                <CircleMinus className="size-4" />
               </Button>
             )}
           </div>
@@ -123,6 +147,6 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
           {t('test_editor.add_choice')}
         </Button>
       )}
-    </div>
+    </QuestionBlockWrapper>
   );
 }

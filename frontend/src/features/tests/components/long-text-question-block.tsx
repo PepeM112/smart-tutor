@@ -1,18 +1,21 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { CircleMinus, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import type { QuestionType } from '@/client';
+import { LongTextLength, type QuestionType } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
 
 import { QuestionBlockAction } from './question-block-action';
+import { QuestionBlockWrapper } from './question-block-wrapper';
+import { QuestionCardHeader } from './question-card-header';
 
 export type Criterion = {
   point: string;
@@ -35,9 +38,16 @@ type Props = {
   onRemove: () => void;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  isEditing?: boolean;
 };
 
-export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onClick }: Props) {
+const LENGTH_LABEL_KEYS: Record<number, string> = {
+  [LongTextLength.SHORT]: 'test_editor.length_short',
+  [LongTextLength.MEDIUM]: 'test_editor.length_medium',
+  [LongTextLength.LONG]: 'test_editor.length_long',
+};
+
+export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onClick, isEditing = true }: Props) {
   const t = useTranslations();
 
   function updateCriterion(idx: number, patch: Partial<Criterion>) {
@@ -46,7 +56,6 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
   }
 
   function addCriterion() {
-    // Reuse the last category so new criteria stay grouped with it by default
     const lastCategory = data.criteria.at(-1)?.category ?? '';
     onChange({ ...data, criteria: [...data.criteria, { point: '', weight: 0.1, category: lastCategory }] });
   }
@@ -62,55 +71,67 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
     () => [...new Set(data.criteria.map(c => c.category).filter(Boolean))],
     [data.criteria]
   );
+  const lengthChip = t(LENGTH_LABEL_KEYS[data.lengthLimit] ?? LENGTH_LABEL_KEYS[LongTextLength.SHORT]);
+  const lengthItems: ButtonGroupItem<number>[] = LONG_TEXT_LENGTH_TIERS.map(tier => ({
+    label: t(LENGTH_LABEL_KEYS[tier.value]),
+    value: tier.value as number,
+  }));
 
+  // View mode
+  if (!isEditing) {
+    return (
+      <QuestionBlockWrapper mode="view" selected={selected} onClick={onClick}>
+        <QuestionCardHeader
+          title={data.prompt || t('test_editor.question_prompt')}
+          points={t('common.points_abbr', { count: data.points })}
+          chip={lengthChip}
+        />
+        <div className="px-6 pb-4 sm:px-8">
+          <CriteriaReadOnly criteria={data.criteria} />
+        </div>
+      </QuestionBlockWrapper>
+    );
+  }
+
+  // Edit mode
   return (
-    <div
-      onClick={onClick}
-      className={cn(
-        'cursor-pointer rounded-xl border border-border bg-card p-4 shadow-card',
-        selected && 'bg-accent ring-1 ring-primary'
-      )}
-    >
-      {/* Prompt + length tier + delete */}
-      <div className="flex flex-wrap items-start gap-2 mb-4">
+    <QuestionBlockWrapper mode="edit" selected={selected} onClick={onClick}>
+      {/* Mobile: row 1 = title + delete, row 2 = selector + points */}
+      {/* Desktop: single row with flex-wrap */}
+      <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:flex-wrap sm:items-start">
         <AutoTextarea
-          rows={2}
+          rows={1}
           placeholder={`${t('test_editor.question_prompt')} (${t('test_editor.question_prompt_example')})`}
           value={data.prompt}
           onChange={e => onChange({ ...data, prompt: e.target.value })}
-          className="flex-1"
+          className="sm:flex-1"
         />
-        <select
-          value={data.lengthLimit}
-          onChange={e => onChange({ ...data, lengthLimit: Number(e.target.value) })}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          {LONG_TEXT_LENGTH_TIERS.map(tier => (
-            <option key={tier.value} value={tier.value}>
-              {t(tier.labelKey)}
-            </option>
-          ))}
-        </select>
-        <Input
-          type="number"
-          min={0.5}
-          step={0.5}
-          value={data.points}
-          onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
-          className="w-20 shrink-0 text-center"
-          title={t('test_editor.points')}
-        />
-        <QuestionBlockAction onRemove={onRemove} />
+        <div className="flex items-center gap-2">
+          <ButtonGroup
+            value={data.lengthLimit}
+            onChange={v => onChange({ ...data, lengthLimit: v })}
+            items={lengthItems}
+          />
+          <Input
+            type="number"
+            min={0.5}
+            step={0.5}
+            value={data.points}
+            onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
+            className="ml-auto w-15 shrink-0 text-center sm:ml-0"
+            title={t('test_editor.points')}
+          />
+          <QuestionBlockAction onRemove={onRemove} />
+        </div>
       </div>
 
-      {/* Rubric criteria */}
-      <div className="space-y-2">
+      <div className="space-y-3 sm:space-y-2">
         <p className={cn('text-sm font-medium', isWeightValid ? 'text-muted-foreground' : 'text-destructive')}>
           {t('test_editor.rubric_criteria', { total: totalWeight.toFixed(2) })}
         </p>
 
         {data.criteria.map((criterion, ci) => (
-          <div key={ci} className="flex items-center gap-2">
+          <div key={ci} className="flex flex-wrap items-center gap-2">
             <CategoryInput
               value={criterion.category}
               onChange={v => updateCriterion(ci, { category: v })}
@@ -121,7 +142,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
               placeholder={t('test_editor.criterion_placeholder')}
               value={criterion.point}
               onChange={e => updateCriterion(ci, { point: e.target.value })}
-              className="flex-1"
+              className="order-last basis-full sm:order-none sm:basis-auto sm:flex-1"
             />
             <Input
               type="number"
@@ -130,23 +151,22 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
               step={0.05}
               value={criterion.weight}
               onChange={e => updateCriterion(ci, { weight: parseFloat(e.target.value) || 0.05 })}
-              className="w-20 shrink-0 text-center"
+              className="ml-auto w-15 shrink-0 text-center sm:ml-0 sm:w-20"
             />
             {data.criteria.length > 1 && (
               <Button
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 onClick={() => removeCriterion(ci)}
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
-                <Trash2 className="size-3.5" />
+                <CircleMinus className="size-4" />
               </Button>
             )}
           </div>
         ))}
       </div>
 
-      {/* Add criterion button */}
       <Button
         variant="outline"
         size="sm"
@@ -156,6 +176,43 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
         <Plus className="size-3.5" />
         {t('test_editor.add_criterion')}
       </Button>
+    </QuestionBlockWrapper>
+  );
+}
+
+function CriteriaReadOnly({ criteria }: { criteria: Criterion[] }) {
+  const grouped = useMemo(() => {
+    const groups: { category: string; items: Criterion[] }[] = [];
+    criteria.forEach(c => {
+      const cat = c.category || '';
+      const existing = groups.find(g => g.category === cat);
+      if (existing) existing.items.push(c);
+      else groups.push({ category: cat, items: [c] });
+    });
+    return groups;
+  }, [criteria]);
+
+  return (
+    <div className="space-y-4">
+      {grouped.map((group, gi) => (
+        <div key={gi}>
+          {group.category && (
+            <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground mb-1.5">
+              {group.category}
+            </span>
+          )}
+          <ul className="space-y-0.5">
+            {group.items.map((c, ci) => (
+              <li key={ci} className="flex items-baseline gap-4 text-[0.8rem]">
+                <span className="shrink-0 tabular-nums text-xs text-muted-foreground w-5 text-right">
+                  {(c.weight * 100).toFixed(0)}%
+                </span>
+                <span>{c.point || <span className="text-muted-foreground italic">—</span>}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -195,7 +252,6 @@ function CategoryInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setOpen(true)}
-        // Delay closing so a click on a suggestion can register before blur hides the list
         onBlur={() => {
           timeoutRef.current = setTimeout(() => setOpen(false), 150);
         }}

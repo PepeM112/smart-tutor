@@ -1,9 +1,10 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Pencil, SquareCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -58,6 +59,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
+  const [isEditing, setIsEditing] = useState(!isEdit);
   const {
     items,
     setItems,
@@ -99,11 +101,12 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       };
       return sdk.testsCreate({ body: payload });
     },
-    onSuccess: () => {
+    onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
       toast.success(isEdit ? t('tests.test_updated') : t('tests.test_created'));
-      router.push(Routes.TESTS);
-      router.refresh();
+      if (!isEdit && res.data?.id) {
+        router.replace(Routes.TEST_EDIT(res.data.id));
+      }
     },
     onError: () => {
       toast.error(isEdit ? t('tests.error_updating') : t('tests.error_creating'));
@@ -113,7 +116,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
     mutationFn: (instructions: string) => {
       const allQuestions = editorItemsToPreviewInputs(items);
-      // Expand block indices to flat question indices — the AI edit API takes indices into the flat question list
       const flatIndices = flattenEditorItems(items)
         .map((entry, i) => (selectedIndices.has(entry.blockIndex) ? i : -1))
         .filter(i => i >= 0);
@@ -136,10 +138,15 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     onError: (error: unknown) => toast.error(getErrorDetail(error, t('tests.failed_to_edit_questions'))),
   });
 
-  function addItem(type: AddItemType) {
-    const factories = { group: newQuestionGroup, mc: newMultipleChoice, long: newLongText };
-    appendItem(factories[type]());
-  }
+  const addItem = useCallback(
+    (type: AddItemType) => {
+      const factories = { group: newQuestionGroup, mc: newMultipleChoice, long: newLongText };
+      const newItem = factories[type]();
+      appendItem(newItem);
+      setIsEditing(true);
+    },
+    [appendItem]
+  );
 
   function removeItem(idx: number) {
     removeListItem(idx);
@@ -147,32 +154,63 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   }
 
   useMobileBreadcrumbActions(
-    <Button disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-      {isSaving ? t('tests.saving') : t('tests.save_test')}
-    </Button>
+    <div className="flex items-center gap-2">
+      {isEditing ? (
+        <Button variant="outline" size="sm" icon={SquareCheck} onClick={() => setIsEditing(false)}>
+          {t('test_editor.done_editing')}
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" icon={Pencil} onClick={() => setIsEditing(true)}>
+          {t('test_editor.edit_questions')}
+        </Button>
+      )}
+      <Button size="sm" loading={isSaving} disabled={!title.trim()} onClick={() => saveTest()}>
+        {t('tests.save_test')}
+      </Button>
+    </div>
   );
 
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="space-y-3 flex-1">
-          <Input
-            className="w-full lg:w-1/2"
-            placeholder={t('tests.test_name')}
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
-          <AutoTextarea
-            rows={2}
-            placeholder={t('tests.description_optional')}
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-          />
+          {isEditing ? (
+            <>
+              <Input
+                className="w-full lg:w-1/2"
+                placeholder={t('tests.test_name')}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+              />
+              <AutoTextarea
+                rows={2}
+                placeholder={t('tests.description_optional')}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+              />
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-semibold">{title || t('tests.test_name')}</h1>
+              {description && <p className="text-sm text-muted-foreground">{description}</p>}
+            </>
+          )}
         </div>
         {isDesktop && (
-          <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-            {isSaving ? t('tests.saving') : t('tests.save_test')}
-          </Button>
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <Button variant="outline" size="lg" icon={SquareCheck} onClick={() => setIsEditing(false)}>
+                {t('test_editor.done_editing')}
+              </Button>
+            ) : (
+              <Button variant="outline" size="lg" icon={Pencil} onClick={() => setIsEditing(true)}>
+                {t('test_editor.edit_questions')}
+              </Button>
+            )}
+            <Button size="lg" loading={isSaving} disabled={!title.trim()} onClick={() => saveTest()}>
+              {t('tests.save_test')}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -187,18 +225,17 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       >
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
-          const onClick = (e: React.MouseEvent) => toggleSelection(i, e);
+          const selectionClick = (e: React.MouseEvent) => toggleSelection(i, e);
+          const sharedProps = {
+            onRemove: () => removeItem(i),
+            selected,
+            onClick: selectionClick,
+            isEditing,
+          } as const;
 
           if (item.type === 'group') {
             return (
-              <QuestionGroupBlock
-                key={item.key}
-                data={item}
-                onChange={data => updateItem(i, data)}
-                onRemove={() => removeItem(i)}
-                selected={selected}
-                onClick={onClick}
-              />
+              <QuestionGroupBlock key={item.key} data={item} onChange={data => updateItem(i, data)} {...sharedProps} />
             );
           }
           if (item.type === QuestionType.LONG_TEXT) {
@@ -207,9 +244,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                 key={item.key}
                 data={item}
                 onChange={data => updateItem(i, data)}
-                onRemove={() => removeItem(i)}
-                selected={selected}
-                onClick={onClick}
+                {...sharedProps}
               />
             );
           }
@@ -218,15 +253,13 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
               key={item.key}
               data={item}
               onChange={data => updateItem(i, data)}
-              onRemove={() => removeItem(i)}
-              selected={selected}
-              onClick={onClick}
+              {...sharedProps}
             />
           );
         })}
       </div>
 
-      <AddQuestionDropdown onSelect={addItem} />
+      {isEditing && <AddQuestionDropdown onSelect={addItem} />}
     </div>
   );
 }

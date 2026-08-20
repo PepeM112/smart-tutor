@@ -6,11 +6,11 @@ export function QuestionBlockAction({ onRemove }: { onRemove: () => void }) {
   return (
     <Button
       variant="ghost"
-      size="icon-sm"
+      size="icon"
       onClick={onRemove}
       className="text-destructive hover:bg-destructive/10 hover:text-destructive"
     >
-      <Trash2 className="size-4" />
+      <Trash2 className="size-4.5" />
     </Button>
   );
 }

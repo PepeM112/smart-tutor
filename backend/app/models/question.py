@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +47,18 @@ class Question(Base):
     question_group: Mapped["TestQuestionGroup | None"] = relationship(back_populates="questions")
 
     __table_args__ = (
-        UniqueConstraint("test_id", "order", name="uq_test_question_order"),
-        UniqueConstraint("group_id", "order", name="uq_group_question_order"),
+        Index(
+            "uq_test_question_order",
+            "test_id",
+            "order",
+            unique=True,
+            postgresql_where=(status == int(QuestionStatus.ACTIVE)),
+        ),
+        Index(
+            "uq_group_question_order",
+            "group_id",
+            "order",
+            unique=True,
+            postgresql_where=(status == int(QuestionStatus.ACTIVE)),
+        ),
     )

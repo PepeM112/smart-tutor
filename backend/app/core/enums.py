@@ -35,6 +35,11 @@ class QuestionStatus(NamedIntEnum):
     DELETED = 2
 
 
+class GroupStatus(NamedIntEnum):
+    ACTIVE = 1
+    DELETED = 2
+
+
 class QuestionType(NamedIntEnum):
     SIMPLE = 1
     MULTIPLE_CHOICE = 2

@@ -35,7 +35,8 @@
     "from": "Desde",
     "to": "Hasta",
     "min": "Mín",
-    "max": "Máx"
+    "max": "Máx",
+    "points_abbr": "{count, plural, =1 {1pt} other {#pts}}"
   },
   "app": {
     "title": "SmartTutor",
@@ -388,6 +389,7 @@
     "vocabulary_mode": "Modo vocabulario",
     "prompt": "Enunciado",
     "answer_n": "Respuesta {n}",
+    "answers_comma": "Respuestas (separadas por comas)",
     "add": "Añadir",
     "add_question": "Añadir pregunta",
     "simple": "Simple",
@@ -397,7 +399,12 @@
     "long_chars": "Largo (~5000 chars)",
     "unknown": "Desconocido",
     "simple_questions": "Preguntas simples",
-    "multiple_choice": "Opción Múltiple"
+    "multiple_choice": "Opción Múltiple",
+    "edit_questions": "Editar",
+    "done_editing": "Listo",
+    "length_short": "Corto",
+    "length_medium": "Medio",
+    "length_long": "Largo"
   },
   "history": {
     "title": "Historial de Tests",
