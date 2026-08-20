@@ -45,7 +45,7 @@ def downgrade() -> None:
         sa.Column("status_old", sa.Enum(*_STATUS_VALUES.keys(), name="teststatus"), nullable=True),
     )
 
-    status_case = " ".join(f"WHEN {value} THEN '{label}'" for label, value in _STATUS_VALUES.items())
+    status_case = " ".join(f"WHEN {value} THEN '{label}'" for label, value in _STATUS_VALUES.items()) + " ELSE 'ACTIVE'"
     op.execute(f"UPDATE test SET status_old = (CASE status {status_case} END)::teststatus")
 
     op.alter_column("test", "status_old", nullable=False, server_default="ACTIVE")

@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Loader2, MinusCircle, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, Circle, MinusCircle, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { AnswerStatus, type QuestionReadStripped, QuestionType, type SrsStateResponse } from '@/client';
@@ -99,59 +99,62 @@ export function QuestionReview({
             className="w-full h-14 text-base font-semibold sm:h-12"
             size="lg"
             onClick={onCheck}
-            disabled={isChecking || !answer.trim()}
+            loading={isChecking}
+            disabled={!answer.trim()}
           >
-            {isChecking ? <Loader2 className="animate-spin" /> : t('common.check')}
+            {t('common.check')}
           </Button>
         )}
       </div>
 
       {isChecked && checkResult && (
         <>
-        <div className={cn('mx-auto max-w-2xl rounded-xl border p-5', feedbackBg(checkResult.status))}>
-          <div className="flex items-center gap-3">
-            <StatusIcon status={checkResult.status} />
-            <div className="flex-1">
-              <p className={cn('font-semibold', feedbackTextColor(checkResult.status))}>
-                {statusLabel(checkResult.status)}
-              </p>
-              {isSimple && checkResult.status !== AnswerStatus.CORRECT && checkResult.correctAnswers && (
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {t('review.correct_answer')}{' '}
-                  <span className="text-feedback-correct font-medium">{checkResult.correctAnswers.join(', ')}</span>
+          <div className={cn('mx-auto max-w-2xl rounded-xl border p-5', feedbackBg(checkResult.status))}>
+            <div className="flex items-center gap-3">
+              <StatusIcon status={checkResult.status} />
+              <div className="flex-1">
+                <p className={cn('font-semibold', feedbackTextColor(checkResult.status))}>
+                  {statusLabel(checkResult.status)}
                 </p>
-              )}
+                {isSimple && checkResult.status !== AnswerStatus.CORRECT && checkResult.correctAnswers && (
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {t('review.correct_answer')}{' '}
+                    <span className="text-feedback-correct font-medium">{checkResult.correctAnswers.join(', ')}</span>
+                  </p>
+                )}
+              </div>
             </div>
+
+            {question.explanation && (
+              <p className="text-sm text-muted-foreground mt-3 border-t border-border/50 pt-3">
+                {question.explanation}
+              </p>
+            )}
+
+            {/* Dev-only: exposes raw SRS state for debugging the spaced-repetition algorithm */}
+            {process.env.NEXT_PUBLIC_DEV_MODE === 'true' && checkResult.srsState && (
+              <div className="mt-3 border-t border-border/50 pt-3">
+                <p className="text-xs font-mono text-muted-foreground">
+                  SRS: ease={checkResult.srsState.easeFactor.toFixed(2)} interval={checkResult.srsState.interval}d reps=
+                  {checkResult.srsState.repetitions} next=
+                  {checkResult.srsState.nextReview
+                    ? new Date(checkResult.srsState.nextReview).toLocaleDateString()
+                    : 'n/a'}
+                </p>
+              </div>
+            )}
           </div>
 
-          {question.explanation && (
-            <p className="text-sm text-muted-foreground mt-3 border-t border-border/50 pt-3">{question.explanation}</p>
-          )}
-
-          {/* Dev-only: exposes raw SRS state for debugging the spaced-repetition algorithm */}
-          {process.env.NEXT_PUBLIC_DEV_MODE === 'true' && checkResult.srsState && (
-            <div className="mt-3 border-t border-border/50 pt-3">
-              <p className="text-xs font-mono text-muted-foreground">
-                SRS: ease={checkResult.srsState.easeFactor.toFixed(2)} interval={checkResult.srsState.interval}d reps=
-                {checkResult.srsState.repetitions} next=
-                {checkResult.srsState.nextReview
-                  ? new Date(checkResult.srsState.nextReview).toLocaleDateString()
-                  : 'n/a'}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="mx-auto max-w-2xl">
-          <Button
-            className="w-full h-14 text-base font-semibold sm:h-12"
-            size="lg"
-            icon={ArrowRight}
-            onClick={onNext}
-          >
-            {isLast ? t('common.finish') : t('common.next')}
-          </Button>
-        </div>
+          <div className="mx-auto max-w-2xl">
+            <Button
+              className="w-full h-14 text-base font-semibold sm:h-12"
+              size="lg"
+              icon={ArrowRight}
+              onClick={onNext}
+            >
+              {isLast ? t('common.finish') : t('common.next')}
+            </Button>
+          </div>
         </>
       )}
     </>

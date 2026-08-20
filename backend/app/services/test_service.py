@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import QuestionStatus
+from app.core.enums import GroupStatus, QuestionStatus
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.crud import test_question_group as group_crud
@@ -23,14 +23,10 @@ def get_test(db: Session, *, test_id: str, current_user: User) -> Test:
 def _validate_order_space(
     questions: list[QuestionCreate],
     groups: list[TestQuestionGroupCreate],
-    existing_orders: set[int],
 ) -> None:
     """
-    Validate that standalone questions and question groups don't collide in
-    the shared order space within a test.
-
-    Checks both the incoming payload for internal duplicates AND against
-    orders already persisted in the database (relevant for updates).
+    Validate that standalone questions and question groups don't have
+    duplicate order values within the incoming payload.
     """
     incoming_orders: list[int] = []
     for q in questions:
@@ -38,29 +34,11 @@ def _validate_order_space(
     for g in groups:
         incoming_orders.append(g.order)
 
-    # Check incoming payload has no internal duplicates
     if len(incoming_orders) != len(set(incoming_orders)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Duplicate order values: standalone questions and question groups share the same order space",
         )
-
-    # Check incoming orders don't collide with existing ones
-    collisions = set(incoming_orders) & existing_orders
-    if collisions:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Order values already taken in this test: {sorted(collisions)}",
-        )
-
-
-def _get_existing_orders(test: Test) -> set[int]:
-    orders: set[int] = set()
-    for q in test.questions:
-        orders.add(q.order)
-    for g in test.question_groups:
-        orders.add(g.order)
-    return orders
 
 
 def list_tests(
@@ -93,7 +71,7 @@ def list_tests(
 
 def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
     # On create there are no existing orders — only check for internal duplicates
-    _validate_order_space(data.questions, data.question_groups, existing_orders=set())
+    _validate_order_space(data.questions, data.question_groups)
 
     test = test_crud.create(
         db,
@@ -121,13 +99,13 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
     test = get_test(db, test_id=test_id, current_user=current_user)
     version_test_if_needed(db, test=test)
 
-    _validate_order_space(data.questions or [], data.question_groups or [], existing_orders=set())
+    _validate_order_space(data.questions or [], data.question_groups or [])
 
     # Soft-delete existing questions and groups before replacing
     for q in test.questions:
         q.status = int(QuestionStatus.DELETED)
     for g in test.question_groups:
-        g.status = int(QuestionStatus.DELETED)
+        g.status = int(GroupStatus.DELETED)
         for gq in g.questions:
             gq.status = int(QuestionStatus.DELETED)
     db.flush()

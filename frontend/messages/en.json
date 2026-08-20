@@ -35,7 +35,8 @@
     "from": "From",
     "to": "To",
     "min": "Min",
-    "max": "Max"
+    "max": "Max",
+    "points_abbr": "{count, plural, =1 {1pt} other {#pts}}"
   },
   "app": {
     "title": "SmartTutor",

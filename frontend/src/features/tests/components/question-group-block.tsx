@@ -5,13 +5,14 @@ import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 
 import { QuestionGroupType } from '@/client';
+import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
 
 import { QuestionBlockAction } from './question-block-action';
+import { QuestionBlockWrapper } from './question-block-wrapper';
 import { QuestionCardHeader } from './question-card-header';
 
 export type SimpleRow = {
@@ -36,10 +37,6 @@ type Props = {
   onClick?: (e: React.MouseEvent) => void;
   isEditing?: boolean;
 };
-
-function formatPoints(points: number): string {
-  return points === 1 ? '1pt' : `${points}pts`;
-}
 
 export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick, isEditing = true }: Props) {
   const t = useTranslations();
@@ -73,38 +70,29 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
   if (!isEditing && isSingleQuestion) {
     const row = data.rows[0];
     return (
-      <div
-        onClick={onClick}
-        className={cn(
-          'cursor-pointer rounded-xl border border-border bg-card px-6 py-3 shadow-card transition-colors',
-          selected && 'bg-muted/60'
-        )}
-      >
+      <QuestionBlockWrapper mode="view" selected={selected} onClick={onClick} className="px-4 py-3 sm:px-6">
         <p className="text-sm font-medium">
           {row.prompt || <span className="text-muted-foreground italic">—</span>}
           <span className="ml-1.5 text-sm font-normal tabular-nums text-muted-foreground">
-            ({formatPoints(data.points)})
+            ({t('common.points_abbr', { count: data.points })})
           </span>
         </p>
         <p className="text-[0.8rem] text-muted-foreground mt-0.5 ml-2">
           {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
         </p>
-      </div>
+      </QuestionBlockWrapper>
     );
   }
 
   // View mode: group — collapsed or expanded read-only
   if (!isEditing) {
     return (
-      <div
-        onClick={onClick}
-        className={cn(
-          'cursor-pointer rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
-          selected && 'bg-muted/60'
-        )}
-      >
-        <QuestionCardHeader title={data.title || t('test_editor.group_title')} points={formatPoints(data.points)} />
-        <div className="px-8 pb-4">
+      <QuestionBlockWrapper mode="view" selected={selected} onClick={onClick}>
+        <QuestionCardHeader
+          title={data.title || t('test_editor.group_title')}
+          points={t('common.points_abbr', { count: data.points })}
+        />
+        <div className="px-6 pb-4 sm:px-8">
           {isVocab ? (
             <table className="w-full text-[0.8rem]">
               <tbody>
@@ -133,21 +121,16 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
             </div>
           )}
         </div>
-      </div>
+      </QuestionBlockWrapper>
     );
   }
 
   // Edit mode
   return (
-    <div
-      onClick={onClick}
-      className={cn(
-        'cursor-pointer rounded-xl border border-border bg-card p-4 shadow-card',
-        selected && 'bg-muted/60'
-      )}
-    >
+    <QuestionBlockWrapper mode="edit" selected={selected} onClick={onClick}>
       <div className="flex items-start gap-2 mb-3">
-        <Input
+        <AutoTextarea
+          rows={1}
           placeholder={t('test_editor.group_title')}
           value={data.title}
           onChange={e => onChange({ ...data, title: e.target.value })}
@@ -159,7 +142,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
           step={0.5}
           value={data.points}
           onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
-          className="w-20 shrink-0 text-center"
+          className="w-15 shrink-0 text-center"
           title={t('test_editor.points')}
         />
         <QuestionBlockAction onRemove={onRemove} />
@@ -204,11 +187,11 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
                     {canRemoveRow && (
                       <Button
                         variant="ghost"
-                        size="icon-xs"
+                        size="icon-sm"
                         onClick={() => removeRow(i)}
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
                       >
-                        <CircleMinus className="size-3.5" />
+                        <CircleMinus className="size-4" />
                       </Button>
                     )}
                   </div>
@@ -237,11 +220,11 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
                 {canRemoveRow && (
                   <Button
                     variant="ghost"
-                    size="icon-xs"
+                    size="icon-sm"
                     onClick={() => removeRow(i)}
                     className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
                   >
-                    <CircleMinus className="size-3.5" />
+                    <CircleMinus className="size-4" />
                   </Button>
                 )}
               </div>
@@ -259,6 +242,6 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
         <Plus className="size-3.5" />
         {t('test_editor.add')}
       </Button>
-    </div>
+    </QuestionBlockWrapper>
   );
 }

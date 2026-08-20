@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 import { QuestionBlockAction } from './question-block-action';
+import { QuestionBlockWrapper } from './question-block-wrapper';
 import { QuestionCardHeader } from './question-card-header';
 
 export type Choice = {
@@ -38,18 +39,7 @@ type Props = {
   isEditing?: boolean;
 };
 
-function formatPoints(points: number): string {
-  return points === 1 ? '1pt' : `${points}pts`;
-}
-
-export function MultipleChoiceQuestionBlock({
-  data,
-  onChange,
-  onRemove,
-  selected,
-  onClick,
-  isEditing = true,
-}: Props) {
+export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected, onClick, isEditing = true }: Props) {
   const t = useTranslations();
   const canRemoveChoice = data.choices.length > MIN_CHOICES;
   const canAddChoice = data.choices.length < MAX_CHOICES;
@@ -69,21 +59,15 @@ export function MultipleChoiceQuestionBlock({
     onChange({ ...data, choices: data.choices.filter((_, i) => i !== choiceIdx) });
   }
 
-  // View mode: collapsed or expanded read-only
+  // View mode
   if (!isEditing) {
     return (
-      <div
-        onClick={onClick}
-        className={cn(
-          'cursor-pointer rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
-          selected && 'bg-muted/60'
-        )}
-      >
+      <QuestionBlockWrapper mode="view" selected={selected} onClick={onClick}>
         <QuestionCardHeader
           title={data.prompt || t('test_editor.question_prompt')}
-          points={formatPoints(data.points)}
+          points={t('common.points_abbr', { count: data.points })}
         />
-        <div className="px-8 pb-4 space-y-1">
+        <div className="px-6 pb-4 space-y-1 sm:px-8">
           {data.choices.map((choice, i) => (
             <div key={i} className="flex items-center gap-2 text-[0.8rem]">
               {choice.isCorrect ? (
@@ -97,19 +81,13 @@ export function MultipleChoiceQuestionBlock({
             </div>
           ))}
         </div>
-      </div>
+      </QuestionBlockWrapper>
     );
   }
 
   // Edit mode
   return (
-    <div
-      onClick={onClick}
-      className={cn(
-        'cursor-pointer rounded-xl border border-border bg-card p-4 shadow-card',
-        selected && 'bg-muted/60'
-      )}
-    >
+    <QuestionBlockWrapper mode="edit" selected={selected} onClick={onClick}>
       <div className="flex items-start gap-2 mb-4">
         <AutoTextarea
           rows={2}
@@ -124,7 +102,7 @@ export function MultipleChoiceQuestionBlock({
           step={0.5}
           value={data.points}
           onChange={e => onChange({ ...data, points: parseFloat(e.target.value) || 0.5 })}
-          className="w-20 shrink-0 text-center"
+          className="w-15 shrink-0 text-center"
           title={t('test_editor.points')}
         />
         <QuestionBlockAction onRemove={onRemove} />
@@ -147,11 +125,11 @@ export function MultipleChoiceQuestionBlock({
             {canRemoveChoice && (
               <Button
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 onClick={() => removeChoice(ci)}
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
-                <CircleMinus className="size-3.5" />
+                <CircleMinus className="size-4" />
               </Button>
             )}
           </div>
@@ -169,6 +147,6 @@ export function MultipleChoiceQuestionBlock({
           {t('test_editor.add_choice')}
         </Button>
       )}
-    </div>
+    </QuestionBlockWrapper>
   );
 }
