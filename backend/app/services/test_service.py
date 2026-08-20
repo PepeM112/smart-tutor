@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.enums import QuestionStatus
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.crud import test_question_group as group_crud
@@ -120,8 +121,16 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
     test = get_test(db, test_id=test_id, current_user=current_user)
     version_test_if_needed(db, test=test)
 
-    # Check incoming orders against what's already in the test
-    _validate_order_space(data.questions or [], data.question_groups or [], existing_orders=_get_existing_orders(test))
+    _validate_order_space(data.questions or [], data.question_groups or [], existing_orders=set())
+
+    # Soft-delete existing questions and groups before replacing
+    for q in test.questions:
+        q.status = int(QuestionStatus.DELETED)
+    for g in test.question_groups:
+        g.status = int(QuestionStatus.DELETED)
+        for gq in g.questions:
+            gq.status = int(QuestionStatus.DELETED)
+    db.flush()
 
     if data.questions:
         question_crud.create_many(db, questions=data.questions, user_id=current_user.id, test_id=test.id)

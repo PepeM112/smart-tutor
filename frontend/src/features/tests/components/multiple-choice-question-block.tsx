@@ -79,8 +79,8 @@ export function MultipleChoiceQuestionBlock({
       <div
         onClick={onClick}
         className={cn(
-          'rounded-xl border border-border bg-card shadow-card overflow-hidden',
-          selected && 'bg-accent ring-1 ring-primary'
+          'rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
+          selected && 'bg-muted/60'
         )}
       >
         <QuestionCardHeader
@@ -88,12 +88,11 @@ export function MultipleChoiceQuestionBlock({
           points={formatPoints(data.points)}
           expanded={expanded}
           onToggle={() => onToggleExpand?.()}
-          onRemove={onRemove}
         />
         {expanded && (
           <div className="border-t border-border px-4 py-3 space-y-1">
             {data.choices.map((choice, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
+              <div key={i} className="flex items-center gap-2 text-[0.8rem]">
                 {choice.isCorrect ? (
                   <Check className="size-3.5 shrink-0 text-feedback-correct" />
                 ) : (
@@ -116,7 +115,7 @@ export function MultipleChoiceQuestionBlock({
       onClick={onClick}
       className={cn(
         'cursor-pointer rounded-xl border border-border bg-card p-4 shadow-card',
-        selected && 'bg-accent ring-1 ring-primary'
+        selected && 'bg-muted/60'
       )}
     >
       <div className="flex items-start gap-2 mb-4">

@@ -60,7 +60,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [isEditing, setIsEditing] = useState(!isEdit);
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const {
     items,
     setItems,
@@ -144,20 +144,31 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       const newItem = factories[type]();
       appendItem(newItem);
       setIsEditing(true);
-      setExpandedKey(newItem.key);
+      setExpandedKeys(prev => new Set(prev).add(newItem.key));
     },
     [appendItem]
   );
 
   function removeItem(idx: number) {
     const removedKey = items[idx]?.key;
-    if (expandedKey === removedKey) setExpandedKey(null);
+    if (removedKey) {
+      setExpandedKeys(prev => {
+        const next = new Set(prev);
+        next.delete(removedKey);
+        return next;
+      });
+    }
     removeListItem(idx);
     removeAndReindex(idx);
   }
 
   function toggleExpand(key: string) {
-    setExpandedKey(prev => (prev === key ? null : key));
+    setExpandedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   useMobileBreadcrumbActions(
@@ -181,20 +192,27 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="space-y-3 flex-1">
-          <Input
-            className="w-full lg:w-1/2"
-            placeholder={t('tests.test_name')}
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            disabled={!isEditing}
-          />
-          <AutoTextarea
-            rows={2}
-            placeholder={t('tests.description_optional')}
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            disabled={!isEditing}
-          />
+          {isEditing ? (
+            <>
+              <Input
+                className="w-full lg:w-1/2"
+                placeholder={t('tests.test_name')}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+              />
+              <AutoTextarea
+                rows={2}
+                placeholder={t('tests.description_optional')}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+              />
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-semibold">{title || t('tests.test_name')}</h1>
+              {description && <p className="text-sm text-muted-foreground">{description}</p>}
+            </>
+          )}
         </div>
         {isDesktop && (
           <div className="flex items-center gap-2">
@@ -226,7 +244,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
           const selectionClick = (e: React.MouseEvent) => toggleSelection(i, e);
-          const isExpanded = expandedKey === item.key;
+          const isExpanded = expandedKeys.has(item.key);
           const sharedProps = {
             onRemove: () => removeItem(i),
             selected,

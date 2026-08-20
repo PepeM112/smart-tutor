@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import QuestionGroupType, QuestionStatus
@@ -32,4 +32,12 @@ class TestQuestionGroup(Base):
         back_populates="question_group",
     )
 
-    __table_args__ = (UniqueConstraint("test_id", "order", name="uq_test_group_order"),)
+    __table_args__ = (
+        Index(
+            "uq_test_group_order",
+            "test_id",
+            "order",
+            unique=True,
+            postgresql_where=(status == int(QuestionStatus.ACTIVE)),
+        ),
+    )

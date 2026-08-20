@@ -388,6 +388,7 @@
     "vocabulary_mode": "Modo vocabulario",
     "prompt": "Enunciado",
     "answer_n": "Respuesta {n}",
+    "answers_comma": "Respuestas (separadas por comas)",
     "add": "Añadir",
     "add_question": "Añadir pregunta",
     "simple": "Simple",

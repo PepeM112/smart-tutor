@@ -92,8 +92,8 @@ export function LongTextQuestionBlock({
       <div
         onClick={onClick}
         className={cn(
-          'rounded-xl border border-border bg-card shadow-card overflow-hidden',
-          selected && 'bg-accent ring-1 ring-primary'
+          'rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
+          selected && 'bg-muted/60'
         )}
       >
         <QuestionCardHeader
@@ -101,7 +101,6 @@ export function LongTextQuestionBlock({
           points={formatPoints(data.points)}
           expanded={expanded}
           onToggle={() => onToggleExpand?.()}
-          onRemove={onRemove}
           chip={lengthChip}
         />
         {expanded && (
@@ -119,7 +118,7 @@ export function LongTextQuestionBlock({
       onClick={onClick}
       className={cn(
         'cursor-pointer rounded-xl border border-border bg-card p-4 shadow-card',
-        selected && 'bg-accent ring-1 ring-primary'
+        selected && 'bg-muted/60'
       )}
     >
       <div className="flex flex-wrap items-start gap-2 mb-4">
@@ -231,7 +230,7 @@ function CriteriaReadOnly({ criteria }: { criteria: Criterion[] }) {
           )}
           <ul className="space-y-0.5">
             {group.items.map((c, ci) => (
-              <li key={ci} className="flex items-baseline gap-4 text-sm">
+              <li key={ci} className="flex items-baseline gap-4 text-[0.8rem]">
                 <span className="shrink-0 tabular-nums text-xs text-muted-foreground w-5 text-right">
                   {(c.weight * 100).toFixed(0)}%
                 </span>

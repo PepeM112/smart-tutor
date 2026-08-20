@@ -388,6 +388,7 @@
     "vocabulary_mode": "Vocabulary mode",
     "prompt": "Prompt",
     "answer_n": "Answer {n}",
+    "answers_comma": "Answers (comma-separated)",
     "add": "Add",
     "add_question": "Add question",
     "simple": "Simple",
