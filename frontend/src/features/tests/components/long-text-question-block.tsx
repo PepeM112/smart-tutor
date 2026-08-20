@@ -36,8 +36,6 @@ type Props = {
   onRemove: () => void;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
-  expanded?: boolean;
-  onToggleExpand?: () => void;
   isEditing?: boolean;
 };
 
@@ -57,8 +55,6 @@ export function LongTextQuestionBlock({
   onRemove,
   selected,
   onClick,
-  expanded = true,
-  onToggleExpand,
   isEditing = true,
 }: Props) {
   const t = useTranslations();
@@ -92,22 +88,18 @@ export function LongTextQuestionBlock({
       <div
         onClick={onClick}
         className={cn(
-          'rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
+          'cursor-pointer rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
           selected && 'bg-muted/60'
         )}
       >
         <QuestionCardHeader
           title={data.prompt || t('test_editor.question_prompt')}
           points={formatPoints(data.points)}
-          expanded={expanded}
-          onToggle={() => onToggleExpand?.()}
           chip={lengthChip}
         />
-        {expanded && (
-          <div className="border-t border-border px-4 py-3">
-            <CriteriaReadOnly criteria={data.criteria} />
-          </div>
-        )}
+        <div className="px-8 pb-4">
+          <CriteriaReadOnly criteria={data.criteria} />
+        </div>
       </div>
     );
   }

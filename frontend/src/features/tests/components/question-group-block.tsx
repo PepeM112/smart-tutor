@@ -34,8 +34,6 @@ type Props = {
   onRemove: () => void;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
-  expanded?: boolean;
-  onToggleExpand?: () => void;
   isEditing?: boolean;
 };
 
@@ -43,16 +41,7 @@ function formatPoints(points: number): string {
   return points === 1 ? '1pt' : `${points}pts`;
 }
 
-export function QuestionGroupBlock({
-  data,
-  onChange,
-  onRemove,
-  selected,
-  onClick,
-  expanded = true,
-  onToggleExpand,
-  isEditing = true,
-}: Props) {
+export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick, isEditing = true }: Props) {
   const t = useTranslations();
   const vocabId = useId();
   const canRemoveRow = data.rows.length > 1;
@@ -87,23 +76,19 @@ export function QuestionGroupBlock({
       <div
         onClick={onClick}
         className={cn(
-          'rounded-xl border border-border bg-card px-4 py-3 shadow-card transition-colors',
+          'cursor-pointer rounded-xl border border-border bg-card px-6 py-3 shadow-card transition-colors',
           selected && 'bg-muted/60'
         )}
       >
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">
-              {row.prompt || <span className="text-muted-foreground italic">—</span>}
-            </p>
-            <p className="text-[0.8rem] text-muted-foreground mt-0.5 truncate">
-              {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
-            </p>
-          </div>
-          <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-            {formatPoints(data.points)}
+        <p className="text-sm font-medium">
+          {row.prompt || <span className="text-muted-foreground italic">—</span>}
+          <span className="ml-1.5 text-sm font-normal tabular-nums text-muted-foreground">
+            ({formatPoints(data.points)})
           </span>
-        </div>
+        </p>
+        <p className="text-[0.8rem] text-muted-foreground mt-0.5 ml-2">
+          {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
+        </p>
       </div>
     );
   }
@@ -114,49 +99,40 @@ export function QuestionGroupBlock({
       <div
         onClick={onClick}
         className={cn(
-          'rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
+          'cursor-pointer rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
           selected && 'bg-muted/60'
         )}
       >
-        <QuestionCardHeader
-          title={data.title || t('test_editor.group_title')}
-          points={formatPoints(data.points)}
-          expanded={expanded}
-          onToggle={() => onToggleExpand?.()}
-        />
-        {expanded && (
-          <div className="border-t border-border px-4 py-3">
-            {isVocab ? (
-              <table className="w-full text-[0.8rem]">
-                <tbody>
-                  {data.rows.map((row, i) => (
-                    <tr key={i} className="border-b border-border/50 last:border-0">
-                      <td className="py-1.5 pr-4 font-medium">
-                        {row.prompt || <span className="text-muted-foreground italic">—</span>}
-                      </td>
-                      <td className="py-1.5 text-muted-foreground">
-                        {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="space-y-2 text-[0.8rem]">
+        <QuestionCardHeader title={data.title || t('test_editor.group_title')} points={formatPoints(data.points)} />
+        <div className="px-8 pb-4">
+          {isVocab ? (
+            <table className="w-full text-[0.8rem]">
+              <tbody>
                 {data.rows.map((row, i) => (
-                  <div key={i} className="space-y-0.5">
-                    <p className="font-medium">
+                  <tr key={i} className="border-b border-border/50 last:border-0">
+                    <td className="py-1.5 pr-4 font-medium">
                       {row.prompt || <span className="text-muted-foreground italic">—</span>}
-                    </p>
-                    <p className="text-muted-foreground pl-2">
+                    </td>
+                    <td className="py-1.5 text-muted-foreground">
                       {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
-                    </p>
-                  </div>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            )}
-          </div>
-        )}
+              </tbody>
+            </table>
+          ) : (
+            <div className="space-y-2 text-[0.8rem]">
+              {data.rows.map((row, i) => (
+                <div key={i} className="space-y-0.5">
+                  <p className="font-medium">{row.prompt || <span className="text-muted-foreground italic">—</span>}</p>
+                  <p className="text-muted-foreground pl-2">
+                    {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

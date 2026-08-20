@@ -60,7 +60,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [isEditing, setIsEditing] = useState(!isEdit);
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const {
     items,
     setItems,
@@ -102,11 +101,12 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       };
       return sdk.testsCreate({ body: payload });
     },
-    onSuccess: () => {
+    onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
       toast.success(isEdit ? t('tests.test_updated') : t('tests.test_created'));
-      router.push(Routes.TESTS);
-      router.refresh();
+      if (!isEdit && res.data?.id) {
+        router.replace(Routes.TEST_EDIT(res.data.id));
+      }
     },
     onError: () => {
       toast.error(isEdit ? t('tests.error_updating') : t('tests.error_creating'));
@@ -144,31 +144,13 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       const newItem = factories[type]();
       appendItem(newItem);
       setIsEditing(true);
-      setExpandedKeys(prev => new Set(prev).add(newItem.key));
     },
     [appendItem]
   );
 
   function removeItem(idx: number) {
-    const removedKey = items[idx]?.key;
-    if (removedKey) {
-      setExpandedKeys(prev => {
-        const next = new Set(prev);
-        next.delete(removedKey);
-        return next;
-      });
-    }
     removeListItem(idx);
     removeAndReindex(idx);
-  }
-
-  function toggleExpand(key: string) {
-    setExpandedKeys(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
   }
 
   useMobileBreadcrumbActions(
@@ -182,8 +164,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           {t('test_editor.edit_questions')}
         </Button>
       )}
-      <Button size="sm" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-        {isSaving ? t('tests.saving') : t('tests.save_test')}
+      <Button size="sm" loading={isSaving} disabled={!title.trim()} onClick={() => saveTest()}>
+        {t('tests.save_test')}
       </Button>
     </div>
   );
@@ -225,8 +207,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                 {t('test_editor.edit_questions')}
               </Button>
             )}
-            <Button size="lg" disabled={!title.trim() || isSaving} onClick={() => saveTest()}>
-              {isSaving ? t('tests.saving') : t('tests.save_test')}
+            <Button size="lg" loading={isSaving} disabled={!title.trim()} onClick={() => saveTest()}>
+              {t('tests.save_test')}
             </Button>
           </div>
         )}
@@ -244,24 +226,16 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
           const selectionClick = (e: React.MouseEvent) => toggleSelection(i, e);
-          const isExpanded = expandedKeys.has(item.key);
           const sharedProps = {
             onRemove: () => removeItem(i),
             selected,
             onClick: selectionClick,
-            expanded: isExpanded,
-            onToggleExpand: () => toggleExpand(item.key),
             isEditing,
           } as const;
 
           if (item.type === 'group') {
             return (
-              <QuestionGroupBlock
-                key={item.key}
-                data={item}
-                onChange={data => updateItem(i, data)}
-                {...sharedProps}
-              />
+              <QuestionGroupBlock key={item.key} data={item} onChange={data => updateItem(i, data)} {...sharedProps} />
             );
           }
           if (item.type === QuestionType.LONG_TEXT) {

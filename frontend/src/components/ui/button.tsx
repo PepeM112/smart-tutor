@@ -1,4 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
+import { Loader2 } from 'lucide-react';
 import { Slot } from 'radix-ui';
 import * as React from 'react';
 
@@ -48,6 +49,7 @@ function Button({
   size = 'default',
   asChild = false,
   icon: Icon,
+  loading = false,
   tooltip,
   children,
   ...props
@@ -55,19 +57,22 @@ function Button({
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
     icon?: LucideIcon;
+    loading?: boolean;
     tooltip?: string;
   }) {
   const Comp = asChild ? Slot.Root : 'button';
+  const showSpinner = loading && !asChild;
 
   const button = (
     <Comp
       data-slot="button"
       data-variant={variant}
       data-size={size}
+      disabled={loading || props.disabled}
       className={cn(buttonVariants({ variant, size, className }), size === 'lg' && Icon && 'pl-3')}
       {...props}
     >
-      {Icon && <Icon />}
+      {showSpinner ? <Loader2 className="animate-spin" /> : Icon ? <Icon /> : null}
       {asChild ? <Slot.Slottable>{children}</Slot.Slottable> : children}
     </Comp>
   );

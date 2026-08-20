@@ -35,8 +35,6 @@ type Props = {
   onRemove: () => void;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
-  expanded?: boolean;
-  onToggleExpand?: () => void;
   isEditing?: boolean;
 };
 
@@ -50,8 +48,6 @@ export function MultipleChoiceQuestionBlock({
   onRemove,
   selected,
   onClick,
-  expanded = true,
-  onToggleExpand,
   isEditing = true,
 }: Props) {
   const t = useTranslations();
@@ -79,32 +75,28 @@ export function MultipleChoiceQuestionBlock({
       <div
         onClick={onClick}
         className={cn(
-          'rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
+          'cursor-pointer rounded-xl border border-border bg-card shadow-card overflow-hidden transition-colors',
           selected && 'bg-muted/60'
         )}
       >
         <QuestionCardHeader
           title={data.prompt || t('test_editor.question_prompt')}
           points={formatPoints(data.points)}
-          expanded={expanded}
-          onToggle={() => onToggleExpand?.()}
         />
-        {expanded && (
-          <div className="border-t border-border px-4 py-3 space-y-1">
-            {data.choices.map((choice, i) => (
-              <div key={i} className="flex items-center gap-2 text-[0.8rem]">
-                {choice.isCorrect ? (
-                  <Check className="size-3.5 shrink-0 text-feedback-correct" />
-                ) : (
-                  <X className="size-3.5 shrink-0 text-muted-foreground/40" />
-                )}
-                <span className={cn(choice.isCorrect && 'text-feedback-correct font-medium')}>
-                  {choice.text || <span className="text-muted-foreground italic">—</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="px-8 pb-4 space-y-1">
+          {data.choices.map((choice, i) => (
+            <div key={i} className="flex items-center gap-2 text-[0.8rem]">
+              {choice.isCorrect ? (
+                <Check className="size-3.5 shrink-0 text-feedback-correct" />
+              ) : (
+                <X className="size-3.5 shrink-0 text-muted-foreground/40" />
+              )}
+              <span className={cn(choice.isCorrect && 'text-feedback-correct font-medium')}>
+                {choice.text || <span className="text-muted-foreground italic">—</span>}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

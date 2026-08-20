@@ -1,56 +1,34 @@
-'use client';
-
-import { ChevronDown, ChevronRight } from 'lucide-react';
-
 type Props = {
   title: string;
   points: string;
-  expanded: boolean;
-  onToggle: () => void;
   chip?: string | null;
 };
 
-export function QuestionCardHeader({ title, points, expanded, onToggle, chip }: Props) {
-  const Chevron = expanded ? ChevronDown : ChevronRight;
-
+export function QuestionCardHeader({ title, points, chip }: Props) {
   return (
     <>
       {/* Desktop: single row */}
-      <div
-        onClick={onToggle}
-        className="hidden sm:flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
-      >
-        <Chevron className="size-4 shrink-0 text-muted-foreground" />
-        <p className="flex-1 truncate text-sm font-medium">{title}</p>
+      <div className="hidden sm:flex items-start gap-3 px-6 py-3">
+        <p className="flex-1 text-sm font-medium">
+          {title}
+          <span className="ml-1.5 text-sm font-normal tabular-nums text-muted-foreground">({points})</span>
+        </p>
         {chip && (
-          <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-            {chip}
-          </span>
+          <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">{chip}</span>
         )}
-        <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-          {points}
-        </span>
       </div>
 
       {/* Mobile: two rows */}
-      <div
-        onClick={onToggle}
-        className="flex sm:hidden flex-col gap-1.5 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <Chevron className="size-4 shrink-0 text-muted-foreground" />
-          <p className="flex-1 truncate text-sm font-medium">{title}</p>
-        </div>
-        <div className="flex items-center gap-2 pl-6">
-          {chip && (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              {chip}
-            </span>
-          )}
-          <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-            {points}
-          </span>
-        </div>
+      <div className="flex sm:hidden flex-col gap-1.5 px-6 py-3">
+        <p className="text-sm font-medium">
+          {title}
+          <span className="ml-1.5 text-sm font-normal tabular-nums text-muted-foreground">({points})</span>
+        </p>
+        {chip && (
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">{chip}</span>
+          </div>
+        )}
       </div>
     </>
   );
