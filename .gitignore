@@ -34,3 +34,6 @@ tsconfig.tsbuildinfo
 
 # Prevent nested repos
 **/ .git
+
+# Other
+frontend/app/(app)/components-ideas/

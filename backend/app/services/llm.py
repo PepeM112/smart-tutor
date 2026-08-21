@@ -8,10 +8,12 @@ max_tokens.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections.abc import Generator
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
@@ -33,6 +35,52 @@ class CompletionResult:
     model: str
 
 
+# ---------------------------------------------------------------------------
+# Streaming + tool-use types
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class TextDelta:
+    """A chunk of streamed assistant text."""
+
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCallDelta:
+    """Emitted once a tool call is fully assembled from the stream."""
+
+    id: str
+    name: str
+    arguments: dict[str, object]
+
+
+@dataclass(slots=True)
+class StreamResult:
+    """Final summary returned after the stream is exhausted."""
+
+    stop_reason: str
+    text: str
+    tool_calls: list[ToolCallDelta] = field(default_factory=list)
+    input_tokens: int = 0
+    output_tokens: int = 0
+    provider: str = ""
+    model: str = ""
+
+    def to_completion_result(self) -> CompletionResult:
+        return CompletionResult(
+            text=self.text,
+            input_tokens=self.input_tokens,
+            output_tokens=self.output_tokens,
+            provider=self.provider,
+            model=self.model,
+        )
+
+
+StreamEvent = TextDelta | ToolCallDelta
+
+
 class LLMClient(ABC):
     @property
     @abstractmethod
@@ -41,6 +89,23 @@ class LLMClient(ABC):
     @abstractmethod
     def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
         """Send a system + user message pair and return the text response with usage data."""
+        ...
+
+    @abstractmethod
+    def stream_with_tools(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, object]],
+        tools: list[dict[str, object]] | None = None,
+        max_tokens: int,
+    ) -> Generator[StreamEvent, None, StreamResult]:
+        """Stream a multi-turn conversation with optional tool definitions.
+
+        Yields ``TextDelta`` and ``ToolCallDelta`` events as they arrive.
+        The generator's return value (accessible via ``StopIteration.value``)
+        is a ``StreamResult`` with aggregated usage and the full stop reason.
+        """
         ...
 
 
@@ -95,6 +160,65 @@ class AnthropicLLMClient(LLMClient):
             model=self.MODEL,
         )
 
+    def stream_with_tools(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, object]],
+        tools: list[dict[str, object]] | None = None,
+        max_tokens: int,
+    ) -> Generator[StreamEvent, None, StreamResult]:
+        kwargs: dict[str, object] = {
+            "model": self.MODEL,
+            "max_tokens": max_tokens,
+            "system": system,
+            "messages": messages,
+        }
+        if tools:
+            kwargs["tools"] = tools
+
+        collected_text = ""
+        pending_tools: dict[int, dict[str, object]] = {}
+
+        with self._client.messages.stream(**kwargs) as stream:  # type: ignore[arg-type]
+            for event in stream:
+                if event.type == "content_block_start":
+                    block = event.content_block
+                    if block.type == "tool_use":
+                        pending_tools[event.index] = {"id": block.id, "name": block.name, "json_parts": []}
+                elif event.type == "content_block_delta":
+                    delta = event.delta
+                    text = getattr(delta, "text", None)
+                    partial_json = getattr(delta, "partial_json", None)
+                    if text is not None:
+                        collected_text += str(text)
+                        yield TextDelta(str(text))
+                    elif partial_json is not None:
+                        entry = pending_tools.get(event.index)
+                        if entry is not None:
+                            json_parts: list[str] = entry["json_parts"]  # type: ignore[assignment]
+                            json_parts.append(str(partial_json))
+
+            final = stream.get_final_message()
+
+        tool_calls: list[ToolCallDelta] = []
+        for entry in pending_tools.values():
+            raw_json = "".join(entry["json_parts"])  # type: ignore[arg-type]
+            arguments = json.loads(raw_json) if raw_json else {}
+            tc = ToolCallDelta(id=str(entry["id"]), name=str(entry["name"]), arguments=arguments)
+            tool_calls.append(tc)
+            yield tc
+
+        return StreamResult(
+            stop_reason=final.stop_reason or "end_turn",
+            text=collected_text,
+            tool_calls=tool_calls,
+            input_tokens=final.usage.input_tokens,
+            output_tokens=final.usage.output_tokens,
+            provider="anthropic",
+            model=self.MODEL,
+        )
+
 
 class OpenAILLMClient(LLMClient):
     MODEL = "gpt-4o-mini"
@@ -134,6 +258,87 @@ class OpenAILLMClient(LLMClient):
             text=text,
             input_tokens=usage.prompt_tokens if usage else 0,
             output_tokens=usage.completion_tokens if usage else 0,
+            provider="openai",
+            model=self.MODEL,
+        )
+
+    def stream_with_tools(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, object]],
+        tools: list[dict[str, object]] | None = None,
+        max_tokens: int,
+    ) -> Generator[StreamEvent, None, StreamResult]:
+        oai_messages: list[dict[str, object]] = [{"role": "system", "content": system}, *messages]
+
+        kwargs: dict[str, object] = {
+            "model": self.MODEL,
+            "max_tokens": max_tokens,
+            "messages": oai_messages,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if tools:
+            kwargs["tools"] = [{"type": "function", "function": t} for t in tools]
+
+        collected_text = ""
+        # keyed by tool-call index within the chunk stream
+        pending_tools: dict[int, dict[str, object]] = {}
+        input_tokens = 0
+        output_tokens = 0
+        finish_reason = "stop"
+
+        response = self._client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
+        for chunk in response:
+            if chunk.usage:
+                input_tokens = chunk.usage.prompt_tokens or 0
+                output_tokens = chunk.usage.completion_tokens or 0
+
+            if not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+
+            if choice.finish_reason:
+                finish_reason = choice.finish_reason
+
+            delta = choice.delta
+            if delta.content:
+                collected_text += delta.content
+                yield TextDelta(delta.content)
+
+            if delta.tool_calls:
+                for tc_delta in delta.tool_calls:
+                    idx = tc_delta.index
+                    if idx not in pending_tools:
+                        pending_tools[idx] = {
+                            "id": tc_delta.id or "",
+                            "name": tc_delta.function.name if tc_delta.function and tc_delta.function.name else "",
+                            "arg_parts": [],
+                        }
+                    entry = pending_tools[idx]
+                    if tc_delta.id:
+                        entry["id"] = tc_delta.id
+                    if tc_delta.function:
+                        if tc_delta.function.name:
+                            entry["name"] = tc_delta.function.name
+                        if tc_delta.function.arguments:
+                            entry["arg_parts"].append(tc_delta.function.arguments)  # type: ignore[union-attr]
+
+        tool_calls: list[ToolCallDelta] = []
+        for entry in pending_tools.values():
+            raw_json = "".join(entry["arg_parts"])  # type: ignore[arg-type]
+            arguments = json.loads(raw_json) if raw_json else {}
+            tc = ToolCallDelta(id=str(entry["id"]), name=str(entry["name"]), arguments=arguments)
+            tool_calls.append(tc)
+            yield tc
+
+        return StreamResult(
+            stop_reason=finish_reason,
+            text=collected_text,
+            tool_calls=tool_calls,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             provider="openai",
             model=self.MODEL,
         )
@@ -278,3 +483,29 @@ def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: 
         ) from exc
 
     return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
+
+
+def stream_for_user(
+    *,
+    user: User,
+    system: str,
+    messages: list[dict[str, object]],
+    tools: list[dict[str, object]] | None = None,
+    max_tokens: int,
+) -> Generator[StreamEvent, None, StreamResult]:
+    """Stream a multi-turn tool-use conversation using the user's own API key."""
+    try:
+        llm = get_user_llm_client(user)
+    except ValueError as exc:
+        logger.error("User AI provider unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="AI is not configured. Please add your API key in Settings.",
+        ) from exc
+
+    return llm.stream_with_tools(
+        system=system,
+        messages=messages,
+        tools=tools,
+        max_tokens=max_tokens,
+    )
