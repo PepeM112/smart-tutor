@@ -14,6 +14,8 @@ from app.schemas.question import (
     BulkAssignQuestionsResponse,
     BulkDeleteQuestionsRequest,
     BulkDeleteQuestionsResponse,
+    BulkRestoreQuestionsRequest,
+    BulkRestoreQuestionsResponse,
     PaginatedQuestionListRead,
     QuestionCreateStandalone,
     QuestionGrouping,
@@ -108,6 +110,14 @@ def bulk_delete(
     """Delete every owned question in the batch. Questions the user doesn't own are skipped, not failed."""
     deleted = question_service.bulk_delete_questions(db, question_ids=data.question_ids, current_user=current_user)
     return BulkDeleteQuestionsResponse(deleted=deleted)
+
+
+@router.post("/bulk-restore", response_model=BulkRestoreQuestionsResponse)
+def bulk_restore(
+    data: BulkRestoreQuestionsRequest, db: DbSession, current_user: CurrentUser
+) -> BulkRestoreQuestionsResponse:
+    restored = question_service.restore_questions(db, question_ids=data.question_ids, current_user=current_user)
+    return BulkRestoreQuestionsResponse(restored=restored)
 
 
 @router.post("/bulk-assign", response_model=BulkAssignQuestionsResponse)

@@ -18,6 +18,8 @@ from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.schemas.note import NoteGenerate, NoteRefine
+from app.schemas.test import TestCreate
+from app.schemas.test_generation import TestGenerationRequest
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -34,6 +36,7 @@ if not logger.handlers:
 class ToolResult:
     output: str
     requires_confirmation: bool = False
+    metadata: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -166,9 +169,74 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["note_id", "instructions"],
         },
     },
+    {
+        "name": "create_test",
+        "description": (
+            "Generate a test with AI-created questions from an existing note. "
+            "Use list_notes first to find the note ID. Requires user confirmation before executing."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "note_id": {
+                    "type": "string",
+                    "description": "ID of the note to generate questions from.",
+                },
+                "question_count": {
+                    "type": "integer",
+                    "description": "Number of questions to generate (5-30). Defaults to 10.",
+                },
+                "question_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["SIMPLE", "MULTIPLE_CHOICE"],
+                    },
+                    "description": "Types of questions to generate. Defaults to both SIMPLE and MULTIPLE_CHOICE.",
+                },
+                "difficulty": {
+                    "type": "string",
+                    "enum": ["easy", "medium", "hard"],
+                    "description": "Question difficulty level. Defaults to medium.",
+                },
+            },
+            "required": ["note_id"],
+        },
+    },
+    {
+        "name": "edit_test",
+        "description": (
+            "Edit an existing test: rename it, change its description, or remove specific questions. "
+            "Use get_test_details first to see the test's questions and their IDs. "
+            "Requires user confirmation before executing."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "test_id": {
+                    "type": "string",
+                    "description": "ID of the test to edit.",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "New title for the test. Omit to keep current.",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "New description for the test. Omit to keep current.",
+                },
+                "remove_question_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "IDs of questions to remove from the test (use qid values from get_test_details).",
+                },
+            },
+            "required": ["test_id"],
+        },
+    },
 ]
 
-WRITE_TOOLS = {"create_note", "refine_note"}
+WRITE_TOOLS = {"create_note", "refine_note", "create_test", "edit_test"}
 
 
 def get_tool_definitions_anthropic() -> list[dict[str, Any]]:
@@ -262,18 +330,18 @@ def _get_test_details(db: Session, *, current_user: User, arguments: dict[str, o
     test = test_crud.get_by_id(db, id=test_id)
     if test is None or test.user_id != current_user.id:
         return ToolResult(output="Test not found.")
-    lines = [f"**{test.title}**"]
+    lines = [f"**{test.title}** (ID: `{test.id}`)"]
     if test.description:
         lines.append(test.description)
     lines.append("")
     idx = 1
-    for q in test.questions or []:
-        lines.append(f"{idx}. [{QuestionType(q.question_type).name}] {q.prompt}")
+    for q in sorted(test.questions or [], key=lambda q: q.order):
+        lines.append(f"{idx}. [{QuestionType(q.question_type).name}] {q.prompt} (qid: `{q.id}`)")
         idx += 1
-    for g in test.question_groups or []:
+    for g in sorted(test.question_groups or [], key=lambda g: g.order):
         lines.append(f"\n**Group: {g.title}**")
-        for q in g.questions or []:
-            lines.append(f"{idx}. [{QuestionType(q.question_type).name}] {q.prompt}")
+        for q in sorted(g.questions or [], key=lambda q: q.order):
+            lines.append(f"{idx}. [{QuestionType(q.question_type).name}] {q.prompt} (qid: `{q.id}`)")
             idx += 1
     if idx == 1:
         lines.append("(no questions)")
@@ -326,6 +394,9 @@ def _refine_note(db: Session, *, current_user: User, arguments: dict[str, object
     note_id = str(arguments.get("note_id", ""))
     instructions = str(arguments.get("instructions", ""))
 
+    old_note = note_service.get_note(db, note_id=note_id, current_user=current_user)
+    old_content = old_note.content or ""
+
     note = note_service.refine_note(
         db,
         note_id=note_id,
@@ -339,6 +410,132 @@ def _refine_note(db: Session, *, current_user: User, arguments: dict[str, object
             f"- **ID:** `{note.id}`\n"
             f"- **Preview:** {(note.content or '')[:300]}…"
         ),
+        metadata={
+            "note_id": note.id,
+            "old_content": old_content,
+            "new_content": note.content or "",
+        },
+    )
+
+
+def _create_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
+    from app.services import test_generation_service, test_service
+
+    note_id = str(arguments.get("note_id", ""))
+    question_count = int(arguments.get("question_count", 10))
+    question_count = max(5, min(30, question_count))
+
+    raw_types = arguments.get("question_types", ["SIMPLE", "MULTIPLE_CHOICE"])
+    if not isinstance(raw_types, list):
+        raw_types = ["SIMPLE", "MULTIPLE_CHOICE"]
+    q_types = []
+    for t in raw_types:
+        try:
+            q_types.append(QuestionType[str(t)])
+        except KeyError:
+            pass
+    if not q_types:
+        q_types = [QuestionType.SIMPLE, QuestionType.MULTIPLE_CHOICE]
+
+    difficulty = str(arguments.get("difficulty", "medium"))
+    if difficulty not in ("easy", "medium", "hard"):
+        difficulty = "medium"
+
+    gen_request = TestGenerationRequest(
+        note_id=note_id,
+        question_count=question_count,
+        question_types=q_types,
+        difficulty=difficulty,
+    )
+    gen_result = test_generation_service.generate_test_questions(
+        db,
+        current_user=current_user,
+        data=gen_request,
+    )
+
+    from app.schemas.question import QuestionCreate
+
+    questions = [
+        QuestionCreate(
+            question_type=q.question_type,
+            prompt=q.prompt,
+            points=q.points,
+            content=q.content,
+            order=i,
+        )
+        for i, q in enumerate(gen_result.questions)
+    ]
+
+    title = gen_result.source_note_title or "Generated Test"
+    test = test_service.create_test(
+        db,
+        current_user=current_user,
+        data=TestCreate(
+            title=title,
+            description=f"Auto-generated from note: {title}",
+            questions=questions,
+            source_note_id=gen_result.source_note_id,
+        ),
+    )
+
+    return ToolResult(
+        output=(
+            f"Test created successfully!\n"
+            f"- **Title:** {test.title}\n"
+            f"- **ID:** `{test.id}`\n"
+            f"- **Questions:** {len(questions)}"
+        ),
+    )
+
+
+def _edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
+    from app.services import question_service, test_service
+
+    test_id = str(arguments.get("test_id", ""))
+    test = test_service.get_test(db, test_id=test_id, current_user=current_user)
+
+    changes: list[str] = []
+
+    new_title = arguments.get("title")
+    new_description = arguments.get("description")
+    if new_title or new_description:
+        from app.schemas.test import TestUpdate
+
+        update_data = TestUpdate(
+            title=str(new_title) if new_title else None,
+            description=str(new_description) if new_description else None,
+        )
+        test = test_service.update_test(db, test_id=test_id, current_user=current_user, data=update_data)
+        if new_title:
+            changes.append(f"Title changed to **{new_title}**")
+        if new_description:
+            changes.append("Description updated")
+
+    removed_question_ids: list[str] = []
+    remove_ids = arguments.get("remove_question_ids")
+    if isinstance(remove_ids, list) and remove_ids:
+        str_ids = [str(qid) for qid in remove_ids]
+        deleted = question_service.bulk_delete_questions(
+            db, question_ids=str_ids, current_user=current_user, force_soft_delete=True
+        )
+        removed_question_ids = str_ids[:deleted]
+        changes.append(f"{deleted} question(s) removed")
+
+    if not changes:
+        return ToolResult(output="No changes specified.")
+
+    metadata: dict[str, Any] = {"test_id": test_id}
+    if removed_question_ids:
+        metadata["removed_question_ids"] = removed_question_ids
+
+    return ToolResult(
+        output=(
+            f"Test edited successfully!\n"
+            f"- **Title:** {test.title}\n"
+            f"- **ID:** `{test.id}`\n"
+            f"- **Changes:** {', '.join(changes)}"
+        ),
+        metadata=metadata,
     )
 
 
@@ -351,4 +548,6 @@ _HANDLERS: dict[str, Any] = {
     "navigate_to": _navigate_to,
     "create_note": _create_note,
     "refine_note": _refine_note,
+    "create_test": _create_test,
+    "edit_test": _edit_test,
 }

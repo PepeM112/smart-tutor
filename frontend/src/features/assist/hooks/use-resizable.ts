@@ -19,7 +19,8 @@ type UseResizableReturn = {
 
 const DEFAULT_SIZE: Size = { width: 460, height: 640 };
 const MIN_SIZE: Size = { width: 320, height: 400 };
-const MAX_SIZE: Size = { width: 700, height: 800 };
+const MAX_WIDTH = 700;
+const VIEWPORT_INSET = 12;
 
 export function useResizable(initialSize: Size = DEFAULT_SIZE): UseResizableReturn {
   const [size, setSize] = useState<Size>(initialSize);
@@ -58,13 +59,15 @@ export function useResizable(initialSize: Size = DEFAULT_SIZE): UseResizableRetu
         const dx = startRef.current.mouseX - ev.clientX;
         const dy = startRef.current.mouseY - ev.clientY;
 
+        const maxW = Math.min(MAX_WIDTH, startRef.current.w + startRef.current.posX - VIEWPORT_INSET);
+        const maxH = startRef.current.h + startRef.current.posY - VIEWPORT_INSET;
         const newWidth =
           edge === 'left' || edge === 'top-left'
-            ? Math.max(MIN_SIZE.width, Math.min(startRef.current.w + dx, MAX_SIZE.width))
+            ? Math.max(MIN_SIZE.width, Math.min(startRef.current.w + dx, maxW))
             : startRef.current.w;
         const newHeight =
           edge === 'top' || edge === 'top-left'
-            ? Math.max(MIN_SIZE.height, Math.min(startRef.current.h + dy, MAX_SIZE.height))
+            ? Math.max(MIN_SIZE.height, Math.min(startRef.current.h + dy, maxH))
             : startRef.current.h;
 
         setSize({ width: newWidth, height: newHeight });

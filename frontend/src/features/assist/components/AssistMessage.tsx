@@ -1,13 +1,15 @@
 'use client';
 
-import { AlertCircle, Check, CheckCircle, ExternalLink, Loader2, X } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { cn } from '@/lib/utils';
 
-import { TOOL_LABELS, WRITE_TOOLS, type ChatMessage } from '../types';
+import { useStreamingText } from '../hooks/use-streaming-text';
+import { useAssistDiffStore } from '../store/use-assist-diff-store';
+import { TOOL_LABELS, WRITE_TOOLS, type ChatMessage, type ConfirmContext, type ToolResultMetadata } from '../types';
 
 type AssistMessageRowProps = {
   message: ChatMessage;
@@ -23,13 +25,14 @@ export function AssistMessageRow({ message, onConfirm }: AssistMessageRowProps) 
     case 'tool_call':
       return <ToolCallRow name={message.name} status={message.status} />;
     case 'tool_result':
-      return <ToolResultRow name={message.name} output={message.output} />;
+      return <ToolResultRow name={message.name} output={message.output} metadata={message.metadata} />;
     case 'confirm_required':
       return (
         <ConfirmCard
           id={message.id}
           name={message.name}
           arguments={message.arguments}
+          context={message.context}
           status={message.status}
           onConfirm={onConfirm}
         />
@@ -50,6 +53,9 @@ function UserBubble({ content }: { content: string }) {
 }
 
 function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
+  const displayed = useStreamingText(content, streaming);
+  const isRevealing = streaming && displayed.length < content.length;
+
   if (!content && streaming) {
     return (
       <div className="flex items-center gap-2 py-1">
@@ -60,7 +66,7 @@ function AssistantBubble({ content, streaming }: { content: string; streaming: b
   }
 
   return (
-    <div className="max-w-[92%]">
+    <div className="max-w-[92%] text-left">
       <div
         className={cn(
           'markdown-body text-[13px] leading-[1.35] text-foreground',
@@ -80,8 +86,10 @@ function AssistantBubble({ content, streaming }: { content: string; streaming: b
           '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5'
         )}
       >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-        {streaming && <span className="ml-0.5 inline-block size-1.5 animate-pulse rounded-full bg-foreground/50" />}
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayed}</ReactMarkdown>
+        {(streaming || isRevealing) && (
+          <span className="ml-0.5 inline-block size-1.5 animate-pulse rounded-full bg-foreground/50" />
+        )}
       </div>
     </div>
   );
@@ -104,27 +112,61 @@ function ToolCallRow({ name, status }: { name: string; status: string }) {
   );
 }
 
-function ToolResultRow({ name, output }: { name: string; output: string }) {
+function ToolResultRow({
+  name,
+  output,
+  metadata,
+}: {
+  name: string;
+  output: string;
+  metadata?: ToolResultMetadata;
+}) {
   if (output.startsWith('__NAVIGATE__:')) return null;
   if (!WRITE_TOOLS.has(name)) return null;
 
   const idMatch = output.match(/\*\*ID:\*\* `([^`]+)`/);
   const resourceId = idMatch?.[1];
-  const viewPath =
-    name === 'create_note' || name === 'refine_note' ? (resourceId ? `/notes/${resourceId}` : null) : null;
+  const viewPath = resourceId
+    ? name === 'create_test' || name === 'edit_test'
+      ? `/tests/${resourceId}/edit`
+      : name === 'create_note' || name === 'refine_note'
+        ? `/notes/${resourceId}`
+        : null
+    : null;
+
+  const hasNoteDiff = name === 'refine_note' && metadata?.note_id && metadata.old_content != null;
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
       <p className="text-[12px] leading-[1.4] text-muted-foreground whitespace-pre-wrap">{output}</p>
-      {viewPath && (
-        <Link
-          href={viewPath}
-          className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
-        >
-          View <ExternalLink className="size-3" />
-        </Link>
-      )}
+      <div className="mt-2 flex items-center gap-3">
+        {viewPath && (
+          <Link
+            href={viewPath}
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
+          >
+            View <ExternalLink className="size-3" />
+          </Link>
+        )}
+        {hasNoteDiff && (
+          <ViewChangesButton noteId={metadata.note_id!} />
+        )}
+      </div>
     </div>
+  );
+}
+
+function ViewChangesButton({ noteId }: { noteId: string }) {
+  const pendingDiff = useAssistDiffStore(s => s.pendingNoteDiff);
+  if (!pendingDiff || pendingDiff.noteId !== noteId) return null;
+
+  return (
+    <Link
+      href={`/notes/${noteId}?diff=assist`}
+      className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
+    >
+      View changes <Eye className="size-3" />
+    </Link>
   );
 }
 
@@ -132,17 +174,23 @@ function ConfirmCard({
   id,
   name,
   arguments: args,
+  context,
   status,
   onConfirm,
 }: {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
+  context?: ConfirmContext;
   status: 'pending' | 'approved' | 'rejected';
   onConfirm: (id: string, approved: boolean) => void;
 }) {
   const label = TOOL_LABELS[name] ?? name;
   const summary = _summarizeArgs(name, args);
+  const questionsToRemove = context?.questions_to_remove;
+  const titleChange = context?.title_change;
+  const descChange = context?.description_change;
+  const hasContextDetails = questionsToRemove || titleChange || descChange;
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
@@ -152,14 +200,59 @@ function ConfirmCard({
         </span>
         <span className="text-[12px] font-medium text-foreground">{label}</span>
       </div>
-      {summary && <p className="mb-2 text-[12px] text-muted-foreground">{summary}</p>}
+      {summary && !hasContextDetails && <p className="mb-2 text-[12px] text-muted-foreground">{summary}</p>}
+
+      {titleChange && (
+        <div className="mb-2 space-y-0.5">
+          <p className="text-[12px] font-medium text-muted-foreground">Title:</p>
+          <div className="flex items-center gap-1.5 text-[11px]">
+            <span className="rounded border border-destructive/20 bg-destructive/5 px-1.5 py-0.5 text-foreground line-through">
+              {titleChange.from}
+            </span>
+            <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+            <span className="rounded border border-feedback-correct-border bg-feedback-correct-bg px-1.5 py-0.5 text-foreground">
+              {titleChange.to}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {descChange && (
+        <div className="mb-2 space-y-0.5">
+          <p className="text-[12px] font-medium text-muted-foreground">Description:</p>
+          <div className="space-y-0.5 text-[11px]">
+            <div className="rounded border border-destructive/20 bg-destructive/5 px-1.5 py-0.5 text-foreground line-through">
+              {descChange.from || '(empty)'}
+            </div>
+            <div className="rounded border border-feedback-correct-border bg-feedback-correct-bg px-1.5 py-0.5 text-foreground">
+              {descChange.to}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {questionsToRemove && questionsToRemove.length > 0 && (
+        <div className="mb-2 space-y-1">
+          <p className="text-[12px] font-medium text-muted-foreground">
+            {questionsToRemove.length === 1 ? 'Question to remove:' : 'Questions to remove:'}
+          </p>
+          {questionsToRemove.map(q => (
+            <div
+              key={q.id}
+              className="rounded-lg border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-[11px] leading-[1.4] text-foreground"
+            >
+              {q.prompt}
+            </div>
+          ))}
+        </div>
+      )}
 
       {status === 'pending' && (
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => onConfirm(id, true)}
-            className="flex h-7 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-medium text-primary-foreground transition-[background-color,transform] duration-200 hover:bg-primary/90 active:scale-[0.97]"
+            className="flex h-7 flex-1 items-center justify-center gap-1 rounded-lg bg-primary text-[12px] font-medium text-primary-foreground transition-[background-color,transform] duration-200 hover:bg-primary/90 active:scale-[0.98]"
           >
             <Check className="size-3" />
             Approve
@@ -167,7 +260,7 @@ function ConfirmCard({
           <button
             type="button"
             onClick={() => onConfirm(id, false)}
-            className="flex h-7 items-center gap-1 rounded-lg border border-border bg-background px-3 text-[12px] font-medium text-muted-foreground transition-[background-color,color,transform] duration-200 hover:bg-muted hover:text-foreground active:scale-[0.97]"
+            className="flex h-7 flex-1 items-center justify-center gap-1 rounded-lg border border-border bg-background text-[12px] font-medium text-muted-foreground transition-[background-color,color,transform] duration-200 hover:bg-muted hover:text-foreground active:scale-[0.98]"
           >
             <X className="size-3" />
             Reject
@@ -209,6 +302,19 @@ function _summarizeArgs(name: string, args: Record<string, unknown>): string {
       return `Topic: ${_argStr(args.topic)}${args.length ? ` (${_argStr(args.length)})` : ''}`;
     case 'refine_note':
       return `Instructions: ${_argStr(args.instructions)}`;
+    case 'create_test': {
+      const count = typeof args.question_count === 'number' ? args.question_count : 10;
+      const difficulty = _argStr(args.difficulty as string, 'medium');
+      return `${count} questions, ${difficulty} difficulty`;
+    }
+    case 'edit_test': {
+      const parts: string[] = [];
+      if (args.title) parts.push(`Rename to "${_argStr(args.title)}"`);
+      if (args.description) parts.push('Update description');
+      if (Array.isArray(args.remove_question_ids))
+        parts.push(`Remove ${args.remove_question_ids.length} question(s)`);
+      return parts.join(', ') || 'No changes';
+    }
     default:
       return JSON.stringify(args);
   }

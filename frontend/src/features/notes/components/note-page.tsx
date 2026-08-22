@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Save, X } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -10,12 +11,16 @@ import { type NoteRead } from '@/client';
 import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
+import { useAssistDiffStore } from '@/features/assist/store/use-assist-diff-store';
 import { GenerateTestDialog } from '@/features/tests/components/generate-test-dialog';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
+import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { sdk } from '@/lib/api-client';
 
+import { MarkdownRenderer } from './markdown-renderer';
 import { NoteEditor } from './note-editor';
 import { RefineNoteDialog } from './refine-note-dialog';
 import { TagInput } from './tag-input';
@@ -46,10 +51,13 @@ export function NotePage({ noteId }: Props) {
   );
 }
 
+const ASSIST_DIFF_SPLIT_KEY = 'assist-diff-split-ratio';
+
 function NoteForm({ note }: { note: NoteRead }) {
   const t = useTranslations();
   const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
+  const searchParams = useSearchParams();
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [title, setTitle] = useState(note.title);
   const [description, setDescription] = useState(note.description ?? '');
@@ -58,6 +66,19 @@ function NoteForm({ note }: { note: NoteRead }) {
   const [isDirty, setIsDirty] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const headerSnapshot = useRef({ title: '', description: '', tags: [] as string[] });
+
+  const pendingNoteDiff = useAssistDiffStore(s => s.pendingNoteDiff);
+  const clearPendingNoteDiff = useAssistDiffStore(s => s.clearPendingNoteDiff);
+  const showAssistDiff =
+    searchParams.get('diff') === 'assist' &&
+    pendingNoteDiff?.noteId === note.id;
+
+  const {
+    containerRef: assistDiffContainerRef,
+    splitRatio: assistDiffRatio,
+    handleDividerMouseDown: assistDiffDividerDown,
+    resetRatio: assistDiffResetRatio,
+  } = useResizableSplit(ASSIST_DIFF_SPLIT_KEY, 0.5);
   function startEditingHeader() {
     headerSnapshot.current = { title, description, tags: [...tags] };
     setIsEditingHeader(true);
@@ -201,16 +222,97 @@ function NoteForm({ note }: { note: NoteRead }) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <NoteEditor
-          key={editorKey}
-          content={content}
-          onChange={v => {
-            setContent(v);
-            markDirty();
-          }}
-          noteId={note.id}
-        />
+      <div ref={assistDiffContainerRef} className="flex flex-1 min-h-0 overflow-hidden gap-0">
+        <div className="min-w-0 flex-1 overflow-hidden" style={{ flex: isDesktop && showAssistDiff ? assistDiffRatio : 1 }}>
+          <NoteEditor
+            key={editorKey}
+            content={content}
+            onChange={v => {
+              setContent(v);
+              markDirty();
+            }}
+            noteId={note.id}
+          />
+        </div>
+
+        {/* Desktop: AI refine diff side panel */}
+        {isDesktop && showAssistDiff && pendingNoteDiff && (
+          <>
+            <div
+              className="shrink-0 relative flex items-center justify-center w-5 mx-2 cursor-col-resize"
+              onMouseDown={assistDiffDividerDown}
+              onDoubleClick={assistDiffResetRatio}
+            >
+              <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
+              <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
+            </div>
+            <div
+              className="min-w-0 overflow-hidden rounded-xl border border-border bg-card"
+              style={{ flex: 1 - assistDiffRatio }}
+            >
+              <AssistDiffPanel
+                oldContent={pendingNoteDiff.oldContent}
+                newContent={pendingNoteDiff.newContent}
+                onClose={clearPendingNoteDiff}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Mobile: AI refine diff as bottom drawer */}
+        {!isDesktop && (
+          <Drawer open={showAssistDiff && !!pendingNoteDiff} onOpenChange={open => !open && clearPendingNoteDiff()}>
+            <DrawerContent className="max-h-[75dvh]" title={t('notes_ai.changes')}>
+              {pendingNoteDiff && (
+                <div className="overflow-y-auto px-4 pb-8">
+                  <AssistDiffPanel
+                    oldContent={pendingNoteDiff.oldContent}
+                    newContent={pendingNoteDiff.newContent}
+                    onClose={clearPendingNoteDiff}
+                  />
+                </div>
+              )}
+            </DrawerContent>
+          </Drawer>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AssistDiffPanel({
+  oldContent,
+  newContent,
+  onClose,
+}: {
+  oldContent: string;
+  newContent: string;
+  onClose: () => void;
+}) {
+  const t = useTranslations();
+  return (
+    <div className="flex h-full flex-col p-4">
+      <div className="flex items-center justify-between mb-3 shrink-0">
+        <h3 className="text-sm font-semibold text-foreground">{t('notes_ai.changes')}</h3>
+        <Button variant="ghost" size="icon-sm" onClick={onClose} className="text-muted-foreground">
+          <X className="size-4" />
+        </Button>
+      </div>
+
+      <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">{t('notes_ai.old')}</p>
+      <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
+        <MarkdownRenderer content={oldContent} />
+      </div>
+
+      <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">{t('notes_ai.new')}</p>
+      <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
+        <MarkdownRenderer content={newContent} />
+      </div>
+
+      <div className="flex items-center justify-end mt-4 shrink-0">
+        <Button variant="outline" size="sm" onClick={onClose}>
+          {t('common.close')}
+        </Button>
       </div>
     </div>
   );

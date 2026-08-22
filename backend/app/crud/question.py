@@ -225,6 +225,12 @@ def hard_delete(db: Session, *, question: Question) -> None:
     db.flush()
 
 
+def bulk_restore(db: Session, *, questions: Sequence[Question]) -> None:
+    for q in questions:
+        q.status = int(QuestionStatus.ACTIVE)
+    db.flush()
+
+
 def list_random_for_user(db: Session, *, user_id: str, limit: int) -> Sequence[Question]:
     return db.scalars(_reviewable_base_query(user_id=user_id).order_by(func.random()).limit(limit)).all()
 

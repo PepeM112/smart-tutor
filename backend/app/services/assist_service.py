@@ -18,6 +18,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, AIProvider
+from app.crud import question as question_crud
+from app.crud import test as test_crud
 from app.models.user import User
 from app.schemas.assist import AssistMessage, AssistRequest, ToolConfirmation
 from app.services import token_usage_service
@@ -224,14 +226,14 @@ def _stream_assist_inner(
                         tool_name=tc_data["name"],
                         arguments=tc_data["arguments"],
                     )
-                    yield _sse(
-                        "tool_result",
-                        {
-                            "id": conf.tool_call_id,
-                            "name": tc_data["name"],
-                            "output": result.output,
-                        },
-                    )
+                    tr_event: dict[str, Any] = {
+                        "id": conf.tool_call_id,
+                        "name": tc_data["name"],
+                        "output": result.output,
+                    }
+                    if result.metadata:
+                        tr_event["metadata"] = result.metadata
+                    yield _sse("tool_result", tr_event)
                     # Feed the result back into the conversation
                     if is_anthropic:
                         provider_messages.append(
@@ -329,7 +331,11 @@ def _stream_assist_inner(
         if write_calls:
             # Pause: emit confirm_required for each write tool, then stop
             for wc in write_calls:
-                yield _sse("confirm_required", {"id": wc.id, "name": wc.name, "arguments": wc.arguments})
+                event_data: dict[str, Any] = {"id": wc.id, "name": wc.name, "arguments": wc.arguments}
+                context = _build_confirm_context(db, wc.name, wc.arguments)
+                if context:
+                    event_data["context"] = context
+                yield _sse("confirm_required", event_data)
             _record_usage(
                 db, current_user=current_user, total_input=total_input, total_output=total_output, result=stream_result
             )
@@ -383,6 +389,33 @@ def _stream_assist_inner(
         )
     yield _sse("error", {"message": "Too many tool rounds. Please try a simpler request."})
     yield _sse("done", {"usage": {"input_tokens": total_input, "output_tokens": total_output}})
+
+
+def _build_confirm_context(db: Session, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Resolve tool arguments into human-readable context for the confirm card."""
+    if tool_name == "edit_test":
+        context: dict[str, Any] = {}
+        test_id = arguments.get("test_id")
+        if test_id:
+            test = test_crud.get_by_id(db, id=str(test_id))
+            if test:
+                new_title = arguments.get("title")
+                if new_title:
+                    context["title_change"] = {"from": test.title, "to": str(new_title)}
+                new_desc = arguments.get("description")
+                if new_desc:
+                    context["description_change"] = {
+                        "from": test.description or "",
+                        "to": str(new_desc),
+                    }
+        remove_ids = arguments.get("remove_question_ids")
+        if isinstance(remove_ids, list) and remove_ids:
+            questions = question_crud.list_by_ids(db, ids=[str(qid) for qid in remove_ids])
+            context["questions_to_remove"] = [
+                {"id": q.id, "prompt": q.prompt} for q in questions
+            ]
+        return context if context else None
+    return None
 
 
 def _find_tool_call(messages: list[AssistMessage], tool_call_id: str) -> dict[str, Any] | None:

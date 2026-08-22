@@ -23,9 +23,7 @@ export function AssistInput({ onSend, onCommand, isStreaming }: AssistInputProps
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const query = draft.startsWith('/') ? draft.slice(1).toLowerCase() : '';
-  const filteredCommands = draft.startsWith('/')
-    ? COMMANDS.filter(c => c.name.slice(1).startsWith(query))
-    : [];
+  const filteredCommands = draft.startsWith('/') ? COMMANDS.filter(c => c.name.slice(1).startsWith(query)) : [];
   const commandMenuOpen = !dismissed && draft.startsWith('/') && filteredCommands.length > 0;
   const clampedIndex = Math.min(activeIndex, Math.max(0, filteredCommands.length - 1));
 
@@ -54,7 +52,9 @@ export function AssistInput({ onSend, onCommand, isStreaming }: AssistInputProps
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         setActiveIndex(i =>
-          e.key === 'ArrowDown' ? (i + 1) % filteredCommands.length : (i - 1 + filteredCommands.length) % filteredCommands.length
+          e.key === 'ArrowDown'
+            ? (i + 1) % filteredCommands.length
+            : (i - 1 + filteredCommands.length) % filteredCommands.length
         );
         return;
       }
@@ -111,7 +111,7 @@ export function AssistInput({ onSend, onCommand, isStreaming }: AssistInputProps
       <div
         role="presentation"
         onClick={() => inputRef.current?.focus()}
-        className="flex cursor-text items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.035)] transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.025)]"
+        className="flex cursor-text items-center gap-2 rounded-xl border border-border bg-muted/30 pl-4 pr-2 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.035)] transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.025)]"
       >
         <textarea
           ref={inputRef}

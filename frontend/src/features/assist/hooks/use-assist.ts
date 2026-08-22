@@ -1,24 +1,39 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useCallback, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
-import type {
-  AssistMessage,
-  AssistRequest,
-  ChatMessage,
-  PageContext,
-  SSEConfirmRequired,
-  SSEDone,
-  SSEError,
-  SSETextDelta,
-  SSEToolCall,
-  SSEToolExecuting,
-  SSEToolResult,
-  ToolCallData,
-  ToolConfirmation,
-  ToolResultData,
+import { sdk } from '@/lib/api-client';
+
+import { useAssistDiffStore } from '../store/use-assist-diff-store';
+import {
+  WRITE_TOOLS,
+  type AssistMessage,
+  type AssistRequest,
+  type ChatMessage,
+  type PageContext,
+  type SSEConfirmRequired,
+  type SSEDone,
+  type SSEError,
+  type SSETextDelta,
+  type SSEToolCall,
+  type SSEToolExecuting,
+  type SSEToolResult,
+  type ToolCallData,
+  type ToolConfirmation,
+  type ToolResultData,
 } from '../types';
+
+const TOOL_QUERY_KEYS: Record<string, string[][]> = {
+  create_note: [['notes']],
+  refine_note: [['notes']],
+  create_test: [['tests']],
+  edit_test: [['tests'], ['questions']],
+};
+
+const UNDO_TOAST_DURATION = 8000;
 
 type UseAssistReturn = {
   messages: ChatMessage[];
@@ -32,15 +47,40 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const conversationRef = useRef<AssistMessage[]>([]);
+  const pendingToolIdsRef = useRef<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
+  const queryClient = useQueryClient();
   const router = useRouter();
+  const setPendingNoteDiff = useAssistDiffStore(s => s.setPendingNoteDiff);
+
+  const resolvePendingConfirmations = useCallback(() => {
+    if (pendingToolIdsRef.current.size === 0) return;
+
+    const rejectedResults: ToolResultData[] = [...pendingToolIdsRef.current].map(id => ({
+      toolCallId: id,
+      output: 'User changed their request.',
+    }));
+
+    conversationRef.current.push({
+      role: 'tool',
+      content: '',
+      toolResults: rejectedResults,
+    });
+
+    setMessages(prev =>
+      prev.map(m =>
+        m.type === 'confirm_required' && m.status === 'pending' ? { ...m, status: 'rejected' as const } : m,
+      ),
+    );
+
+    pendingToolIdsRef.current.clear();
+  }, []);
 
   const streamResponse = useCallback(
     async (request: AssistRequest) => {
       setIsStreaming(true);
       abortRef.current = new AbortController();
 
-      // Add a placeholder for the assistant response
       setMessages(prev => [...prev, { type: 'assistant', content: '', streaming: true }]);
 
       let assistantText = '';
@@ -131,7 +171,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'tool_executing': {
             const { id } = data as SSEToolExecuting;
             setMessages(prev =>
-              prev.map(m => (m.type === 'tool_call' && m.id === id ? { ...m, status: 'running' as const } : m))
+              prev.map(m => (m.type === 'tool_call' && m.id === id ? { ...m, status: 'running' as const } : m)),
             );
             break;
           }
@@ -139,29 +179,71 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             const tr = data as SSEToolResult;
             toolResults.push({ toolCallId: tr.id, output: tr.output });
             setMessages(prev =>
-              prev.map(m => (m.type === 'tool_call' && m.id === tr.id ? { ...m, status: 'done' as const } : m))
+              prev.map(m => (m.type === 'tool_call' && m.id === tr.id ? { ...m, status: 'done' as const } : m)),
             );
-            setMessages(prev => [...prev, { type: 'tool_result', id: tr.id, name: tr.name, output: tr.output }]);
+            setMessages(prev => [
+              ...prev,
+              { type: 'tool_result', id: tr.id, name: tr.name, output: tr.output, metadata: tr.metadata },
+            ]);
 
-            // Handle navigation
             if (tr.output.startsWith('__NAVIGATE__:')) {
               const path = tr.output.split(':').slice(1).join(':');
               router.push(path);
             }
+
+            if (WRITE_TOOLS.has(tr.name)) {
+              const keys = TOOL_QUERY_KEYS[tr.name];
+              keys?.forEach(key => void queryClient.invalidateQueries({ queryKey: key }));
+            }
+
+            if (tr.name === 'edit_test' && tr.metadata?.removed_question_ids?.length) {
+              const ids = tr.metadata.removed_question_ids;
+              toast('Questions removed', {
+                description: `${ids.length} question(s) soft-deleted. You can undo this.`,
+                duration: UNDO_TOAST_DURATION,
+                action: {
+                  label: 'Undo',
+                  onClick: () => {
+                    void sdk.questionsBulkRestore({ body: { questionIds: ids } }).then(() => {
+                      void queryClient.invalidateQueries({ queryKey: ['tests'] });
+                      void queryClient.invalidateQueries({ queryKey: ['questions'] });
+                      toast.success('Questions restored');
+                    });
+                  },
+                },
+              });
+            }
+
+            if (tr.name === 'refine_note' && tr.metadata?.note_id && tr.metadata.old_content != null) {
+              setPendingNoteDiff({
+                noteId: tr.metadata.note_id,
+                oldContent: tr.metadata.old_content,
+                newContent: tr.metadata.new_content ?? '',
+              });
+            }
+
             break;
           }
           case 'confirm_required': {
             const cr = data as SSEConfirmRequired;
+            pendingToolIdsRef.current.add(cr.id);
             setMessages(prev => [
               ...prev,
-              { type: 'confirm_required', id: cr.id, name: cr.name, arguments: cr.arguments, status: 'pending' },
+              {
+                type: 'confirm_required',
+                id: cr.id,
+                name: cr.name,
+                arguments: cr.arguments,
+                context: cr.context,
+                status: 'pending',
+              },
             ]);
             break;
           }
           case 'done': {
             void (data as SSEDone);
             setMessages(prev =>
-              prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m))
+              prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m)),
             );
             const assistantMsg: AssistMessage = {
               role: 'assistant',
@@ -186,12 +268,14 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         }
       }
     },
-    [router]
+    [router, queryClient, setPendingNoteDiff],
   );
 
   const send = useCallback(
     (text: string) => {
       if (!text.trim() || isStreaming) return;
+
+      resolvePendingConfirmations();
 
       const userMsg: AssistMessage = { role: 'user', content: text };
       conversationRef.current.push(userMsg);
@@ -203,18 +287,29 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       };
       void streamResponse(request);
     },
-    [isStreaming, pageContext, streamResponse]
+    [isStreaming, pageContext, streamResponse, resolvePendingConfirmations],
   );
 
   const confirm = useCallback(
     (toolCallId: string, approved: boolean) => {
+      pendingToolIdsRef.current.delete(toolCallId);
+
       setMessages(prev =>
         prev.map(m =>
           m.type === 'confirm_required' && m.id === toolCallId
             ? { ...m, status: approved ? ('approved' as const) : ('rejected' as const) }
-            : m
-        )
+            : m,
+        ),
       );
+
+      if (!approved) {
+        conversationRef.current.push({
+          role: 'tool',
+          content: '',
+          toolResults: [{ toolCallId, output: 'User declined this action.' }],
+        });
+        return;
+      }
 
       const confirmation: ToolConfirmation = { toolCallId, approved };
 
@@ -225,12 +320,13 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       };
       void streamResponse(request);
     },
-    [pageContext, streamResponse]
+    [pageContext, streamResponse],
   );
 
   const clear = useCallback(() => {
     abortRef.current?.abort();
     conversationRef.current = [];
+    pendingToolIdsRef.current.clear();
     setMessages([]);
     setIsStreaming(false);
   }, []);

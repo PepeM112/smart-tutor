@@ -99,6 +99,99 @@ export const AssignQuestionRequestSchema = {
     title: 'AssignQuestionRequest'
 } as const;
 
+export const AssistMessageSchema = {
+    properties: {
+        role: {
+            type: 'string',
+            enum: [
+                'user',
+                'assistant',
+                'tool'
+            ],
+            title: 'Role'
+        },
+        content: {
+            type: 'string',
+            title: 'Content',
+            default: ''
+        },
+        toolCalls: {
+            anyOf: [
+                {
+                    items: {
+                        $ref: '#/components/schemas/ToolCallData'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Toolcalls'
+        },
+        toolResults: {
+            anyOf: [
+                {
+                    items: {
+                        $ref: '#/components/schemas/ToolResultData'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Toolresults'
+        }
+    },
+    type: 'object',
+    required: [
+        'role'
+    ],
+    title: 'AssistMessage'
+} as const;
+
+export const AssistRequestSchema = {
+    properties: {
+        messages: {
+            items: {
+                $ref: '#/components/schemas/AssistMessage'
+            },
+            type: 'array',
+            title: 'Messages'
+        },
+        pageContext: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/PageContext'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        toolConfirmations: {
+            anyOf: [
+                {
+                    items: {
+                        $ref: '#/components/schemas/ToolConfirmation'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Toolconfirmations'
+        }
+    },
+    type: 'object',
+    required: [
+        'messages'
+    ],
+    title: 'AssistRequest'
+} as const;
+
 export const Body_usersLoginSchema = {
     properties: {
         grant_type: {
@@ -226,6 +319,38 @@ export const BulkDeleteQuestionsResponseSchema = {
         'deleted'
     ],
     title: 'BulkDeleteQuestionsResponse'
+} as const;
+
+export const BulkRestoreQuestionsRequestSchema = {
+    properties: {
+        questionIds: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Questionids'
+        }
+    },
+    type: 'object',
+    required: [
+        'questionIds'
+    ],
+    title: 'BulkRestoreQuestionsRequest'
+} as const;
+
+export const BulkRestoreQuestionsResponseSchema = {
+    properties: {
+        restored: {
+            type: 'integer',
+            title: 'Restored'
+        }
+    },
+    type: 'object',
+    required: [
+        'restored'
+    ],
+    title: 'BulkRestoreQuestionsResponse'
 } as const;
 
 export const ChallengeRequestSchema = {
@@ -795,6 +920,42 @@ export const NoteUpdateSchema = {
     },
     type: 'object',
     title: 'NoteUpdate'
+} as const;
+
+export const PageContextSchema = {
+    properties: {
+        route: {
+            type: 'string',
+            title: 'Route'
+        },
+        resourceType: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Resourcetype'
+        },
+        resourceId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Resourceid'
+        }
+    },
+    type: 'object',
+    required: [
+        'route'
+    ],
+    title: 'PageContext'
 } as const;
 
 export const PaginatedResponse_NoteRead_Schema = {
@@ -2589,6 +2750,68 @@ export const TokenUsageSummaryResponseSchema = {
         'totalEstimatedCost'
     ],
     title: 'TokenUsageSummaryResponse'
+} as const;
+
+export const ToolCallDataSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        arguments: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Arguments'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'name',
+        'arguments'
+    ],
+    title: 'ToolCallData'
+} as const;
+
+export const ToolConfirmationSchema = {
+    properties: {
+        toolCallId: {
+            type: 'string',
+            title: 'Toolcallid'
+        },
+        approved: {
+            type: 'boolean',
+            title: 'Approved'
+        }
+    },
+    type: 'object',
+    required: [
+        'toolCallId',
+        'approved'
+    ],
+    title: 'ToolConfirmation'
+} as const;
+
+export const ToolResultDataSchema = {
+    properties: {
+        toolCallId: {
+            type: 'string',
+            title: 'Toolcallid'
+        },
+        output: {
+            title: 'Output'
+        }
+    },
+    type: 'object',
+    required: [
+        'toolCallId',
+        'output'
+    ],
+    title: 'ToolResultData'
 } as const;
 
 export const UserCreateSchema = {

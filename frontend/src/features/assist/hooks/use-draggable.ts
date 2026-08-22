@@ -4,6 +4,8 @@ import { useCallback, useRef, useState } from 'react';
 
 type Position = { x: number; y: number };
 
+type Size = { width: number; height: number };
+
 type UseDraggableReturn = {
   position: Position;
   isDragging: boolean;
@@ -14,8 +16,9 @@ type UseDraggableReturn = {
 };
 
 const DEFAULT_POSITION: Position = { x: -1, y: -1 };
+const VIEWPORT_INSET = 12;
 
-export function useDraggable(initialPosition: Position = DEFAULT_POSITION): UseDraggableReturn {
+export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panelSize?: Size): UseDraggableReturn {
   const [position, setPosition] = useState<Position>(initialPosition);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; posX: number; posY: number } | null>(null);
@@ -47,9 +50,11 @@ export function useDraggable(initialPosition: Position = DEFAULT_POSITION): UseD
         if (!didMove && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
         didMove = true;
         setIsDragging(true);
+        const pw = panelSize?.width ?? rect.width;
+        const ph = panelSize?.height ?? rect.height;
         setPosition({
-          x: Math.max(0, Math.min(dragStartRef.current.posX + dx, window.innerWidth - 100)),
-          y: Math.max(0, Math.min(dragStartRef.current.posY + dy, window.innerHeight - 100)),
+          x: Math.max(VIEWPORT_INSET, Math.min(dragStartRef.current.posX + dx, window.innerWidth - pw - VIEWPORT_INSET)),
+          y: Math.max(VIEWPORT_INSET, Math.min(dragStartRef.current.posY + dy, window.innerHeight - ph - VIEWPORT_INSET)),
         });
       };
 
@@ -70,7 +75,7 @@ export function useDraggable(initialPosition: Position = DEFAULT_POSITION): UseD
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
-    [position]
+    [position, panelSize]
   );
 
   const resetPosition = useCallback(() => {
