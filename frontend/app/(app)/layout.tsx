@@ -1,6 +1,7 @@
 import { Breadcrumb } from '@/components/breadcrumb';
 import { MobileHeader } from '@/components/layout/mobile-header';
 import { Sidebar } from '@/components/layout/sidebar';
+import { AssistPanel } from '@/features/assist/components/AssistPanel';
 import { AuthGuard } from '@/features/auth/components/auth-guard';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="px-4 pb-4 lg:px-8 lg:pb-8">{children}</div>
         </main>
       </div>
+      <AssistPanel />
     </AuthGuard>
   );
 }

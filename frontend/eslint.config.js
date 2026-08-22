@@ -15,7 +15,16 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    ignores: ['dist/', 'node_modules/', '.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'src/client/**'],
+    ignores: [
+      'dist/',
+      'node_modules/',
+      '.next/**',
+      'out/**',
+      'build/**',
+      'next-env.d.ts',
+      'src/client/**',
+      'app/(app)/components-ideas/**',
+    ],
   },
 
   js.configs.recommended,
