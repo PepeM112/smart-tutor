@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import type { buttonVariants } from '@/components/ui/button';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
   Card,
   CardAction,
@@ -42,6 +43,9 @@ export default function SandboxPage() {
   const [switchB, setSwitchB] = useState(true);
   const [checkA, setCheckA] = useState(false);
   const [checkB, setCheckB] = useState(true);
+  const [bgDefault, setBgDefault] = useState<string>('a');
+  const [bgSm, setBgSm] = useState<string>('a');
+  const [bgXs, setBgXs] = useState<string>('a');
 
   return (
     <div className="space-y-6">
@@ -83,6 +87,43 @@ export default function SandboxPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </SandboxBlock>
+
+      {/* ── ButtonGroup ── */}
+      <SandboxBlock title="ButtonGroup — sizes">
+        <div className="space-y-5">
+          {([
+            { label: 'default', size: 'default' as const, value: bgDefault, onChange: setBgDefault },
+            { label: 'sm', size: 'sm' as const, value: bgSm, onChange: setBgSm },
+            { label: 'xs', size: 'xs' as const, value: bgXs, onChange: setBgXs },
+          ]).map(row => (
+            <div key={row.label} className="flex items-center gap-4">
+              <span className="w-16"><StateLabel>{row.label}</StateLabel></span>
+              <ButtonGroup
+                value={row.value}
+                onChange={row.onChange}
+                items={[
+                  { label: 'Option A', value: 'a' },
+                  { label: 'Option B', value: 'b' },
+                  { label: 'Option C', value: 'c' },
+                ]}
+                size={row.size}
+              />
+            </div>
+          ))}
+          <div className="flex items-center gap-4">
+            <span className="w-16"><StateLabel>disabled</StateLabel></span>
+            <ButtonGroup
+              value="a"
+              onChange={() => {}}
+              items={[
+                { label: 'Option A', value: 'a' },
+                { label: 'Option B', value: 'b' },
+              ]}
+              disabled
+            />
+          </div>
         </div>
       </SandboxBlock>
 

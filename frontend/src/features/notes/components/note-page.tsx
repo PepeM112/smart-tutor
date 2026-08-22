@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Save, X } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
@@ -13,7 +13,9 @@ import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
+import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
 import { useAssistDiffStore } from '@/features/assist/store/use-assist-diff-store';
+import { formatNoteDetail } from '@/features/assist/utils/format-page-data';
 import { GenerateTestDialog } from '@/features/tests/components/generate-test-dialog';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
@@ -39,6 +41,9 @@ export function NotePage({ noteId }: Props) {
     queryKey: ['notes', noteId],
     queryFn: () => sdk.notesGet({ path: { note_id: noteId } }),
   });
+
+  const noteData = note?.data;
+  useProvidePageData(useMemo(() => (noteData ? formatNoteDetail(noteData) : null), [noteData]));
 
   return (
     <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>

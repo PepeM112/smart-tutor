@@ -6,26 +6,23 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useAssistContext } from '../context/assist-context';
 import { useAssistPanelStore } from '../store/use-assist-panel-store';
 
-import { AssistFloatingCard } from './AssistFloatingCard';
+import { AssistDockedColumn } from './AssistDockedColumn';
 
 /**
- * Renders the floating card / FAB when appropriate.
- * The docked column is rendered in the layout directly, not here.
+ * Conditionally renders the docked column inside the layout flex container.
+ * Only visible when mode is docked, screen is xl+, and panel is open.
  */
-export function AssistPanel() {
+export function AssistDockedWrapper() {
   const aiAvailable = useAiAvailable();
   const { isXl } = useBreakpoint();
   const mode = useAssistPanelStore(s => s.mode);
   const isOpen = useAssistPanelStore(s => s.isOpen);
   const { messages, isStreaming, send, stop, confirm, clear } = useAssistContext();
 
-  if (!aiAvailable) return null;
-
-  // When docked + open at xl+, the column renders in the layout — hide the floating card
-  if (mode === 'docked' && isXl && isOpen) return null;
+  if (!aiAvailable || !isXl || mode !== 'docked' || !isOpen) return null;
 
   return (
-    <AssistFloatingCard
+    <AssistDockedColumn
       messages={messages}
       isStreaming={isStreaming}
       onSend={send}

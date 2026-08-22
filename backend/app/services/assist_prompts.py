@@ -59,6 +59,7 @@ about X", find the question whose prompt matches X and use its qid.
 - /review — SRS review session
 - /history — past test results
 - /settings — user settings (including AI API keys)
+- /stats — AI usage statistics
 """
 
 
@@ -69,6 +70,12 @@ def build_system_prompt(page_context: PageContext | None) -> str:
         ctx_parts = [f"\n## Current page context\nThe user is currently on: `{page_context.route}`"]
         if page_context.resource_type and page_context.resource_id:
             ctx_parts.append(f"They are viewing a {page_context.resource_type} with ID `{page_context.resource_id}`.")
+        if page_context.context_data:
+            ctx_parts.append(
+                "\nThe page currently shows the following data (use it to answer questions "
+                "without calling read tools unless you need more detail):\n"
+                f"```\n{page_context.context_data}\n```"
+            )
         prompt += "\n".join(ctx_parts)
 
     return prompt

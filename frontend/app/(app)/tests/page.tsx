@@ -11,6 +11,8 @@ import { FilterPopover } from '@/components/shared/filters/filter-popover';
 import { Pagination } from '@/components/shared/pagination';
 import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
+import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
+import { formatTestsList } from '@/features/assist/utils/format-page-data';
 import { QuickTestDialog } from '@/features/tests/components/quick-test-dialog';
 import { TestsTable } from '@/features/tests/components/tests-table';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
@@ -106,6 +108,8 @@ export default function TestsPage() {
   const total = response?.data?.total ?? 0;
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
+
+  useProvidePageData(useMemo(() => (items.length > 0 ? formatTestsList(items) : null), [items]));
 
   return (
     <div className="space-y-6">

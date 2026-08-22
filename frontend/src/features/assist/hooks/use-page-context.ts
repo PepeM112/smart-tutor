@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 
+import { usePageData } from '../context/page-data-context';
+
 import type { PageContext } from '../types';
 
 const RESOURCE_PATTERNS: { pattern: RegExp; type: string }[] = [
@@ -14,6 +16,7 @@ const RESOURCE_PATTERNS: { pattern: RegExp; type: string }[] = [
 
 export function usePageContext(): PageContext {
   const pathname = usePathname();
+  const { contextData } = usePageData();
 
   return useMemo(() => {
     const ctx: PageContext = { route: pathname };
@@ -27,6 +30,10 @@ export function usePageContext(): PageContext {
       }
     }
 
+    if (contextData) {
+      ctx.contextData = contextData;
+    }
+
     return ctx;
-  }, [pathname]);
+  }, [pathname, contextData]);
 }

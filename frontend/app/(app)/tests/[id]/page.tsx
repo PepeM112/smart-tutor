@@ -3,10 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { use } from 'react';
+import { use, useMemo } from 'react';
 import { toast } from 'sonner';
 
 import { QueryState } from '@/components/shared/query-state';
+import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
+import { formatTestDetail } from '@/features/assist/utils/format-page-data';
 import { ExamView } from '@/features/tests/components/exam-view';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';
@@ -32,6 +34,8 @@ export default function TakeTestPage({ params }: Props) {
   });
 
   const test = testResponse?.data;
+
+  useProvidePageData(useMemo(() => (test ? formatTestDetail(test) : null), [test]));
 
   const { mutate: submitExam, isPending: isSubmitting } = useMutation({
     mutationFn: (answers: Record<string, string>) =>
