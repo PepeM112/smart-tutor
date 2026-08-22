@@ -5,6 +5,7 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { useStreamingText } from '../hooks/use-streaming-text';
@@ -249,22 +250,24 @@ function ConfirmCard({
 
       {status === 'pending' && (
         <div className="flex gap-2">
-          <button
-            type="button"
+          <Button
+            variant="default"
+            size="sm"
+            className="flex-1"
             onClick={() => onConfirm(id, true)}
-            className="flex h-7 flex-1 items-center justify-center gap-1 rounded-lg bg-primary text-[12px] font-medium text-primary-foreground transition-[background-color,transform] duration-200 hover:bg-primary/90 active:scale-[0.98]"
           >
             <Check className="size-3" />
             Approve
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
             onClick={() => onConfirm(id, false)}
-            className="flex h-7 flex-1 items-center justify-center gap-1 rounded-lg border border-border bg-background text-[12px] font-medium text-muted-foreground transition-[background-color,color,transform] duration-200 hover:bg-muted hover:text-foreground active:scale-[0.98]"
           >
             <X className="size-3" />
             Reject
-          </button>
+          </Button>
         </div>
       )}
       {status === 'approved' && (

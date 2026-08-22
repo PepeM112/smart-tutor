@@ -13,10 +13,11 @@ const COMMANDS: SlashCommand[] = [{ name: '/clear', description: 'Clear the conv
 type AssistInputProps = {
   onSend: (text: string) => void;
   onCommand: (command: string) => void;
+  onStop?: () => void;
   isStreaming: boolean;
 };
 
-export function AssistInput({ onSend, onCommand, isStreaming }: AssistInputProps) {
+export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistInputProps) {
   const [draft, setDraft] = useState('');
   const [dismissed, setDismissed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -131,7 +132,7 @@ export function AssistInput({ onSend, onCommand, isStreaming }: AssistInputProps
           type="button"
           aria-label={isStreaming ? 'Stop' : 'Send'}
           disabled={!canSend && !isStreaming}
-          onClick={handleSend}
+          onClick={isStreaming ? onStop : handleSend}
           className="flex size-7 shrink-0 items-center justify-center self-end rounded-lg transition-[background-color,color,transform] duration-200 enabled:active:scale-95"
           style={{
             background: canSend || isStreaming ? 'var(--primary)' : 'var(--muted)',

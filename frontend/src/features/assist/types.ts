@@ -1,37 +1,11 @@
-export type PageContext = {
-  route: string;
-  resourceType?: string;
-  resourceId?: string;
-};
-
-export type ToolCallData = {
-  id: string;
-  name: string;
-  arguments: Record<string, unknown>;
-};
-
-export type ToolResultData = {
-  toolCallId: string;
-  output: unknown;
-};
-
-export type AssistMessage = {
-  role: 'user' | 'assistant' | 'tool';
-  content: string;
-  toolCalls?: ToolCallData[];
-  toolResults?: ToolResultData[];
-};
-
-export type ToolConfirmation = {
-  toolCallId: string;
-  approved: boolean;
-};
-
-export type AssistRequest = {
-  messages: AssistMessage[];
-  pageContext?: PageContext;
-  toolConfirmations?: ToolConfirmation[];
-};
+export type {
+  AssistMessage,
+  AssistRequest,
+  PageContext,
+  ToolCallData,
+  ToolConfirmation,
+  ToolResultData,
+} from '@/client';
 
 // SSE events emitted by the backend
 export type SSETextDelta = { content: string };
@@ -70,8 +44,8 @@ export type ToolResultMetadata = {
 
 // UI-level message for rendering
 export type ChatMessage =
-  | { type: 'user'; content: string }
-  | { type: 'assistant'; content: string; streaming: boolean }
+  | { type: 'user'; id: string; content: string }
+  | { type: 'assistant'; id: string; content: string; streaming: boolean }
   | {
       type: 'tool_call';
       id: string;
@@ -88,7 +62,7 @@ export type ChatMessage =
       context?: ConfirmContext;
       status: 'pending' | 'approved' | 'rejected';
     }
-  | { type: 'error'; message: string };
+  | { type: 'error'; id: string; message: string };
 
 export const WRITE_TOOLS = new Set(['create_note', 'refine_note', 'create_test', 'edit_test']);
 

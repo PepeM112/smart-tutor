@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Size = { width: number; height: number };
 type Position = { x: number; y: number };
@@ -33,6 +33,13 @@ export function useResizable(initialSize: Size = DEFAULT_SIZE): UseResizableRetu
     posX: number;
     posY: number;
   } | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
 
   const handleResizeStart = useCallback(
     (
@@ -85,12 +92,17 @@ export function useResizable(initialSize: Size = DEFAULT_SIZE): UseResizableRetu
         startRef.current = null;
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        cleanupRef.current = null;
       };
 
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      cleanupRef.current = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
     },
-    [size]
+    [size],
   );
 
   const resetSize = useCallback(() => {

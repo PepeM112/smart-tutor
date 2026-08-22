@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Position = { x: number; y: number };
 
@@ -23,6 +23,13 @@ export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panel
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; posX: number; posY: number } | null>(null);
   const wasDraggedRef = useRef(false);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -63,6 +70,7 @@ export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panel
         dragStartRef.current = null;
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        cleanupRef.current = null;
 
         if (didMove) {
           wasDraggedRef.current = true;
@@ -74,8 +82,12 @@ export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panel
 
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      cleanupRef.current = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
     },
-    [position, panelSize]
+    [position, panelSize],
   );
 
   const resetPosition = useCallback(() => {

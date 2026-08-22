@@ -39,11 +39,6 @@ from app.services.llm import (
 )
 
 logger = logging.getLogger("smarttutor.assist")
-logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    _h = logging.StreamHandler()
-    _h.setFormatter(logging.Formatter("%(levelname)s [%(name)s] %(message)s"))
-    logger.addHandler(_h)
 
 MAX_TOKENS = 4096
 MAX_TOOL_ROUNDS = 6
@@ -182,9 +177,16 @@ def stream_assist(
     """Run the agentic loop and yield SSE-formatted strings."""
     try:
         yield from _stream_assist_inner(db, current_user=current_user, request=request)
-    except Exception:
-        logger.exception("Unhandled error in stream_assist")
-        yield _sse("error", {"message": "An unexpected error occurred."})
+    except Exception as exc:
+        from app.services.llm import _classify_provider_error
+
+        classified = _classify_provider_error(exc)
+        if classified:
+            logger.warning("Provider error in stream_assist: %s", classified.detail)
+            yield _sse("error", {"message": str(classified.detail)})
+        else:
+            logger.exception("Unhandled error in stream_assist")
+            yield _sse("error", {"message": "An unexpected error occurred."})
         yield _sse("done", {"usage": {"input_tokens": 0, "output_tokens": 0}})
 
 
@@ -332,7 +334,7 @@ def _stream_assist_inner(
             # Pause: emit confirm_required for each write tool, then stop
             for wc in write_calls:
                 event_data: dict[str, Any] = {"id": wc.id, "name": wc.name, "arguments": wc.arguments}
-                context = _build_confirm_context(db, wc.name, wc.arguments)
+                context = _build_confirm_context(db, wc.name, wc.arguments, current_user)
                 if context:
                     event_data["context"] = context
                 yield _sse("confirm_required", event_data)
@@ -391,14 +393,16 @@ def _stream_assist_inner(
     yield _sse("done", {"usage": {"input_tokens": total_input, "output_tokens": total_output}})
 
 
-def _build_confirm_context(db: Session, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+def _build_confirm_context(
+    db: Session, tool_name: str, arguments: dict[str, Any], current_user: User
+) -> dict[str, Any] | None:
     """Resolve tool arguments into human-readable context for the confirm card."""
     if tool_name == "edit_test":
         context: dict[str, Any] = {}
         test_id = arguments.get("test_id")
         if test_id:
             test = test_crud.get_by_id(db, id=str(test_id))
-            if test:
+            if test and test.user_id == current_user.id:
                 new_title = arguments.get("title")
                 if new_title:
                     context["title_change"] = {"from": test.title, "to": str(new_title)}
@@ -412,7 +416,7 @@ def _build_confirm_context(db: Session, tool_name: str, arguments: dict[str, Any
         if isinstance(remove_ids, list) and remove_ids:
             questions = question_crud.list_by_ids(db, ids=[str(qid) for qid in remove_ids])
             context["questions_to_remove"] = [
-                {"id": q.id, "prompt": q.prompt} for q in questions
+                {"id": q.id, "prompt": q.prompt} for q in questions if q.user_id == current_user.id
             ]
         return context if context else None
     return None

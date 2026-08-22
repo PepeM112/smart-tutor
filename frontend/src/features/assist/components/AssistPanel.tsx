@@ -2,7 +2,7 @@
 
 import { Minus, RotateCw, WandSparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useAiAvailable } from '@/hooks/use-ai-available';
@@ -13,8 +13,8 @@ import { useDraggable } from '../hooks/use-draggable';
 import { usePageContext } from '../hooks/use-page-context';
 import { useResizable } from '../hooks/use-resizable';
 
+import AssistChatBody from './AssistChatBody';
 import { AssistInput } from './AssistInput';
-import { AssistMessageRow } from './AssistMessage';
 
 const FAB_SIZE = 56;
 const DEFAULT_OFFSET = 24;
@@ -27,22 +27,15 @@ export function AssistPanel() {
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const pageContext = usePageContext();
-  const { messages, isStreaming, send, confirm, clear } = useAssist(pageContext);
+  const { messages, isStreaming, send, stop, confirm, clear } = useAssist(pageContext);
 
   const { size, isResizing, handleResizeStart, resetSize } = useResizable();
   const fab = useDraggable();
   const card = useDraggable(undefined, size);
 
   const panelRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const isDragging = fab.isDragging || card.isDragging;
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   const resolveElement = (): { x: number; y: number } | null => {
     const el = panelRef.current;
@@ -105,15 +98,12 @@ export function AssistPanel() {
     }, CONTENT_FADE_MS);
   };
 
-  const handleClearChat = () => {
-    clear();
-  };
-
   const handleResetPositionAndSize = () => {
     const targetX = window.innerWidth - 460 - DEFAULT_OFFSET;
     const targetY = window.innerHeight - 640 - DEFAULT_OFFSET;
     card.setPosition({ x: targetX, y: targetY });
     resetSize();
+    // Wait for the CSS morph transition to finish before clearing explicit positions
     setTimeout(() => {
       card.resetPosition();
       fab.resetPosition();
@@ -135,15 +125,46 @@ export function AssistPanel() {
       if (card.position.x === -1) card.setPosition(resolved);
       handleResizeStart(e, edge, resolved, card.setPosition);
     },
-    [handleResizeStart, card, resolveCardPosition]
+    [handleResizeStart, card, resolveCardPosition],
   );
 
   if (!aiAvailable) return null;
 
+  const composer = (
+    <AssistInput
+      onSend={send}
+      onStop={stop}
+      onCommand={cmd => {
+        if (cmd === '/clear') clear();
+      }}
+      isStreaming={isStreaming}
+    />
+  );
+
+  const headerActions = (variant: 'mobile' | 'desktop') => (
+    <div className={`flex items-center ${variant === 'desktop' ? 'gap-0.5' : 'gap-1'}`}>
+      <Button
+        variant="ghost"
+        size={variant === 'desktop' ? 'icon-sm' : 'icon'}
+        icon={RotateCw}
+        onClick={clear}
+        aria-label="Clear chat"
+        tooltip="Clear chat"
+      />
+      <Button
+        variant="ghost"
+        size={variant === 'desktop' ? 'icon-sm' : 'icon'}
+        icon={Minus}
+        onClick={variant === 'desktop' ? handleMinimize : () => setOpen(false)}
+        aria-label={variant === 'desktop' ? 'Minimize' : 'Close'}
+        tooltip={variant === 'desktop' ? 'Minimize' : 'Close'}
+      />
+    </div>
+  );
+
   if (isMobile) {
     return (
       <>
-        {/* FAB */}
         {!open && (
           <button
             type="button"
@@ -155,7 +176,6 @@ export function AssistPanel() {
           </button>
         )}
 
-        {/* Modal overlay */}
         <AnimatePresence>
           {open && (
             <>
@@ -176,55 +196,23 @@ export function AssistPanel() {
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                 className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-background shadow-xl"
               >
-                {/* Header */}
                 <div className="flex shrink-0 items-center justify-between border-b border-border px-2 py-1.5">
                   <div className="flex flex-1 items-center gap-1.5 px-1 py-1">
                     <WandSparkles className="size-4 text-muted-foreground" />
                     <span className="text-sm font-medium text-foreground">Assistant</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      icon={RotateCw}
-                      onClick={handleClearChat}
-                      aria-label="Clear chat"
-                      tooltip="Clear chat"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      icon={Minus}
-                      onClick={() => setOpen(false)}
-                      aria-label="Close"
-                      tooltip="Close"
-                    />
-                  </div>
+                  {headerActions('mobile')}
                 </div>
 
-                {/* Messages */}
-                <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-5 py-3">
-                  {messages.length === 0 && (
-                    <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-                      <WandSparkles className="size-8 text-muted-foreground/30" />
-                      <p className="text-[13px] text-muted-foreground">Ask me anything about your studies.</p>
-                      <p className="text-xs text-muted-foreground/60">
-                        I can search your notes, tests, and questions, or create new content for you.
-                      </p>
-                    </div>
-                  )}
-                  {messages.map((msg, i) => (
-                    <AssistMessageRow key={i} message={msg} onConfirm={confirm} />
-                  ))}
-                </div>
-
-                {/* Composer */}
-                <AssistInput
+                <AssistChatBody
+                  messages={messages}
+                  onConfirm={confirm}
+                  isStreaming={isStreaming}
                   onSend={send}
                   onCommand={cmd => {
                     if (cmd === '/clear') clear();
                   }}
-                  isStreaming={isStreaming}
+                  footer={composer}
                 />
               </motion.div>
             </>
@@ -293,7 +281,6 @@ export function AssistPanel() {
             transition={{ duration: closing ? CONTENT_FADE_MS / 1000 : 0.18, delay: closing ? 0 : 0.08 }}
             className="flex h-full flex-col bg-background"
           >
-            {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-border px-1.5 py-1">
               <div
                 onMouseDown={card.handleMouseDown}
@@ -303,50 +290,18 @@ export function AssistPanel() {
                 <WandSparkles className="size-3.5 text-muted-foreground" />
                 <span className="text-[13px] font-medium text-foreground">Assistant</span>
               </div>
-
-              <div className="flex items-center gap-0.5">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  icon={RotateCw}
-                  onClick={handleClearChat}
-                  aria-label="Clear chat"
-                  tooltip="Clear chat"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  icon={Minus}
-                  onClick={handleMinimize}
-                  aria-label="Minimize"
-                  tooltip="Minimize"
-                />
-              </div>
+              {headerActions('desktop')}
             </div>
 
-            {/* Messages */}
-            <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-5 py-3">
-              {messages.length === 0 && (
-                <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-                  <WandSparkles className="size-8 text-muted-foreground/30" />
-                  <p className="text-[13px] text-muted-foreground">Ask me anything about your studies.</p>
-                  <p className="text-xs text-muted-foreground/60">
-                    I can search your notes, tests, and questions, or create new content for you.
-                  </p>
-                </div>
-              )}
-              {messages.map((msg, i) => (
-                <AssistMessageRow key={i} message={msg} onConfirm={confirm} />
-              ))}
-            </div>
-
-            {/* Composer */}
-            <AssistInput
+            <AssistChatBody
+              messages={messages}
+              onConfirm={confirm}
+              isStreaming={isStreaming}
               onSend={send}
               onCommand={cmd => {
                 if (cmd === '/clear') clear();
               }}
-              isStreaming={isStreaming}
+              footer={composer}
             />
 
             {/* Resize handles */}

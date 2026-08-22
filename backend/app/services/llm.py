@@ -68,15 +68,6 @@ class StreamResult:
     provider: str = ""
     model: str = ""
 
-    def to_completion_result(self) -> CompletionResult:
-        return CompletionResult(
-            text=self.text,
-            input_tokens=self.input_tokens,
-            output_tokens=self.output_tokens,
-            provider=self.provider,
-            model=self.model,
-        )
-
 
 StreamEvent = TextDelta | ToolCallDelta
 
@@ -483,29 +474,3 @@ def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: 
         ) from exc
 
     return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
-
-
-def stream_for_user(
-    *,
-    user: User,
-    system: str,
-    messages: list[dict[str, object]],
-    tools: list[dict[str, object]] | None = None,
-    max_tokens: int,
-) -> Generator[StreamEvent, None, StreamResult]:
-    """Stream a multi-turn tool-use conversation using the user's own API key."""
-    try:
-        llm = get_user_llm_client(user)
-    except ValueError as exc:
-        logger.error("User AI provider unavailable: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="AI is not configured. Please add your API key in Settings.",
-        ) from exc
-
-    return llm.stream_with_tools(
-        system=system,
-        messages=messages,
-        tools=tools,
-        max_tokens=max_tokens,
-    )

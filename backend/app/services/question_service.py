@@ -144,13 +144,24 @@ def _delete_one_question(db: Session, *, question: Question, force_soft_delete: 
 
 
 def bulk_delete_questions(
-    db: Session, *, question_ids: list[str], current_user: User, force_soft_delete: bool = False
-) -> int:
-    """Delete every owned question in the batch. Questions the user doesn't own are skipped."""
+    db: Session,
+    *,
+    question_ids: list[str],
+    current_user: User,
+    force_soft_delete: bool = False,
+    return_ids: bool = False,
+) -> int | list[str]:
+    """Delete every owned question in the batch. Questions the user doesn't own are skipped.
+
+    When *return_ids* is True, returns the list of deleted question IDs instead of a count.
+    """
     owned = [q for q in question_crud.list_by_ids(db, ids=question_ids) if q.user_id == current_user.id]
+    owned_ids = [q.id for q in owned]
     for question in owned:
         _delete_one_question(db, question=question, force_soft_delete=force_soft_delete)
     db.commit()
+    if return_ids:
+        return owned_ids
     return len(owned)
 
 
@@ -158,8 +169,7 @@ def restore_questions(db: Session, *, question_ids: list[str], current_user: Use
     """Restore soft-deleted questions. Unowned or non-deleted questions are skipped."""
     all_questions = question_crud.list_by_ids(db, ids=question_ids)
     owned_deleted = [
-        q for q in all_questions
-        if q.user_id == current_user.id and q.status == int(QuestionStatus.DELETED)
+        q for q in all_questions if q.user_id == current_user.id and q.status == int(QuestionStatus.DELETED)
     ]
     question_crud.bulk_restore(db, questions=owned_deleted)
     db.commit()

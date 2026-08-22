@@ -7,10 +7,13 @@ Accept/Reject before the action runs.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.enums import NoteLength, QuestionType
@@ -25,18 +28,15 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.assist.tools")
-logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    _h = logging.StreamHandler()
-    _h.setFormatter(logging.Formatter("%(levelname)s [%(name)s] %(message)s"))
-    logger.addHandler(_h)
 
 
 @dataclass(frozen=True, slots=True)
 class ToolResult:
     output: str
-    requires_confirmation: bool = False
     metadata: dict[str, Any] | None = None
+
+
+ToolHandler = Callable[[Session], ToolResult]
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +288,9 @@ def execute_tool(
         result = handler(db, current_user=current_user, arguments=arguments)
         logger.info("Tool %s completed: %s", tool_name, result.output[:200])
         return result
+    except HTTPException as exc:
+        logger.warning("Tool %s raised HTTP %d: %s", tool_name, exc.status_code, exc.detail)
+        return ToolResult(output=f"Error: {exc.detail}")
     except Exception:
         logger.exception("Tool %s failed", tool_name)
         return ToolResult(output=f"Tool execution failed: {tool_name}")
@@ -360,8 +363,21 @@ def _search_questions(db: Session, *, current_user: User, arguments: dict[str, o
     return ToolResult(output="\n".join(lines))
 
 
+_ALLOWED_ROUTE_PREFIXES = (
+    "/dashboard",
+    "/notes",
+    "/tests",
+    "/questions",
+    "/review",
+    "/history",
+    "/settings",
+)
+
+
 def _navigate_to(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     path = str(arguments.get("path", "/dashboard"))
+    if not path.startswith("/") or not path.startswith(_ALLOWED_ROUTE_PREFIXES):
+        path = "/dashboard"
     return ToolResult(output=f"__NAVIGATE__:{path}")
 
 
@@ -430,10 +446,8 @@ def _create_test(db: Session, *, current_user: User, arguments: dict[str, object
         raw_types = ["SIMPLE", "MULTIPLE_CHOICE"]
     q_types = []
     for t in raw_types:
-        try:
+        with contextlib.suppress(KeyError):
             q_types.append(QuestionType[str(t)])
-        except KeyError:
-            pass
     if not q_types:
         q_types = [QuestionType.SIMPLE, QuestionType.MULTIPLE_CHOICE]
 
@@ -515,11 +529,13 @@ def _edit_test(db: Session, *, current_user: User, arguments: dict[str, object])
     remove_ids = arguments.get("remove_question_ids")
     if isinstance(remove_ids, list) and remove_ids:
         str_ids = [str(qid) for qid in remove_ids]
-        deleted = question_service.bulk_delete_questions(
-            db, question_ids=str_ids, current_user=current_user, force_soft_delete=True
+        removed_question_ids = cast(
+            list[str],
+            question_service.bulk_delete_questions(
+                db, question_ids=str_ids, current_user=current_user, force_soft_delete=True, return_ids=True
+            ),
         )
-        removed_question_ids = str_ids[:deleted]
-        changes.append(f"{deleted} question(s) removed")
+        changes.append(f"{len(removed_question_ids)} question(s) removed")
 
     if not changes:
         return ToolResult(output="No changes specified.")
@@ -539,7 +555,7 @@ def _edit_test(db: Session, *, current_user: User, arguments: dict[str, object])
     )
 
 
-_HANDLERS: dict[str, Any] = {
+_HANDLERS: dict[str, ToolHandler] = {
     "list_notes": _list_notes,
     "list_tests": _list_tests,
     "get_note_content": _get_note_content,

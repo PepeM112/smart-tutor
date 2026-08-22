@@ -26,6 +26,9 @@ import {
   type ToolResultData,
 } from '../types';
 
+let msgCounter = 0;
+const nextId = () => `msg-${++msgCounter}`;
+
 const TOOL_QUERY_KEYS: Record<string, string[][]> = {
   create_note: [['notes']],
   refine_note: [['notes']],
@@ -39,6 +42,7 @@ type UseAssistReturn = {
   messages: ChatMessage[];
   isStreaming: boolean;
   send: (text: string) => void;
+  stop: () => void;
   confirm: (toolCallId: string, approved: boolean) => void;
   clear: () => void;
 };
@@ -81,12 +85,14 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       setIsStreaming(true);
       abortRef.current = new AbortController();
 
-      setMessages(prev => [...prev, { type: 'assistant', content: '', streaming: true }]);
+      const assistantMsgId = nextId();
+      setMessages(prev => [...prev, { type: 'assistant', id: assistantMsgId, content: '', streaming: true }]);
 
       let assistantText = '';
       const toolCalls: ToolCallData[] = [];
       const toolResults: ToolResultData[] = [];
 
+      // SSE streaming requires raw fetch — the generated SDK doesn't support streaming responses
       try {
         const response = await fetch('/api/v1/assist', {
           method: 'POST',
@@ -102,7 +108,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           };
           setMessages(prev => {
             const updated = prev.filter(m => !(m.type === 'assistant' && m.streaming));
-            return [...updated, { type: 'error', message: error.detail ?? 'An error occurred' }];
+            return [...updated, { type: 'error', id: nextId(), message: error.detail ?? 'An error occurred' }];
           });
           setIsStreaming(false);
           return;
@@ -127,8 +133,12 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             if (line.startsWith('event: ')) {
               eventType = line.slice(7).trim();
             } else if (line.startsWith('data: ') && eventType) {
-              const data: unknown = JSON.parse(line.slice(6));
-              handleSSEEvent(eventType, data);
+              try {
+                const data: unknown = JSON.parse(line.slice(6));
+                handleSSEEvent(eventType, data);
+              } catch {
+                // Skip malformed SSE events instead of aborting the stream
+              }
               eventType = '';
             }
           }
@@ -137,7 +147,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         if ((err as Error).name !== 'AbortError') {
           setMessages(prev => {
             const updated = prev.filter(m => !(m.type === 'assistant' && m.streaming));
-            return [...updated, { type: 'error', message: 'Connection lost. Please try again.' }];
+            return [...updated, { type: 'error', id: nextId(), message: 'Connection lost. Please try again.' }];
           });
         }
       } finally {
@@ -155,7 +165,10 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               if (last?.type === 'assistant') {
                 return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantText } : m));
               }
-              return [...prev, { type: 'assistant' as const, content: assistantText, streaming: true }];
+              return [
+                ...prev,
+                { type: 'assistant' as const, id: assistantMsgId, content: assistantText, streaming: true },
+              ];
             });
             break;
           }
@@ -262,7 +275,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           }
           case 'error': {
             const { message } = data as SSEError;
-            setMessages(prev => [...prev, { type: 'error', message }]);
+            setMessages(prev => [...prev, { type: 'error', id: nextId(), message }]);
             break;
           }
         }
@@ -273,13 +286,13 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
   const send = useCallback(
     (text: string) => {
-      if (!text.trim() || isStreaming) return;
+      if (!text.trim() || abortRef.current) return;
 
       resolvePendingConfirmations();
 
       const userMsg: AssistMessage = { role: 'user', content: text };
       conversationRef.current.push(userMsg);
-      setMessages(prev => [...prev, { type: 'user', content: text }]);
+      setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text }]);
 
       const request: AssistRequest = {
         messages: conversationRef.current,
@@ -287,7 +300,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       };
       void streamResponse(request);
     },
-    [isStreaming, pageContext, streamResponse, resolvePendingConfirmations],
+    [pageContext, streamResponse, resolvePendingConfirmations],
   );
 
   const confirm = useCallback(
@@ -323,6 +336,10 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     [pageContext, streamResponse],
   );
 
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
   const clear = useCallback(() => {
     abortRef.current?.abort();
     conversationRef.current = [];
@@ -331,5 +348,5 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     setIsStreaming(false);
   }, []);
 
-  return { messages, isStreaming, send, confirm, clear };
+  return { messages, isStreaming, send, stop, confirm, clear };
 }

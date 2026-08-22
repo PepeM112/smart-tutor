@@ -19,7 +19,6 @@ export function useStreamingText(target: string, streaming: boolean): string {
         rafRef.current = null;
       }
       indexRef.current = target.length;
-      setDisplayed(target);
       return;
     }
 
@@ -60,6 +59,8 @@ export function useStreamingText(target: string, streaming: boolean): string {
       }
     };
   }, [target, streaming]);
+
+  if (!streaming) return target;
 
   return displayed;
 }
