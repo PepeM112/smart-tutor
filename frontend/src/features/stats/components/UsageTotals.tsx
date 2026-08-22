@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { formatTokens } from '@/lib/format';
+import { formatCost, formatTokens } from '@/lib/format';
 
 type Props = {
   totalInputTokens: number;
@@ -19,7 +19,7 @@ export function UsageTotals({ totalInputTokens, totalOutputTokens, totalEstimate
     { label: t('stats.total_output'), value: formatTokens(totalOutputTokens) },
     {
       label: t('stats.total_cost'),
-      value: totalEstimatedCost ? `$${Number(totalEstimatedCost).toFixed(4)}` : '$0.00',
+      value: totalEstimatedCost ? formatCost(totalEstimatedCost) : '$0.00',
     },
   ];
 

@@ -16,8 +16,10 @@ from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.schemas.note import NoteGenerate, NoteRefine
-from app.schemas.test import TestCreate
+from app.schemas.question import QuestionCreate
+from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import TestGenerationRequest
+from app.services import note_service, question_service, test_generation_service, test_service
 from app.services.assist_tools import ToolResult
 from app.services.service_helpers import get_owned_or_404
 
@@ -27,6 +29,9 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.assist.tools")
+
+_TOOL_LIST_LIMIT = 20
+_TOOL_SEARCH_LIMIT = 15
 
 _LENGTH_MAP: dict[str, NoteLength] = {
     "short": NoteLength.SHORT,
@@ -53,7 +58,7 @@ _ALLOWED_ROUTE_PREFIXES = (
 
 def list_notes(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     search = str(arguments.get("search", "")) or None
-    notes, total = note_crud.list_by_user(db, user_id=current_user.id, search=search, per_page=20)
+    notes, total = note_crud.list_by_user(db, user_id=current_user.id, search=search, per_page=_TOOL_LIST_LIMIT)
     if not notes:
         return ToolResult(output="No notes found.")
     lines = [f"Found {total} note(s):"]
@@ -64,7 +69,7 @@ def list_notes(db: Session, *, current_user: User, arguments: dict[str, object])
 
 def list_tests(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     search = str(arguments.get("search", "")) or None
-    tests, total = test_crud.list_by_user(db, user_id=current_user.id, search=search, per_page=20)
+    tests, total = test_crud.list_by_user(db, user_id=current_user.id, search=search, per_page=_TOOL_LIST_LIMIT)
     if not tests:
         return ToolResult(output="No tests found.")
     lines = [f"Found {total} test(s):"]
@@ -104,7 +109,9 @@ def get_test_details(db: Session, *, current_user: User, arguments: dict[str, ob
 
 def search_questions(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     search = str(arguments.get("search", "")) or None
-    questions, total = question_crud.list_by_user(db, user_id=current_user.id, search=search, per_page=15)
+    questions, total = question_crud.list_by_user(
+        db, user_id=current_user.id, search=search, per_page=_TOOL_SEARCH_LIMIT
+    )
     if not questions:
         return ToolResult(output="No questions found.")
     lines = [f"Found {total} question(s):"]
@@ -116,7 +123,7 @@ def search_questions(db: Session, *, current_user: User, arguments: dict[str, ob
 
 def navigate_to(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     path = str(arguments.get("path", "/dashboard"))
-    if not path.startswith("/") or not path.startswith(_ALLOWED_ROUTE_PREFIXES):
+    if not path.startswith(_ALLOWED_ROUTE_PREFIXES):
         path = "/dashboard"
     return ToolResult(output=f"__NAVIGATE__:{path}")
 
@@ -127,8 +134,6 @@ def navigate_to(db: Session, *, current_user: User, arguments: dict[str, object]
 
 
 def create_note(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
-    from app.services import note_service
-
     topic = str(arguments.get("topic", ""))
     guidance = str(arguments.get("guidance", "")) or None
     length_str = str(arguments.get("length", "medium"))
@@ -150,8 +155,6 @@ def create_note(db: Session, *, current_user: User, arguments: dict[str, object]
 
 
 def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
-    from app.services import note_service
-
     note_id = str(arguments.get("note_id", ""))
     instructions = str(arguments.get("instructions", ""))
 
@@ -180,11 +183,12 @@ def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]
 
 
 def create_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
-    from app.services import test_generation_service, test_service
-
     note_id = str(arguments.get("note_id", ""))
     raw_count = arguments.get("question_count", 10)
-    question_count = int(raw_count) if isinstance(raw_count, (int, str)) else 10
+    try:
+        question_count = int(raw_count) if isinstance(raw_count, (int, str)) else 10
+    except (TypeError, ValueError):
+        question_count = 10
     question_count = max(5, min(30, question_count))
 
     raw_types = arguments.get("question_types", ["SIMPLE", "MULTIPLE_CHOICE"])
@@ -212,8 +216,6 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
         current_user=current_user,
         data=gen_request,
     )
-
-    from app.schemas.question import QuestionCreate
 
     questions = [
         QuestionCreate(
@@ -249,8 +251,6 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
 
 
 def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
-    from app.services import question_service, test_service
-
     test_id = str(arguments.get("test_id", ""))
     test = test_service.get_test(db, test_id=test_id, current_user=current_user)
 
@@ -259,8 +259,6 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
     new_title = arguments.get("title")
     new_description = arguments.get("description")
     if new_title or new_description:
-        from app.schemas.test import TestUpdate
-
         update_data = TestUpdate(
             title=str(new_title) if new_title else None,
             description=str(new_description) if new_description else None,

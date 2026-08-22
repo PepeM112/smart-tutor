@@ -108,8 +108,7 @@
     "range_1w": "1S",
     "range_1m": "1M",
     "range_3m": "3M",
-    "range_1y": "1A",
-    "most_used_feature": "Más usado: {feature}"
+    "range_1y": "1A"
   },
   "aiFeatures": {
     "grading": "Evaluación",
@@ -476,8 +475,7 @@
     "all_features": "Todas las funciones",
     "total_input": "Tokens de entrada totales",
     "total_output": "Tokens de salida totales",
-    "total_cost": "Coste estimado total",
-    "usage_over_time": "Uso a lo largo del tiempo"
+    "total_cost": "Coste estimado total"
   },
   "settings": {
     "title": "Perfil y Ajustes",

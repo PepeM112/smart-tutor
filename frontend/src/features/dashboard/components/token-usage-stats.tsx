@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
-import { formatTokens } from '@/lib/format';
+import { formatCost, formatTokens } from '@/lib/format';
 
 type Props = {
   totalInputTokens: number;
@@ -10,13 +10,6 @@ type Props = {
   totalEstimatedCost: string | null;
   topFeature?: string;
 };
-
-// Show more decimal places below $1 so small AI costs don't all round to $0.00
-function formatCost(value: string): string {
-  const num = parseFloat(value);
-  if (num >= 1) return `$${num.toFixed(2)}`;
-  return `$${num.toFixed(4)}`;
-}
 
 export function TokenUsageStats({ totalInputTokens, totalOutputTokens, totalEstimatedCost, topFeature }: Props) {
   const t = useTranslations();

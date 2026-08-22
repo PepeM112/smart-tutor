@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any
 
 from sqlalchemy import Integer, Row, cast, func, literal, select
 from sqlalchemy.orm import Session
@@ -8,8 +8,7 @@ from sqlalchemy.types import Date
 
 from app.core.enums import AIFeature, AIProvider
 from app.models.token_usage import TokenUsage
-
-UsageGroupBy = Literal["provider", "feature", "both"]
+from app.schemas.token_usage import UsageGroupBy
 
 
 def create(

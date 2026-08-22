@@ -7,7 +7,7 @@ import {
   type TestReadStripped,
 } from '@/client';
 
-export function formatNotesList(notes: { id: string; title: string; updatedAt?: Date | string }[]): string {
+export function formatNotesList(notes: NoteRead[]): string {
   if (notes.length === 0) return 'No notes to display.';
   const lines = [`Notes list (${notes.length} shown):`];
   notes.forEach(n => {
@@ -17,9 +17,7 @@ export function formatNotesList(notes: { id: string; title: string; updatedAt?: 
   return lines.join('\n');
 }
 
-export function formatTestsList(
-  tests: { id: string; title: string; questions?: unknown[]; questionGroups?: { questions?: unknown[] }[] }[]
-): string {
+export function formatTestsList(tests: TestRead[]): string {
   if (tests.length === 0) return 'No tests to display.';
   const lines = [`Tests list (${tests.length} shown):`];
   tests.forEach(t => {

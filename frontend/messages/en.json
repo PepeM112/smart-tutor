@@ -108,8 +108,7 @@
     "range_1w": "1W",
     "range_1m": "1M",
     "range_3m": "3M",
-    "range_1y": "1Y",
-    "most_used_feature": "Most used: {feature}"
+    "range_1y": "1Y"
   },
   "aiFeatures": {
     "grading": "Grading",
@@ -476,8 +475,7 @@
     "all_features": "All features",
     "total_input": "Total Input Tokens",
     "total_output": "Total Output Tokens",
-    "total_cost": "Total Estimated Cost",
-    "usage_over_time": "Usage over time"
+    "total_cost": "Total Estimated Cost"
   },
   "settings": {
     "title": "Profile & Settings",

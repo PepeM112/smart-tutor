@@ -104,7 +104,7 @@ export default function TestsPage() {
       }),
   });
 
-  const items = response?.data?.items ?? [];
+  const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;

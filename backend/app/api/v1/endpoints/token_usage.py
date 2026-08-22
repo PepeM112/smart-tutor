@@ -4,11 +4,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature
-from app.crud.token_usage import UsageGroupBy
 from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.token_usage import TokenUsageSummaryResponse
+from app.schemas.token_usage import TokenUsageSummaryResponse, UsageGroupBy
 from app.services import token_usage_service
 
 router = APIRouter()

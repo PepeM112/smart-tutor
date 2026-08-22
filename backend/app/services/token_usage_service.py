@@ -6,8 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, AIProvider
 from app.crud import token_usage as token_usage_crud
-from app.crud.token_usage import UsageGroupBy
-from app.schemas.token_usage import TokenUsageDailySummary, TokenUsageSummaryResponse
+from app.schemas.token_usage import TokenUsageDailySummary, TokenUsageSummaryResponse, UsageGroupBy
 from app.services.llm import CompletionResult
 from app.services.pricing_service import calculate_cost
 

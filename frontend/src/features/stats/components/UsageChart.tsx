@@ -16,6 +16,11 @@ const PROVIDER_COLORS: Record<number, string> = {
   [AiProvider.OPENAI]: '#16B38C',
 };
 
+const PROVIDER_LABELS: Record<number, string> = {
+  [AiProvider.ANTHROPIC]: 'Anthropic',
+  [AiProvider.OPENAI]: 'OpenAI',
+};
+
 const FEATURE_COLORS: Record<number, string> = {
   [AiFeature.GRADING]: '#8B5CF6',
   [AiFeature.CHALLENGE]: '#EC4899',
@@ -26,44 +31,62 @@ const FEATURE_COLORS: Record<number, string> = {
   [AiFeature.ASSIST]: '#6366F1',
 };
 
+const BOTH_COLORS: Record<string, string> = {
+  [`${AiProvider.ANTHROPIC}_${AiFeature.GRADING}`]: '#F97316',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.CHALLENGE}`]: '#FB923C',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_GENERATION}`]: '#FDBA74',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_REFINEMENT}`]: '#FED7AA',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_CHUNK_EDIT}`]: '#FED7AA',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.TEST_GENERATION}`]: '#C2410C',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.ASSIST}`]: '#EA580C',
+  [`${AiProvider.OPENAI}_${AiFeature.GRADING}`]: '#16B38C',
+  [`${AiProvider.OPENAI}_${AiFeature.CHALLENGE}`]: '#2DD4BF',
+  [`${AiProvider.OPENAI}_${AiFeature.NOTE_GENERATION}`]: '#5EEAD4',
+  [`${AiProvider.OPENAI}_${AiFeature.NOTE_REFINEMENT}`]: '#99F6E4',
+  [`${AiProvider.OPENAI}_${AiFeature.NOTE_CHUNK_EDIT}`]: '#99F6E4',
+  [`${AiProvider.OPENAI}_${AiFeature.TEST_GENERATION}`]: '#0D9488',
+  [`${AiProvider.OPENAI}_${AiFeature.ASSIST}`]: '#0F766E',
+};
+
 type SeriesInfo = { key: string; label: string; color: string };
+
+const ALL_FEATURES = [
+  AiFeature.GRADING,
+  AiFeature.CHALLENGE,
+  AiFeature.NOTE_GENERATION,
+  AiFeature.NOTE_REFINEMENT,
+  AiFeature.NOTE_CHUNK_EDIT,
+  AiFeature.TEST_GENERATION,
+  AiFeature.ASSIST,
+];
+
+const ALL_PROVIDERS = [AiProvider.ANTHROPIC, AiProvider.OPENAI];
 
 function getSeriesForGroupBy(groupBy: GroupBy, t: (key: string) => string): SeriesInfo[] {
   if (groupBy === 'provider') {
-    return [
-      { key: `p_${AiProvider.ANTHROPIC}`, label: 'Anthropic', color: PROVIDER_COLORS[AiProvider.ANTHROPIC] },
-      { key: `p_${AiProvider.OPENAI}`, label: 'OpenAI', color: PROVIDER_COLORS[AiProvider.OPENAI] },
-    ];
+    return ALL_PROVIDERS.map(p => ({
+      key: `p_${p}`,
+      label: PROVIDER_LABELS[p],
+      color: PROVIDER_COLORS[p],
+    }));
   }
+
   if (groupBy === 'feature') {
-    return [
-      AiFeature.GRADING,
-      AiFeature.CHALLENGE,
-      AiFeature.NOTE_GENERATION,
-      AiFeature.NOTE_REFINEMENT,
-      AiFeature.NOTE_CHUNK_EDIT,
-      AiFeature.TEST_GENERATION,
-      AiFeature.ASSIST,
-    ].map(f => ({
+    return ALL_FEATURES.map(f => ({
       key: `f_${f}`,
       label: t(AI_FEATURE_LABEL_KEYS[f]),
       color: FEATURE_COLORS[f],
     }));
   }
-  // "both" — provider × feature would be too many series; group by feature with provider as suffix
-  return [
-    AiFeature.GRADING,
-    AiFeature.CHALLENGE,
-    AiFeature.NOTE_GENERATION,
-    AiFeature.NOTE_REFINEMENT,
-    AiFeature.NOTE_CHUNK_EDIT,
-    AiFeature.TEST_GENERATION,
-    AiFeature.ASSIST,
-  ].map(f => ({
-    key: `f_${f}`,
-    label: t(AI_FEATURE_LABEL_KEYS[f]),
-    color: FEATURE_COLORS[f],
-  }));
+
+  // "both" — provider × feature composite keys
+  return ALL_PROVIDERS.flatMap(p =>
+    ALL_FEATURES.map(f => ({
+      key: `pf_${p}_${f}`,
+      label: `${PROVIDER_LABELS[p]} · ${t(AI_FEATURE_LABEL_KEYS[f])}`,
+      color: BOTH_COLORS[`${p}_${f}`] ?? FEATURE_COLORS[f],
+    })),
+  );
 }
 
 function buildChartData(daily: TokenUsageDailySummary[], groupBy: GroupBy): Record<string, string | number>[] {
@@ -79,8 +102,8 @@ function buildChartData(daily: TokenUsageDailySummary[], groupBy: GroupBy): Reco
     } else if (groupBy === 'feature' && entry.feature != null) {
       const key = `f_${entry.feature}`;
       existing[key] = (existing[key] ?? 0) + tokens;
-    } else if (groupBy === 'both' && entry.feature != null) {
-      const key = `f_${entry.feature}`;
+    } else if (groupBy === 'both' && entry.provider != null && entry.feature != null) {
+      const key = `pf_${entry.provider}_${entry.feature}`;
       existing[key] = (existing[key] ?? 0) + tokens;
     }
 
@@ -126,6 +149,13 @@ export function UsageChart({ daily, groupBy }: Props) {
     });
   }, [series]);
 
+  // In "both" mode, only show series that have data to avoid a cluttered legend
+  const visibleSeries = useMemo(() => {
+    if (groupBy !== 'both') return uniqueSeries;
+    const keysWithData = new Set(data.flatMap(row => Object.keys(row).filter(k => k.startsWith('pf_'))));
+    return uniqueSeries.filter(s => keysWithData.has(s.key));
+  }, [uniqueSeries, data, groupBy]);
+
   const toggleSeries = (dataKey: string) => {
     setHiddenSeries(prev => {
       const next = new Set(prev);
@@ -139,7 +169,7 @@ export function UsageChart({ daily, groupBy }: Props) {
     return <p className="py-12 text-center text-sm text-muted-foreground">{t('dashboard.no_usage_data')}</p>;
   }
 
-  const seriesLabelMap = Object.fromEntries(uniqueSeries.map(s => [s.key, s.label]));
+  const seriesLabelMap = Object.fromEntries(visibleSeries.map(s => [s.key, s.label]));
 
   return (
     <ResponsiveContainer width="100%" height={isMobile ? 280 : 400}>
@@ -193,7 +223,7 @@ export function UsageChart({ daily, groupBy }: Props) {
           }}
           wrapperStyle={{ cursor: 'pointer', fontSize: isMobile ? 11 : 12 }}
         />
-        {uniqueSeries.map((s, i) => (
+        {visibleSeries.map((s, i) => (
           <Bar
             key={s.key}
             yAxisId="daily"
@@ -201,7 +231,7 @@ export function UsageChart({ daily, groupBy }: Props) {
             stackId="tokens"
             fill={s.color}
             hide={hiddenSeries.has(s.key)}
-            radius={i === uniqueSeries.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]}
+            radius={i === visibleSeries.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]}
           />
         ))}
         <Line
