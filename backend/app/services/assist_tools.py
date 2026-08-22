@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -36,7 +35,8 @@ class ToolResult:
     metadata: dict[str, Any] | None = None
 
 
-ToolHandler = Callable[[Session], ToolResult]
+class ToolHandler(Protocol):
+    def __call__(self, db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult: ...
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +314,7 @@ def _list_tests(db: Session, *, current_user: User, arguments: dict[str, object]
         return ToolResult(output="No tests found.")
     lines = [f"Found {total} test(s):"]
     for t in tests:
-        q_count = len([q for q in (t.questions or [])]) + sum(len(g.questions or []) for g in (t.question_groups or []))
+        q_count = len(t.questions or []) + sum(len(g.questions or []) for g in (t.question_groups or []))
         lines.append(f"- **{t.title}** ({q_count} questions, ID: `{t.id}`)")
     return ToolResult(output="\n".join(lines))
 
@@ -438,7 +438,8 @@ def _create_test(db: Session, *, current_user: User, arguments: dict[str, object
     from app.services import test_generation_service, test_service
 
     note_id = str(arguments.get("note_id", ""))
-    question_count = int(arguments.get("question_count", 10))
+    raw_count = arguments.get("question_count", 10)
+    question_count = int(raw_count) if isinstance(raw_count, (int, str)) else 10
     question_count = max(5, min(30, question_count))
 
     raw_types = arguments.get("question_types", ["SIMPLE", "MULTIPLE_CHOICE"])
@@ -529,13 +530,16 @@ def _edit_test(db: Session, *, current_user: User, arguments: dict[str, object])
     remove_ids = arguments.get("remove_question_ids")
     if isinstance(remove_ids, list) and remove_ids:
         str_ids = [str(qid) for qid in remove_ids]
-        removed_question_ids = cast(
-            list[str],
-            question_service.bulk_delete_questions(
-                db, question_ids=str_ids, current_user=current_user, force_soft_delete=True, return_ids=True
-            ),
-        )
-        changes.append(f"{len(removed_question_ids)} question(s) removed")
+        # Only remove questions that actually belong to this test
+        test_question_ids = {q.id for q in test.questions}
+        for g in test.question_groups or []:
+            test_question_ids.update(q.id for q in g.questions)
+        scoped_ids = [qid for qid in str_ids if qid in test_question_ids]
+        if scoped_ids:
+            removed_question_ids = question_service.bulk_delete_questions(
+                db, question_ids=scoped_ids, current_user=current_user, force_soft_delete=True
+            )
+            changes.append(f"{len(removed_question_ids)} question(s) removed")
 
     if not changes:
         return ToolResult(output="No changes specified.")

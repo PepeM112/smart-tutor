@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
       Cookie: cookie,
     },
     body,
+    signal: req.signal,
   });
 
   if (!upstream.ok || !upstream.body) {

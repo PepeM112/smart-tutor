@@ -102,7 +102,7 @@ export function useResizable(initialSize: Size = DEFAULT_SIZE): UseResizableRetu
         document.removeEventListener('mouseup', handleMouseUp);
       };
     },
-    [size],
+    [size]
   );
 
   const resetSize = useCallback(() => {

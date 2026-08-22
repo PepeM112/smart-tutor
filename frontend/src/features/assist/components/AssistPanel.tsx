@@ -125,7 +125,7 @@ export function AssistPanel() {
       if (card.position.x === -1) card.setPosition(resolved);
       handleResizeStart(e, edge, resolved, card.setPosition);
     },
-    [handleResizeStart, card, resolveCardPosition],
+    [handleResizeStart, card, resolveCardPosition]
   );
 
   if (!aiAvailable) return null;
@@ -204,16 +204,7 @@ export function AssistPanel() {
                   {headerActions('mobile')}
                 </div>
 
-                <AssistChatBody
-                  messages={messages}
-                  onConfirm={confirm}
-                  isStreaming={isStreaming}
-                  onSend={send}
-                  onCommand={cmd => {
-                    if (cmd === '/clear') clear();
-                  }}
-                  footer={composer}
-                />
+                <AssistChatBody messages={messages} onConfirm={confirm} footer={composer} />
               </motion.div>
             </>
           )}
@@ -293,16 +284,7 @@ export function AssistPanel() {
               {headerActions('desktop')}
             </div>
 
-            <AssistChatBody
-              messages={messages}
-              onConfirm={confirm}
-              isStreaming={isStreaming}
-              onSend={send}
-              onCommand={cmd => {
-                if (cmd === '/clear') clear();
-              }}
-              footer={composer}
-            />
+            <AssistChatBody messages={messages} onConfirm={confirm} footer={composer} />
 
             {/* Resize handles */}
             <div onMouseDown={e => onResizeStart(e, 'top')} className="absolute inset-x-0 top-0 h-1 cursor-n-resize" />

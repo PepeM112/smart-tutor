@@ -73,8 +73,8 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
     setMessages(prev =>
       prev.map(m =>
-        m.type === 'confirm_required' && m.status === 'pending' ? { ...m, status: 'rejected' as const } : m,
-      ),
+        m.type === 'confirm_required' && m.status === 'pending' ? { ...m, status: 'rejected' as const } : m
+      )
     );
 
     pendingToolIdsRef.current.clear();
@@ -85,10 +85,8 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       setIsStreaming(true);
       abortRef.current = new AbortController();
 
-      const assistantMsgId = nextId();
-      setMessages(prev => [...prev, { type: 'assistant', id: assistantMsgId, content: '', streaming: true }]);
-
       let assistantText = '';
+      let currentSegmentId = '';
       const toolCalls: ToolCallData[] = [];
       const toolResults: ToolResultData[] = [];
 
@@ -106,10 +104,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           const error = (await response.json().catch(() => ({ detail: 'Request failed' }))) as {
             detail?: string;
           };
-          setMessages(prev => {
-            const updated = prev.filter(m => !(m.type === 'assistant' && m.streaming));
-            return [...updated, { type: 'error', id: nextId(), message: error.detail ?? 'An error occurred' }];
-          });
+          setMessages(prev => [...prev, { type: 'error', id: nextId(), message: error.detail ?? 'An error occurred' }]);
           setIsStreaming(false);
           return;
         }
@@ -145,10 +140,10 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         }
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          setMessages(prev => {
-            const updated = prev.filter(m => !(m.type === 'assistant' && m.streaming));
-            return [...updated, { type: 'error', id: nextId(), message: 'Connection lost. Please try again.' }];
-          });
+          setMessages(prev => [
+            ...prev,
+            { type: 'error', id: nextId(), message: 'Connection lost. Please try again.' },
+          ]);
         }
       } finally {
         setIsStreaming(false);
@@ -162,12 +157,13 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             assistantText += content;
             setMessages(prev => {
               const last = prev[prev.length - 1];
-              if (last?.type === 'assistant') {
+              if (last?.type === 'assistant' && last.id === currentSegmentId) {
                 return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantText } : m));
               }
+              currentSegmentId = nextId();
               return [
                 ...prev,
-                { type: 'assistant' as const, id: assistantMsgId, content: assistantText, streaming: true },
+                { type: 'assistant' as const, id: currentSegmentId, content: assistantText, streaming: true },
               ];
             });
             break;
@@ -184,7 +180,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'tool_executing': {
             const { id } = data as SSEToolExecuting;
             setMessages(prev =>
-              prev.map(m => (m.type === 'tool_call' && m.id === id ? { ...m, status: 'running' as const } : m)),
+              prev.map(m => (m.type === 'tool_call' && m.id === id ? { ...m, status: 'running' as const } : m))
             );
             break;
           }
@@ -192,7 +188,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             const tr = data as SSEToolResult;
             toolResults.push({ toolCallId: tr.id, output: tr.output });
             setMessages(prev =>
-              prev.map(m => (m.type === 'tool_call' && m.id === tr.id ? { ...m, status: 'done' as const } : m)),
+              prev.map(m => (m.type === 'tool_call' && m.id === tr.id ? { ...m, status: 'done' as const } : m))
             );
             setMessages(prev => [
               ...prev,
@@ -256,7 +252,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'done': {
             void (data as SSEDone);
             setMessages(prev =>
-              prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m)),
+              prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m))
             );
             const assistantMsg: AssistMessage = {
               role: 'assistant',
@@ -281,7 +277,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         }
       }
     },
-    [router, queryClient, setPendingNoteDiff],
+    [router, queryClient, setPendingNoteDiff]
   );
 
   const send = useCallback(
@@ -300,40 +296,48 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       };
       void streamResponse(request);
     },
-    [pageContext, streamResponse, resolvePendingConfirmations],
+    [pageContext, streamResponse, resolvePendingConfirmations]
   );
 
   const confirm = useCallback(
     (toolCallId: string, approved: boolean) => {
-      pendingToolIdsRef.current.delete(toolCallId);
+      const otherPendingIds = [...pendingToolIdsRef.current].filter(id => id !== toolCallId);
+      pendingToolIdsRef.current.clear();
 
+      // Mark all pending confirmations in the UI: the acted-on one + auto-reject the rest
       setMessages(prev =>
-        prev.map(m =>
-          m.type === 'confirm_required' && m.id === toolCallId
-            ? { ...m, status: approved ? ('approved' as const) : ('rejected' as const) }
-            : m,
-        ),
+        prev.map(m => {
+          if (m.type !== 'confirm_required' || m.status !== 'pending') return m;
+          if (m.id === toolCallId) return { ...m, status: approved ? ('approved' as const) : ('rejected' as const) };
+          return { ...m, status: 'rejected' as const };
+        })
       );
 
+      // Build confirmations: the user's choice + rejections for all others
+      const confirmations: ToolConfirmation[] = [{ toolCallId, approved }];
+      otherPendingIds.forEach(id => confirmations.push({ toolCallId: id, approved: false }));
+
       if (!approved) {
+        // All rejected — push a single tool result message covering every tool_use id
         conversationRef.current.push({
           role: 'tool',
           content: '',
-          toolResults: [{ toolCallId, output: 'User declined this action.' }],
+          toolResults: confirmations.map(c => ({
+            toolCallId: c.toolCallId,
+            output: 'User declined this action.',
+          })),
         });
         return;
       }
 
-      const confirmation: ToolConfirmation = { toolCallId, approved };
-
       const request: AssistRequest = {
         messages: conversationRef.current,
         pageContext,
-        toolConfirmations: [confirmation],
+        toolConfirmations: confirmations,
       };
       void streamResponse(request);
     },
-    [pageContext, streamResponse],
+    [pageContext, streamResponse]
   );
 
   const stop = useCallback(() => {

@@ -113,15 +113,7 @@ function ToolCallRow({ name, status }: { name: string; status: string }) {
   );
 }
 
-function ToolResultRow({
-  name,
-  output,
-  metadata,
-}: {
-  name: string;
-  output: string;
-  metadata?: ToolResultMetadata;
-}) {
+function ToolResultRow({ name, output, metadata }: { name: string; output: string; metadata?: ToolResultMetadata }) {
   if (output.startsWith('__NAVIGATE__:')) return null;
   if (!WRITE_TOOLS.has(name)) return null;
 
@@ -149,9 +141,7 @@ function ToolResultRow({
             View <ExternalLink className="size-3" />
           </Link>
         )}
-        {hasNoteDiff && (
-          <ViewChangesButton noteId={metadata.note_id!} />
-        )}
+        {hasNoteDiff && <ViewChangesButton noteId={metadata.note_id!} />}
       </div>
     </div>
   );
@@ -250,21 +240,11 @@ function ConfirmCard({
 
       {status === 'pending' && (
         <div className="flex gap-2">
-          <Button
-            variant="default"
-            size="sm"
-            className="flex-1"
-            onClick={() => onConfirm(id, true)}
-          >
+          <Button variant="default" size="sm" className="flex-1" onClick={() => onConfirm(id, true)}>
             <Check className="size-3" />
             Approve
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={() => onConfirm(id, false)}
-          >
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => onConfirm(id, false)}>
             <X className="size-3" />
             Reject
           </Button>
@@ -314,8 +294,7 @@ function _summarizeArgs(name: string, args: Record<string, unknown>): string {
       const parts: string[] = [];
       if (args.title) parts.push(`Rename to "${_argStr(args.title)}"`);
       if (args.description) parts.push('Update description');
-      if (Array.isArray(args.remove_question_ids))
-        parts.push(`Remove ${args.remove_question_ids.length} question(s)`);
+      if (Array.isArray(args.remove_question_ids)) parts.push(`Remove ${args.remove_question_ids.length} question(s)`);
       return parts.join(', ') || 'No changes';
     }
     default:

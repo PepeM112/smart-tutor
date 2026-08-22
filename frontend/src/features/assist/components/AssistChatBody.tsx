@@ -10,9 +10,6 @@ import type { ChatMessage } from '../types';
 type AssistChatBodyProps = {
   messages: ChatMessage[];
   onConfirm: (toolCallId: string, approved: boolean) => void;
-  isStreaming: boolean;
-  onSend: (text: string) => void;
-  onCommand: (cmd: string) => void;
   footer: React.ReactNode;
 };
 

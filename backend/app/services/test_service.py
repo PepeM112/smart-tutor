@@ -99,22 +99,30 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
     test = get_test(db, test_id=test_id, current_user=current_user)
     version_test_if_needed(db, test=test)
 
-    _validate_order_space(data.questions or [], data.question_groups or [])
+    replacing_questions = "questions" in data.model_fields_set
+    replacing_groups = "question_groups" in data.model_fields_set
 
-    # Soft-delete existing questions and groups before replacing
-    for q in test.questions:
-        q.status = int(QuestionStatus.DELETED)
-    for g in test.question_groups:
-        g.status = int(GroupStatus.DELETED)
-        for gq in g.questions:
-            gq.status = int(QuestionStatus.DELETED)
-    db.flush()
+    _validate_order_space(
+        data.questions or [] if replacing_questions else [],
+        data.question_groups or [] if replacing_groups else [],
+    )
 
-    if data.questions:
-        question_crud.create_many(db, questions=data.questions, user_id=current_user.id, test_id=test.id)
+    if replacing_questions:
+        for q in test.questions:
+            q.status = int(QuestionStatus.DELETED)
+        if data.questions:
+            question_crud.create_many(db, questions=data.questions, user_id=current_user.id, test_id=test.id)
 
-    if data.question_groups:
-        group_crud.create_many(db, test_id=test.id, user_id=current_user.id, groups=data.question_groups)
+    if replacing_groups:
+        for g in test.question_groups:
+            g.status = int(GroupStatus.DELETED)
+            for gq in g.questions:
+                gq.status = int(QuestionStatus.DELETED)
+        if data.question_groups:
+            group_crud.create_many(db, test_id=test.id, user_id=current_user.id, groups=data.question_groups)
+
+    if replacing_questions or replacing_groups:
+        db.flush()
 
     updated = test_crud.update(db, test=test, data=data)
     db.commit()

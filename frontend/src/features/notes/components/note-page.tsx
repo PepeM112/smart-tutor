@@ -43,7 +43,7 @@ export function NotePage({ noteId }: Props) {
   return (
     <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
       {note?.data ? (
-        <NoteForm key={note.data.id} note={note.data} />
+        <NoteForm key={`${note.data.id}-${String(note.data.updatedAt)}`} note={note.data} />
       ) : (
         <p className="text-muted-foreground">{t('notes.note_not_found')}</p>
       )}
@@ -69,9 +69,7 @@ function NoteForm({ note }: { note: NoteRead }) {
 
   const pendingNoteDiff = useAssistDiffStore(s => s.pendingNoteDiff);
   const clearPendingNoteDiff = useAssistDiffStore(s => s.clearPendingNoteDiff);
-  const showAssistDiff =
-    searchParams.get('diff') === 'assist' &&
-    pendingNoteDiff?.noteId === note.id;
+  const showAssistDiff = searchParams.get('diff') === 'assist' && pendingNoteDiff?.noteId === note.id;
 
   const {
     containerRef: assistDiffContainerRef,
@@ -223,7 +221,10 @@ function NoteForm({ note }: { note: NoteRead }) {
       </div>
 
       <div ref={assistDiffContainerRef} className="flex flex-1 min-h-0 overflow-hidden gap-0">
-        <div className="min-w-0 flex-1 overflow-hidden" style={{ flex: isDesktop && showAssistDiff ? assistDiffRatio : 1 }}>
+        <div
+          className="min-w-0 flex-1 overflow-hidden"
+          style={{ flex: isDesktop && showAssistDiff ? assistDiffRatio : 1 }}
+        >
           <NoteEditor
             key={editorKey}
             content={content}

@@ -60,8 +60,14 @@ export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panel
         const pw = panelSize?.width ?? rect.width;
         const ph = panelSize?.height ?? rect.height;
         setPosition({
-          x: Math.max(VIEWPORT_INSET, Math.min(dragStartRef.current.posX + dx, window.innerWidth - pw - VIEWPORT_INSET)),
-          y: Math.max(VIEWPORT_INSET, Math.min(dragStartRef.current.posY + dy, window.innerHeight - ph - VIEWPORT_INSET)),
+          x: Math.max(
+            VIEWPORT_INSET,
+            Math.min(dragStartRef.current.posX + dx, window.innerWidth - pw - VIEWPORT_INSET)
+          ),
+          y: Math.max(
+            VIEWPORT_INSET,
+            Math.min(dragStartRef.current.posY + dy, window.innerHeight - ph - VIEWPORT_INSET)
+          ),
         });
       };
 
@@ -87,7 +93,7 @@ export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panel
         document.removeEventListener('mouseup', handleMouseUp);
       };
     },
-    [position, panelSize],
+    [position, panelSize]
   );
 
   const resetPosition = useCallback(() => {

@@ -1,6 +1,6 @@
 from typing import TypedDict
 
-from app.core.enums import QuestionGroupType, QuestionType
+from app.core.enums import QuestionGroupType, QuestionType, TestStatus
 from app.models.question import Question
 from app.models.test import Test
 from app.schemas.question import (
@@ -56,7 +56,7 @@ def build_stripped_test(test: Test) -> TestReadStripped:
         title=test.title,
         description=test.description,
         user_id=test.user_id,
-        status=test.status,
+        status=TestStatus(test.status),
         questions=[build_stripped_question(q) for q in test.questions],
         question_groups=[
             TestQuestionGroupReadStripped(

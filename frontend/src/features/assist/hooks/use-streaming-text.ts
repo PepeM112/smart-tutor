@@ -28,10 +28,7 @@ export function useStreamingText(target: string, streaming: boolean): string {
       const interval = lag > LAG_THRESHOLD ? CATCH_UP_CHAR_MS : CHAR_MS;
 
       if (elapsed >= interval) {
-        const charsToAdd = Math.min(
-          Math.max(1, Math.floor(elapsed / interval)),
-          target.length - indexRef.current,
-        );
+        const charsToAdd = Math.min(Math.max(1, Math.floor(elapsed / interval)), target.length - indexRef.current);
 
         if (charsToAdd > 0) {
           indexRef.current += charsToAdd;

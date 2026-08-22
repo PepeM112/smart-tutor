@@ -40,6 +40,7 @@ export function TestEditor({ testId }: Props) {
 
   return (
     <TestEditorForm
+      key={test ? `${test.id}-${test.version}` : 'new'}
       testId={testId}
       initialTitle={test?.title}
       initialDescription={test?.description ?? undefined}
