@@ -85,7 +85,7 @@ function getSeriesForGroupBy(groupBy: GroupBy, t: (key: string) => string): Seri
       key: `pf_${p}_${f}`,
       label: `${PROVIDER_LABELS[p]} · ${t(AI_FEATURE_LABEL_KEYS[f])}`,
       color: BOTH_COLORS[`${p}_${f}`] ?? FEATURE_COLORS[f],
-    })),
+    }))
   );
 }
 

@@ -28,7 +28,7 @@ export function UsageStatsPage() {
       { label: t('dashboard.range_3m'), value: 90 },
       { label: t('dashboard.range_1y'), value: 365 },
     ],
-    [t],
+    [t]
   );
 
   const { data, isLoading, isFetching } = useQuery({

@@ -93,13 +93,15 @@ export default function SandboxPage() {
       {/* ── ButtonGroup ── */}
       <SandboxBlock title="ButtonGroup — sizes">
         <div className="space-y-5">
-          {([
+          {[
             { label: 'default', size: 'default' as const, value: bgDefault, onChange: setBgDefault },
             { label: 'sm', size: 'sm' as const, value: bgSm, onChange: setBgSm },
             { label: 'xs', size: 'xs' as const, value: bgXs, onChange: setBgXs },
-          ]).map(row => (
+          ].map(row => (
             <div key={row.label} className="flex items-center gap-4">
-              <span className="w-16"><StateLabel>{row.label}</StateLabel></span>
+              <span className="w-16">
+                <StateLabel>{row.label}</StateLabel>
+              </span>
               <ButtonGroup
                 value={row.value}
                 onChange={row.onChange}
@@ -113,7 +115,9 @@ export default function SandboxPage() {
             </div>
           ))}
           <div className="flex items-center gap-4">
-            <span className="w-16"><StateLabel>disabled</StateLabel></span>
+            <span className="w-16">
+              <StateLabel>disabled</StateLabel>
+            </span>
             <ButtonGroup
               value="a"
               onChange={() => {}}

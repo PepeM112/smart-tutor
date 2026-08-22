@@ -6,6 +6,7 @@ import { useCallback, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { cn } from '@/lib/utils';
 
 import { useDraggable } from '../hooks/use-draggable';
 import { useResizable } from '../hooks/use-resizable';
@@ -31,10 +32,13 @@ type Props = {
 };
 
 export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
-  const { isMobile } = useBreakpoint();
-  const [open, setOpen] = useState(false);
+  const { isMobile, isXl } = useBreakpoint();
   const [closing, setClosing] = useState(false);
-  const toggleDock = useAssistPanelStore(s => s.toggleDock);
+
+  const isOpen = useAssistPanelStore(s => s.isOpen);
+  const storeSetOpen = useAssistPanelStore(s => s.setOpen);
+  const mode = useAssistPanelStore(s => s.mode);
+  const toggleMode = useAssistPanelStore(s => s.toggleMode);
 
   const { size, isResizing, handleResizeStart, resetSize } = useResizable();
   const fab = useDraggable();
@@ -76,6 +80,11 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
   const handleOpen = () => {
     if (fab.wasDragged.current) return;
 
+    if (mode === 'docked' && isXl) {
+      storeSetOpen(true);
+      return;
+    }
+
     const fabPos = fab.position.x !== -1 ? fab.position : resolveElement();
     if (!fabPos) return;
 
@@ -87,9 +96,9 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
     }
 
     if (needsResolve) {
-      requestAnimationFrame(() => requestAnimationFrame(() => setOpen(true)));
+      requestAnimationFrame(() => requestAnimationFrame(() => storeSetOpen(true)));
     } else {
-      setOpen(true);
+      storeSetOpen(true);
     }
   };
 
@@ -100,7 +109,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
       if (cardPos) {
         fab.setPosition(fabFromCard(cardPos));
       }
-      setOpen(false);
+      storeSetOpen(false);
       setClosing(false);
     }, CONTENT_FADE_MS);
   };
@@ -145,21 +154,23 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
     />
   );
 
-  const headerActions = (variant: 'mobile' | 'desktop') => (
-    <div className={`flex items-center ${variant === 'desktop' ? 'gap-0.5' : 'gap-1'}`}>
-      {variant === 'desktop' && (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          icon={PanelRight}
-          onClick={toggleDock}
-          aria-label="Dock to side"
-          tooltip="Dock to side"
-        />
-      )}
+  const headerLeft = (variant: 'mobile' | 'desktop') =>
+    variant === 'desktop' && isXl ? (
       <Button
         variant="ghost"
-        size={variant === 'desktop' ? 'icon-sm' : 'icon'}
+        size="icon"
+        icon={PanelRight}
+        onClick={toggleMode}
+        aria-label="Dock to side"
+        tooltip="Dock to side"
+      />
+    ) : null;
+
+  const headerRight = (variant: 'mobile' | 'desktop') => (
+    <div className={`flex items-center ${variant === 'desktop' ? '' : 'gap-1'}`}>
+      <Button
+        variant="ghost"
+        size="icon"
         icon={RotateCw}
         onClick={onClear}
         aria-label="Clear chat"
@@ -167,9 +178,9 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
       />
       <Button
         variant="ghost"
-        size={variant === 'desktop' ? 'icon-sm' : 'icon'}
+        size="icon"
         icon={Minus}
-        onClick={variant === 'desktop' ? handleMinimize : () => setOpen(false)}
+        onClick={variant === 'desktop' ? handleMinimize : () => storeSetOpen(false)}
         aria-label={variant === 'desktop' ? 'Minimize' : 'Close'}
         tooltip={variant === 'desktop' ? 'Minimize' : 'Close'}
       />
@@ -179,10 +190,10 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
   if (isMobile) {
     return (
       <>
-        {!open && (
+        {!isOpen && (
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => storeSetOpen(true)}
             aria-label="Open AI Assistant"
             className="fixed right-5 bottom-5 z-40 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform duration-150 hover:scale-105 active:scale-95"
           >
@@ -191,7 +202,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
         )}
 
         <AnimatePresence>
-          {open && (
+          {isOpen && (
             <>
               <motion.div
                 key="backdrop"
@@ -200,7 +211,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
                 className="fixed inset-0 z-40 bg-black/40"
-                onClick={() => setOpen(false)}
+                onClick={() => storeSetOpen(false)}
               />
               <motion.div
                 key="mobile-panel"
@@ -208,14 +219,11 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-background shadow-xl"
+                className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-xl"
               >
-                <div className="flex shrink-0 items-center justify-between border-b border-border px-2 py-1.5">
-                  <div className="flex flex-1 items-center gap-1.5 px-1 py-1">
-                    <WandSparkles className="size-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">Assistant</span>
-                  </div>
-                  {headerActions('mobile')}
+                <div className="flex shrink-0 items-center justify-between border-b border-border px-2 py-2.5">
+                  {headerLeft('mobile')}
+                  {headerRight('mobile')}
                 </div>
 
                 <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />
@@ -227,7 +235,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
     );
   }
 
-  const activePos = open ? card.position : fab.position;
+  const activePos = isOpen ? card.position : fab.position;
   const isPositioned = activePos.x !== -1;
   const cssTransition =
     isDragging || isResizing
@@ -245,20 +253,20 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
     <div
       ref={panelRef}
       data-assist-panel
-      className="fixed z-40 overflow-hidden"
+      className={cn('fixed z-40 overflow-hidden', isOpen && 'border border-border')}
       style={{
         ...(isPositioned ? { left: activePos.x, top: activePos.y } : { right: DEFAULT_OFFSET, bottom: DEFAULT_OFFSET }),
-        width: open ? size.width : FAB_SIZE,
-        height: open ? size.height : FAB_SIZE,
-        borderRadius: open ? 14 : 28,
+        width: isOpen ? size.width : FAB_SIZE,
+        height: isOpen ? size.height : FAB_SIZE,
+        borderRadius: isOpen ? 14 : 28,
         transition: cssTransition,
-        boxShadow: open
+        boxShadow: isOpen
           ? '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05)'
           : '0 4px 16px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06)',
       }}
     >
       <AnimatePresence mode="wait" initial={false}>
-        {!open ? (
+        {!isOpen ? (
           <motion.div
             key="fab"
             initial={{ opacity: 0, scale: 0.7 }}
@@ -286,16 +294,16 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
             transition={{ duration: closing ? CONTENT_FADE_MS / 1000 : 0.18, delay: closing ? 0 : 0.08 }}
             className="flex h-full flex-col bg-background"
           >
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-1.5 py-1">
-              <div
-                onMouseDown={card.handleMouseDown}
-                onDoubleClick={handleResetPositionAndSize}
-                className="flex flex-1 cursor-grab items-center gap-1.5 rounded-md px-2 py-1 active:cursor-grabbing"
-              >
-                <WandSparkles className="size-3.5 text-muted-foreground" />
-                <span className="text-[13px] font-medium text-foreground">Assistant</span>
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-1.5 py-2">
+              <div className="flex items-center">
+                {headerLeft('desktop')}
+                <div
+                  onMouseDown={card.handleMouseDown}
+                  onDoubleClick={handleResetPositionAndSize}
+                  className="flex flex-1 cursor-grab items-center rounded-md px-2 py-1 active:cursor-grabbing"
+                />
               </div>
-              {headerActions('desktop')}
+              {headerRight('desktop')}
             </div>
 
             <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />

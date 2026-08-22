@@ -10,7 +10,7 @@ type AssistPanelState = {
   setMode: (mode: PanelMode) => void;
   setOpen: (open: boolean) => void;
   setDockedWidth: (width: number) => void;
-  toggleDock: () => void;
+  toggleMode: () => void;
 };
 
 const DEFAULT_DOCKED_WIDTH = 380;
@@ -28,10 +28,9 @@ export const useAssistPanelStore = create<AssistPanelState>()(
       setMode: mode => set({ mode }),
       setOpen: open => set({ isOpen: open }),
       setDockedWidth: width => set({ dockedWidth: Math.max(MIN_DOCKED_WIDTH, Math.min(MAX_DOCKED_WIDTH, width)) }),
-      toggleDock: () =>
+      toggleMode: () =>
         set(state => ({
           mode: state.mode === 'floating' ? 'docked' : 'floating',
-          isOpen: true,
         })),
     }),
     {

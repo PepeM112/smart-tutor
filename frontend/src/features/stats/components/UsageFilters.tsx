@@ -25,7 +25,7 @@ export function UsageFilters({ groupBy, onGroupByChange, feature, onFeatureChang
       { label: t('stats.group_feature'), value: 'feature' as GroupBy },
       { label: t('stats.group_both'), value: 'both' as GroupBy },
     ],
-    [t],
+    [t]
   );
 
   return (

@@ -22,7 +22,7 @@ type Props = {
 };
 
 export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
-  const toggleDock = useAssistPanelStore(s => s.toggleDock);
+  const toggleMode = useAssistPanelStore(s => s.toggleMode);
   const setOpen = useAssistPanelStore(s => s.setOpen);
   const dockedWidth = useAssistPanelStore(s => s.dockedWidth);
   const setDockedWidth = useAssistPanelStore(s => s.setDockedWidth);
@@ -79,7 +79,7 @@ export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onCo
   );
 
   return (
-    <div className="relative flex h-full flex-col border-l border-border bg-background" style={{ width: dockedWidth }}>
+    <div className="relative flex h-full flex-col border-l border-border bg-sidebar" style={{ width: dockedWidth }}>
       {/* Resize handle on left edge */}
       <div
         onMouseDown={handleResizeStart}
@@ -87,26 +87,25 @@ export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onCo
       />
 
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
-        <span className="text-sm font-medium text-foreground">Assistant</span>
-        <div className="flex items-center gap-0.5">
+      <div className="flex shrink-0 items-center justify-between p-1">
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          icon={PanelRightOpen}
+          onClick={toggleMode}
+          aria-label="Undock"
+          tooltip="Undock to floating"
+        />
+        <div className="flex items-center">
           <Button
             variant="ghost"
-            size="icon-sm"
-            icon={PanelRightOpen}
-            onClick={toggleDock}
-            aria-label="Undock"
-            tooltip="Undock to floating"
-          />
-          <Button
-            variant="ghost"
-            size="icon-sm"
+            size="icon-lg"
             icon={RotateCw}
             onClick={onClear}
             aria-label="Clear chat"
             tooltip="Clear chat"
           />
-          <Button variant="ghost" size="icon-sm" icon={X} onClick={handleClose} aria-label="Close" tooltip="Close" />
+          <Button variant="ghost" size="icon-lg" icon={X} onClick={handleClose} aria-label="Close" tooltip="Close" />
         </div>
       </div>
 

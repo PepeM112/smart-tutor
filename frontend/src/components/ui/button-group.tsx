@@ -37,7 +37,7 @@ export function ButtonGroup<T extends string | number = string | number>({
       className={cn(
         'inline-flex gap-0.5 rounded-md border border-border p-0.5',
         disabled && 'pointer-events-none opacity-50',
-        className,
+        className
       )}
     >
       {items.map(item => (
@@ -50,9 +50,7 @@ export function ButtonGroup<T extends string | number = string | number>({
             'rounded-md font-medium transition-colors',
             'disabled:pointer-events-none disabled:opacity-50',
             sizeStyles[size],
-            item.value === value
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground',
+            item.value === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
           )}
         >
           {item.label}
