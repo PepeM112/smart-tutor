@@ -16,7 +16,7 @@ type UseDraggableReturn = {
 };
 
 const DEFAULT_POSITION: Position = { x: -1, y: -1 };
-const VIEWPORT_INSET = 12;
+const VIEWPORT_INSET = 16;
 
 export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panelSize?: Size): UseDraggableReturn {
   const [position, setPosition] = useState<Position>(initialPosition);

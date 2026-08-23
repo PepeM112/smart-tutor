@@ -18,7 +18,8 @@ import { AssistInput } from './AssistInput';
 import type { ChatMessage } from '../types';
 
 const FAB_SIZE = 56;
-const DEFAULT_OFFSET = 24;
+const DEFAULT_OFFSET = 16;
+const FAB_OFFSET = 32;
 const MORPH_MS = 380;
 const CONTENT_FADE_MS = 120;
 
@@ -92,7 +93,10 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
     if (needsResolve) fab.setPosition(fabPos);
 
     if (card.position.x === -1) {
-      card.setPosition(cardFromFab(fabPos));
+      card.setPosition({
+        x: window.innerWidth - size.width - DEFAULT_OFFSET,
+        y: window.innerHeight - size.height - DEFAULT_OFFSET,
+      });
     }
 
     if (needsResolve) {
@@ -105,9 +109,11 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
   const handleMinimize = () => {
     setClosing(true);
     setTimeout(() => {
-      const cardPos = card.position.x !== -1 ? card.position : resolveElement();
-      if (cardPos) {
-        fab.setPosition(fabFromCard(cardPos));
+      if (fab.position.x === -1) {
+        const cardPos = card.position.x !== -1 ? card.position : resolveElement();
+        if (cardPos) {
+          fab.setPosition(fabFromCard(cardPos));
+        }
       }
       storeSetOpen(false);
       setClosing(false);
@@ -134,7 +140,10 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
   }, [card.position]);
 
   const onResizeStart = useCallback(
-    (e: React.MouseEvent, edge: 'top' | 'left' | 'top-left') => {
+    (
+      e: React.MouseEvent,
+      edge: 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+    ) => {
       const resolved = resolveCardPosition();
       if (resolved.x === -1) return;
       if (card.position.x === -1) card.setPosition(resolved);
@@ -255,7 +264,9 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
       data-assist-panel
       className={cn('fixed z-40 overflow-hidden', isOpen && 'border border-border')}
       style={{
-        ...(isPositioned ? { left: activePos.x, top: activePos.y } : { right: DEFAULT_OFFSET, bottom: DEFAULT_OFFSET }),
+        ...(isPositioned
+          ? { left: activePos.x, top: activePos.y }
+          : { right: isOpen ? DEFAULT_OFFSET : FAB_OFFSET, bottom: isOpen ? DEFAULT_OFFSET : FAB_OFFSET }),
         width: isOpen ? size.width : FAB_SIZE,
         height: isOpen ? size.height : FAB_SIZE,
         borderRadius: isOpen ? 14 : 28,
@@ -295,12 +306,12 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
             className="flex h-full flex-col bg-background"
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-1.5 py-2">
-              <div className="flex items-center">
+              <div className="flex flex-1 items-center">
                 {headerLeft('desktop')}
                 <div
                   onMouseDown={card.handleMouseDown}
                   onDoubleClick={handleResetPositionAndSize}
-                  className="flex flex-1 cursor-grab items-center rounded-md px-2 py-1 active:cursor-grabbing"
+                  className="flex flex-1 cursor-grab items-center self-stretch rounded-md px-2 active:cursor-grabbing"
                 />
               </div>
               {headerRight('desktop')}
@@ -308,15 +319,39 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
 
             <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />
 
-            {/* Resize handles */}
-            <div onMouseDown={e => onResizeStart(e, 'top')} className="absolute inset-x-0 top-0 h-1 cursor-n-resize" />
+            {/* Resize handles — edges */}
             <div
-              onMouseDown={e => onResizeStart(e, 'left')}
-              className="absolute inset-y-0 left-0 w-1 cursor-w-resize"
+              onMouseDown={e => onResizeStart(e, 'top')}
+              className="absolute inset-x-1.5 top-0 h-1 cursor-n-resize"
             />
             <div
+              onMouseDown={e => onResizeStart(e, 'bottom')}
+              className="absolute inset-x-1.5 bottom-0 h-1 cursor-s-resize"
+            />
+            <div
+              onMouseDown={e => onResizeStart(e, 'left')}
+              className="absolute inset-y-1.5 left-0 w-1 cursor-w-resize"
+            />
+            <div
+              onMouseDown={e => onResizeStart(e, 'right')}
+              className="absolute inset-y-1.5 right-0 w-1 cursor-e-resize"
+            />
+            {/* Resize handles — corners */}
+            <div
               onMouseDown={e => onResizeStart(e, 'top-left')}
-              className="absolute top-0 left-0 size-3 cursor-nw-resize"
+              className="absolute top-0 left-0 size-2.5 cursor-nw-resize"
+            />
+            <div
+              onMouseDown={e => onResizeStart(e, 'top-right')}
+              className="absolute top-0 right-0 size-2.5 cursor-ne-resize"
+            />
+            <div
+              onMouseDown={e => onResizeStart(e, 'bottom-left')}
+              className="absolute bottom-0 left-0 size-2.5 cursor-sw-resize"
+            />
+            <div
+              onMouseDown={e => onResizeStart(e, 'bottom-right')}
+              className="absolute bottom-0 right-0 size-2.5 cursor-se-resize"
             />
           </motion.div>
         )}
