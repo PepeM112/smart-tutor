@@ -26,7 +26,7 @@ const CONTENT_FADE_MS = 120;
 type Props = {
   messages: ChatMessage[];
   isStreaming: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, displayText?: string) => void;
   onStop: () => void;
   onConfirm: (toolCallId: string, approved: boolean) => void;
   onClear: () => void;

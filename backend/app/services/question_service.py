@@ -187,6 +187,18 @@ def bulk_assign_questions(db: Session, *, question_ids: list[str], test_id: str,
     return len(owned)
 
 
+def bulk_update_questions(
+    db: Session,
+    *,
+    questions: list[Question],
+    updates: list[QuestionUpdate],
+) -> None:
+    """Apply a QuestionUpdate to each question in order. Caller must ensure ownership."""
+    for question, data in zip(questions, updates, strict=True):
+        question_crud.update(db, question=question, data=data)
+    db.commit()
+
+
 def _to_question_list_read(question: Question) -> QuestionListRead:
     test_title = question.test.title if question.test else None
     group_title = question.question_group.title if question.question_group else None

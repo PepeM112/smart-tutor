@@ -3,7 +3,7 @@ from typing import Annotated, TypeAlias
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.enums import AIFeature
+from app.core.enums import AIFeature, AIProvider
 from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.user import User
@@ -23,7 +23,8 @@ def get_usage(
     days: Annotated[int, Query(ge=1, le=365)] = 30,
     group_by: Annotated[UsageGroupBy, Query(alias="groupBy")] = "provider",
     feature: Annotated[AIFeature | None, Query()] = None,
+    provider: Annotated[AIProvider | None, Query()] = None,
 ) -> TokenUsageSummaryResponse:
     return token_usage_service.get_usage_summary(
-        db, user_id=current_user.id, days=days, group_by=group_by, feature_filter=feature
+        db, user_id=current_user.id, days=days, group_by=group_by, feature_filter=feature, provider_filter=provider
     )

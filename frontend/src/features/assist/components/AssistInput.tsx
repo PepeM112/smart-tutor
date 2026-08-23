@@ -1,7 +1,21 @@
 'use client';
 
+import Placeholder from '@tiptap/extension-placeholder';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
 import { ArrowUp, Square } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { ChipNode } from '../extensions/chip-node';
+import { CommandNode } from '../extensions/command-node';
+import {
+  useAssistAttachmentsStore,
+  type AssistCommand,
+  type ChatAttachment,
+} from '../store/use-assist-attachments-store';
+import { useAssistCommandBridgeStore } from '../store/use-assist-command-bridge';
+
+/* ─── helpers ─── */
 
 type SlashCommand = {
   name: string;
@@ -10,8 +24,44 @@ type SlashCommand = {
 
 const COMMANDS: SlashCommand[] = [{ name: '/clear', description: 'Clear the conversation' }];
 
+const ATTACHMENT_HEADINGS: Record<ChatAttachment['type'], string> = {
+  note_chunk: '[Selected text from note]',
+  test_questions: '[Selected questions from test]',
+};
+
+function buildMessageWithAttachments(attachments: ChatAttachment[], text: string): string {
+  if (attachments.length === 0) return text;
+  const blocks = attachments.map(a => `${ATTACHMENT_HEADINGS[a.type]}\n---\n${a.content}\n---`);
+  return `${blocks.join('\n\n')}\n\n${text}`;
+}
+
+function buildEditTestMessage(attachments: ChatAttachment[], instructions: string): string {
+  const testId = attachments.find(a => a.type === 'test_questions')?.metadata.testId;
+  const blocks = attachments
+    .filter(a => a.type === 'test_questions')
+    .map(a => `${a.content}`)
+    .join('\n\n');
+  return (
+    `Use the refine_questions tool to edit the following question(s) in test ${testId ?? '(unknown)'}. ` +
+    `Call get_test_details first to find their exact qid values by matching the prompts below, then apply ` +
+    `these instructions to only those questions:\n\n${blocks}\n\nInstructions: ${instructions}`
+  );
+}
+
+function buildDisplayText(command: AssistCommand, attachments: ChatAttachment[], instructions: string): string {
+  const chipLabels = attachments.map(a => `[${a.label}]`).join(' ');
+  return `${command} ${chipLabels} ${instructions}`.trim();
+}
+
+const COMMAND_PLACEHOLDERS: Record<AssistCommand, string> = {
+  '/edit-note': 'Describe how the selected text should change...',
+  '/edit-test': 'Describe how the selected question(s) should change...',
+};
+
+/* ─── component ─── */
+
 type AssistInputProps = {
-  onSend: (text: string) => void;
+  onSend: (text: string, displayText?: string) => void;
   onCommand: (command: string) => void;
   onStop?: () => void;
   isStreaming: boolean;
@@ -21,72 +71,255 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const [draft, setDraft] = useState('');
   const [dismissed, setDismissed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const syncingRef = useRef(false);
+
+  const attachments = useAssistAttachmentsStore(s => s.attachments);
+  const clearAttachments = useAssistAttachmentsStore(s => s.clearAttachments);
+  const activeCommand = useAssistAttachmentsStore(s => s.activeCommand);
+  const setActiveCommand = useAssistAttachmentsStore(s => s.setActiveCommand);
+
+  // Refs so Tiptap callbacks (which capture once) always see current values
+  const draftRef = useRef(draft);
+  const handleSendRef = useRef<() => void>(() => {});
+  const resetInputRef = useRef<() => void>(() => {});
+  const placeholderRef = useRef('Ask anything... (/ for commands)');
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    placeholderRef.current = activeCommand ? COMMAND_PLACEHOLDERS[activeCommand] : 'Ask anything... (/ for commands)';
+  }, [activeCommand]);
+
+  /* ─── Tiptap editor ─── */
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: false,
+        bulletList: false,
+        orderedList: false,
+        codeBlock: false,
+        blockquote: false,
+        horizontalRule: false,
+        dropcursor: false,
+        gapcursor: false,
+      }),
+      // eslint-disable-next-line react-hooks/refs -- Tiptap reads this lazily during ProseMirror render, not React render
+      Placeholder.configure({ placeholder: () => placeholderRef.current }),
+      ChipNode,
+      CommandNode,
+    ],
+    editorProps: {
+      attributes: {
+        class: 'assist-editor outline-none',
+      },
+      handleKeyDown: (_view, event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !('isComposing' in event && event.isComposing)) {
+          event.preventDefault();
+          handleSendRef.current();
+          return true;
+        }
+        if (event.key === 'Escape') {
+          resetInputRef.current();
+          return true;
+        }
+        return false;
+      },
+    },
+    onUpdate: ({ editor: ed }) => {
+      const text = ed.getText();
+      setDraft(text);
+      setDismissed(false);
+    },
+    onTransaction: ({ transaction, editor: ed }) => {
+      if (syncingRef.current || !transaction.docChanged) return;
+
+      let hasCmd = false;
+      const chipIds = new Set<string>();
+      ed.state.doc.descendants(node => {
+        if (node.type.name === 'assistCommand') hasCmd = true;
+        if (node.type.name === 'assistChip') chipIds.add(node.attrs.id as string);
+      });
+
+      const store = useAssistAttachmentsStore.getState();
+      if (!hasCmd && store.activeCommand) store.setActiveCommand(null);
+      store.attachments.forEach(a => {
+        if (!chipIds.has(a.id)) store.removeAttachment(a.id);
+      });
+    },
+  });
+
+  /* ─── slash-command menu ─── */
 
   const query = draft.startsWith('/') ? draft.slice(1).toLowerCase() : '';
-  const filteredCommands = draft.startsWith('/') ? COMMANDS.filter(c => c.name.slice(1).startsWith(query)) : [];
-  const commandMenuOpen = !dismissed && draft.startsWith('/') && filteredCommands.length > 0;
+  const filteredCommands =
+    !activeCommand && draft.startsWith('/') ? COMMANDS.filter(c => c.name.slice(1).startsWith(query)) : [];
+  const commandMenuOpen = !dismissed && !activeCommand && draft.startsWith('/') && filteredCommands.length > 0;
   const clampedIndex = Math.min(activeIndex, Math.max(0, filteredCommands.length - 1));
 
-  const canSend = draft.trim().length > 0 && !isStreaming;
+  const canSend = (draft.trim().length > 0 || attachments.length > 0) && !isStreaming;
 
-  const executeCommand = (cmd: SlashCommand) => {
-    onCommand(cmd.name);
+  const executeCommand = useCallback(
+    (cmd: SlashCommand) => {
+      onCommand(cmd.name);
+      editor?.commands.clearContent();
+      setDraft('');
+      setDismissed(false);
+    },
+    [onCommand, editor]
+  );
+
+  const resetInput = useCallback(() => {
+    syncingRef.current = true;
+    editor?.commands.clearContent();
+    syncingRef.current = false;
+    clearAttachments();
+    setActiveCommand(null);
     setDraft('');
-    setDismissed(false);
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-    }
-  };
+  }, [editor, clearAttachments, setActiveCommand]);
 
-  const handleSend = () => {
-    if (!canSend) return;
-    onSend(draft.trim());
-    setDraft('');
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-    }
-  };
+  useEffect(() => {
+    resetInputRef.current = resetInput;
+  }, [resetInput]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (commandMenuOpen && filteredCommands.length > 0) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        setActiveIndex(i =>
-          e.key === 'ArrowDown'
-            ? (i + 1) % filteredCommands.length
-            : (i - 1 + filteredCommands.length) % filteredCommands.length
-        );
-        return;
+  const handleSend = useCallback(() => {
+    const currentDraft = draftRef.current;
+    const currentCanSend =
+      (currentDraft.trim().length > 0 || useAssistAttachmentsStore.getState().attachments.length > 0) && !isStreaming;
+    if (!currentCanSend) return;
+
+    const instructions = currentDraft.trim();
+    const store = useAssistAttachmentsStore.getState();
+    const cmd = store.activeCommand;
+    const atts = store.attachments;
+
+    if (cmd === '/edit-note') {
+      const chip = atts.find(a => a.type === 'note_chunk');
+      const noteEdit = useAssistCommandBridgeStore.getState().runNoteEdit;
+      if (chip && noteEdit) {
+        store.addLocalMessage?.(buildDisplayText(cmd, atts, instructions));
+        noteEdit({
+          markdown: chip.content,
+          plainText: chip.metadata.plainText ?? chip.label,
+          markdownStart: chip.metadata.markdownStart ?? 0,
+          markdownEnd: chip.metadata.markdownEnd ?? 0,
+          instructions,
+        });
       }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-        executeCommand(filteredCommands[clampedIndex]);
-        return;
-      }
-      if (e.key === 'Escape') {
-        setDismissed(true);
-        setDraft('');
-        return;
-      }
+      resetInput();
+      return;
     }
 
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (cmd === '/edit-test') {
+      const display = buildDisplayText(cmd, atts, instructions);
+      onSend(buildEditTestMessage(atts, instructions), display);
+      resetInput();
+      return;
+    }
+
+    onSend(buildMessageWithAttachments(atts, instructions));
+    resetInput();
+  }, [isStreaming, onSend, resetInput]);
+
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
+
+  /* ─── sync command + attachments → editor (single effect to preserve order) ─── */
+
+  useEffect(() => {
+    if (!editor) return;
+
+    queueMicrotask(() => {
+      if (syncingRef.current) return;
+      syncingRef.current = true;
+
+      let hasCmd = false;
+      let cmdPos = -1;
+      let cmdSize = 0;
+      const editorChipIds = new Set<string>();
+
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'assistCommand') {
+          hasCmd = true;
+          cmdPos = pos;
+          cmdSize = node.nodeSize;
+        }
+        if (node.type.name === 'assistChip') editorChipIds.add(node.attrs.id as string);
+      });
+
+      let chain = editor.chain();
+      let changed = false;
+
+      if (activeCommand && !hasCmd) {
+        chain = chain.insertContentAt(1, {
+          type: 'assistCommand',
+          attrs: { command: activeCommand },
+        });
+        changed = true;
+      } else if (!activeCommand && hasCmd && cmdPos >= 0) {
+        chain = chain.deleteRange({ from: cmdPos, to: cmdPos + cmdSize });
+        changed = true;
+      }
+
+      const newAtts = attachments.filter(a => !editorChipIds.has(a.id));
+      if (newAtts.length > 0) {
+        // Recalculate insert position from current doc state after command changes
+        let insertPos = 1;
+        editor.state.doc.descendants((node, pos) => {
+          if (node.type.name === 'assistCommand' || node.type.name === 'assistChip') {
+            insertPos = pos + node.nodeSize;
+          }
+        });
+        // If we just inserted a command, offset for its size (1 node = 1 in ProseMirror)
+        if (activeCommand && !hasCmd) insertPos += 1;
+
+        const content = newAtts.map(a => ({
+          type: 'assistChip' as const,
+          attrs: {
+            id: a.id,
+            label: a.label,
+            content: a.content,
+            type: a.type,
+            metadata: JSON.stringify(a.metadata),
+          },
+        }));
+        chain = chain.insertContentAt(insertPos, content);
+        changed = true;
+      }
+
+      if (changed) chain.focus('end').run();
+      syncingRef.current = false;
+    });
+  }, [editor, activeCommand, attachments]);
+
+  /* ─── keyboard: slash menu navigation ─── */
+
+  const handleEditorKeyDown = (e: React.KeyboardEvent) => {
+    if (!commandMenuOpen || filteredCommands.length === 0) return;
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      handleSend();
+      setActiveIndex(i =>
+        e.key === 'ArrowDown'
+          ? (i + 1) % filteredCommands.length
+          : (i - 1 + filteredCommands.length) % filteredCommands.length
+      );
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      executeCommand(filteredCommands[clampedIndex]);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setDismissed(true);
+      editor?.commands.clearContent();
+      setDraft('');
     }
-  };
-
-  const handleInput = () => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   };
 
   return (
     <div className="relative mt-auto shrink-0 p-2">
-      {/* Slash command menu */}
       {commandMenuOpen && (
         <div className="absolute inset-x-1.5 bottom-full mb-1 rounded-lg border border-border bg-background p-1 shadow-md">
           {filteredCommands.map((cmd, i) => (
@@ -111,36 +344,32 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
       <div
         role="presentation"
-        onClick={() => inputRef.current?.focus()}
-        className="flex cursor-text items-center gap-2 rounded-xl border border-border bg-muted/30 pl-4 pr-2 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.035)] transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.025)]"
+        onClick={() => editor?.commands.focus()}
+        className="cursor-text rounded-xl border border-border bg-muted/30 px-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.035)] transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.025)]"
       >
-        <textarea
-          ref={inputRef}
-          value={draft}
-          onChange={e => {
-            setDraft(e.target.value);
-            setDismissed(false);
-            handleInput();
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask anything... (/ for commands)"
-          aria-label="Message"
-          rows={1}
-          className="min-h-[28px] w-full content-center resize-none self-center bg-transparent py-[3px] text-[13px] leading-[1.4] text-foreground outline-none placeholder:text-muted-foreground"
-        />
-        <button
-          type="button"
-          aria-label={isStreaming ? 'Stop' : 'Send'}
-          disabled={!canSend && !isStreaming}
-          onClick={isStreaming ? onStop : handleSend}
-          className="flex size-7 shrink-0 items-center justify-center self-end rounded-lg transition-[background-color,color,transform] duration-200 enabled:active:scale-95"
-          style={{
-            background: canSend || isStreaming ? 'var(--primary)' : 'var(--muted)',
-            color: canSend || isStreaming ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
-          }}
-        >
-          {isStreaming ? <Square className="size-3" /> : <ArrowUp className="size-4" />}
-        </button>
+        <div className="flex items-end gap-1">
+          <div
+            className="min-w-0 flex-1 overflow-y-auto text-[13px] leading-[1.8]"
+            style={{ maxHeight: 120 }}
+            onKeyDown={handleEditorKeyDown}
+          >
+            <EditorContent editor={editor} />
+          </div>
+
+          <button
+            type="button"
+            aria-label={isStreaming ? 'Stop' : 'Send'}
+            disabled={!canSend && !isStreaming}
+            onClick={isStreaming ? onStop : handleSend}
+            className="mb-px flex size-7 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-200 enabled:active:scale-95"
+            style={{
+              background: canSend || isStreaming ? 'var(--primary)' : 'var(--muted)',
+              color: canSend || isStreaming ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+            }}
+          >
+            {isStreaming ? <Square className="size-3" /> : <ArrowUp className="size-4" />}
+          </button>
+        </div>
       </div>
     </div>
   );

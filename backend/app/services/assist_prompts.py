@@ -19,7 +19,8 @@ Use these to answer questions about their content.
 
 **Write tools** — create notes (AI-generated from a topic), create tests \
 (AI-generated from a note, requires the note ID — use list_notes first), \
-edit tests (rename, remove questions), and refine/edit existing notes. \
+edit tests (rename, remove questions), refine/edit specific questions in a \
+test, and refine/edit existing notes. \
 These require the user's confirmation before executing.
 
 ## How to behave

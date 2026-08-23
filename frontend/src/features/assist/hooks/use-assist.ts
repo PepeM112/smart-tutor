@@ -2,11 +2,12 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { sdk } from '@/lib/api-client';
 
+import { useAssistAttachmentsStore } from '../store/use-assist-attachments-store';
 import { useAssistDiffStore } from '../store/use-assist-diff-store';
 import {
   WRITE_TOOLS,
@@ -34,6 +35,7 @@ const TOOL_QUERY_KEYS: Record<string, string[][]> = {
   refine_note: [['notes']],
   create_test: [['tests']],
   edit_test: [['tests'], ['questions']],
+  refine_questions: [['tests'], ['questions']],
 };
 
 const UNDO_TOAST_DURATION = 8000;
@@ -41,7 +43,8 @@ const UNDO_TOAST_DURATION = 8000;
 type UseAssistReturn = {
   messages: ChatMessage[];
   isStreaming: boolean;
-  send: (text: string) => void;
+  send: (text: string, displayText?: string) => void;
+  addLocalMessage: (text: string) => void;
   stop: () => void;
   confirm: (toolCallId: string, approved: boolean) => void;
   clear: () => void;
@@ -281,14 +284,14 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   );
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, displayText?: string) => {
       if (!text.trim() || abortRef.current) return;
 
       resolvePendingConfirmations();
 
       const userMsg: AssistMessage = { role: 'user', content: text };
       conversationRef.current.push(userMsg);
-      setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text }]);
+      setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text, displayContent: displayText }]);
 
       const request: AssistRequest = {
         messages: conversationRef.current,
@@ -298,6 +301,16 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     },
     [pageContext, streamResponse, resolvePendingConfirmations]
   );
+
+  const addLocalMessage = useCallback((text: string) => {
+    setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text }]);
+  }, []);
+
+  const setAddLocalMessage = useAssistAttachmentsStore(s => s.setAddLocalMessage);
+  useEffect(() => {
+    setAddLocalMessage(addLocalMessage);
+    return () => setAddLocalMessage(null);
+  }, [addLocalMessage, setAddLocalMessage]);
 
   const confirm = useCallback(
     (toolCallId: string, approved: boolean) => {
@@ -352,5 +365,5 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     setIsStreaming(false);
   }, []);
 
-  return { messages, isStreaming, send, stop, confirm, clear };
+  return { messages, isStreaming, send, addLocalMessage, stop, confirm, clear };
 }

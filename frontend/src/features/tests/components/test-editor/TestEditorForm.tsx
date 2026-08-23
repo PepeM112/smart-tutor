@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Pencil, SquareCheck } from 'lucide-react';
+import { Pencil, SquareCheck, WandSparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
@@ -17,28 +17,22 @@ import {
 import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAssistAttachmentsStore } from '@/features/assist/store/use-assist-attachments-store';
+import { useAssistPanelStore } from '@/features/assist/store/use-assist-panel-store';
+import { useAiAvailable } from '@/hooks/use-ai-available';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
 import { sdk } from '@/lib/api-client';
 import { Routes } from '@/lib/routes';
-import { getErrorDetail } from '@/lib/utils';
 
 import { useBlockSelection } from '../../hooks/use-block-selection';
 import { useQuestionBlockList } from '../../hooks/use-question-block-list';
 import { type AddItemType, AddQuestionDropdown } from '../add-question-dropdown';
-import { AiEditPopover } from '../ai-edit-popover';
 import { LongTextQuestionBlock } from '../long-text-question-block';
 import { MultipleChoiceQuestionBlock } from '../multiple-choice-question-block';
 import { QuestionGroupBlock } from '../question-group-block';
 
-import {
-  editorItemsToPreviewInputs,
-  flattenEditorItems,
-  groupToApiGroup,
-  longTextToApiQuestion,
-  mcToApiQuestion,
-  mergeAiEditResult,
-} from './converters';
+import { groupToApiGroup, longTextToApiQuestion, mcToApiQuestion } from './converters';
 import { newLongText, newMultipleChoice, newQuestionGroup } from './helpers';
 
 import type { EditorItem } from './types';
@@ -62,12 +56,15 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [isEditing, setIsEditing] = useState(!isEdit);
   const {
     items,
-    setItems,
     addItem: appendItem,
     updateItem,
     removeItem: removeListItem,
   } = useQuestionBlockList<EditorItem>(initialItems);
   const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
+  const addAttachment = useAssistAttachmentsStore(s => s.addAttachment);
+  const setActiveCommand = useAssistAttachmentsStore(s => s.setActiveCommand);
+  const setAssistOpen = useAssistPanelStore(s => s.setOpen);
+  const aiAvailable = useAiAvailable();
 
   const { mutate: saveTest, isPending: isSaving } = useMutation({
     mutationFn: () => {
@@ -113,30 +110,24 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
   });
 
-  const { mutate: aiEdit, isPending: isAiEditing } = useMutation({
-    mutationFn: (instructions: string) => {
-      const allQuestions = editorItemsToPreviewInputs(items);
-      const flatIndices = flattenEditorItems(items)
-        .map((entry, i) => (selectedIndices.has(entry.blockIndex) ? i : -1))
-        .filter(i => i >= 0);
-
-      return sdk.testsEditQuestions({
-        body: {
-          selectedIndices: flatIndices,
-          allQuestions,
-          instructions,
-          noteContent: undefined,
-        },
-      });
-    },
-    onSuccess: res => {
-      if (!res.data) return;
-      setItems(prev => mergeAiEditResult(prev, res.data.questions));
-      clearSelection();
-      toast.success(t('tests.questions_updated'));
-    },
-    onError: (error: unknown) => toast.error(getErrorDetail(error, t('tests.failed_to_edit_questions'))),
-  });
+  const handleSendToAssistant = useCallback(() => {
+    const selectedItems = items.filter((_, i) => selectedIndices.has(i));
+    const content = selectedItems
+      .map(item => {
+        const label = item.type === 'group' ? item.title : item.prompt;
+        return `[${item.type === 'group' ? 'Group' : item.type}] ${label}`;
+      })
+      .join('\n');
+    addAttachment({
+      type: 'test_questions',
+      label: t('test_generation.chip_label', { count: selectedIndices.size }),
+      content,
+      metadata: { testId },
+    });
+    setActiveCommand('/edit-test');
+    setAssistOpen(true);
+    clearSelection();
+  }, [items, selectedIndices, testId, addAttachment, setActiveCommand, setAssistOpen, clearSelection, t]);
 
   const addItem = useCallback(
     (type: AddItemType) => {
@@ -216,13 +207,20 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
       {selectedIndices.size > 0 && (
         <div className="flex items-center gap-2 mb-3">
-          <AiEditPopover selectedCount={selectedIndices.size} isPending={isAiEditing} onSubmit={aiEdit} />
+          <Button
+            variant="outline"
+            size="lg"
+            icon={WandSparkles}
+            disabled={!aiAvailable}
+            tooltip={!aiAvailable ? t('settings.ai_not_configured') : undefined}
+            onClick={handleSendToAssistant}
+          >
+            {t('test_generation.ai_edit')}
+          </Button>
         </div>
       )}
 
-      <div
-        className={`space-y-3 mb-4 ${isAiEditing ? 'pointer-events-none opacity-50 transition-opacity' : 'transition-opacity'}`}
-      >
+      <div className="space-y-3 mb-4 transition-opacity">
         {items.map((item, i) => {
           const selected = selectedIndices.has(i);
           const selectionClick = (e: React.MouseEvent) => toggleSelection(i, e);

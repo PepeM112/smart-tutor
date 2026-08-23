@@ -61,11 +61,21 @@ def get_usage_summary(
     days: int = 30,
     group_by: UsageGroupBy = "provider",
     feature_filter: AIFeature | None = None,
+    provider_filter: AIProvider | None = None,
 ) -> TokenUsageSummaryResponse:
     if days == 1:
-        daily = _build_hourly(db, user_id=user_id, group_by=group_by, feature_filter=feature_filter)
+        daily = _build_hourly(
+            db, user_id=user_id, group_by=group_by, feature_filter=feature_filter, provider_filter=provider_filter
+        )
     else:
-        daily = _build_daily(db, user_id=user_id, days=days, group_by=group_by, feature_filter=feature_filter)
+        daily = _build_daily(
+            db,
+            user_id=user_id,
+            days=days,
+            group_by=group_by,
+            feature_filter=feature_filter,
+            provider_filter=provider_filter,
+        )
 
     total_input = sum(d.input_tokens for d in daily)
     total_output = sum(d.output_tokens for d in daily)
@@ -88,11 +98,18 @@ def _build_daily(
     days: int,
     group_by: UsageGroupBy,
     feature_filter: AIFeature | None,
+    provider_filter: AIProvider | None,
 ) -> list[TokenUsageDailySummary]:
     end = date.today()
     start = end - timedelta(days=days - 1)
     rows = token_usage_crud.get_daily_summary(
-        db, user_id=user_id, start_date=start, end_date=end, group_by=group_by, feature_filter=feature_filter
+        db,
+        user_id=user_id,
+        start_date=start,
+        end_date=end,
+        group_by=group_by,
+        feature_filter=feature_filter,
+        provider_filter=provider_filter,
     )
 
     by_date: dict[str, list[TokenUsageDailySummary]] = {}
@@ -113,7 +130,7 @@ def _build_daily(
     current = start
     while current <= end:
         key = current.isoformat()
-        daily.extend(by_date.get(key, [_zero_entry(key, group_by)]))
+        daily.extend(by_date.get(key, [_zero_entry(key, group_by, provider_filter)]))
         current += timedelta(days=1)
     return daily
 
@@ -124,9 +141,15 @@ def _build_hourly(
     user_id: str,
     group_by: UsageGroupBy,
     feature_filter: AIFeature | None,
+    provider_filter: AIProvider | None,
 ) -> list[TokenUsageDailySummary]:
     rows = token_usage_crud.get_hourly_summary(
-        db, user_id=user_id, target_date=date.today(), group_by=group_by, feature_filter=feature_filter
+        db,
+        user_id=user_id,
+        target_date=date.today(),
+        group_by=group_by,
+        feature_filter=feature_filter,
+        provider_filter=provider_filter,
     )
 
     by_hour: dict[int, list[TokenUsageDailySummary]] = {}
@@ -145,14 +168,17 @@ def _build_hourly(
     daily: list[TokenUsageDailySummary] = []
     for hour in range(24):
         label = f"{hour:02d}:00"
-        daily.extend(by_hour.get(hour, [_zero_entry(label, group_by)]))
+        daily.extend(by_hour.get(hour, [_zero_entry(label, group_by, provider_filter)]))
     return daily
 
 
-def _zero_entry(period: str, group_by: UsageGroupBy) -> TokenUsageDailySummary:
+def _zero_entry(period: str, group_by: UsageGroupBy, provider_filter: AIProvider | None) -> TokenUsageDailySummary:
+    provider: AIProvider | None = None
+    if group_by in ("provider", "both"):
+        provider = provider_filter
     return TokenUsageDailySummary(
         date=period,
-        provider=AIProvider.ANTHROPIC if group_by in ("provider", "both") else None,
+        provider=provider,
         feature=None,
         input_tokens=0,
         output_tokens=0,

@@ -35,7 +35,7 @@ export default function AssistChatBody({ messages, onConfirm, footer }: AssistCh
           </div>
         )}
         {messages.map(msg => (
-          <AssistMessageRow key={msg.id} message={msg} onConfirm={onConfirm} />
+          <AssistMessageRow key={`${msg.type}-${msg.id}`} message={msg} onConfirm={onConfirm} />
         ))}
       </div>
       {footer}

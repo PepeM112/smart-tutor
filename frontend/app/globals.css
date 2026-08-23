@@ -1,6 +1,6 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import url('tailwindcss');
+@import url('tw-animate-css');
+@import url('shadcn/tailwind.css');
 
 @custom-variant dark (&:is([data-theme="midnight"] *, [data-theme="carbon"] *, [data-theme="neon"] *, [data-theme="noir"] *));
 
@@ -125,8 +125,8 @@
     --feedback-partial-border: #fde68a;
     --feedback-wrong-bg: #fef2f2;
     --feedback-wrong-border: #fecaca;
-    --highlight-ai: rgba(253, 240, 195, 1);
-    --highlight-ai-active: rgba(255, 200, 170, 1);
+    --highlight-ai: rgb(253 240 195 / 100%);
+    --highlight-ai-active: rgb(255 200 170 / 100%);
     --code-bg: rgb(40 44 52);
     --code-fg: #f0f0f0;
     --sidebar: #1e3a5f;
@@ -297,17 +297,17 @@
 
   /* ── Midnight ── */
   [data-theme='midnight'] {
-    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 30%), 0 1px 2px -1px rgb(0 0 0 / 30%);
     --background: #15202b;
-    --foreground: #ffffff;
+    --foreground: #fff;
     --card: #192734;
-    --card-foreground: #ffffff;
+    --card-foreground: #fff;
     --popover: #192734;
-    --popover-foreground: #ffffff;
+    --popover-foreground: #fff;
     --primary: #4a9ece;
-    --primary-foreground: #ffffff;
+    --primary-foreground: #fff;
     --secondary: #192734;
-    --secondary-foreground: #ffffff;
+    --secondary-foreground: #fff;
     --muted: #38444d;
     --muted-foreground: #8899a6;
     --accent: #1e2732;
@@ -339,7 +339,7 @@
 
   /* ── Carbon (neutral dark, gray accents) ── */
   [data-theme='carbon'] {
-    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 40%), 0 1px 2px -1px rgb(0 0 0 / 40%);
     --background: #121212;
     --foreground: #e0e0e0;
     --card: #1e1e1e;
@@ -352,7 +352,7 @@
     --secondary-foreground: #e0e0e0;
     --muted: #2a2a2a;
     --muted-foreground: #737373;
-    --accent: #333333;
+    --accent: #333;
     --accent-foreground: #d4d4d4;
     --destructive: #f87171;
     --destructive-foreground: #121212;
@@ -381,7 +381,7 @@
 
   /* ── Neon (black + electric yellow) ── */
   [data-theme='neon'] {
-    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 40%), 0 1px 2px -1px rgb(0 0 0 / 40%);
     --background: #0a0a0a;
     --foreground: #f5f5f5;
     --card: #141414;
@@ -414,7 +414,7 @@
     --highlight-ai-active: oklch(50% 0.1 55deg);
     --code-bg: #141414;
     --code-fg: #e5e5e5;
-    --sidebar: #000000;
+    --sidebar: #000;
     --sidebar-foreground: #f5f5f5;
     --sidebar-muted: #525252;
     --sidebar-accent: #1a1700;
@@ -423,7 +423,7 @@
 
   /* ── Noir (black + white primary) ── */
   [data-theme='noir'] {
-    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 40%), 0 1px 2px -1px rgb(0 0 0 / 40%);
     --background: #0a0a0a;
     --foreground: #e5e5e5;
     --card: #141414;
@@ -434,7 +434,7 @@
     --primary-foreground: #0a0a0a;
     --secondary: #1a1a1a;
     --secondary-foreground: #e5e5e5;
-    --muted: #222222;
+    --muted: #222;
     --muted-foreground: #737373;
     --accent: #2a2a2a;
     --accent-foreground: #f0f0f0;
@@ -456,12 +456,32 @@
     --highlight-ai-active: oklch(50% 0.1 55deg);
     --code-bg: #141414;
     --code-fg: #e5e5e5;
-    --sidebar: #000000;
+    --sidebar: #000;
     --sidebar-foreground: #e5e5e5;
     --sidebar-muted: #525252;
     --sidebar-accent: #1a1a1a;
     --sidebar-border: #1e1e1e;
   }
+}
+
+/* Tiptap / ProseMirror reset for the assist input */
+.assist-editor p {
+  margin: 0;
+}
+
+.assist-editor {
+  min-height: 24px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--foreground);
+}
+
+.assist-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  pointer-events: none;
+  float: left;
+  height: 0;
 }
 
 .scrollbar-none::-webkit-scrollbar {
@@ -479,6 +499,7 @@
 .markdown-body {
   text-align: justify;
 }
+
 .markdown-body h1 {
   font-size: 1.5rem;
   font-weight: 700;
