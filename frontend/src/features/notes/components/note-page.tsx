@@ -270,7 +270,6 @@ function NoteForm({ note }: { note: NoteRead }) {
                 newContent={pendingNoteDiff.newContent}
                 onAccept={() => acceptRefinement()}
                 onReject={clearPendingNoteDiff}
-
               />
             </div>
           </>
@@ -287,7 +286,6 @@ function NoteForm({ note }: { note: NoteRead }) {
                     newContent={pendingNoteDiff.newContent}
                     onAccept={() => acceptRefinement()}
                     onReject={clearPendingNoteDiff}
-    
                   />
                 </div>
               )}

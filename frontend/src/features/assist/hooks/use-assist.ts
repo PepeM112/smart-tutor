@@ -185,10 +185,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               }
               segmentOffset = assistantText.length - content.length;
               currentSegmentId = nextId();
-              return [
-                ...prev,
-                { type: 'assistant' as const, id: currentSegmentId, content: content, streaming: true },
-              ];
+              return [...prev, { type: 'assistant' as const, id: currentSegmentId, content: content, streaming: true }];
             });
             break;
           }
@@ -196,9 +193,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             const tc = data as SSEToolCall;
             toolCalls.push({ id: tc.id, name: tc.name, arguments: tc.arguments });
             setMessages(prev => [
-              ...prev.map(m =>
-                m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m
-              ),
+              ...prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m)),
               { type: 'tool_call', id: tc.id, name: tc.name, arguments: tc.arguments, status: 'running' },
             ]);
             break;
@@ -278,9 +273,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'done': {
             void (data as SSEDone);
             setMessages(prev => {
-              const updated = prev.map(m =>
-                m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m
-              );
+              const updated = prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m));
               // Merge tiny assistant fragments (e.g. "I" before a tool call) into
               // the next assistant segment so they don't appear as separate bubbles.
               const merged: typeof updated = [];
@@ -375,7 +368,14 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       setAddLocalAssistantMessage(null);
       setRemoveMessage(null);
     };
-  }, [addLocalMessage, addLocalAssistantMessage, removeMessage, setAddLocalMessage, setAddLocalAssistantMessage, setRemoveMessage]);
+  }, [
+    addLocalMessage,
+    addLocalAssistantMessage,
+    removeMessage,
+    setAddLocalMessage,
+    setAddLocalAssistantMessage,
+    setRemoveMessage,
+  ]);
 
   const confirm = useCallback(
     (toolCallId: string, approved: boolean) => {
