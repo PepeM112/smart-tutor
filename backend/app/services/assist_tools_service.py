@@ -307,7 +307,7 @@ def _question_to_preview(q: Question) -> GeneratedQuestionPreview:
         question_type=QuestionType(q.question_type),
         prompt=q.prompt,
         points=q.points,
-        content=q.content,  # type: ignore[arg-type]
+        content=q.content,  # type: ignore[arg-type]  # JSONB dict validated by Pydantic at runtime
     )
 
 
@@ -339,19 +339,17 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
         ),
     )
 
-    for i in selected_indices:
-        edited = result.questions[i]
-        question_crud.update(
-            db,
-            question=ordered_questions[i],
-            data=QuestionUpdate(
-                question_type=edited.question_type,
-                prompt=edited.prompt,
-                content=edited.content,
-                points=edited.points,
-            ),
+    target_questions = [ordered_questions[i] for i in selected_indices]
+    updates = [
+        QuestionUpdate(
+            question_type=result.questions[i].question_type,
+            prompt=result.questions[i].prompt,
+            content=result.questions[i].content,
+            points=result.questions[i].points,
         )
-    db.commit()
+        for i in selected_indices
+    ]
+    question_service.bulk_update_questions(db, questions=target_questions, updates=updates)
 
     return ToolResult(
         output=f"Successfully refined {len(selected_indices)} question(s).",

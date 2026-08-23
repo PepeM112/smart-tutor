@@ -24,8 +24,7 @@ export const CommandNode = Node.create({
       mergeAttributes(HTMLAttributes, {
         'data-assist-command': '',
         contenteditable: 'false',
-        style:
-          'font-weight: 500; color: var(--primary); font-size: 13px; margin-right: 0.375rem;',
+        style: 'font-weight: 500; color: var(--primary); font-size: 13px; margin-right: 0.375rem;',
       }),
       node.attrs.command as string,
     ];

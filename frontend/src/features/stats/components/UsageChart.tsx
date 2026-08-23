@@ -9,7 +9,7 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { AI_FEATURE_LABEL_KEYS } from '@/lib/ai-feature';
 import { formatTokens } from '@/lib/format';
 
-type GroupBy = 'provider' | 'feature' | 'both';
+import type { UsageGroupBy as GroupBy } from '../types';
 
 const PROVIDER_COLORS: Record<number, string> = {
   [AiProvider.ANTHROPIC]: '#F97316',

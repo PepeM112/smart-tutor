@@ -175,7 +175,7 @@ def _build_hourly(
 def _zero_entry(period: str, group_by: UsageGroupBy, provider_filter: AIProvider | None) -> TokenUsageDailySummary:
     provider: AIProvider | None = None
     if group_by in ("provider", "both"):
-        provider = provider_filter if provider_filter is not None else AIProvider.ANTHROPIC
+        provider = provider_filter
     return TokenUsageDailySummary(
         date=period,
         provider=provider,

@@ -65,7 +65,7 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     setActiveCommand('/edit-note');
     setAssistOpen(true);
     window.getSelection()?.removeAllRanges();
-  }, [selectionTrigger, noteId, addAttachment, setActiveCommand, setAssistOpen]);
+  }, [selectionTrigger, noteId, addAttachment, setActiveCommand, setAssistOpen, t]);
 
   const hasDiffPanel = activeDiff !== null;
 

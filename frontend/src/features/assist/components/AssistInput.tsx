@@ -1,12 +1,13 @@
 'use client';
 
+import Placeholder from '@tiptap/extension-placeholder';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
 import { ArrowUp, Square } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import Placeholder from '@tiptap/extension-placeholder';
-import StarterKit from '@tiptap/starter-kit';
-import { EditorContent, useEditor } from '@tiptap/react';
-
+import { ChipNode } from '../extensions/chip-node';
+import { CommandNode } from '../extensions/command-node';
 import {
   useAssistAttachmentsStore,
   type AssistCommand,
@@ -14,10 +15,7 @@ import {
 } from '../store/use-assist-attachments-store';
 import { useAssistCommandBridgeStore } from '../store/use-assist-command-bridge';
 
-import { ChipNode } from '../extensions/chip-node';
-import { CommandNode } from '../extensions/command-node';
-
-/* ─── helpers (unchanged) ─── */
+/* ─── helpers ─── */
 
 type SlashCommand = {
   name: string;
@@ -50,11 +48,7 @@ function buildEditTestMessage(attachments: ChatAttachment[], instructions: strin
   );
 }
 
-function buildDisplayText(
-  command: AssistCommand,
-  attachments: ChatAttachment[],
-  instructions: string,
-): string {
+function buildDisplayText(command: AssistCommand, attachments: ChatAttachment[], instructions: string): string {
   const chipLabels = attachments.map(a => `[${a.label}]`).join(' ');
   return `${command} ${chipLabels} ${instructions}`.trim();
 }
@@ -83,17 +77,20 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const clearAttachments = useAssistAttachmentsStore(s => s.clearAttachments);
   const activeCommand = useAssistAttachmentsStore(s => s.activeCommand);
   const setActiveCommand = useAssistAttachmentsStore(s => s.setActiveCommand);
-  // Refs so Tiptap callbacks always see current values
+
+  // Refs so Tiptap callbacks (which capture once) always see current values
   const draftRef = useRef(draft);
-  draftRef.current = draft;
   const handleSendRef = useRef<() => void>(() => {});
   const resetInputRef = useRef<() => void>(() => {});
+  const placeholderRef = useRef('Ask anything... (/ for commands)');
 
-  const placeholder = activeCommand
-    ? COMMAND_PLACEHOLDERS[activeCommand]
-    : 'Ask anything... (/ for commands)';
-  const placeholderRef = useRef(placeholder);
-  placeholderRef.current = placeholder;
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    placeholderRef.current = activeCommand ? COMMAND_PLACEHOLDERS[activeCommand] : 'Ask anything... (/ for commands)';
+  }, [activeCommand]);
 
   /* ─── Tiptap editor ─── */
 
@@ -109,9 +106,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
         dropcursor: false,
         gapcursor: false,
       }),
-      Placeholder.configure({
-        placeholder: () => placeholderRef.current,
-      }),
+      // eslint-disable-next-line react-hooks/refs -- Tiptap reads this lazily during ProseMirror render, not React render
+      Placeholder.configure({ placeholder: () => placeholderRef.current }),
       ChipNode,
       CommandNode,
     ],
@@ -159,11 +155,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
   const query = draft.startsWith('/') ? draft.slice(1).toLowerCase() : '';
   const filteredCommands =
-    !activeCommand && draft.startsWith('/')
-      ? COMMANDS.filter(c => c.name.slice(1).startsWith(query))
-      : [];
-  const commandMenuOpen =
-    !dismissed && !activeCommand && draft.startsWith('/') && filteredCommands.length > 0;
+    !activeCommand && draft.startsWith('/') ? COMMANDS.filter(c => c.name.slice(1).startsWith(query)) : [];
+  const commandMenuOpen = !dismissed && !activeCommand && draft.startsWith('/') && filteredCommands.length > 0;
   const clampedIndex = Math.min(activeIndex, Math.max(0, filteredCommands.length - 1));
 
   const canSend = (draft.trim().length > 0 || attachments.length > 0) && !isStreaming;
@@ -175,7 +168,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       setDraft('');
       setDismissed(false);
     },
-    [onCommand, editor],
+    [onCommand, editor]
   );
 
   const resetInput = useCallback(() => {
@@ -187,14 +180,14 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     setDraft('');
   }, [editor, clearAttachments, setActiveCommand]);
 
-  resetInputRef.current = resetInput;
+  useEffect(() => {
+    resetInputRef.current = resetInput;
+  }, [resetInput]);
 
   const handleSend = useCallback(() => {
     const currentDraft = draftRef.current;
     const currentCanSend =
-      (currentDraft.trim().length > 0 ||
-        useAssistAttachmentsStore.getState().attachments.length > 0) &&
-      !isStreaming;
+      (currentDraft.trim().length > 0 || useAssistAttachmentsStore.getState().attachments.length > 0) && !isStreaming;
     if (!currentCanSend) return;
 
     const instructions = currentDraft.trim();
@@ -230,7 +223,9 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     resetInput();
   }, [isStreaming, onSend, resetInput]);
 
-  handleSendRef.current = handleSend;
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
 
   /* ─── sync command + attachments → editor (single effect to preserve order) ─── */
 
@@ -310,7 +305,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       setActiveIndex(i =>
         e.key === 'ArrowDown'
           ? (i + 1) % filteredCommands.length
-          : (i - 1 + filteredCommands.length) % filteredCommands.length,
+          : (i - 1 + filteredCommands.length) % filteredCommands.length
       );
     } else if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
@@ -353,7 +348,6 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
         className="cursor-text rounded-xl border border-border bg-muted/30 px-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.035)] transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.025)]"
       >
         <div className="flex items-end gap-1">
-          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
           <div
             className="min-w-0 flex-1 overflow-y-auto text-[13px] leading-[1.8]"
             style={{ maxHeight: 120 }}

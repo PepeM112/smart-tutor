@@ -2,15 +2,17 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { type NodeViewProps, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 
 import { AttachmentChip } from '../components/AttachmentChip';
+
 import type { ChatAttachment } from '../store/use-assist-attachments-store';
 
 function ChipView({ node, deleteNode }: NodeViewProps) {
+  const rawMetadata: string = (node.attrs.metadata as string) || '{}';
   const attachment: ChatAttachment = {
     id: node.attrs.id as string,
     label: node.attrs.label as string,
     content: node.attrs.content as string,
     type: node.attrs.type as ChatAttachment['type'],
-    metadata: JSON.parse((node.attrs.metadata as string) || '{}'),
+    metadata: JSON.parse(rawMetadata) as ChatAttachment['metadata'],
   };
 
   return (

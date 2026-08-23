@@ -12,7 +12,7 @@ import { UsageChart } from './UsageChart';
 import { UsageFilters } from './UsageFilters';
 import { UsageTotals } from './UsageTotals';
 
-type GroupBy = 'provider' | 'feature' | 'both';
+import type { UsageGroupBy as GroupBy } from '../types';
 
 export function UsageStatsPage() {
   const t = useTranslations();

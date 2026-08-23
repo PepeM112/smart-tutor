@@ -10,7 +10,7 @@ import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group'
 import { AI_FEATURE_FILTER_OPTIONS } from '@/lib/ai-feature';
 import { FilterType, type FilterEntity, type FilterItem, type FilterValue } from '@/lib/filters';
 
-type GroupBy = 'provider' | 'feature' | 'both';
+import type { UsageGroupBy as GroupBy } from '../types';
 
 const ALL_PROVIDERS = 0;
 type ProviderFilterValue = typeof ALL_PROVIDERS | AiProvider;

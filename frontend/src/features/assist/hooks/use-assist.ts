@@ -291,10 +291,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
       const userMsg: AssistMessage = { role: 'user', content: text };
       conversationRef.current.push(userMsg);
-      setMessages(prev => [
-        ...prev,
-        { type: 'user', id: nextId(), content: text, displayContent: displayText },
-      ]);
+      setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text, displayContent: displayText }]);
 
       const request: AssistRequest = {
         messages: conversationRef.current,
@@ -305,12 +302,9 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     [pageContext, streamResponse, resolvePendingConfirmations]
   );
 
-  const addLocalMessage = useCallback(
-    (text: string) => {
-      setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text }]);
-    },
-    []
-  );
+  const addLocalMessage = useCallback((text: string) => {
+    setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text }]);
+  }, []);
 
   const setAddLocalMessage = useAssistAttachmentsStore(s => s.setAddLocalMessage);
   useEffect(() => {
