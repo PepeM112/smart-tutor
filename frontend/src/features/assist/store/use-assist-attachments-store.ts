@@ -19,6 +19,8 @@ export type ChatAttachment = {
 export type AssistCommand = '/edit-note' | '/edit-test';
 
 type LocalMessageFn = (text: string) => void;
+type LocalAssistantMessageFn = (text: string) => string;
+type RemoveMessageFn = (id: string) => void;
 
 type AssistAttachmentsState = {
   attachments: ChatAttachment[];
@@ -27,10 +29,12 @@ type AssistAttachmentsState = {
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
   setActiveCommand: (command: AssistCommand | null) => void;
-  // Registered by useAssist so AssistInput can add a display-only user message
-  // to the chat without triggering the AI stream.
   addLocalMessage: LocalMessageFn | null;
   setAddLocalMessage: (fn: LocalMessageFn | null) => void;
+  addLocalAssistantMessage: LocalAssistantMessageFn | null;
+  setAddLocalAssistantMessage: (fn: LocalAssistantMessageFn | null) => void;
+  removeMessage: RemoveMessageFn | null;
+  setRemoveMessage: (fn: RemoveMessageFn | null) => void;
 };
 
 // Separate store (not part of useAssist) so note/test editors — which live
@@ -47,4 +51,8 @@ export const useAssistAttachmentsStore = create<AssistAttachmentsState>()(set =>
   setActiveCommand: command => set({ activeCommand: command }),
   addLocalMessage: null,
   setAddLocalMessage: fn => set({ addLocalMessage: fn }),
+  addLocalAssistantMessage: null,
+  setAddLocalAssistantMessage: fn => set({ addLocalAssistantMessage: fn }),
+  removeMessage: null,
+  setRemoveMessage: fn => set({ removeMessage: fn }),
 }));

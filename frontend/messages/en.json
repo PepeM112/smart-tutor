@@ -11,6 +11,7 @@
     "coming_soon": "Coming soon",
     "go": "Go",
     "accept": "Accept",
+    "reject": "Reject",
     "generate": "Generate",
     "refine": "Refine",
     "submit": "Submit",
@@ -332,7 +333,8 @@
     "changes": "Changes",
     "old": "Old",
     "new": "New",
-    "note_text": "Note text"
+    "note_text": "Note text",
+    "refinement_applied": "Refinement applied"
   },
   "test_generation": {
     "generate_test": "Generate Test",

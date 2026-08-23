@@ -115,6 +115,11 @@ function ToolCallRow({ name, status }: { name: string; status: string }) {
 
 function ToolResultRow({ name, output, metadata }: { name: string; output: string; metadata?: ToolResultMetadata }) {
   if (output.startsWith('__NAVIGATE__:')) return null;
+
+  if (name === 'refine_note' && metadata?.note_id && metadata.old_content != null) {
+    return <RefineNoteResult noteId={metadata.note_id} />;
+  }
+
   if (!WRITE_TOOLS.has(name)) return null;
 
   const idMatch = output.match(/\*\*ID:\*\* `([^`]+)`/);
@@ -122,42 +127,47 @@ function ToolResultRow({ name, output, metadata }: { name: string; output: strin
   const viewPath = resourceId
     ? name === 'create_test' || name === 'edit_test'
       ? `/tests/${resourceId}/edit`
-      : name === 'create_note' || name === 'refine_note'
+      : name === 'create_note'
         ? `/notes/${resourceId}`
         : null
     : null;
 
-  const hasNoteDiff = name === 'refine_note' && metadata?.note_id && metadata.old_content != null;
-
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
       <p className="text-[12px] leading-[1.4] text-muted-foreground whitespace-pre-wrap">{output}</p>
-      <div className="mt-2 flex items-center gap-3">
-        {viewPath && (
+      {viewPath && (
+        <div className="mt-2 flex items-center gap-3">
           <Link
             href={viewPath}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
           >
             View <ExternalLink className="size-3" />
           </Link>
-        )}
-        {hasNoteDiff && <ViewChangesButton noteId={metadata.note_id!} />}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ViewChangesButton({ noteId }: { noteId: string }) {
+function RefineNoteResult({ noteId }: { noteId: string }) {
   const pendingDiff = useAssistDiffStore(s => s.pendingNoteDiff);
-  if (!pendingDiff || pendingDiff.noteId !== noteId) return null;
+  const hasDiff = pendingDiff?.noteId === noteId;
 
   return (
-    <Link
-      href={`/notes/${noteId}?diff=assist`}
-      className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
-    >
-      View changes <Eye className="size-3" />
-    </Link>
+    <div className="flex items-center gap-3 py-0.5">
+      <CheckCircle className="size-3 text-feedback-correct" />
+      <span className="text-[12px] text-muted-foreground">
+        {hasDiff ? 'Refinement ready — review the changes before applying.' : 'Refinement applied.'}
+      </span>
+      {hasDiff && (
+        <Link
+          href={`/notes/${noteId}?diff=assist`}
+          className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
+        >
+          View changes <Eye className="size-3" />
+        </Link>
+      )}
+    </div>
   );
 }
 
@@ -283,8 +293,6 @@ function _summarizeArgs(name: string, args: Record<string, unknown>): string {
   switch (name) {
     case 'create_note':
       return `Topic: ${_argStr(args.topic)}${args.length ? ` (${_argStr(args.length)})` : ''}`;
-    case 'refine_note':
-      return `Instructions: ${_argStr(args.instructions)}`;
     case 'create_test': {
       const count = typeof args.question_count === 'number' ? args.question_count : 10;
       const difficulty = _argStr(args.difficulty as string, 'medium');

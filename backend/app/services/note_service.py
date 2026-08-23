@@ -154,6 +154,32 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
     return updated
 
 
+def preview_refine_note(db: Session, *, note_id: str, current_user: User, instructions: str) -> str:
+    """Run the AI refinement but return the result WITHOUT saving to DB."""
+    note = get_note(db, note_id=note_id, current_user=current_user)
+
+    if not note.content or not note.content.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot refine an empty note",
+        )
+
+    user_prompt = build_note_refinement_user_prompt(
+        current_content=note.content,
+        instructions=instructions,
+    )
+
+    result = complete_for_user(
+        user=current_user,
+        system=NOTE_REFINEMENT_SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+        max_tokens=_DEFAULT_MAX_TOKENS,
+    )
+    token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_REFINEMENT)
+    db.commit()
+    return result.text
+
+
 def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: NoteChunkEdit) -> NoteChunkEditResponse:
     get_note(db, note_id=note_id, current_user=current_user)
 

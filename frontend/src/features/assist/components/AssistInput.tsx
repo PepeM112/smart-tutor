@@ -202,12 +202,16 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       const noteEdit = useAssistCommandBridgeStore.getState().runNoteEdit;
       if (chip && noteEdit) {
         store.addLocalMessage?.(buildDisplayText(cmd, atts, instructions));
+        const processingId = store.addLocalAssistantMessage?.('Editing selected text…');
         noteEdit({
           markdown: chip.content,
           plainText: chip.metadata.plainText ?? chip.label,
           markdownStart: chip.metadata.markdownStart ?? 0,
           markdownEnd: chip.metadata.markdownEnd ?? 0,
           instructions,
+          onSettled: () => {
+            if (processingId) store.removeMessage?.(processingId);
+          },
         });
       }
       resetInput();

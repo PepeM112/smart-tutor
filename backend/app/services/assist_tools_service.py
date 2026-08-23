@@ -15,7 +15,7 @@ from app.core.enums import NoteLength, QuestionType
 from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
-from app.schemas.note import NoteGenerate, NoteRefine
+from app.schemas.note import NoteGenerate
 from app.schemas.question import QuestionCreate, QuestionUpdate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import GeneratedQuestionPreview, QuestionEditRequest, TestGenerationRequest
@@ -162,23 +162,18 @@ def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]
     old_note = note_service.get_note(db, note_id=note_id, current_user=current_user)
     old_content = old_note.content or ""
 
-    note = note_service.refine_note(
+    refined_text = note_service.preview_refine_note(
         db,
         note_id=note_id,
         current_user=current_user,
-        data=NoteRefine(instructions=instructions),
+        instructions=instructions,
     )
     return ToolResult(
-        output=(
-            f"Note refined successfully!\n"
-            f"- **Title:** {note.title}\n"
-            f"- **ID:** `{note.id}`\n"
-            f"- **Preview:** {(note.content or '')[:300]}…"
-        ),
+        output="Note refinement ready for review.",
         metadata={
-            "note_id": note.id,
+            "note_id": note_id,
             "old_content": old_content,
-            "new_content": note.content or "",
+            "new_content": refined_text,
         },
     )
 

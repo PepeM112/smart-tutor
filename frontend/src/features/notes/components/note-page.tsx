@@ -82,6 +82,15 @@ function NoteForm({ note }: { note: NoteRead }) {
     handleDividerMouseDown: assistDiffDividerDown,
     resetRatio: assistDiffResetRatio,
   } = useResizableSplit(ASSIST_DIFF_SPLIT_KEY, 0.5);
+
+  function acceptRefinement() {
+    if (!pendingNoteDiff) return;
+    setContent(pendingNoteDiff.newContent);
+    setEditorKey(k => k + 1);
+    setIsDirty(true);
+    clearPendingNoteDiff();
+  }
+
   function startEditingHeader() {
     headerSnapshot.current = { title, description, tags: [...tags] };
     setIsEditingHeader(true);
@@ -259,7 +268,9 @@ function NoteForm({ note }: { note: NoteRead }) {
               <AssistDiffPanel
                 oldContent={pendingNoteDiff.oldContent}
                 newContent={pendingNoteDiff.newContent}
-                onClose={clearPendingNoteDiff}
+                onAccept={() => acceptRefinement()}
+                onReject={clearPendingNoteDiff}
+
               />
             </div>
           </>
@@ -274,7 +285,9 @@ function NoteForm({ note }: { note: NoteRead }) {
                   <AssistDiffPanel
                     oldContent={pendingNoteDiff.oldContent}
                     newContent={pendingNoteDiff.newContent}
-                    onClose={clearPendingNoteDiff}
+                    onAccept={() => acceptRefinement()}
+                    onReject={clearPendingNoteDiff}
+    
                   />
                 </div>
               )}
@@ -289,18 +302,20 @@ function NoteForm({ note }: { note: NoteRead }) {
 function AssistDiffPanel({
   oldContent,
   newContent,
-  onClose,
+  onAccept,
+  onReject,
 }: {
   oldContent: string;
   newContent: string;
-  onClose: () => void;
+  onAccept: () => void;
+  onReject: () => void;
 }) {
   const t = useTranslations();
   return (
     <div className="flex h-full flex-col p-4">
       <div className="flex items-center justify-between mb-3 shrink-0">
         <h3 className="text-sm font-semibold text-foreground">{t('notes_ai.changes')}</h3>
-        <Button variant="ghost" size="icon-sm" onClick={onClose} className="text-muted-foreground">
+        <Button variant="ghost" size="icon-sm" onClick={onReject} className="text-muted-foreground">
           <X className="size-4" />
         </Button>
       </div>
@@ -315,9 +330,13 @@ function AssistDiffPanel({
         <MarkdownRenderer content={newContent} />
       </div>
 
-      <div className="flex items-center justify-end mt-4 shrink-0">
-        <Button variant="outline" size="sm" onClick={onClose}>
-          {t('common.close')}
+      <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
+        <Button variant="outline" size="sm" onClick={onReject}>
+          {t('common.reject')}
+        </Button>
+        <Button size="sm" onClick={onAccept}>
+          <Check className="size-3" />
+          {t('common.accept')}
         </Button>
       </div>
     </div>
