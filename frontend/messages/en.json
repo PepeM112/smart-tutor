@@ -102,11 +102,23 @@
     "daily_tokens": "Daily tokens",
     "cumulative": "Cumulative",
     "estimated_cost": "Est. Cost",
+    "top_feature": "Top Feature",
+    "view_details": "View details",
     "range_1d": "1D",
     "range_1w": "1W",
     "range_1m": "1M",
     "range_3m": "3M",
     "range_1y": "1Y"
+  },
+  "aiFeatures": {
+    "grading": "Grading",
+    "challenge": "Re-evaluation",
+    "noteGeneration": "Note Generation",
+    "noteEditing": "Note Editing",
+    "noteRefinement": "Note Editing (Refine)",
+    "noteChunkEdit": "Note Editing (Chunk Edit)",
+    "testGeneration": "Test Generation",
+    "assist": "Chat"
   },
   "review": {
     "title": "Review Now",
@@ -453,8 +465,17 @@
     "grading_failed": "Grading failed. Try submitting the answer again."
   },
   "stats": {
-    "title": "Progress Stats",
-    "placeholder": "Charts and streaks will be displayed here."
+    "title": "AI Usage Stats",
+    "description": "Track AI token usage and estimated cost by provider and feature.",
+    "group_by": "Group by",
+    "group_provider": "Provider",
+    "group_feature": "Feature",
+    "group_both": "Both",
+    "feature_filter": "Feature",
+    "all_features": "All features",
+    "total_input": "Total Input Tokens",
+    "total_output": "Total Output Tokens",
+    "total_cost": "Total Estimated Cost"
   },
   "settings": {
     "title": "Profile & Settings",

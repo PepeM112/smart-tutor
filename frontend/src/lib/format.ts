@@ -16,6 +16,12 @@ export function formatShortDate(date: Date | string): string {
   });
 }
 
+export function formatCost(value: string): string {
+  const num = parseFloat(value);
+  if (num >= 1) return `$${num.toFixed(2)}`;
+  return `$${num.toFixed(4)}`;
+}
+
 export function formatTokens(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;

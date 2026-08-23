@@ -13,6 +13,8 @@ import { Pagination } from '@/components/shared/pagination';
 import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
+import { formatQuestionsList } from '@/features/assist/utils/format-page-data';
 import { AssignDialog } from '@/features/questions/components/assign-dialog';
 import { QuestionsTable } from '@/features/questions/components/questions-table';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
@@ -136,10 +138,12 @@ export default function QuestionsPage() {
       }),
   });
 
-  const items = response?.data?.items ?? [];
+  const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
+
+  useProvidePageData(useMemo(() => (items.length > 0 ? formatQuestionsList(items) : null), [items]));
 
   const { mutate: bulkDelete, isPending: isBulkDeleting } = useMutation({
     mutationFn: (ids: string[]) => sdk.questionsBulkDelete({ body: { questionIds: ids } }),

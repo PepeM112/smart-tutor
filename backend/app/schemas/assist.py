@@ -9,6 +9,7 @@ class PageContext(BaseSchema):
     route: str
     resource_type: str | None = None
     resource_id: str | None = None
+    context_data: str | None = None
 
 
 class ToolCallData(BaseSchema):

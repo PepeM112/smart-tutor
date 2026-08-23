@@ -12,14 +12,22 @@ type Props<T extends string | number = string | number> = {
   value: T;
   onChange: (value: T) => void;
   items: ButtonGroupItem<T>[];
+  size?: 'xs' | 'sm' | 'default';
   disabled?: boolean;
   className?: string;
 };
+
+const sizeStyles = {
+  xs: 'px-2 py-0.5 text-xs',
+  sm: 'px-2.5 py-0.5 text-sm',
+  default: 'px-3 py-1 text-sm',
+} as const;
 
 export function ButtonGroup<T extends string | number = string | number>({
   value,
   onChange,
   items,
+  size = 'default',
   disabled,
   className,
 }: Props<T>) {
@@ -27,7 +35,7 @@ export function ButtonGroup<T extends string | number = string | number>({
     <div
       data-slot="button-group"
       className={cn(
-        'inline-flex gap-1 rounded-lg border border-input bg-background p-1 dark:bg-input/30',
+        'inline-flex gap-0.5 rounded-md border border-border p-0.5',
         disabled && 'pointer-events-none opacity-50',
         className
       )}
@@ -39,11 +47,10 @@ export function ButtonGroup<T extends string | number = string | number>({
           disabled={disabled || item.disabled}
           onClick={() => onChange(item.value)}
           className={cn(
-            'rounded-md px-3 py-1 text-sm font-medium transition-colors',
+            'rounded-md font-medium transition-colors',
             'disabled:pointer-events-none disabled:opacity-50',
-            item.value === value
-              ? 'bg-primary/15 text-primary'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            sizeStyles[size],
+            item.value === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
           )}
         >
           {item.label}

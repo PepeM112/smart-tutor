@@ -1,22 +1,19 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { type AiFeature } from '@/client';
+import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AI_FEATURE_LABEL_KEYS } from '@/lib/ai-feature';
 import { sdk } from '@/lib/api-client';
+import { Routes } from '@/lib/routes';
 
 import { TokenUsageChart } from './token-usage-chart';
 import { TokenUsageStats } from './token-usage-stats';
-
-const TIME_RANGES = [
-  { key: 'dashboard.range_1d', days: 1 },
-  { key: 'dashboard.range_1w', days: 7 },
-  { key: 'dashboard.range_1m', days: 30 },
-  { key: 'dashboard.range_3m', days: 90 },
-  { key: 'dashboard.range_1y', days: 365 },
-] as const;
 
 const DEFAULT_RANGE = 30;
 
@@ -24,11 +21,50 @@ export function TokenUsageSection() {
   const t = useTranslations();
   const [days, setDays] = useState(DEFAULT_RANGE);
 
-  const { data, isLoading } = useQuery({
+  const timeRangeItems: ButtonGroupItem<number>[] = useMemo(
+    () => [
+      { label: t('dashboard.range_1d'), value: 1 },
+      { label: t('dashboard.range_1w'), value: 7 },
+      { label: t('dashboard.range_1m'), value: 30 },
+      { label: t('dashboard.range_3m'), value: 90 },
+      { label: t('dashboard.range_1y'), value: 365 },
+    ],
+    [t]
+  );
+
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['token-usage', days],
     queryFn: () => sdk.tokenUsageGetUsage({ query: { days } }),
+    placeholderData: keepPreviousData,
   });
+
+  const { data: featureData } = useQuery({
+    queryKey: ['token-usage', days, 'feature'],
+    queryFn: () => sdk.tokenUsageGetUsage({ query: { days, groupBy: 'feature' } }),
+  });
+
   const usage = data?.data;
+
+  const topFeature = useMemo(() => {
+    const daily = featureData?.data?.daily;
+    if (!daily?.length) return null;
+
+    const totals = new Map<AiFeature, number>();
+    daily.forEach(d => {
+      if (!d.feature) return;
+      totals.set(d.feature, (totals.get(d.feature) ?? 0) + d.inputTokens + d.outputTokens);
+    });
+
+    let bestFeature: AiFeature | null = null;
+    let bestTokens = 0;
+    totals.forEach((tokens, feature) => {
+      if (tokens > bestTokens) {
+        bestFeature = feature;
+        bestTokens = tokens;
+      }
+    });
+    return bestFeature;
+  }, [featureData]);
 
   if (isLoading || !usage) return null;
 
@@ -36,29 +72,23 @@ export function TokenUsageSection() {
     <Card>
       <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:space-y-0">
         <CardTitle>{t('dashboard.token_usage')}</CardTitle>
-        <div className="flex gap-1 self-start rounded-md border border-border p-0.5 sm:self-auto">
-          {TIME_RANGES.map(range => (
-            <button
-              key={range.days}
-              onClick={() => setDays(range.days)}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                days === range.days
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t(range.key)}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <Link href={Routes.STATS} className="text-xs font-medium text-primary hover:underline">
+            {t('dashboard.view_details')}
+          </Link>
+          <ButtonGroup value={days} onChange={setDays} items={timeRangeItems} size="sm" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <TokenUsageStats
-          totalInputTokens={usage.totalInputTokens}
-          totalOutputTokens={usage.totalOutputTokens}
-          totalEstimatedCost={usage.totalEstimatedCost}
-        />
-        <TokenUsageChart daily={usage.daily} />
+      <CardContent>
+        <div className={`space-y-6 ${isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}`}>
+          <TokenUsageStats
+            totalInputTokens={usage.totalInputTokens}
+            totalOutputTokens={usage.totalOutputTokens}
+            totalEstimatedCost={usage.totalEstimatedCost}
+            topFeature={topFeature ? t(AI_FEATURE_LABEL_KEYS[topFeature]) : undefined}
+          />
+          <TokenUsageChart daily={usage.daily} />
+        </div>
       </CardContent>
     </Card>
   );

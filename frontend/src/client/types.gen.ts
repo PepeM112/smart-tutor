@@ -5,6 +5,40 @@ export type ClientOptions = {
 };
 
 /**
+ * AIFeature
+ */
+export enum AiFeature {
+    /**
+     * GRADING
+     */
+    GRADING = 1,
+    /**
+     * CHALLENGE
+     */
+    CHALLENGE = 2,
+    /**
+     * NOTE_GENERATION
+     */
+    NOTE_GENERATION = 3,
+    /**
+     * NOTE_REFINEMENT
+     */
+    NOTE_REFINEMENT = 4,
+    /**
+     * NOTE_CHUNK_EDIT
+     */
+    NOTE_CHUNK_EDIT = 5,
+    /**
+     * TEST_GENERATION
+     */
+    TEST_GENERATION = 6,
+    /**
+     * ASSIST
+     */
+    ASSIST = 7
+}
+
+/**
  * AIProvider
  */
 export enum AiProvider {
@@ -554,6 +588,10 @@ export type PageContext = {
      * Resourceid
      */
     resourceId?: string | null;
+    /**
+     * Contextdata
+     */
+    contextData?: string | null;
 };
 
 /**
@@ -1504,7 +1542,8 @@ export type TokenUsageDailySummary = {
      * Date
      */
     date: string;
-    provider: AiProvider;
+    provider?: AiProvider | null;
+    feature?: AiFeature | null;
     /**
      * Inputtokens
      */
@@ -2952,6 +2991,14 @@ export type TokenUsageGetUsageData = {
          * Days
          */
         days?: number;
+        /**
+         * Groupby
+         */
+        groupBy?: 'provider' | 'feature' | 'both';
+        /**
+         * Feature
+         */
+        feature?: AiFeature | null;
     };
     url: '/api/v1/token-usage';
 };

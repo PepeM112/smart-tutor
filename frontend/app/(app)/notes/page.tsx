@@ -11,6 +11,8 @@ import { FilterPopover } from '@/components/shared/filters/filter-popover';
 import { Pagination } from '@/components/shared/pagination';
 import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
+import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
+import { formatNotesList } from '@/features/assist/utils/format-page-data';
 import { GenerateNoteDialog } from '@/features/notes/components/generate-note-dialog';
 import { ImportNoteButton } from '@/features/notes/components/import-note-button';
 import { NotesList } from '@/features/notes/components/notes-list';
@@ -93,9 +95,11 @@ export default function NotesPage() {
       }),
   });
 
-  const items = response?.data?.items ?? [];
+  const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
   const hasActiveFilters = Object.keys(filters).length > 0;
+
+  useProvidePageData(useMemo(() => (items.length > 0 ? formatNotesList(items) : null), [items]));
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
   return (

@@ -102,11 +102,23 @@
     "daily_tokens": "Tokens diarios",
     "cumulative": "Acumulado",
     "estimated_cost": "Coste est.",
+    "top_feature": "Principal",
+    "view_details": "Ver detalles",
     "range_1d": "1D",
     "range_1w": "1S",
     "range_1m": "1M",
     "range_3m": "3M",
     "range_1y": "1A"
+  },
+  "aiFeatures": {
+    "grading": "Evaluación",
+    "challenge": "Reevaluación",
+    "noteGeneration": "Generación de notas",
+    "noteEditing": "Edición de notas",
+    "noteRefinement": "Edición de notas (Refinar)",
+    "noteChunkEdit": "Edición de notas (Editar fragmento)",
+    "testGeneration": "Generación de tests",
+    "assist": "Chat"
   },
   "review": {
     "title": "Repasar Ahora",
@@ -453,8 +465,17 @@
     "grading_failed": "La corrección falló. Intenta enviar la respuesta de nuevo."
   },
   "stats": {
-    "title": "Estadísticas de Progreso",
-    "placeholder": "Los gráficos y rachas se mostrarán aquí."
+    "title": "Uso de IA",
+    "description": "Controla el uso de tokens de IA y el coste estimado por proveedor y función.",
+    "group_by": "Agrupar por",
+    "group_provider": "Proveedor",
+    "group_feature": "Función",
+    "group_both": "Ambos",
+    "feature_filter": "Función",
+    "all_features": "Todas las funciones",
+    "total_input": "Tokens de entrada totales",
+    "total_output": "Tokens de salida totales",
+    "total_cost": "Coste estimado total"
   },
   "settings": {
     "title": "Perfil y Ajustes",
