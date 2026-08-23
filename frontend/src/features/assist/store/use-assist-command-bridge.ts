@@ -6,6 +6,7 @@ export type RunNoteEditParams = {
   markdownStart: number;
   markdownEnd: number;
   instructions: string;
+  onSettled?: () => void;
 };
 
 type NoteEditRunner = (params: RunNoteEditParams) => void;

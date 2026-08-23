@@ -32,7 +32,6 @@ const nextId = () => `msg-${++msgCounter}`;
 
 const TOOL_QUERY_KEYS: Record<string, string[][]> = {
   create_note: [['notes']],
-  refine_note: [['notes']],
   create_test: [['tests']],
   edit_test: [['tests'], ['questions']],
   refine_questions: [['tests'], ['questions']],
@@ -90,6 +89,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
       let assistantText = '';
       let currentSegmentId = '';
+      let segmentOffset = 0;
       const toolCalls: ToolCallData[] = [];
       const toolResults: ToolResultData[] = [];
 
@@ -161,13 +161,31 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             setMessages(prev => {
               const last = prev[prev.length - 1];
               if (last?.type === 'assistant' && last.id === currentSegmentId) {
-                return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantText } : m));
+                return prev.map((m, i) =>
+                  i === prev.length - 1 ? { ...m, content: assistantText.slice(segmentOffset) } : m
+                );
               }
+              // Absorb into a recent tiny fragment (e.g. "I" emitted before a tool call).
+              // Only consider the last assistant segment, and only if it appeared after the
+              // most recent tool_result — otherwise we'd merge into a bubble from a prior turn.
+              const lastToolResultIdx = prev.findLastIndex(m => m.type === 'tool_result');
+              const lastAssistIdx = prev.findLastIndex(m => m.type === 'assistant');
+              if (lastAssistIdx !== -1 && lastAssistIdx > lastToolResultIdx) {
+                const frag = prev[lastAssistIdx];
+                // segmentOffset / currentSegmentId are closure vars mutated here as a side
+                // effect — safe because this updater runs exactly once per SSE event (outside
+                // React's event batching), but would need a ref-based approach under concurrent mode.
+                if (frag.type === 'assistant' && frag.content.trim().length <= 5) {
+                  segmentOffset = assistantText.length - frag.content.length - content.length;
+                  currentSegmentId = frag.id;
+                  return prev.map((m, i) =>
+                    i === lastAssistIdx ? { ...m, content: assistantText.slice(segmentOffset), streaming: true } : m
+                  );
+                }
+              }
+              segmentOffset = assistantText.length - content.length;
               currentSegmentId = nextId();
-              return [
-                ...prev,
-                { type: 'assistant' as const, id: currentSegmentId, content: assistantText, streaming: true },
-              ];
+              return [...prev, { type: 'assistant' as const, id: currentSegmentId, content: content, streaming: true }];
             });
             break;
           }
@@ -175,7 +193,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             const tc = data as SSEToolCall;
             toolCalls.push({ id: tc.id, name: tc.name, arguments: tc.arguments });
             setMessages(prev => [
-              ...prev,
+              ...prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m)),
               { type: 'tool_call', id: tc.id, name: tc.name, arguments: tc.arguments, status: 'running' },
             ]);
             break;
@@ -254,9 +272,31 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           }
           case 'done': {
             void (data as SSEDone);
-            setMessages(prev =>
-              prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m))
-            );
+            setMessages(prev => {
+              const updated = prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m));
+              // Merge tiny assistant fragments (e.g. "I" before a tool call) into
+              // the next assistant segment so they don't appear as separate bubbles.
+              const merged: typeof updated = [];
+              let carry = '';
+              for (const m of updated) {
+                if (m.type === 'assistant' && m.content.trim().length <= 5) {
+                  const hasLaterSegment = updated.some(
+                    n => n !== m && n.type === 'assistant' && n.content.trim().length > 5
+                  );
+                  if (hasLaterSegment) {
+                    carry += m.content;
+                    continue;
+                  }
+                }
+                if (carry && m.type === 'assistant') {
+                  merged.push({ ...m, content: carry + m.content });
+                  carry = '';
+                } else {
+                  merged.push(m);
+                }
+              }
+              return merged;
+            });
             const assistantMsg: AssistMessage = {
               role: 'assistant',
               content: assistantText,
@@ -306,11 +346,36 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text }]);
   }, []);
 
+  const addLocalAssistantMessage = useCallback((text: string) => {
+    const id = nextId();
+    setMessages(prev => [...prev, { type: 'assistant', id, content: text, streaming: false }]);
+    return id;
+  }, []);
+
+  const removeMessage = useCallback((id: string) => {
+    setMessages(prev => prev.filter(m => m.id !== id));
+  }, []);
+
   const setAddLocalMessage = useAssistAttachmentsStore(s => s.setAddLocalMessage);
+  const setAddLocalAssistantMessage = useAssistAttachmentsStore(s => s.setAddLocalAssistantMessage);
+  const setRemoveMessage = useAssistAttachmentsStore(s => s.setRemoveMessage);
   useEffect(() => {
     setAddLocalMessage(addLocalMessage);
-    return () => setAddLocalMessage(null);
-  }, [addLocalMessage, setAddLocalMessage]);
+    setAddLocalAssistantMessage(addLocalAssistantMessage);
+    setRemoveMessage(removeMessage);
+    return () => {
+      setAddLocalMessage(null);
+      setAddLocalAssistantMessage(null);
+      setRemoveMessage(null);
+    };
+  }, [
+    addLocalMessage,
+    addLocalAssistantMessage,
+    removeMessage,
+    setAddLocalMessage,
+    setAddLocalAssistantMessage,
+    setRemoveMessage,
+  ]);
 
   const confirm = useCallback(
     (toolCallId: string, approved: boolean) => {

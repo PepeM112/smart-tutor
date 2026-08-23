@@ -253,7 +253,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
 ]
 
-WRITE_TOOLS = {"create_note", "refine_note", "create_test", "edit_test", "refine_questions"}
+WRITE_TOOLS = {"create_note", "create_test", "edit_test", "refine_questions"}
 
 
 def get_tool_definitions_anthropic() -> list[dict[str, Any]]:

@@ -2,11 +2,12 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { AiFeature, AiProvider } from '@/client';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { sdk } from '@/lib/api-client';
+import type { FilterValue, Primitive } from '@/lib/filters';
 
 import { UsageChart } from './UsageChart';
 import { UsageFilters } from './UsageFilters';
@@ -18,8 +19,17 @@ export function UsageStatsPage() {
   const t = useTranslations();
   const [days, setDays] = useState(30);
   const [groupBy, setGroupBy] = useState<GroupBy>('provider');
-  const [provider, setProvider] = useState<AiProvider | null>(null);
-  const [feature, setFeature] = useState<AiFeature | null>(null);
+  const [filters, setFilters] = useState<FilterValue>({});
+
+  const provider = useMemo(() => {
+    const v = filters.provider as Primitive | undefined;
+    return v != null ? (Number(v) as AiProvider) : null;
+  }, [filters.provider]);
+
+  const features = useMemo(() => {
+    const v = filters.feature as Primitive[] | undefined;
+    return v?.length ? (v.map(Number) as AiFeature[]) : null;
+  }, [filters.feature]);
 
   const timeRangeItems: ButtonGroupItem<number>[] = useMemo(
     () => [
@@ -33,18 +43,32 @@ export function UsageStatsPage() {
   );
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['token-usage', days, groupBy, feature, provider],
+    queryKey: ['token-usage', days, groupBy, features, provider],
     queryFn: () =>
       sdk.tokenUsageGetUsage({
         query: {
           days,
           groupBy,
-          feature: feature ?? undefined,
+          feature: features ?? undefined,
           provider: provider ?? undefined,
         },
       }),
     placeholderData: keepPreviousData,
   });
+
+  const handleFilterChange = useCallback((key: string, value: FilterValue[string] | undefined) => {
+    setFilters(prev => {
+      const next = { ...prev };
+      if (value === undefined) {
+        delete next[key];
+      } else {
+        next[key] = value;
+      }
+      return next;
+    });
+  }, []);
+
+  const handleClear = useCallback(() => setFilters({}), []);
 
   const usage = data?.data;
   const daily = useMemo(() => usage?.daily ?? [], [usage]);
@@ -57,10 +81,9 @@ export function UsageStatsPage() {
         <UsageFilters
           groupBy={groupBy}
           onGroupByChange={setGroupBy}
-          provider={provider}
-          onProviderChange={setProvider}
-          feature={feature}
-          onFeatureChange={setFeature}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onClear={handleClear}
         />
         <ButtonGroup value={days} onChange={setDays} items={timeRangeItems} size="sm" />
       </div>

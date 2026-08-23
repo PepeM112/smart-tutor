@@ -64,7 +64,7 @@ export type ChatMessage =
     }
   | { type: 'error'; id: string; message: string };
 
-export const WRITE_TOOLS = new Set(['create_note', 'refine_note', 'create_test', 'edit_test', 'refine_questions']);
+export const WRITE_TOOLS = new Set(['create_note', 'create_test', 'edit_test', 'refine_questions']);
 
 export const TOOL_LABELS: Record<string, string> = {
   list_notes: 'Listing notes',

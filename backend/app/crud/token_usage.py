@@ -43,7 +43,7 @@ def get_daily_summary(
     start_date: date,
     end_date: date,
     group_by: UsageGroupBy = "provider",
-    feature_filter: AIFeature | None = None,
+    feature_filter: list[AIFeature] | None = None,
     provider_filter: AIProvider | None = None,
 ) -> list[Row[Any]]:
     date_col = cast(TokenUsage.created_at, Date).label("date")
@@ -59,8 +59,8 @@ def get_daily_summary(
         date_col >= start_date,
         date_col <= end_date,
     ]
-    if feature_filter is not None:
-        conditions.append(TokenUsage.feature == int(feature_filter))
+    if feature_filter:
+        conditions.append(TokenUsage.feature.in_([int(f) for f in feature_filter]))
     if provider_filter is not None:
         conditions.append(TokenUsage.provider == int(provider_filter))
 
@@ -92,7 +92,7 @@ def get_hourly_summary(
     user_id: str,
     target_date: date,
     group_by: UsageGroupBy = "provider",
-    feature_filter: AIFeature | None = None,
+    feature_filter: list[AIFeature] | None = None,
     provider_filter: AIProvider | None = None,
 ) -> list[Row[Any]]:
     hour_col = cast(func.extract("hour", TokenUsage.created_at), Integer)
@@ -107,8 +107,8 @@ def get_hourly_summary(
         TokenUsage.user_id == user_id,
         cast(TokenUsage.created_at, Date) == target_date,
     ]
-    if feature_filter is not None:
-        conditions.append(TokenUsage.feature == int(feature_filter))
+    if feature_filter:
+        conditions.append(TokenUsage.feature.in_([int(f) for f in feature_filter]))
     if provider_filter is not None:
         conditions.append(TokenUsage.provider == int(provider_filter))
 

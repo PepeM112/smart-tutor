@@ -139,7 +139,7 @@ export function useNoteAiEdit({
       const res = await sdk.notesEditChunk({
         path: { note_id: noteId },
         body: {
-          fullText: content,
+          fullText: contentRef.current,
           selectedText: params.markdown,
           instructions: params.instructions,
         },
@@ -162,6 +162,7 @@ export function useNoteAiEdit({
       ]);
     },
     onError: (error: unknown) => toast.error(getErrorDetail(error, t('notes_ai.failed_to_edit'))),
+    onSettled: (_data, _error, params) => params.onSettled?.(),
   });
 
   // Registers this note's edit runner into the shared bridge so the assistant chat's

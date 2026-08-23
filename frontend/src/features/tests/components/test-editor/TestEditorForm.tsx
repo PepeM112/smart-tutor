@@ -111,18 +111,17 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   });
 
   const handleSendToAssistant = useCallback(() => {
-    const selectedItems = items.filter((_, i) => selectedIndices.has(i));
-    const content = selectedItems
-      .map(item => {
-        const label = item.type === 'group' ? item.title : item.prompt;
-        return `[${item.type === 'group' ? 'Group' : item.type}] ${label}`;
-      })
-      .join('\n');
-    addAttachment({
-      type: 'test_questions',
-      label: t('test_generation.chip_label', { count: selectedIndices.size }),
-      content,
-      metadata: { testId },
+    const sortedIndices = [...selectedIndices].sort((a, b) => a - b);
+    sortedIndices.forEach(idx => {
+      const item = items[idx];
+      const label = item.type === 'group' ? item.title : item.prompt;
+      const content = `[${item.type === 'group' ? 'Group' : item.type}] ${label}`;
+      addAttachment({
+        type: 'test_questions',
+        label: t('test_generation.chip_question_label', { index: idx + 1 }),
+        content,
+        metadata: { testId },
+      });
     });
     setActiveCommand('/edit-test');
     setAssistOpen(true);
@@ -225,6 +224,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           const selected = selectedIndices.has(i);
           const selectionClick = (e: React.MouseEvent) => toggleSelection(i, e);
           const sharedProps = {
+            index: i,
             onRemove: () => removeItem(i),
             selected,
             onClick: selectionClick,

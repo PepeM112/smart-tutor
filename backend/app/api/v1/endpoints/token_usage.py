@@ -22,7 +22,7 @@ def get_usage(
     current_user: CurrentUser,
     days: Annotated[int, Query(ge=1, le=365)] = 30,
     group_by: Annotated[UsageGroupBy, Query(alias="groupBy")] = "provider",
-    feature: Annotated[AIFeature | None, Query()] = None,
+    feature: Annotated[list[AIFeature] | None, Query()] = None,
     provider: Annotated[AIProvider | None, Query()] = None,
 ) -> TokenUsageSummaryResponse:
     return token_usage_service.get_usage_summary(

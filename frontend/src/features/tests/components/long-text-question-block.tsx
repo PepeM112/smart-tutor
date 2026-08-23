@@ -36,6 +36,7 @@ type Props = {
   data: LongTextQuestionData;
   onChange: (data: LongTextQuestionData) => void;
   onRemove: () => void;
+  index?: number;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   isEditing?: boolean;
@@ -47,7 +48,7 @@ const LENGTH_LABEL_KEYS: Record<number, string> = {
   [LongTextLength.LONG]: 'test_editor.length_long',
 };
 
-export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onClick, isEditing = true }: Props) {
+export function LongTextQuestionBlock({ data, onChange, onRemove, index, selected, onClick, isEditing = true }: Props) {
   const t = useTranslations();
 
   function updateCriterion(idx: number, patch: Partial<Criterion>) {
@@ -85,6 +86,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, selected, onCl
           title={data.prompt || t('test_editor.question_prompt')}
           points={t('common.points_abbr', { count: data.points })}
           chip={lengthChip}
+          index={index}
         />
         <div className="px-6 pb-4 sm:px-8">
           <CriteriaReadOnly criteria={data.criteria} />

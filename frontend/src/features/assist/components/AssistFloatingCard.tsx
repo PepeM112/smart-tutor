@@ -56,17 +56,6 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
     return { x: rect.left, y: rect.top };
   };
 
-  const cardFromFab = (fabPos: { x: number; y: number }) => {
-    const fabCenterX = fabPos.x + FAB_SIZE / 2;
-    const fabCenterY = fabPos.y + FAB_SIZE / 2;
-    const pinRight = fabCenterX > window.innerWidth / 2;
-    const pinBottom = fabCenterY > window.innerHeight / 2;
-    return {
-      x: Math.max(0, pinRight ? fabPos.x + FAB_SIZE - size.width : fabPos.x),
-      y: Math.max(0, pinBottom ? fabPos.y + FAB_SIZE - size.height : fabPos.y),
-    };
-  };
-
   const fabFromCard = (cardPos: { x: number; y: number }) => {
     const cardCenterX = cardPos.x + size.width / 2;
     const cardCenterY = cardPos.y + size.height / 2;

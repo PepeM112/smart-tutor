@@ -327,7 +327,10 @@ def _stream_assist_inner(
                     arguments=tc.arguments,
                 )
                 logger.info("Read tool %s result: %s", tc.name, result.output[:200])
-                yield _sse("tool_result", {"id": tc.id, "name": tc.name, "output": result.output})
+                tr_event: dict[str, Any] = {"id": tc.id, "name": tc.name, "output": result.output}
+                if result.metadata:
+                    tr_event["metadata"] = result.metadata
+                yield _sse("tool_result", tr_event)
                 read_results.append({"id": tc.id, "output": result.output})
 
         if write_calls:
