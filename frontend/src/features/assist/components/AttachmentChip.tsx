@@ -1,16 +1,18 @@
 'use client';
 
-import { X } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { ChatAttachment } from '../store/use-assist-attachments-store';
 
 const LABEL_MAX_LENGTH = 30;
+const PREVIEW_HEIGHT = 120;
+const PREVIEW_MARGIN = 6;
+const PREVIEW_MIN_OFFSET = 12;
+const PREVIEW_CARD_WIDTH = 260;
 
 type Props = {
   attachment: ChatAttachment;
-  onRemove: (id: string) => void;
 };
 
 type PreviewPosition = {
@@ -19,7 +21,7 @@ type PreviewPosition = {
   bottom?: number;
 };
 
-export function AttachmentChip({ attachment, onRemove }: Props) {
+export function AttachmentChip({ attachment }: Props) {
   const [preview, setPreview] = useState<PreviewPosition | null>(null);
   const chipRef = useRef<HTMLSpanElement>(null);
 
@@ -31,11 +33,12 @@ export function AttachmentChip({ attachment, onRemove }: Props) {
   const openPreview = useCallback(() => {
     if (!hasPreview || !chipRef.current) return;
     const rect = chipRef.current.getBoundingClientRect();
-    const previewHeight = 120;
-    const fitsAbove = rect.top - 6 - previewHeight >= 12;
+    const fitsAbove = rect.top - PREVIEW_MARGIN - PREVIEW_HEIGHT >= PREVIEW_MIN_OFFSET;
     setPreview({
-      x: Math.max(12, Math.min(rect.left, window.innerWidth - 260)),
-      ...(fitsAbove ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
+      x: Math.max(PREVIEW_MIN_OFFSET, Math.min(rect.left, window.innerWidth - PREVIEW_CARD_WIDTH)),
+      ...(fitsAbove
+        ? { bottom: window.innerHeight - rect.top + PREVIEW_MARGIN }
+        : { top: rect.bottom + PREVIEW_MARGIN }),
     });
   }, [hasPreview]);
 

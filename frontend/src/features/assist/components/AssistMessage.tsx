@@ -154,7 +154,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
   const hasDiff = pendingDiff?.noteId === noteId;
 
   return (
-    <div className="flex items-center gap-3 py-0.5">
+    <div className="flex items-center gap-2 py-0.5">
       <CheckCircle className="size-3 text-feedback-correct" />
       <span className="text-[12px] text-muted-foreground">
         {hasDiff ? 'Refinement ready — review the changes before applying.' : 'Refinement applied.'}

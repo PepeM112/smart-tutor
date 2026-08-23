@@ -5,7 +5,7 @@ import { AttachmentChip } from '../components/AttachmentChip';
 
 import type { ChatAttachment } from '../store/use-assist-attachments-store';
 
-function ChipView({ node, deleteNode }: NodeViewProps) {
+function ChipView({ node }: NodeViewProps) {
   const rawMetadata: string = (node.attrs.metadata as string) || '{}';
   const attachment: ChatAttachment = {
     id: node.attrs.id as string,
@@ -17,7 +17,7 @@ function ChipView({ node, deleteNode }: NodeViewProps) {
 
   return (
     <NodeViewWrapper as="span" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-      <AttachmentChip attachment={attachment} onRemove={() => deleteNode()} />
+      <AttachmentChip attachment={attachment} />
     </NodeViewWrapper>
   );
 }

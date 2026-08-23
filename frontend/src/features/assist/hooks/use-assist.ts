@@ -165,11 +165,16 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
                   i === prev.length - 1 ? { ...m, content: assistantText.slice(segmentOffset) } : m
                 );
               }
-              // Absorb into a recent tiny fragment (e.g. "I" emitted before a tool call)
-              // Only look at the last assistant segment — skip tool_call/tool_result between
+              // Absorb into a recent tiny fragment (e.g. "I" emitted before a tool call).
+              // Only consider the last assistant segment, and only if it appeared after the
+              // most recent tool_result — otherwise we'd merge into a bubble from a prior turn.
+              const lastToolResultIdx = prev.findLastIndex(m => m.type === 'tool_result');
               const lastAssistIdx = prev.findLastIndex(m => m.type === 'assistant');
-              if (lastAssistIdx !== -1) {
+              if (lastAssistIdx !== -1 && lastAssistIdx > lastToolResultIdx) {
                 const frag = prev[lastAssistIdx];
+                // segmentOffset / currentSegmentId are closure vars mutated here as a side
+                // effect — safe because this updater runs exactly once per SSE event (outside
+                // React's event batching), but would need a ref-based approach under concurrent mode.
                 if (frag.type === 'assistant' && frag.content.trim().length <= 5) {
                   segmentOffset = assistantText.length - frag.content.length - content.length;
                   currentSegmentId = frag.id;

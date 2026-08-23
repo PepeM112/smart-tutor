@@ -333,8 +333,7 @@
     "changes": "Cambios",
     "old": "Anterior",
     "new": "Nuevo",
-    "note_text": "Texto de nota",
-    "refinement_applied": "Refinamiento aplicado"
+    "note_text": "Texto de nota"
   },
   "test_generation": {
     "generate_test": "Generar Test",
