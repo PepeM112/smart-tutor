@@ -33,12 +33,13 @@ type Props = {
   data: QuestionGroupData;
   onChange: (data: QuestionGroupData) => void;
   onRemove: () => void;
+  index?: number;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   isEditing?: boolean;
 };
 
-export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick, isEditing = true }: Props) {
+export function QuestionGroupBlock({ data, onChange, onRemove, index, selected, onClick, isEditing = true }: Props) {
   const t = useTranslations();
   const vocabId = useId();
   const canRemoveRow = data.rows.length > 1;
@@ -69,9 +70,11 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
   // View mode: single standalone question — flat card, no expand/collapse
   if (!isEditing && isSingleQuestion) {
     const row = data.rows[0];
+    const prefix = index != null ? `${index + 1}. ` : '';
     return (
       <QuestionBlockWrapper mode="view" selected={selected} onClick={onClick} className="px-4 py-3 sm:px-6">
         <p className="text-sm font-medium">
+          {prefix}
           {row.prompt || <span className="text-muted-foreground italic">—</span>}
           <span className="ml-1.5 text-sm font-normal tabular-nums text-muted-foreground">
             ({t('common.points_abbr', { count: data.points })})
@@ -91,6 +94,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, selected, onClick
         <QuestionCardHeader
           title={data.title || t('test_editor.group_title')}
           points={t('common.points_abbr', { count: data.points })}
+          index={index}
         />
         <div className="px-6 pb-4 sm:px-8">
           {isVocab ? (

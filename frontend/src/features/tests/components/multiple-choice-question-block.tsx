@@ -34,12 +34,21 @@ type Props = {
   data: MultipleChoiceQuestionData;
   onChange: (data: MultipleChoiceQuestionData) => void;
   onRemove: () => void;
+  index?: number;
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   isEditing?: boolean;
 };
 
-export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected, onClick, isEditing = true }: Props) {
+export function MultipleChoiceQuestionBlock({
+  data,
+  onChange,
+  onRemove,
+  index,
+  selected,
+  onClick,
+  isEditing = true,
+}: Props) {
   const t = useTranslations();
   const canRemoveChoice = data.choices.length > MIN_CHOICES;
   const canAddChoice = data.choices.length < MAX_CHOICES;
@@ -66,6 +75,7 @@ export function MultipleChoiceQuestionBlock({ data, onChange, onRemove, selected
         <QuestionCardHeader
           title={data.prompt || t('test_editor.question_prompt')}
           points={t('common.points_abbr', { count: data.points })}
+          index={index}
         />
         <div className="px-6 pb-4 space-y-1 sm:px-8">
           {data.choices.map((choice, i) => (

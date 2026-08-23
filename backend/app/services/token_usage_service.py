@@ -60,7 +60,7 @@ def get_usage_summary(
     user_id: str,
     days: int = 30,
     group_by: UsageGroupBy = "provider",
-    feature_filter: AIFeature | None = None,
+    feature_filter: list[AIFeature] | None = None,
     provider_filter: AIProvider | None = None,
 ) -> TokenUsageSummaryResponse:
     if days == 1:
@@ -97,7 +97,7 @@ def _build_daily(
     user_id: str,
     days: int,
     group_by: UsageGroupBy,
-    feature_filter: AIFeature | None,
+    feature_filter: list[AIFeature] | None,
     provider_filter: AIProvider | None,
 ) -> list[TokenUsageDailySummary]:
     end = date.today()
@@ -140,7 +140,7 @@ def _build_hourly(
     *,
     user_id: str,
     group_by: UsageGroupBy,
-    feature_filter: AIFeature | None,
+    feature_filter: list[AIFeature] | None,
     provider_filter: AIProvider | None,
 ) -> list[TokenUsageDailySummary]:
     rows = token_usage_crud.get_hourly_summary(

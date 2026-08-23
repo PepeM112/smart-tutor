@@ -139,7 +139,7 @@ export function useNoteAiEdit({
       const res = await sdk.notesEditChunk({
         path: { note_id: noteId },
         body: {
-          fullText: content,
+          fullText: contentRef.current,
           selectedText: params.markdown,
           instructions: params.instructions,
         },

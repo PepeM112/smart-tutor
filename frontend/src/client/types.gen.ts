@@ -2998,7 +2998,7 @@ export type TokenUsageGetUsageData = {
         /**
          * Feature
          */
-        feature?: AiFeature | null;
+        feature?: Array<AiFeature> | null;
         /**
          * Provider
          */

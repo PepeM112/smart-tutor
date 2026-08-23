@@ -72,6 +72,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const [dismissed, setDismissed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const syncingRef = useRef(false);
+  const hasSyncedRef = useRef(false);
 
   const attachments = useAssistAttachmentsStore(s => s.attachments);
   const clearAttachments = useAssistAttachmentsStore(s => s.clearAttachments);
@@ -134,7 +135,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       setDismissed(false);
     },
     onTransaction: ({ transaction, editor: ed }) => {
-      if (syncingRef.current || !transaction.docChanged) return;
+      if (syncingRef.current || !hasSyncedRef.current || !transaction.docChanged) return;
 
       let hasCmd = false;
       const chipIds = new Set<string>();
@@ -175,6 +176,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     syncingRef.current = true;
     editor?.commands.clearContent();
     syncingRef.current = false;
+    hasSyncedRef.current = false;
     clearAttachments();
     setActiveCommand(null);
     setDraft('');
@@ -232,8 +234,10 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   useEffect(() => {
     if (!editor) return;
 
+    // Disable onTransaction clearing until the microtask sync completes
+    hasSyncedRef.current = false;
+
     queueMicrotask(() => {
-      if (syncingRef.current) return;
       syncingRef.current = true;
 
       let hasCmd = false;
@@ -266,14 +270,12 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
       const newAtts = attachments.filter(a => !editorChipIds.has(a.id));
       if (newAtts.length > 0) {
-        // Recalculate insert position from current doc state after command changes
         let insertPos = 1;
         editor.state.doc.descendants((node, pos) => {
           if (node.type.name === 'assistCommand' || node.type.name === 'assistChip') {
             insertPos = pos + node.nodeSize;
           }
         });
-        // If we just inserted a command, offset for its size (1 node = 1 in ProseMirror)
         if (activeCommand && !hasCmd) insertPos += 1;
 
         const content = newAtts.map(a => ({
@@ -292,6 +294,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
       if (changed) chain.focus('end').run();
       syncingRef.current = false;
+      hasSyncedRef.current = true;
     });
   }, [editor, activeCommand, attachments]);
 
