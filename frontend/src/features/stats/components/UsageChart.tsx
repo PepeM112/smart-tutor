@@ -26,7 +26,6 @@ const FEATURE_COLORS: Record<number, string> = {
   [AiFeature.CHALLENGE]: '#EC4899',
   [AiFeature.NOTE_GENERATION]: '#06B6D4',
   [AiFeature.NOTE_REFINEMENT]: '#14B8A6',
-  [AiFeature.NOTE_CHUNK_EDIT]: '#14B8A6',
   [AiFeature.TEST_GENERATION]: '#F59E0B',
   [AiFeature.ASSIST]: '#6366F1',
 };
@@ -36,14 +35,12 @@ const BOTH_COLORS: Record<string, string> = {
   [`${AiProvider.ANTHROPIC}_${AiFeature.CHALLENGE}`]: '#FB923C',
   [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_GENERATION}`]: '#FDBA74',
   [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_REFINEMENT}`]: '#FED7AA',
-  [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_CHUNK_EDIT}`]: '#FED7AA',
   [`${AiProvider.ANTHROPIC}_${AiFeature.TEST_GENERATION}`]: '#C2410C',
   [`${AiProvider.ANTHROPIC}_${AiFeature.ASSIST}`]: '#EA580C',
   [`${AiProvider.OPENAI}_${AiFeature.GRADING}`]: '#16B38C',
   [`${AiProvider.OPENAI}_${AiFeature.CHALLENGE}`]: '#2DD4BF',
   [`${AiProvider.OPENAI}_${AiFeature.NOTE_GENERATION}`]: '#5EEAD4',
   [`${AiProvider.OPENAI}_${AiFeature.NOTE_REFINEMENT}`]: '#99F6E4',
-  [`${AiProvider.OPENAI}_${AiFeature.NOTE_CHUNK_EDIT}`]: '#99F6E4',
   [`${AiProvider.OPENAI}_${AiFeature.TEST_GENERATION}`]: '#0D9488',
   [`${AiProvider.OPENAI}_${AiFeature.ASSIST}`]: '#0F766E',
 };
@@ -55,7 +52,6 @@ const ALL_FEATURES = [
   AiFeature.CHALLENGE,
   AiFeature.NOTE_GENERATION,
   AiFeature.NOTE_REFINEMENT,
-  AiFeature.NOTE_CHUNK_EDIT,
   AiFeature.TEST_GENERATION,
   AiFeature.ASSIST,
 ];
@@ -100,10 +96,12 @@ function buildChartData(daily: TokenUsageDailySummary[], groupBy: GroupBy): Reco
       const key = `p_${entry.provider}`;
       existing[key] = (existing[key] ?? 0) + tokens;
     } else if (groupBy === 'feature' && entry.feature != null) {
-      const key = `f_${entry.feature}`;
+      const featureKey = entry.feature === AiFeature.NOTE_CHUNK_EDIT ? AiFeature.NOTE_REFINEMENT : entry.feature;
+      const key = `f_${featureKey}`;
       existing[key] = (existing[key] ?? 0) + tokens;
     } else if (groupBy === 'both' && entry.provider != null && entry.feature != null) {
-      const key = `pf_${entry.provider}_${entry.feature}`;
+      const featureKey = entry.feature === AiFeature.NOTE_CHUNK_EDIT ? AiFeature.NOTE_REFINEMENT : entry.feature;
+      const key = `pf_${entry.provider}_${featureKey}`;
       existing[key] = (existing[key] ?? 0) + tokens;
     }
 

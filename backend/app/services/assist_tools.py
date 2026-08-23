@@ -224,9 +224,36 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["test_id"],
         },
     },
+    {
+        "name": "refine_questions",
+        "description": (
+            "Edit the content of specific questions in a test using AI. "
+            "Use get_test_details first to see the test's questions. "
+            "Requires user confirmation before executing."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "test_id": {
+                    "type": "string",
+                    "description": "ID of the test containing the questions.",
+                },
+                "question_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "IDs of questions to edit (use qid values from get_test_details).",
+                },
+                "instructions": {
+                    "type": "string",
+                    "description": "Instructions for how to edit the questions.",
+                },
+            },
+            "required": ["test_id", "question_ids", "instructions"],
+        },
+    },
 ]
 
-WRITE_TOOLS = {"create_note", "refine_note", "create_test", "edit_test"}
+WRITE_TOOLS = {"create_note", "refine_note", "create_test", "edit_test", "refine_questions"}
 
 
 def get_tool_definitions_anthropic() -> list[dict[str, Any]]:
@@ -289,6 +316,7 @@ def _build_handlers() -> dict[str, ToolHandler]:
         "refine_note": svc.refine_note,
         "create_test": svc.create_test,
         "edit_test": svc.edit_test,
+        "refine_questions": svc.refine_questions,
     }
 
 

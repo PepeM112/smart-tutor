@@ -44,7 +44,7 @@ export type ToolResultMetadata = {
 
 // UI-level message for rendering
 export type ChatMessage =
-  | { type: 'user'; id: string; content: string }
+  | { type: 'user'; id: string; content: string; displayContent?: string }
   | { type: 'assistant'; id: string; content: string; streaming: boolean }
   | {
       type: 'tool_call';
@@ -64,7 +64,7 @@ export type ChatMessage =
     }
   | { type: 'error'; id: string; message: string };
 
-export const WRITE_TOOLS = new Set(['create_note', 'refine_note', 'create_test', 'edit_test']);
+export const WRITE_TOOLS = new Set(['create_note', 'refine_note', 'create_test', 'edit_test', 'refine_questions']);
 
 export const TOOL_LABELS: Record<string, string> = {
   list_notes: 'Listing notes',
@@ -77,4 +77,5 @@ export const TOOL_LABELS: Record<string, string> = {
   refine_note: 'Refining note',
   create_test: 'Creating test',
   edit_test: 'Editing test',
+  refine_questions: 'Refining questions',
 };

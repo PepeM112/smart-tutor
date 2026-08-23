@@ -13,15 +13,14 @@ export const AI_FEATURE_LABEL_KEYS: Record<AiFeature, string> = {
   [AiFeature.ASSIST]: 'aiFeatures.assist',
 };
 
-// Options for the single-value feature filter dropdown. Note Editing maps to
-// two distinct backend enum values, so it appears as two selectable entries
-// even though they share one display label everywhere else.
+// Options for the single-value feature filter dropdown. NOTE_REFINEMENT and
+// NOTE_CHUNK_EDIT collapse into one "Note Editing" entry (NOTE_REFINEMENT is
+// the canonical value), matching the merged label used everywhere else.
 export const AI_FEATURE_FILTER_OPTIONS: { value: AiFeature; labelKey: string }[] = [
   { value: AiFeature.GRADING, labelKey: 'aiFeatures.grading' },
   { value: AiFeature.CHALLENGE, labelKey: 'aiFeatures.challenge' },
   { value: AiFeature.NOTE_GENERATION, labelKey: 'aiFeatures.noteGeneration' },
-  { value: AiFeature.NOTE_REFINEMENT, labelKey: 'aiFeatures.noteRefinement' },
-  { value: AiFeature.NOTE_CHUNK_EDIT, labelKey: 'aiFeatures.noteChunkEdit' },
+  { value: AiFeature.NOTE_REFINEMENT, labelKey: 'aiFeatures.noteEditing' },
   { value: AiFeature.TEST_GENERATION, labelKey: 'aiFeatures.testGeneration' },
   { value: AiFeature.ASSIST, labelKey: 'aiFeatures.assist' },
 ];

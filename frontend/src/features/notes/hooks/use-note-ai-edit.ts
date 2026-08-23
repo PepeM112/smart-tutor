@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { type RunNoteEditParams, useAssistCommandBridgeStore } from '@/features/assist/store/use-assist-command-bridge';
 import { useTextHighlight } from '@/hooks/use-text-highlight';
 import { sdk } from '@/lib/api-client';
 import { getErrorDetail } from '@/lib/utils';
@@ -48,15 +49,8 @@ export function useNoteAiEdit({
   const t = useTranslations();
 
   const [selectionTrigger, setSelectionTrigger] = useState<SelectionTrigger | null>(null);
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [instructions, setInstructions] = useState('');
   const [diffs, setDiffs] = useState<DiffState[]>([]);
   const [activeDiffIndex, setActiveDiffIndex] = useState<number | null>(null);
-
-  const popoverOpenRef = useRef(popoverOpen);
-  useEffect(() => {
-    popoverOpenRef.current = popoverOpen;
-  }, [popoverOpen]);
 
   const contentRef = useRef(content);
   useEffect(() => {
@@ -76,8 +70,6 @@ export function useNoteAiEdit({
     const container = viewContainer;
 
     function commitSelection() {
-      if (popoverOpenRef.current) return;
-
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !sel.anchorNode || !container.contains(sel.anchorNode)) {
         setSelectionTrigger(null);
@@ -118,7 +110,6 @@ export function useNoteAiEdit({
     }
 
     function handleSelectionChange() {
-      if (popoverOpenRef.current) return;
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) setSelectionTrigger(null);
     }
@@ -137,50 +128,52 @@ export function useNoteAiEdit({
 
   // ── Handlers ────────────────────────────────────────────────────
 
-  function handleOpenChange(open: boolean) {
-    setPopoverOpen(open);
-    if (!open) {
-      setSelectionTrigger(null);
-      setInstructions('');
-    }
-  }
-
   function removeDiff(index: number) {
     setDiffs(prev => prev.filter((_, i) => i !== index));
     setActiveDiffIndex(null);
   }
 
-  const { mutate: editChunk, isPending: isSubmittingEdit } = useMutation({
-    mutationFn: async () => {
-      if (!noteId || !selectionTrigger) return null;
+  const { mutate: runChunkEdit, isPending: isSubmittingEdit } = useMutation({
+    mutationFn: async (params: RunNoteEditParams) => {
+      if (!noteId) return null;
       const res = await sdk.notesEditChunk({
         path: { note_id: noteId },
         body: {
           fullText: content,
-          selectedText: selectionTrigger.markdown,
-          instructions,
+          selectedText: params.markdown,
+          instructions: params.instructions,
         },
       });
-      return res.data;
+      return { data: res.data, params };
     },
-    onSuccess: data => {
-      if (!data || !selectionTrigger) return;
+    onSuccess: result => {
+      if (!result) return;
+      const { data, params } = result;
+      if (!data) return;
       setDiffs(prev => [
         ...prev,
         {
-          selectedText: selectionTrigger.plainText,
-          originalMarkdown: selectionTrigger.markdown,
-          markdownStart: selectionTrigger.markdownStart,
-          markdownEnd: selectionTrigger.markdownEnd,
+          selectedText: params.plainText,
+          originalMarkdown: params.markdown,
+          markdownStart: params.markdownStart,
+          markdownEnd: params.markdownEnd,
           editedText: data.editedText,
         },
       ]);
-      setPopoverOpen(false);
-      setSelectionTrigger(null);
-      setInstructions('');
     },
     onError: (error: unknown) => toast.error(getErrorDetail(error, t('notes_ai.failed_to_edit'))),
   });
+
+  // Registers this note's edit runner into the shared bridge so the assistant chat's
+  // /edit-note command (a different subtree) can trigger it and still get the old
+  // highlight-then-diff-panel UX, which lives in this hook's local `diffs` state.
+  const setRunNoteEdit = useAssistCommandBridgeStore(s => s.setRunNoteEdit);
+  useEffect(() => {
+    if (!noteId) return undefined;
+    setRunNoteEdit(runChunkEdit);
+    return () => setRunNoteEdit(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId, setRunNoteEdit]);
 
   function handleAcceptDiff() {
     if (activeDiffIndex === null || !activeDiff) return;
@@ -214,11 +207,6 @@ export function useNoteAiEdit({
 
   return {
     selectionTrigger,
-    popoverOpen,
-    instructions,
-    setInstructions,
-    handleOpenChange,
-    editChunk,
     isSubmittingEdit,
     activeDiffIndex,
     setActiveDiffIndex,

@@ -464,6 +464,24 @@
   }
 }
 
+/* Tiptap / ProseMirror reset for the assist input */
+.assist-editor p {
+  margin: 0;
+}
+.assist-editor {
+  min-height: 24px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--foreground);
+}
+.assist-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }

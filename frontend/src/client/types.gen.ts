@@ -2999,6 +2999,10 @@ export type TokenUsageGetUsageData = {
          * Feature
          */
         feature?: AiFeature | null;
+        /**
+         * Provider
+         */
+        provider?: AiProvider | null;
     };
     url: '/api/v1/token-usage';
 };

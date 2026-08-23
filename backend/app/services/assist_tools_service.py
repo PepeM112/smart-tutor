@@ -16,9 +16,9 @@ from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.schemas.note import NoteGenerate, NoteRefine
-from app.schemas.question import QuestionCreate
+from app.schemas.question import QuestionCreate, QuestionUpdate
 from app.schemas.test import TestCreate, TestUpdate
-from app.schemas.test_generation import TestGenerationRequest
+from app.schemas.test_generation import GeneratedQuestionPreview, QuestionEditRequest, TestGenerationRequest
 from app.services import note_service, question_service, test_generation_service, test_service
 from app.services.assist_tools import ToolResult
 from app.services.service_helpers import get_owned_or_404
@@ -26,6 +26,7 @@ from app.services.service_helpers import get_owned_or_404
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from app.models.question import Question
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.assist.tools")
@@ -298,4 +299,61 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
             f"- **Changes:** {', '.join(changes)}"
         ),
         metadata=metadata,
+    )
+
+
+def _question_to_preview(q: Question) -> GeneratedQuestionPreview:
+    return GeneratedQuestionPreview(
+        question_type=QuestionType(q.question_type),
+        prompt=q.prompt,
+        points=q.points,
+        content=q.content,  # type: ignore[arg-type]
+    )
+
+
+def refine_questions(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
+    test_id = str(arguments.get("test_id", ""))
+    raw_question_ids = arguments.get("question_ids")
+    question_ids = {str(qid) for qid in raw_question_ids} if isinstance(raw_question_ids, list) else set()
+    instructions = str(arguments.get("instructions", ""))
+
+    test = get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
+
+    ordered_questions: list[Question] = sorted(test.questions or [], key=lambda q: q.order)
+    for g in sorted(test.question_groups or [], key=lambda g: g.order):
+        ordered_questions.extend(sorted(g.questions or [], key=lambda q: q.order))
+
+    all_questions: list[GeneratedQuestionPreview] = [_question_to_preview(q) for q in ordered_questions]
+    selected_indices = [i for i, q in enumerate(ordered_questions) if q.id in question_ids]
+
+    if not selected_indices:
+        return ToolResult(output="Error: None of the specified question IDs were found in this test.")
+
+    result = test_generation_service.edit_test_questions(
+        db,
+        current_user=current_user,
+        data=QuestionEditRequest(
+            selected_indices=selected_indices,
+            all_questions=all_questions,
+            instructions=instructions,
+        ),
+    )
+
+    for i in selected_indices:
+        edited = result.questions[i]
+        question_crud.update(
+            db,
+            question=ordered_questions[i],
+            data=QuestionUpdate(
+                question_type=edited.question_type,
+                prompt=edited.prompt,
+                content=edited.content,
+                points=edited.points,
+            ),
+        )
+    db.commit()
+
+    return ToolResult(
+        output=f"Successfully refined {len(selected_indices)} question(s).",
+        metadata={"test_id": test_id},
     )

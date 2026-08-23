@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
-import type { AiFeature } from '@/client';
+import type { AiFeature, AiProvider } from '@/client';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { sdk } from '@/lib/api-client';
 
@@ -18,6 +18,7 @@ export function UsageStatsPage() {
   const t = useTranslations();
   const [days, setDays] = useState(30);
   const [groupBy, setGroupBy] = useState<GroupBy>('provider');
+  const [provider, setProvider] = useState<AiProvider | null>(null);
   const [feature, setFeature] = useState<AiFeature | null>(null);
 
   const timeRangeItems: ButtonGroupItem<number>[] = useMemo(
@@ -32,27 +33,36 @@ export function UsageStatsPage() {
   );
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['token-usage', days, groupBy, feature],
+    queryKey: ['token-usage', days, groupBy, feature, provider],
     queryFn: () =>
       sdk.tokenUsageGetUsage({
         query: {
           days,
           groupBy,
           feature: feature ?? undefined,
+          provider: provider ?? undefined,
         },
       }),
     placeholderData: keepPreviousData,
   });
 
   const usage = data?.data;
+  const daily = useMemo(() => usage?.daily ?? [], [usage]);
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">{t('stats.description')}</p>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <UsageFilters
+          groupBy={groupBy}
+          onGroupByChange={setGroupBy}
+          provider={provider}
+          onProviderChange={setProvider}
+          feature={feature}
+          onFeatureChange={setFeature}
+        />
         <ButtonGroup value={days} onChange={setDays} items={timeRangeItems} size="sm" />
-        <UsageFilters groupBy={groupBy} onGroupByChange={setGroupBy} feature={feature} onFeatureChange={setFeature} />
       </div>
 
       {isLoading || !usage ? (
@@ -67,7 +77,7 @@ export function UsageStatsPage() {
               totalOutputTokens={usage.totalOutputTokens}
               totalEstimatedCost={usage.totalEstimatedCost}
             />
-            <UsageChart daily={usage.daily} groupBy={groupBy} />
+            <UsageChart daily={daily} groupBy={groupBy} />
           </div>
         </div>
       )}

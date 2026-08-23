@@ -331,7 +331,8 @@
     "could_not_locate": "Could not locate the original text — it may have changed.",
     "changes": "Changes",
     "old": "Old",
-    "new": "New"
+    "new": "New",
+    "note_text": "Note text"
   },
   "test_generation": {
     "generate_test": "Generate Test",
@@ -375,6 +376,7 @@
     "ai_edit": "AI Edit",
     "ai_edit_placeholder": "Describe how you want to edit the selected questions…",
     "questions_selected": "{count, plural, one {# question} other {# questions}} selected",
+    "chip_label": "{count, plural, one {# question} other {# questions}}",
     "applying": "Applying…",
     "two_column_layout": "2-column layout",
     "one_column_layout": "1-column layout",
@@ -471,8 +473,10 @@
     "group_provider": "Provider",
     "group_feature": "Feature",
     "group_both": "Both",
+    "provider_filter": "Provider",
     "feature_filter": "Feature",
     "all_features": "All features",
+    "all_providers": "All",
     "total_input": "Total Input Tokens",
     "total_output": "Total Output Tokens",
     "total_cost": "Total Estimated Cost"

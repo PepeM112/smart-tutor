@@ -331,7 +331,8 @@
     "could_not_locate": "No se pudo localizar el texto original — puede haber cambiado.",
     "changes": "Cambios",
     "old": "Anterior",
-    "new": "Nuevo"
+    "new": "Nuevo",
+    "note_text": "Texto de nota"
   },
   "test_generation": {
     "generate_test": "Generar Test",
@@ -375,6 +376,7 @@
     "ai_edit": "Edición IA",
     "ai_edit_placeholder": "Describe cómo quieres editar las preguntas seleccionadas…",
     "questions_selected": "{count, plural, one {# pregunta seleccionada} other {# preguntas seleccionadas}}",
+    "chip_label": "{count, plural, one {# pregunta} other {# preguntas}}",
     "applying": "Aplicando…",
     "two_column_layout": "Diseño de 2 columnas",
     "one_column_layout": "Diseño de 1 columna",
@@ -471,8 +473,10 @@
     "group_provider": "Proveedor",
     "group_feature": "Función",
     "group_both": "Ambos",
+    "provider_filter": "Proveedor",
     "feature_filter": "Función",
     "all_features": "Todas las funciones",
+    "all_providers": "Todos",
     "total_input": "Tokens de entrada totales",
     "total_output": "Tokens de salida totales",
     "total_cost": "Coste estimado total"

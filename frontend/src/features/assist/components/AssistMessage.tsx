@@ -20,7 +20,7 @@ type AssistMessageRowProps = {
 export function AssistMessageRow({ message, onConfirm }: AssistMessageRowProps) {
   switch (message.type) {
     case 'user':
-      return <UserBubble content={message.content} />;
+      return <UserBubble content={message.displayContent ?? message.content} />;
     case 'assistant':
       return <AssistantBubble content={message.content} streaming={message.streaming} />;
     case 'tool_call':

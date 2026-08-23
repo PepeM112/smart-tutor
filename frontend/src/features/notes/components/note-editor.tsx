@@ -6,8 +6,8 @@ import { useCallback, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
-import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
-import { Textarea } from '@/components/ui/textarea';
+import { useAssistAttachmentsStore } from '@/features/assist/store/use-assist-attachments-store';
+import { useAssistPanelStore } from '@/features/assist/store/use-assist-panel-store';
 import { useAiAvailable } from '@/hooks/use-ai-available';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useResizableSplit } from '@/hooks/use-resizable-split';
@@ -42,20 +42,30 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
     setViewContainer(el);
   }, []);
 
-  const {
-    selectionTrigger,
-    popoverOpen,
-    instructions,
-    setInstructions,
-    handleOpenChange,
-    editChunk,
-    isSubmittingEdit,
-    activeDiffIndex,
-    setActiveDiffIndex,
-    activeDiff,
-    removeDiff,
-    handleAcceptDiff,
-  } = useNoteAiEdit({ content, onChange, noteId, viewContainer, viewContainerRef, isDesktop });
+  const addAttachment = useAssistAttachmentsStore(s => s.addAttachment);
+  const setActiveCommand = useAssistAttachmentsStore(s => s.setActiveCommand);
+  const setAssistOpen = useAssistPanelStore(s => s.setOpen);
+
+  const { selectionTrigger, activeDiffIndex, setActiveDiffIndex, activeDiff, removeDiff, handleAcceptDiff } =
+    useNoteAiEdit({ content, onChange, noteId, viewContainer, viewContainerRef, isDesktop });
+
+  const handleSendToAssistant = useCallback(() => {
+    if (!selectionTrigger || !noteId) return;
+    addAttachment({
+      type: 'note_chunk',
+      label: t('notes_ai.note_text'),
+      content: selectionTrigger.markdown,
+      metadata: {
+        noteId,
+        plainText: selectionTrigger.plainText,
+        markdownStart: selectionTrigger.markdownStart,
+        markdownEnd: selectionTrigger.markdownEnd,
+      },
+    });
+    setActiveCommand('/edit-note');
+    setAssistOpen(true);
+    window.getSelection()?.removeAllRanges();
+  }, [selectionTrigger, noteId, addAttachment, setActiveCommand, setAssistOpen]);
 
   const hasDiffPanel = activeDiff !== null;
 
@@ -180,38 +190,13 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
             transform: 'translateY(-50%)',
           }}
         >
-          <FloatingCard open={popoverOpen} onOpenChange={handleOpenChange}>
-            <FloatingCardTrigger asChild>
-              <Button
-                size="icon"
-                icon={WandSparkles}
-                disabled={!aiAvailable}
-                tooltip={!aiAvailable ? t('settings.ai_not_configured') : t('notes_ai.edit_with_ai')}
-              />
-            </FloatingCardTrigger>
-            <FloatingCardContent align="start" className="w-72 space-y-3">
-              <Textarea
-                autoFocus
-                rows={3}
-                placeholder={t('notes_ai.how_to_edit')}
-                value={instructions}
-                onChange={e => setInstructions(e.target.value)}
-              />
-              <div className="flex items-center justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  size="sm"
-                  icon={WandSparkles}
-                  disabled={!instructions.trim() || isSubmittingEdit}
-                  onClick={() => editChunk()}
-                >
-                  {isSubmittingEdit ? t('notes_ai.editing') : t('common.edit')}
-                </Button>
-              </div>
-            </FloatingCardContent>
-          </FloatingCard>
+          <Button
+            size="icon"
+            icon={WandSparkles}
+            disabled={!aiAvailable}
+            tooltip={!aiAvailable ? t('settings.ai_not_configured') : t('notes_ai.edit_with_ai')}
+            onClick={handleSendToAssistant}
+          />
         </div>
       )}
     </div>
