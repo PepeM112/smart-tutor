@@ -16,7 +16,7 @@ from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.schemas.note import NoteGenerate
-from app.schemas.question import QuestionCreate, QuestionUpdate
+from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import GeneratedQuestionPreview, QuestionEditRequest, TestGenerationRequest
 from app.services import note_service, question_service, test_generation_service, test_service
@@ -334,19 +334,10 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
         ),
     )
 
-    target_questions = [ordered_questions[i] for i in selected_indices]
-    updates = [
-        QuestionUpdate(
-            question_type=result.questions[i].question_type,
-            prompt=result.questions[i].prompt,
-            content=result.questions[i].content,
-            points=result.questions[i].points,
-        )
-        for i in selected_indices
-    ]
-    question_service.bulk_update_questions(db, questions=target_questions, updates=updates)
-
     return ToolResult(
-        output=f"Successfully refined {len(selected_indices)} question(s).",
-        metadata={"test_id": test_id},
+        output=f"Question refinement ready for review ({len(selected_indices)} question(s)).",
+        metadata={
+            "test_id": test_id,
+            "questions": [q.model_dump() for q in result.questions],
+        },
     )

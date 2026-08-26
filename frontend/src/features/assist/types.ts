@@ -1,6 +1,9 @@
+import type { GeneratedQuestionPreviewOutput } from '@/client';
+
 export type {
   AssistMessage,
   AssistRequest,
+  GeneratedQuestionPreviewOutput,
   PageContext,
   ToolCallData,
   ToolConfirmation,
@@ -40,6 +43,7 @@ export type ToolResultMetadata = {
   note_id?: string;
   old_content?: string;
   new_content?: string;
+  questions?: GeneratedQuestionPreviewOutput[];
 };
 
 // UI-level message for rendering
@@ -64,7 +68,7 @@ export type ChatMessage =
     }
   | { type: 'error'; id: string; message: string };
 
-export const WRITE_TOOLS = new Set(['create_note', 'create_test', 'edit_test', 'refine_questions']);
+export const WRITE_TOOLS = new Set(['create_note', 'create_test', 'edit_test']);
 
 export const TOOL_LABELS: Record<string, string> = {
   list_notes: 'Listing notes',

@@ -260,9 +260,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
         height: isOpen ? size.height : FAB_SIZE,
         borderRadius: isOpen ? 14 : 28,
         transition: cssTransition,
-        boxShadow: isOpen
-          ? '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05)'
-          : '0 4px 16px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06)',
+        boxShadow: isOpen ? 'var(--assist-panel-shadow-open)' : 'var(--assist-panel-shadow-closed)',
       }}
     >
       <AnimatePresence mode="wait" initial={false}>

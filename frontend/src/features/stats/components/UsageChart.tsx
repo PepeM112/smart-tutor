@@ -12,8 +12,8 @@ import { formatTokens } from '@/lib/format';
 import type { UsageGroupBy as GroupBy } from '../types';
 
 const PROVIDER_COLORS: Record<number, string> = {
-  [AiProvider.ANTHROPIC]: '#F97316',
-  [AiProvider.OPENAI]: '#16B38C',
+  [AiProvider.ANTHROPIC]: 'var(--chart-provider-anthropic)',
+  [AiProvider.OPENAI]: 'var(--chart-provider-openai)',
 };
 
 const PROVIDER_LABELS: Record<number, string> = {
@@ -22,27 +22,27 @@ const PROVIDER_LABELS: Record<number, string> = {
 };
 
 const FEATURE_COLORS: Record<number, string> = {
-  [AiFeature.GRADING]: '#8B5CF6',
-  [AiFeature.CHALLENGE]: '#EC4899',
-  [AiFeature.NOTE_GENERATION]: '#06B6D4',
-  [AiFeature.NOTE_REFINEMENT]: '#14B8A6',
-  [AiFeature.TEST_GENERATION]: '#F59E0B',
-  [AiFeature.ASSIST]: '#6366F1',
+  [AiFeature.GRADING]: 'var(--chart-feature-grading)',
+  [AiFeature.CHALLENGE]: 'var(--chart-feature-challenge)',
+  [AiFeature.NOTE_GENERATION]: 'var(--chart-feature-note-generation)',
+  [AiFeature.NOTE_REFINEMENT]: 'var(--chart-feature-note-refinement)',
+  [AiFeature.TEST_GENERATION]: 'var(--chart-feature-test-generation)',
+  [AiFeature.ASSIST]: 'var(--chart-feature-assist)',
 };
 
 const BOTH_COLORS: Record<string, string> = {
-  [`${AiProvider.ANTHROPIC}_${AiFeature.GRADING}`]: '#F97316',
-  [`${AiProvider.ANTHROPIC}_${AiFeature.CHALLENGE}`]: '#FB923C',
-  [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_GENERATION}`]: '#FDBA74',
-  [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_REFINEMENT}`]: '#FED7AA',
-  [`${AiProvider.ANTHROPIC}_${AiFeature.TEST_GENERATION}`]: '#C2410C',
-  [`${AiProvider.ANTHROPIC}_${AiFeature.ASSIST}`]: '#EA580C',
-  [`${AiProvider.OPENAI}_${AiFeature.GRADING}`]: '#16B38C',
-  [`${AiProvider.OPENAI}_${AiFeature.CHALLENGE}`]: '#2DD4BF',
-  [`${AiProvider.OPENAI}_${AiFeature.NOTE_GENERATION}`]: '#5EEAD4',
-  [`${AiProvider.OPENAI}_${AiFeature.NOTE_REFINEMENT}`]: '#99F6E4',
-  [`${AiProvider.OPENAI}_${AiFeature.TEST_GENERATION}`]: '#0D9488',
-  [`${AiProvider.OPENAI}_${AiFeature.ASSIST}`]: '#0F766E',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.GRADING}`]: 'var(--chart-both-anthropic-grading)',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.CHALLENGE}`]: 'var(--chart-both-anthropic-challenge)',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_GENERATION}`]: 'var(--chart-both-anthropic-note-generation)',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_REFINEMENT}`]: 'var(--chart-both-anthropic-note-refinement)',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.TEST_GENERATION}`]: 'var(--chart-both-anthropic-test-generation)',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.ASSIST}`]: 'var(--chart-both-anthropic-assist)',
+  [`${AiProvider.OPENAI}_${AiFeature.GRADING}`]: 'var(--chart-both-openai-grading)',
+  [`${AiProvider.OPENAI}_${AiFeature.CHALLENGE}`]: 'var(--chart-both-openai-challenge)',
+  [`${AiProvider.OPENAI}_${AiFeature.NOTE_GENERATION}`]: 'var(--chart-both-openai-note-generation)',
+  [`${AiProvider.OPENAI}_${AiFeature.NOTE_REFINEMENT}`]: 'var(--chart-both-openai-note-refinement)',
+  [`${AiProvider.OPENAI}_${AiFeature.TEST_GENERATION}`]: 'var(--chart-both-openai-test-generation)',
+  [`${AiProvider.OPENAI}_${AiFeature.ASSIST}`]: 'var(--chart-both-openai-assist)',
 };
 
 type SeriesInfo = { key: string; label: string; color: string };

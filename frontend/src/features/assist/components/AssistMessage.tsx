@@ -77,9 +77,9 @@ function AssistantBubble({ content, streaming }: { content: string; streaming: b
           '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs',
           '[&_pre]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre]:text-xs',
           '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
-          '[&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-0.5',
-          '[&_h2]:text-[13px] [&_h2]:font-bold [&_h2]:mt-1.5 [&_h2]:mb-0.5',
-          '[&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0',
+          '[&_h1]:text-[1.25rem] [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-0.5',
+          '[&_h2]:text-[1rem] [&_h2]:font-bold [&_h2]:mt-1.5 [&_h2]:mb-0.5',
+          '[&_h3]:text-[0.875rem] [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0',
           '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
           '[&_a]:text-primary [&_a]:underline',
           '[&_table]:w-full [&_table]:text-xs [&_table]:my-1.5',
@@ -118,6 +118,10 @@ function ToolResultRow({ name, output, metadata }: { name: string; output: strin
 
   if (name === 'refine_note' && metadata?.note_id && metadata.old_content != null) {
     return <RefineNoteResult noteId={metadata.note_id} />;
+  }
+
+  if (name === 'refine_questions' && metadata?.test_id && metadata.questions) {
+    return <RefineQuestionsResult testId={metadata.test_id} />;
   }
 
   if (!WRITE_TOOLS.has(name)) return null;
@@ -162,6 +166,28 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
       {hasDiff && (
         <Link
           href={`/notes/${noteId}?diff=assist`}
+          className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
+        >
+          View changes <Eye className="size-3" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function RefineQuestionsResult({ testId }: { testId: string }) {
+  const pendingDiff = useAssistDiffStore(s => s.pendingTestDiff);
+  const hasDiff = pendingDiff?.testId === testId;
+
+  return (
+    <div className="flex items-center gap-2 py-0.5">
+      <CheckCircle className="size-3 text-feedback-correct" />
+      <span className="text-[12px] text-muted-foreground">
+        {hasDiff ? 'Question refinement ready — review the changes before applying.' : 'Refinement applied.'}
+      </span>
+      {hasDiff && (
+        <Link
+          href={`/tests/${testId}/edit?diff=assist`}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
           View changes <Eye className="size-3" />

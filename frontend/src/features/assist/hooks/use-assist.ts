@@ -58,6 +58,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   const queryClient = useQueryClient();
   const router = useRouter();
   const setPendingNoteDiff = useAssistDiffStore(s => s.setPendingNoteDiff);
+  const setPendingTestDiff = useAssistDiffStore(s => s.setPendingTestDiff);
 
   const resolvePendingConfirmations = useCallback(() => {
     if (pendingToolIdsRef.current.size === 0) return;
@@ -252,6 +253,13 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               });
             }
 
+            if (tr.name === 'refine_questions' && tr.metadata?.test_id && tr.metadata.questions) {
+              setPendingTestDiff({
+                testId: tr.metadata.test_id,
+                questions: tr.metadata.questions,
+              });
+            }
+
             break;
           }
           case 'confirm_required': {
@@ -320,7 +328,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         }
       }
     },
-    [router, queryClient, setPendingNoteDiff]
+    [router, queryClient, setPendingNoteDiff, setPendingTestDiff]
   );
 
   const send = useCallback(
@@ -356,26 +364,34 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     setMessages(prev => prev.filter(m => m.id !== id));
   }, []);
 
-  const setAddLocalMessage = useAssistAttachmentsStore(s => s.setAddLocalMessage);
-  const setAddLocalAssistantMessage = useAssistAttachmentsStore(s => s.setAddLocalAssistantMessage);
-  const setRemoveMessage = useAssistAttachmentsStore(s => s.setRemoveMessage);
+  const addLocalToolCall = useCallback((name: string) => {
+    const id = nextId();
+    setMessages(prev => [...prev, { type: 'tool_call', id, name, arguments: {}, status: 'running' }]);
+    return id;
+  }, []);
+
+  const updateToolCallStatus = useCallback((id: string, status: 'done' | 'failed') => {
+    setMessages(prev => prev.map(m => (m.type === 'tool_call' && m.id === id ? { ...m, status } : m)));
+  }, []);
+
   useEffect(() => {
-    setAddLocalMessage(addLocalMessage);
-    setAddLocalAssistantMessage(addLocalAssistantMessage);
-    setRemoveMessage(removeMessage);
+    useAssistAttachmentsStore.getState().setCallbacks({
+      addLocalMessage,
+      addLocalAssistantMessage,
+      removeMessage,
+      addLocalToolCall,
+      updateToolCallStatus,
+    });
     return () => {
-      setAddLocalMessage(null);
-      setAddLocalAssistantMessage(null);
-      setRemoveMessage(null);
+      useAssistAttachmentsStore.getState().setCallbacks({
+        addLocalMessage: null,
+        addLocalAssistantMessage: null,
+        removeMessage: null,
+        addLocalToolCall: null,
+        updateToolCallStatus: null,
+      });
     };
-  }, [
-    addLocalMessage,
-    addLocalAssistantMessage,
-    removeMessage,
-    setAddLocalMessage,
-    setAddLocalAssistantMessage,
-    setRemoveMessage,
-  ]);
+  }, [addLocalMessage, addLocalAssistantMessage, removeMessage, addLocalToolCall, updateToolCallStatus]);
 
   const confirm = useCallback(
     (toolCallId: string, approved: boolean) => {
