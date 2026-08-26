@@ -422,7 +422,8 @@
     "length_medium": "Medium",
     "length_long": "Long",
     "proposed_changes": "Proposed Changes",
-    "no_changes": "No changes detected."
+    "no_changes": "No changes detected.",
+    "diff_answers": "Answers: {answers}"
   },
   "history": {
     "title": "Test History",

@@ -250,10 +250,10 @@ export function editorItemsToPreviewInputs(items: EditorItem[]): GeneratedQuesti
 export function mergeAiEditResult(
   currentItems: EditorItem[],
   aiQuestions: GeneratedQuestionPreviewOutput[],
-  selectedIndices?: number[]
+  selectedIndices: number[]
 ): EditorItem[] {
   const flat = flattenEditorItems(currentItems);
-  const selectedSet = selectedIndices ? new Set(selectedIndices) : null;
+  const selectedSet = new Set(selectedIndices);
 
   // Group AI response questions by their originating block index.
   // When selectedIndices is provided, only include AI output at those flat positions —
@@ -303,29 +303,17 @@ export function mergeAiEditResult(
       };
     }
 
-    // Group block: rebuild rows from AI output, preserve group metadata.
-    // When selectedIndices filters, only some rows in the group may have AI replacements —
-    // merge selectively, keeping originals for unselected rows.
-    if (selectedSet) {
-      const aiByFlat = new Map(entries.map(e => [e.flatIndex, e.question]));
-      let flatCursor = flat.findIndex(f => f.blockIndex === blockIndex);
-      return {
-        ...item,
-        rows: item.rows.map(row => {
-          const aiQ = aiByFlat.get(flatCursor);
-          flatCursor++;
-          if (!aiQ) return row;
-          const content = aiQ.content as SimpleContent;
-          return { prompt: aiQ.prompt, answers: content.answers } satisfies SimpleRow;
-        }),
-      };
-    }
-
+    // Group block: only some rows may have AI replacements — merge selectively.
+    const aiByFlat = new Map(entries.map(e => [e.flatIndex, e.question]));
+    let flatCursor = flat.findIndex(f => f.blockIndex === blockIndex);
     return {
       ...item,
-      rows: entries.map(e => {
-        const content = e.question.content as SimpleContent;
-        return { prompt: e.question.prompt, answers: content.answers } satisfies SimpleRow;
+      rows: item.rows.map(row => {
+        const aiQ = aiByFlat.get(flatCursor);
+        flatCursor++;
+        if (!aiQ) return row;
+        const content = aiQ.content as SimpleContent;
+        return { prompt: aiQ.prompt, answers: content.answers } satisfies SimpleRow;
       }),
     };
   });

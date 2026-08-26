@@ -5,10 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import {
-  useAssistCommandBridgeStore,
-  type RunNoteEditParams,
-} from '@/features/assist/store/use-assist-command-bridge';
+import { useAssistCommandBridgeStore, type RunNoteEditParams } from '@/features/assist/store/use-assist-command-bridge';
 import { useTextHighlight } from '@/hooks/use-text-highlight';
 import { sdk } from '@/lib/api-client';
 import { getErrorDetail } from '@/lib/utils';

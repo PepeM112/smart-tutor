@@ -360,7 +360,13 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   );
 }
 
-function DiffQuestion({ old: oldQ, new: newQ }: { old: GeneratedQuestionPreviewOutput; new: GeneratedQuestionPreviewOutput }) {
+function DiffQuestion({
+  old: oldQ,
+  new: newQ,
+}: {
+  old: GeneratedQuestionPreviewOutput;
+  new: GeneratedQuestionPreviewOutput;
+}) {
   if (newQ.questionType === QuestionType.MULTIPLE_CHOICE) return <DiffQuestionMultipleChoice old={oldQ} new={newQ} />;
   if (newQ.questionType === QuestionType.LONG_TEXT) return <DiffQuestionLongText old={oldQ} new={newQ} />;
   return <DiffQuestionSimple old={oldQ} new={newQ} />;
@@ -383,20 +389,24 @@ function AssistTestDiffPanel({
   const currentFlat = flattenEditorItems(currentItems);
   const selectedSet = new Set(selectedIndices);
 
-  const changes = currentFlat.reduce<{ index: number; old: GeneratedQuestionPreviewOutput; new: GeneratedQuestionPreviewOutput }[]>(
-    (acc, entry, i) => {
-      if (!selectedSet.has(i)) return acc;
-      const proposed = proposedQuestions[i];
-      if (!proposed) return acc;
-      acc.push({
-        index: i,
-        old: { ...proposed, prompt: entry.question.prompt, content: entry.question.content },
-        new: proposed,
-      });
-      return acc;
-    },
-    []
-  );
+  const changes = currentFlat.reduce<
+    { index: number; old: GeneratedQuestionPreviewOutput; new: GeneratedQuestionPreviewOutput }[]
+  >((acc, entry, i) => {
+    if (!selectedSet.has(i)) return acc;
+    const proposed = proposedQuestions[i];
+    if (!proposed) return acc;
+    acc.push({
+      index: i,
+      old: {
+        questionType: entry.question.questionType,
+        prompt: entry.question.prompt,
+        points: entry.question.points,
+        content: entry.question.content,
+      },
+      new: proposed,
+    });
+    return acc;
+  }, []);
 
   return (
     <div className="flex flex-col p-4">

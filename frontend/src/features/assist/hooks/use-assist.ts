@@ -34,7 +34,6 @@ const TOOL_QUERY_KEYS: Record<string, string[][]> = {
   create_note: [['notes']],
   create_test: [['tests']],
   edit_test: [['tests'], ['questions']],
-  refine_questions: [['tests'], ['questions']],
 };
 
 const UNDO_TOAST_DURATION = 8000;
@@ -183,14 +182,16 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
                 const base = prev.filter((_, i) => i !== oldIdx);
                 return [
                   ...base,
-                  { type: 'assistant' as const, id: currentSegmentId, content: assistantText.slice(segmentOffset), streaming: true },
+                  {
+                    type: 'assistant' as const,
+                    id: currentSegmentId,
+                    content: assistantText.slice(segmentOffset),
+                    streaming: true,
+                  },
                 ];
               }
               segmentOffset = assistantText.length - content.length;
-              return [
-                ...prev,
-                { type: 'assistant' as const, id: currentSegmentId, content: content, streaming: true },
-              ];
+              return [...prev, { type: 'assistant' as const, id: currentSegmentId, content: content, streaming: true }];
             });
             break;
           }
