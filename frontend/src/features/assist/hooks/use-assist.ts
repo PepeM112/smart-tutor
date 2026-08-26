@@ -160,33 +160,37 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             const { content } = data as SSETextDelta;
             assistantText += content;
             setMessages(prev => {
+              // Fast path: current segment is at the tail — append to it
               const last = prev[prev.length - 1];
               if (last?.type === 'assistant' && last.id === currentSegmentId) {
                 return prev.map((m, i) =>
                   i === prev.length - 1 ? { ...m, content: assistantText.slice(segmentOffset) } : m
                 );
               }
-              // Absorb into a recent tiny fragment (e.g. "I" emitted before a tool call).
-              // Only consider the last assistant segment, and only if it appeared after the
-              // most recent tool_result — otherwise we'd merge into a bubble from a prior turn.
-              const lastToolResultIdx = prev.findLastIndex(m => m.type === 'tool_result');
-              const lastAssistIdx = prev.findLastIndex(m => m.type === 'assistant');
-              if (lastAssistIdx !== -1 && lastAssistIdx > lastToolResultIdx) {
-                const frag = prev[lastAssistIdx];
-                // segmentOffset / currentSegmentId are closure vars mutated here as a side
-                // effect — safe because this updater runs exactly once per SSE event (outside
-                // React's event batching), but would need a ref-based approach under concurrent mode.
-                if (frag.type === 'assistant' && frag.content.trim().length <= 5) {
-                  segmentOffset = assistantText.length - frag.content.length - content.length;
-                  currentSegmentId = frag.id;
-                  return prev.map((m, i) =>
-                    i === lastAssistIdx ? { ...m, content: assistantText.slice(segmentOffset), streaming: true } : m
-                  );
-                }
+              // Tool rows were inserted after the current segment. Post-tool text
+              // must appear BELOW those rows, so we always create a new bubble here.
+              // If the pre-tool segment was a tiny orphan (e.g. "I'll"), relocate its
+              // text into the new bubble and remove the orphan.
+              const oldIdx = currentSegmentId
+                ? prev.findIndex(m => m.type === 'assistant' && m.id === currentSegmentId)
+                : -1;
+              const orphan = oldIdx !== -1 && prev[oldIdx].type === 'assistant' ? prev[oldIdx] : null;
+              const isOrphan = orphan?.type === 'assistant' && orphan.content.trim().length <= 15;
+
+              currentSegmentId = nextId();
+              if (isOrphan) {
+                // segmentOffset already points to the start of the orphan text
+                const base = prev.filter((_, i) => i !== oldIdx);
+                return [
+                  ...base,
+                  { type: 'assistant' as const, id: currentSegmentId, content: assistantText.slice(segmentOffset), streaming: true },
+                ];
               }
               segmentOffset = assistantText.length - content.length;
-              currentSegmentId = nextId();
-              return [...prev, { type: 'assistant' as const, id: currentSegmentId, content: content, streaming: true }];
+              return [
+                ...prev,
+                { type: 'assistant' as const, id: currentSegmentId, content: content, streaming: true },
+              ];
             });
             break;
           }
@@ -257,6 +261,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               setPendingTestDiff({
                 testId: tr.metadata.test_id,
                 questions: tr.metadata.questions,
+                selectedIndices: tr.metadata.selected_indices ?? [],
               });
             }
 

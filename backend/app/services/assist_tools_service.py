@@ -338,6 +338,7 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
         output=f"Question refinement ready for review ({len(selected_indices)} question(s)).",
         metadata={
             "test_id": test_id,
-            "questions": [q.model_dump() for q in result.questions],
+            "questions": [q.model_dump(by_alias=True) for q in result.questions],
+            "selected_indices": selected_indices,
         },
     )

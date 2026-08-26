@@ -44,6 +44,7 @@ export type ToolResultMetadata = {
   old_content?: string;
   new_content?: string;
   questions?: GeneratedQuestionPreviewOutput[];
+  selected_indices?: number[];
 };
 
 // UI-level message for rendering

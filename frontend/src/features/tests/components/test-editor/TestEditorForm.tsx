@@ -43,6 +43,7 @@ import {
   mcToApiQuestion,
   mergeAiEditResult,
 } from './converters';
+import { DiffQuestionLongText, DiffQuestionMultipleChoice, DiffQuestionSimple } from './diff';
 import { newLongText, newMultipleChoice, newQuestionGroup } from './helpers';
 
 import type { EditorItem } from './types';
@@ -93,7 +94,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   const acceptTestRefinement = useCallback(() => {
     if (!pendingTestDiff) return;
-    setItems(mergeAiEditResult(items, pendingTestDiff.questions));
+    setItems(mergeAiEditResult(items, pendingTestDiff.questions, pendingTestDiff.selectedIndices));
     clearPendingTestDiff();
   }, [pendingTestDiff, items, setItems, clearPendingTestDiff]);
 
@@ -143,16 +144,30 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   const handleSendToAssistant = useCallback(() => {
     const sortedIndices = [...selectedIndices].sort((a, b) => a - b);
-    sortedIndices.forEach(idx => {
-      const item = items[idx];
-      const label = item.type === 'group' ? item.title : item.prompt;
-      const content = `[${item.type === 'group' ? 'Group' : item.type}] ${label}`;
-      addAttachment({
-        type: 'test_questions',
-        label: t('test_generation.chip_question_label', { index: idx + 1 }),
-        content,
-        metadata: { testId },
-      });
+
+    let questionNumber = 0;
+    items.forEach((item, idx) => {
+      if (item.type === 'group') {
+        item.rows.forEach(row => {
+          questionNumber++;
+          if (!sortedIndices.includes(idx)) return;
+          addAttachment({
+            type: 'test_questions',
+            label: t('test_generation.chip_question_label', { index: questionNumber }),
+            content: `[${questionNumber}] ${row.prompt}`,
+            metadata: { testId },
+          });
+        });
+      } else {
+        questionNumber++;
+        if (!sortedIndices.includes(idx)) return;
+        addAttachment({
+          type: 'test_questions',
+          label: t('test_generation.chip_question_label', { index: questionNumber }),
+          content: `[${questionNumber}] ${item.prompt}`,
+          metadata: { testId },
+        });
+      }
     });
     setActiveCommand('/edit-test');
     setAssistOpen(true);
@@ -309,12 +324,13 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
             <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
           </div>
           <div
-            className="min-w-0 overflow-y-auto rounded-xl border border-border bg-card"
+            className="min-w-0 overflow-y-auto rounded-xl border border-border bg-card self-start"
             style={{ flex: 1 - testDiffRatio }}
           >
             <AssistTestDiffPanel
               currentItems={items}
               proposedQuestions={pendingTestDiff.questions}
+              selectedIndices={pendingTestDiff.selectedIndices}
               onAccept={acceptTestRefinement}
               onReject={clearPendingTestDiff}
             />
@@ -331,6 +347,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                 <AssistTestDiffPanel
                   currentItems={items}
                   proposedQuestions={pendingTestDiff.questions}
+                  selectedIndices={pendingTestDiff.selectedIndices}
                   onAccept={acceptTestRefinement}
                   onReject={clearPendingTestDiff}
                 />
@@ -343,105 +360,43 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   );
 }
 
-type QuestionContent = GeneratedQuestionPreviewOutput['content'];
-
-function isMultipleChoiceContent(content: QuestionContent): content is { options: string[]; correctIndices: number[] } {
-  return Array.isArray((content as { options?: unknown }).options);
-}
-
-function isSimpleContent(content: QuestionContent): content is { answers: string[] } {
-  return Array.isArray((content as { answers?: unknown }).answers);
-}
-
-function ContentDiff({ oldContent, newContent }: { oldContent: QuestionContent; newContent: QuestionContent }) {
-  if (isMultipleChoiceContent(oldContent) && isMultipleChoiceContent(newContent)) {
-    const oldOptions = oldContent.options;
-    const newOptions = newContent.options;
-    const removed = oldOptions.filter(o => !newOptions.includes(o));
-    const kept = newOptions.filter(o => oldOptions.includes(o));
-    const added = newOptions.filter(o => !oldOptions.includes(o));
-
-    return (
-      <div className="space-y-1">
-        {removed.map(option => (
-          <p
-            key={`removed-${option}`}
-            className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg px-3 py-1.5 text-sm text-foreground line-through"
-          >
-            {option}
-          </p>
-        ))}
-        {added.map(option => (
-          <p
-            key={`added-${option}`}
-            className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg px-3 py-1.5 text-sm text-foreground"
-          >
-            {option}
-          </p>
-        ))}
-        {removed.length === 0 &&
-          added.length === 0 &&
-          kept.map(option => (
-            <p key={`unchanged-${option}`} className="px-3 py-1.5 text-sm text-muted-foreground">
-              {option}
-            </p>
-          ))}
-      </div>
-    );
-  }
-
-  if (isSimpleContent(oldContent) && isSimpleContent(newContent)) {
-    return (
-      <div className="space-y-1.5">
-        <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg px-3 py-1.5">
-          <p className="text-sm text-foreground">{oldContent.answers.join(', ')}</p>
-        </div>
-        <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg px-3 py-1.5">
-          <p className="text-sm text-foreground">{newContent.answers.join(', ')}</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg px-3 py-1.5">
-      <p className="text-sm text-foreground">{JSON.stringify(newContent)}</p>
-    </div>
-  );
+function DiffQuestion({ old: oldQ, new: newQ }: { old: GeneratedQuestionPreviewOutput; new: GeneratedQuestionPreviewOutput }) {
+  if (newQ.questionType === QuestionType.MULTIPLE_CHOICE) return <DiffQuestionMultipleChoice old={oldQ} new={newQ} />;
+  if (newQ.questionType === QuestionType.LONG_TEXT) return <DiffQuestionLongText old={oldQ} new={newQ} />;
+  return <DiffQuestionSimple old={oldQ} new={newQ} />;
 }
 
 function AssistTestDiffPanel({
   currentItems,
   proposedQuestions,
+  selectedIndices,
   onAccept,
   onReject,
 }: {
   currentItems: EditorItem[];
   proposedQuestions: GeneratedQuestionPreviewOutput[];
+  selectedIndices: number[];
   onAccept: () => void;
   onReject: () => void;
 }) {
   const t = useTranslations();
   const currentFlat = flattenEditorItems(currentItems);
+  const selectedSet = new Set(selectedIndices);
 
-  const changes = currentFlat.reduce<
-    { index: number; oldPrompt: string; newPrompt: string; oldContent: QuestionContent; newContent: QuestionContent }[]
-  >((acc, entry, i) => {
-    const proposed = proposedQuestions[i];
-    if (!proposed) return acc;
-    const promptChanged = entry.question.prompt !== proposed.prompt;
-    const contentChanged = JSON.stringify(entry.question.content) !== JSON.stringify(proposed.content);
-    if (promptChanged || contentChanged) {
+  const changes = currentFlat.reduce<{ index: number; old: GeneratedQuestionPreviewOutput; new: GeneratedQuestionPreviewOutput }[]>(
+    (acc, entry, i) => {
+      if (!selectedSet.has(i)) return acc;
+      const proposed = proposedQuestions[i];
+      if (!proposed) return acc;
       acc.push({
         index: i,
-        oldPrompt: entry.question.prompt,
-        newPrompt: proposed.prompt,
-        oldContent: entry.question.content,
-        newContent: proposed.content,
+        old: { ...proposed, prompt: entry.question.prompt, content: entry.question.content },
+        new: proposed,
       });
-    }
-    return acc;
-  }, []);
+      return acc;
+    },
+    []
+  );
 
   return (
     <div className="flex flex-col p-4">
@@ -455,30 +410,15 @@ function AssistTestDiffPanel({
       {changes.length === 0 ? (
         <p className="text-xs text-muted-foreground">{t('test_editor.no_changes')}</p>
       ) : (
-        <div className="space-y-3">
-          {changes.map(({ index, oldPrompt, newPrompt, oldContent, newContent }) => {
-            const promptChanged = oldPrompt !== newPrompt;
-            const contentChanged = JSON.stringify(oldContent) !== JSON.stringify(newContent);
-            return (
-              <div key={index} className="space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {t('test_generation.chip_question_label', { index: index + 1 })}
-                </p>
-                {promptChanged && (
-                  <>
-                    <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg px-3 py-2">
-                      <p className="text-sm text-foreground">{oldPrompt}</p>
-                    </div>
-                    <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg px-3 py-2">
-                      <p className="text-sm text-foreground">{newPrompt}</p>
-                    </div>
-                  </>
-                )}
-                {!promptChanged && <p className="text-sm text-foreground">{oldPrompt}</p>}
-                {contentChanged && <ContentDiff oldContent={oldContent} newContent={newContent} />}
-              </div>
-            );
-          })}
+        <div className="divide-y divide-border">
+          {changes.map(({ index, old: oldQ, new: newQ }, i) => (
+            <div key={index} className={i > 0 ? 'pt-3' : ''}>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                {t('test_generation.chip_question_label', { index: index + 1 })}
+              </p>
+              <DiffQuestion old={oldQ} new={newQ} />
+            </div>
+          ))}
         </div>
       )}
 

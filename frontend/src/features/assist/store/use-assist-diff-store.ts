@@ -11,6 +11,7 @@ type NoteDiff = {
 type TestDiff = {
   testId: string;
   questions: GeneratedQuestionPreviewOutput[];
+  selectedIndices: number[];
 };
 
 type AssistDiffState = {
