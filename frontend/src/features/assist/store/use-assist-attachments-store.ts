@@ -21,6 +21,8 @@ export type AssistCommand = '/edit-note' | '/edit-test';
 type LocalMessageFn = (text: string) => void;
 type LocalAssistantMessageFn = (text: string) => string;
 type RemoveMessageFn = (id: string) => void;
+type LocalToolCallFn = (name: string) => string;
+type UpdateToolCallStatusFn = (id: string, status: 'done' | 'failed') => void;
 
 type AssistAttachmentsState = {
   attachments: ChatAttachment[];
@@ -29,12 +31,22 @@ type AssistAttachmentsState = {
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
   setActiveCommand: (command: AssistCommand | null) => void;
+
+  // Callbacks registered by useAssist so that AssistInput (a sibling subtree)
+  // can add local messages without holding a reference to the chat state setter.
+  // Read imperatively via getState() — no component subscribes to these fields.
   addLocalMessage: LocalMessageFn | null;
-  setAddLocalMessage: (fn: LocalMessageFn | null) => void;
   addLocalAssistantMessage: LocalAssistantMessageFn | null;
-  setAddLocalAssistantMessage: (fn: LocalAssistantMessageFn | null) => void;
   removeMessage: RemoveMessageFn | null;
-  setRemoveMessage: (fn: RemoveMessageFn | null) => void;
+  addLocalToolCall: LocalToolCallFn | null;
+  updateToolCallStatus: UpdateToolCallStatusFn | null;
+  setCallbacks: (cbs: {
+    addLocalMessage: LocalMessageFn | null;
+    addLocalAssistantMessage: LocalAssistantMessageFn | null;
+    removeMessage: RemoveMessageFn | null;
+    addLocalToolCall: LocalToolCallFn | null;
+    updateToolCallStatus: UpdateToolCallStatusFn | null;
+  }) => void;
 };
 
 // Separate store (not part of useAssist) so note/test editors — which live
@@ -49,10 +61,11 @@ export const useAssistAttachmentsStore = create<AssistAttachmentsState>()(set =>
   removeAttachment: id => set(state => ({ attachments: state.attachments.filter(a => a.id !== id) })),
   clearAttachments: () => set({ attachments: [] }),
   setActiveCommand: command => set({ activeCommand: command }),
+
   addLocalMessage: null,
-  setAddLocalMessage: fn => set({ addLocalMessage: fn }),
   addLocalAssistantMessage: null,
-  setAddLocalAssistantMessage: fn => set({ addLocalAssistantMessage: fn }),
   removeMessage: null,
-  setRemoveMessage: fn => set({ removeMessage: fn }),
+  addLocalToolCall: null,
+  updateToolCallStatus: null,
+  setCallbacks: cbs => set(cbs),
 }));

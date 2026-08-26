@@ -135,6 +135,37 @@
     --sidebar-accent: #264a73;
     --sidebar-border: #2d4f7a;
     --radius: 1rem;
+
+    /* Chart colors — provider */
+    --chart-provider-anthropic: #f97316;
+    --chart-provider-openai: #16b38c;
+
+    /* Chart colors — feature */
+    --chart-feature-grading: #8b5cf6;
+    --chart-feature-challenge: #ec4899;
+    --chart-feature-note-generation: #06b6d4;
+    --chart-feature-note-refinement: #14b8a6;
+    --chart-feature-test-generation: #f59e0b;
+    --chart-feature-assist: #6366f1;
+
+    /* Chart colors — combined (provider x feature) */
+    --chart-both-anthropic-grading: #f97316;
+    --chart-both-anthropic-challenge: #fb923c;
+    --chart-both-anthropic-note-generation: #fdba74;
+    --chart-both-anthropic-note-refinement: #fed7aa;
+    --chart-both-anthropic-test-generation: #c2410c;
+    --chart-both-anthropic-assist: #ea580c;
+    --chart-both-openai-grading: #16b38c;
+    --chart-both-openai-challenge: #2dd4bf;
+    --chart-both-openai-note-generation: #5eead4;
+    --chart-both-openai-note-refinement: #99f6e4;
+    --chart-both-openai-test-generation: #0d9488;
+    --chart-both-openai-assist: #0f766e;
+
+    /* AI Assistant floating panel shadow */
+    --assist-panel-shadow-open:
+      0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    --assist-panel-shadow-closed: 0 4px 16px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
   }
 
   /* ── Sky (airy blue, tinted bg) ── */
@@ -461,6 +492,13 @@
     --sidebar-muted: #525252;
     --sidebar-accent: #1a1a1a;
     --sidebar-border: #1e1e1e;
+  }
+
+  /* ── Dark themes: AI Assistant floating panel shadow (lighter base, subtle glow) ── */
+  :is([data-theme='midnight'], [data-theme='carbon'], [data-theme='neon'], [data-theme='noir']) {
+    --assist-panel-shadow-open:
+      0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --assist-panel-shadow-closed: 0 4px 16px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
   }
 }
 

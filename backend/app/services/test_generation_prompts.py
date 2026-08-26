@@ -170,6 +170,13 @@ def build_question_edit_user_prompt(
         parts.append(f"## Study Material (for context)\n{note_content}")
 
     parts.append(
+        f"CRITICAL: You MUST return non-selected questions byte-for-byte identical — "
+        f"same prompt text, same options, same correct indices, same everything. Do NOT "
+        f"rephrase, reword, or 'improve' unselected questions. Only touch the specified "
+        f"question(s) ({selected_str})."
+    )
+
+    parts.append(
         f"## Current Questions\n"
         f"The following is the complete question set. The user wants to edit "
         f"question(s) {selected_str} (1-indexed) based on their instructions below.\n\n"
@@ -180,7 +187,11 @@ def build_question_edit_user_prompt(
         f"## User Instructions\n{instructions}\n\n"
         f"Apply the user's instructions ONLY to the specified question(s). "
         f"Return the COMPLETE updated question set as valid JSON in the same format — "
-        f"keep non-selected questions exactly as they are."
+        f"keep non-selected questions exactly as they are.\n\n"
+        f"REMINDER — CRITICAL: Non-selected questions MUST be returned byte-for-byte "
+        f"identical to the input (same prompt text, same options, same correct indices, "
+        f"same everything). Do NOT rephrase, reword, or 'improve' unselected questions. "
+        f"Only question(s) {selected_str} may be changed."
     )
 
     return "\n\n".join(parts)

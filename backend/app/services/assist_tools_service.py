@@ -16,7 +16,7 @@ from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.schemas.note import NoteGenerate
-from app.schemas.question import QuestionCreate, QuestionUpdate
+from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import GeneratedQuestionPreview, QuestionEditRequest, TestGenerationRequest
 from app.services import note_service, question_service, test_generation_service, test_service
@@ -140,11 +140,13 @@ def create_note(db: Session, *, current_user: User, arguments: dict[str, object]
     length_str = str(arguments.get("length", "medium"))
     length = _LENGTH_MAP.get(length_str, NoteLength.MEDIUM)
 
+    logger.info("create_note: user=%s topic=%r length=%s", current_user.id, topic, length_str)
     note = note_service.generate_note(
         db,
         current_user=current_user,
         data=NoteGenerate(topic=topic, guidance=guidance, length=length),
     )
+    logger.info("create_note: created note=%s", note.id)
     return ToolResult(
         output=(
             f"Note created successfully!\n"
@@ -159,6 +161,7 @@ def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]
     note_id = str(arguments.get("note_id", ""))
     instructions = str(arguments.get("instructions", ""))
 
+    logger.info("refine_note: user=%s note=%s", current_user.id, note_id)
     old_note = note_service.get_note(db, note_id=note_id, current_user=current_user)
     old_content = old_note.content or ""
 
@@ -201,6 +204,7 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
     if difficulty not in ("easy", "medium", "hard"):
         difficulty = "medium"
 
+    logger.info("create_test: user=%s note=%s count=%d types=%s", current_user.id, note_id, question_count, q_types)
     gen_request = TestGenerationRequest(
         note_id=note_id,
         question_count=question_count,
@@ -225,6 +229,7 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
     ]
 
     title = gen_result.source_note_title or "Generated Test"
+    logger.info("create_test: generated %d questions, creating test %r", len(questions), title)
     test = test_service.create_test(
         db,
         current_user=current_user,
@@ -248,6 +253,7 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
 
 def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     test_id = str(arguments.get("test_id", ""))
+    logger.info("edit_test: user=%s test=%s", current_user.id, test_id)
     test = test_service.get_test(db, test_id=test_id, current_user=current_user)
 
     changes: list[str] = []
@@ -255,10 +261,12 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
     new_title = arguments.get("title")
     new_description = arguments.get("description")
     if new_title or new_description:
-        update_data = TestUpdate(
-            title=str(new_title) if new_title else None,
-            description=str(new_description) if new_description else None,
-        )
+        update_fields: dict[str, Any] = {}
+        if new_title:
+            update_fields["title"] = str(new_title)
+        if new_description:
+            update_fields["description"] = str(new_description)
+        update_data = TestUpdate(**update_fields)
         test = test_service.update_test(db, test_id=test_id, current_user=current_user, data=update_data)
         if new_title:
             changes.append(f"Title changed to **{new_title}**")
@@ -280,8 +288,10 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
             changes.append(f"{len(removed_question_ids)} question(s) removed")
 
     if not changes:
+        logger.info("edit_test: no changes for test=%s", test_id)
         return ToolResult(output="No changes specified.")
 
+    logger.info("edit_test: test=%s changes=%s", test_id, changes)
     metadata: dict[str, Any] = {"test_id": test_id}
     if removed_question_ids:
         metadata["removed_question_ids"] = removed_question_ids
@@ -312,6 +322,7 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
     question_ids = {str(qid) for qid in raw_question_ids} if isinstance(raw_question_ids, list) else set()
     instructions = str(arguments.get("instructions", ""))
 
+    logger.info("refine_questions: user=%s test=%s question_ids=%s", current_user.id, test_id, question_ids)
     test = get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
 
     ordered_questions: list[Question] = sorted(test.questions or [], key=lambda q: q.order)
@@ -322,8 +333,10 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
     selected_indices = [i for i, q in enumerate(ordered_questions) if q.id in question_ids]
 
     if not selected_indices:
+        logger.warning("refine_questions: no matching question IDs found in test=%s", test_id)
         return ToolResult(output="Error: None of the specified question IDs were found in this test.")
 
+    logger.info("refine_questions: selected_indices=%s for test=%s", selected_indices, test_id)
     result = test_generation_service.edit_test_questions(
         db,
         current_user=current_user,
@@ -334,19 +347,11 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
         ),
     )
 
-    target_questions = [ordered_questions[i] for i in selected_indices]
-    updates = [
-        QuestionUpdate(
-            question_type=result.questions[i].question_type,
-            prompt=result.questions[i].prompt,
-            content=result.questions[i].content,
-            points=result.questions[i].points,
-        )
-        for i in selected_indices
-    ]
-    question_service.bulk_update_questions(db, questions=target_questions, updates=updates)
-
     return ToolResult(
-        output=f"Successfully refined {len(selected_indices)} question(s).",
-        metadata={"test_id": test_id},
+        output=f"Question refinement ready for review ({len(selected_indices)} question(s)).",
+        metadata={
+            "test_id": test_id,
+            "questions": [q.model_dump(by_alias=True) for q in result.questions],
+            "selected_indices": selected_indices,
+        },
     )

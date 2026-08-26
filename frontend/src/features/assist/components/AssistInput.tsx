@@ -157,6 +157,11 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const query = draft.startsWith('/') ? draft.slice(1).toLowerCase() : '';
   const filteredCommands =
     !activeCommand && draft.startsWith('/') ? COMMANDS.filter(c => c.name.slice(1).startsWith(query)) : [];
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [filteredCommands.length]);
+
   const commandMenuOpen = !dismissed && !activeCommand && draft.startsWith('/') && filteredCommands.length > 0;
   const clampedIndex = Math.min(activeIndex, Math.max(0, filteredCommands.length - 1));
 
@@ -199,10 +204,11 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
     if (cmd === '/edit-note') {
       const chip = atts.find(a => a.type === 'note_chunk');
-      const noteEdit = useAssistCommandBridgeStore.getState().runNoteEdit;
+      const noteEdit = useAssistCommandBridgeStore.getState().noteEditRunner;
       if (chip && noteEdit) {
-        store.addLocalMessage?.(buildDisplayText(cmd, atts, instructions));
-        const processingId = store.addLocalAssistantMessage?.('Editing selected text…');
+        const cbs = useAssistAttachmentsStore.getState();
+        cbs.addLocalMessage?.(buildDisplayText(cmd, atts, instructions));
+        const processingId = cbs.addLocalToolCall?.('refine_note');
         noteEdit({
           markdown: chip.content,
           plainText: chip.metadata.plainText ?? chip.label,
@@ -210,7 +216,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
           markdownEnd: chip.metadata.markdownEnd ?? 0,
           instructions,
           onSettled: () => {
-            if (processingId) store.removeMessage?.(processingId);
+            if (processingId) useAssistAttachmentsStore.getState().updateToolCallStatus?.(processingId, 'done');
           },
         });
       }

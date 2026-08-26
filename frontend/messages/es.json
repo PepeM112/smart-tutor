@@ -420,7 +420,10 @@
     "done_editing": "Listo",
     "length_short": "Corto",
     "length_medium": "Medio",
-    "length_long": "Largo"
+    "length_long": "Largo",
+    "proposed_changes": "Cambios Propuestos",
+    "no_changes": "No se detectaron cambios.",
+    "diff_answers": "Respuestas: {answers}"
   },
   "history": {
     "title": "Historial de Tests",

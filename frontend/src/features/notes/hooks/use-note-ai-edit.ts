@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { type RunNoteEditParams, useAssistCommandBridgeStore } from '@/features/assist/store/use-assist-command-bridge';
+import { useAssistCommandBridgeStore, type RunNoteEditParams } from '@/features/assist/store/use-assist-command-bridge';
 import { useTextHighlight } from '@/hooks/use-text-highlight';
 import { sdk } from '@/lib/api-client';
 import { getErrorDetail } from '@/lib/utils';
@@ -168,13 +168,18 @@ export function useNoteAiEdit({
   // Registers this note's edit runner into the shared bridge so the assistant chat's
   // /edit-note command (a different subtree) can trigger it and still get the old
   // highlight-then-diff-panel UX, which lives in this hook's local `diffs` state.
-  const setRunNoteEdit = useAssistCommandBridgeStore(s => s.setRunNoteEdit);
+  // runChunkEdit is wrapped via a ref because useMutation's `mutate` identity is not
+  // guaranteed stable across renders, and we only want to (re)register on noteId change.
+  const runChunkEditRef = useRef(runChunkEdit);
+  useEffect(() => {
+    runChunkEditRef.current = runChunkEdit;
+  }, [runChunkEdit]);
+
   useEffect(() => {
     if (!noteId) return undefined;
-    setRunNoteEdit(runChunkEdit);
-    return () => setRunNoteEdit(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteId, setRunNoteEdit]);
+    useAssistCommandBridgeStore.getState().setNoteEditRunner(params => runChunkEditRef.current(params));
+    return () => useAssistCommandBridgeStore.getState().setNoteEditRunner(null);
+  }, [noteId]);
 
   function handleAcceptDiff() {
     if (activeDiffIndex === null || !activeDiff) return;
