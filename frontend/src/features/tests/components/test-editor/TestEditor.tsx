@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
-import { formatTestDetail } from '@/features/assist/utils/format-page-data';
+import { buildTestMentionCandidates, formatTestDetail } from '@/features/assist/utils/format-page-data';
 import { sdk } from '@/lib/api-client';
 
 import { fromApiToEditorItems } from './converters';
@@ -29,7 +29,8 @@ export function TestEditor({ testId }: Props) {
 
   const test = existing?.data;
 
-  useProvidePageData(useMemo(() => (test ? formatTestDetail(test) : null), [test]));
+  const mentionCandidates = useMemo(() => (test ? buildTestMentionCandidates(test) : []), [test]);
+  useProvidePageData(useMemo(() => (test ? formatTestDetail(test) : null), [test]), mentionCandidates);
 
   if (testId && isLoading) {
     return <p className="text-muted-foreground">{t('common.loading')}</p>;
