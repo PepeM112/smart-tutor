@@ -27,7 +27,7 @@ export function AssistTurnRow({ turn, onConfirm }: AssistTurnRowProps) {
   return (
     <div className="space-y-1">
       {rendered.map(segment => (
-        <SegmentView key={segment.id} segment={segment} onConfirm={onConfirm} />
+        <SegmentView key={`${segment.type}-${segment.id}`} segment={segment} onConfirm={onConfirm} />
       ))}
     </div>
   );
