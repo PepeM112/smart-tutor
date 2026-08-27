@@ -10,42 +10,15 @@ import { cn } from '@/lib/utils';
 
 import { useStreamingText } from '../hooks/use-streaming-text';
 import { useAssistDiffStore } from '../store/use-assist-diff-store';
-import { TOOL_LABELS, WRITE_TOOLS, type ChatMessage, type ConfirmContext, type ToolResultMetadata } from '../types';
+import { getToolLabel, isWriteTool } from '../utils/tool-registry';
 
-type AssistMessageRowProps = {
-  message: ChatMessage;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
-};
+import type { ConfirmContext, ToolResultMetadata } from '../types';
 
-export function AssistMessageRow({ message, onConfirm }: AssistMessageRowProps) {
-  switch (message.type) {
-    case 'user':
-      return <UserBubble content={message.displayContent ?? message.content} />;
-    case 'assistant':
-      return <AssistantBubble content={message.content} streaming={message.streaming} />;
-    case 'tool_call':
-      return <ToolCallRow name={message.name} status={message.status} />;
-    case 'tool_result':
-      return <ToolResultRow name={message.name} output={message.output} metadata={message.metadata} />;
-    case 'confirm_required':
-      return (
-        <ConfirmCard
-          id={message.id}
-          name={message.name}
-          arguments={message.arguments}
-          context={message.context}
-          status={message.status}
-          onConfirm={onConfirm}
-        />
-      );
-    case 'error':
-      return <ErrorRow message={message.message} />;
-    default:
-      return null;
-  }
-}
+// ---------------------------------------------------------------------------
+// User bubble
+// ---------------------------------------------------------------------------
 
-function UserBubble({ content }: { content: string }) {
+export function UserBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-end pl-14">
       <div className="rounded-xl bg-muted px-3 py-1.5 text-[13px] leading-[1.4] text-foreground">{content}</div>
@@ -53,7 +26,11 @@ function UserBubble({ content }: { content: string }) {
   );
 }
 
-function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
+// ---------------------------------------------------------------------------
+// Assistant text segment
+// ---------------------------------------------------------------------------
+
+export function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
   const displayed = useStreamingText(content, streaming);
   const isRevealing = streaming && displayed.length < content.length;
 
@@ -96,8 +73,12 @@ function AssistantBubble({ content, streaming }: { content: string; streaming: b
   );
 }
 
-function ToolCallRow({ name, status }: { name: string; status: string }) {
-  const label = TOOL_LABELS[name] ?? name;
+// ---------------------------------------------------------------------------
+// Tool indicator (spinner / check / error)
+// ---------------------------------------------------------------------------
+
+export function ToolIndicatorRow({ name, status }: { name: string; status: string }) {
+  const label = getToolLabel(name);
 
   return (
     <div className="flex items-center gap-2 py-0.5">
@@ -113,7 +94,19 @@ function ToolCallRow({ name, status }: { name: string; status: string }) {
   );
 }
 
-function ToolResultRow({ name, output, metadata }: { name: string; output: string; metadata?: ToolResultMetadata }) {
+// ---------------------------------------------------------------------------
+// Tool result
+// ---------------------------------------------------------------------------
+
+export function ToolResultRow({
+  name,
+  output,
+  metadata,
+}: {
+  name: string;
+  output: string;
+  metadata?: ToolResultMetadata;
+}) {
   if (output.startsWith('__NAVIGATE__:')) return null;
 
   if (name === 'refine_note' && metadata?.note_id && metadata.old_content != null) {
@@ -124,7 +117,7 @@ function ToolResultRow({ name, output, metadata }: { name: string; output: strin
     return <RefineQuestionsResult testId={metadata.test_id} />;
   }
 
-  if (!WRITE_TOOLS.has(name)) return null;
+  if (!isWriteTool(name)) return null;
 
   const idMatch = output.match(/\*\*ID:\*\* `([^`]+)`/);
   const resourceId = idMatch?.[1];
@@ -197,7 +190,11 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
   );
 }
 
-function ConfirmCard({
+// ---------------------------------------------------------------------------
+// Action card (approve / reject)
+// ---------------------------------------------------------------------------
+
+export function ActionCard({
   id,
   name,
   arguments: args,
@@ -212,7 +209,7 @@ function ConfirmCard({
   status: 'pending' | 'approved' | 'rejected';
   onConfirm: (id: string, approved: boolean) => void;
 }) {
-  const label = TOOL_LABELS[name] ?? name;
+  const label = getToolLabel(name);
   const summary = _summarizeArgs(name, args);
   const questionsToRemove = context?.questions_to_remove;
   const titleChange = context?.title_change;
@@ -302,7 +299,11 @@ function ConfirmCard({
   );
 }
 
-function ErrorRow({ message }: { message: string }) {
+// ---------------------------------------------------------------------------
+// Error
+// ---------------------------------------------------------------------------
+
+export function ErrorRow({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2.5">
       <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
@@ -310,6 +311,10 @@ function ErrorRow({ message }: { message: string }) {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function _argStr(value: unknown, fallback = 'Unknown'): string {
   return typeof value === 'string' ? value : fallback;

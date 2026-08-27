@@ -9,55 +9,82 @@ import { sdk } from '@/lib/api-client';
 
 import { useAssistAttachmentsStore } from '../store/use-assist-attachments-store';
 import { useAssistDiffStore } from '../store/use-assist-diff-store';
-import {
-  WRITE_TOOLS,
-  type AssistMessage,
-  type AssistRequest,
-  type ChatMessage,
-  type PageContext,
-  type SSEConfirmRequired,
-  type SSEDone,
-  type SSEError,
-  type SSETextDelta,
-  type SSEToolCall,
-  type SSEToolExecuting,
-  type SSEToolResult,
-  type ToolCallData,
-  type ToolConfirmation,
-  type ToolResultData,
+import { consumeSSEStream } from '../utils/sse-stream';
+import { getQueryKeysToInvalidate, isWriteTool } from '../utils/tool-registry';
+
+import type {
+  AssistMessage,
+  AssistRequest,
+  AssistTurn,
+  PageContext,
+  SSEConfirmRequired,
+  SSEDone,
+  SSEError,
+  SSETextDelta,
+  SSEToolCall,
+  SSEToolExecuting,
+  SSEToolResult,
+  TextSegment,
+  ToolCallData,
+  ToolConfirmation,
+  ToolResultData,
+  TurnSegment,
 } from '../types';
 
 let msgCounter = 0;
 const nextId = () => `msg-${++msgCounter}`;
 
-const TOOL_QUERY_KEYS: Record<string, string[][]> = {
-  create_note: [['notes']],
-  create_test: [['tests']],
-  edit_test: [['tests'], ['questions']],
-};
-
 const UNDO_TOAST_DURATION = 8000;
 
 type UseAssistReturn = {
-  messages: ChatMessage[];
+  turns: AssistTurn[];
   isStreaming: boolean;
-  send: (text: string, displayText?: string) => void;
-  addLocalMessage: (text: string) => void;
+  send: (text: string, displayText?: string, onComplete?: () => void) => void;
   stop: () => void;
   confirm: (toolCallId: string, approved: boolean) => void;
   clear: () => void;
 };
 
+// ---------------------------------------------------------------------------
+// Immutable turn helpers
+// ---------------------------------------------------------------------------
+
+function appendSegmentToTurn(turns: AssistTurn[], turnId: string, segment: TurnSegment): AssistTurn[] {
+  return turns.map(t => (t.id === turnId ? { ...t, segments: [...t.segments, segment] } : t));
+}
+
+function updateSegment(
+  turns: AssistTurn[],
+  segmentId: string,
+  updater: (seg: TurnSegment) => TurnSegment
+): AssistTurn[] {
+  return turns.map(t => ({
+    ...t,
+    segments: t.segments.map(s => (s.id === segmentId ? updater(s) : s)),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
 export function useAssist(pageContext: PageContext): UseAssistReturn {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [turns, setTurns] = useState<AssistTurn[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+
   const conversationRef = useRef<AssistMessage[]>([]);
   const pendingToolIdsRef = useRef<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
+  const lastAssistantTurnIdRef = useRef('');
+
   const queryClient = useQueryClient();
   const router = useRouter();
   const setPendingNoteDiff = useAssistDiffStore(s => s.setPendingNoteDiff);
   const setPendingTestDiff = useAssistDiffStore(s => s.setPendingTestDiff);
+
+  // -------------------------------------------------------------------------
+  // Auto-reject pending confirmations when user sends a new message
+  // -------------------------------------------------------------------------
 
   const resolvePendingConfirmations = useCallback(() => {
     if (pendingToolIdsRef.current.size === 0) return;
@@ -73,27 +100,43 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       toolResults: rejectedResults,
     });
 
-    setMessages(prev =>
-      prev.map(m =>
-        m.type === 'confirm_required' && m.status === 'pending' ? { ...m, status: 'rejected' as const } : m
-      )
+    setTurns(prev =>
+      prev.map(turn => ({
+        ...turn,
+        segments: turn.segments.map(seg =>
+          seg.type === 'action_card' && seg.status === 'pending' ? { ...seg, status: 'rejected' as const } : seg
+        ),
+      }))
     );
 
     pendingToolIdsRef.current.clear();
   }, []);
 
+  // -------------------------------------------------------------------------
+  // SSE streaming
+  // -------------------------------------------------------------------------
+
   const streamResponse = useCallback(
-    async (request: AssistRequest) => {
+    async (request: AssistRequest, resumeTurnId?: string, onComplete?: () => void) => {
       setIsStreaming(true);
       abortRef.current = new AbortController();
 
-      let assistantText = '';
-      let currentSegmentId = '';
-      let segmentOffset = 0;
+      let activeTurnId: string;
+      let activeTextSegmentId = '';
+      let accumulatedText = '';
+      let textSegmentOffset = 0;
       const toolCalls: ToolCallData[] = [];
       const toolResults: ToolResultData[] = [];
 
-      // SSE streaming requires raw fetch — the generated SDK doesn't support streaming responses
+      if (resumeTurnId) {
+        activeTurnId = resumeTurnId;
+      } else {
+        const turnId = nextId();
+        activeTurnId = turnId;
+        lastAssistantTurnIdRef.current = turnId;
+        setTurns(prev => [...prev, { id: turnId, role: 'assistant', segments: [] }]);
+      }
+
       try {
         const response = await fetch('/api/v1/assist', {
           method: 'POST',
@@ -107,129 +150,134 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           const error = (await response.json().catch(() => ({ detail: 'Request failed' }))) as {
             detail?: string;
           };
-          setMessages(prev => [...prev, { type: 'error', id: nextId(), message: error.detail ?? 'An error occurred' }]);
+          const errorSeg: TurnSegment = { type: 'error', id: nextId(), message: error.detail ?? 'An error occurred' };
+          setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
           setIsStreaming(false);
+          onComplete?.();
           return;
         }
 
         const reader = response.body?.getReader();
         if (!reader) return;
 
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          let eventType = '';
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              eventType = line.slice(7).trim();
-            } else if (line.startsWith('data: ') && eventType) {
-              try {
-                const data: unknown = JSON.parse(line.slice(6));
-                handleSSEEvent(eventType, data);
-              } catch {
-                // Skip malformed SSE events instead of aborting the stream
-              }
-              eventType = '';
-            }
-          }
-        }
+        await consumeSSEStream(reader, (event, data) => {
+          handleSSEEvent(event, data);
+        });
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          setMessages(prev => [
-            ...prev,
-            { type: 'error', id: nextId(), message: 'Connection lost. Please try again.' },
-          ]);
+          const errorSeg: TurnSegment = {
+            type: 'error',
+            id: nextId(),
+            message: 'Connection lost. Please try again.',
+          };
+          setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
         }
       } finally {
         setIsStreaming(false);
         abortRef.current = null;
+        onComplete?.();
       }
 
       function handleSSEEvent(event: string, data: unknown): void {
         switch (event) {
           case 'text_delta': {
             const { content } = data as SSETextDelta;
-            assistantText += content;
-            setMessages(prev => {
-              // Fast path: current segment is at the tail — append to it
-              const last = prev[prev.length - 1];
-              if (last?.type === 'assistant' && last.id === currentSegmentId) {
-                return prev.map((m, i) =>
-                  i === prev.length - 1 ? { ...m, content: assistantText.slice(segmentOffset) } : m
-                );
-              }
-              // Tool rows were inserted after the current segment. Post-tool text
-              // must appear BELOW those rows, so we always create a new bubble here.
-              // If the pre-tool segment was a tiny orphan (e.g. "I'll"), relocate its
-              // text into the new bubble and remove the orphan.
-              const oldIdx = currentSegmentId
-                ? prev.findIndex(m => m.type === 'assistant' && m.id === currentSegmentId)
-                : -1;
-              const orphan = oldIdx !== -1 && prev[oldIdx].type === 'assistant' ? prev[oldIdx] : null;
-              const isOrphan = orphan?.type === 'assistant' && orphan.content.trim().length <= 15;
+            accumulatedText += content;
 
-              currentSegmentId = nextId();
-              if (isOrphan) {
-                // segmentOffset already points to the start of the orphan text
-                const base = prev.filter((_, i) => i !== oldIdx);
-                return [
-                  ...base,
-                  {
-                    type: 'assistant' as const,
-                    id: currentSegmentId,
-                    content: assistantText.slice(segmentOffset),
-                    streaming: true,
-                  },
-                ];
+            setTurns(prev => {
+              const turn = prev.find(t => t.id === activeTurnId);
+              if (!turn) return prev;
+
+              const lastSeg = turn.segments[turn.segments.length - 1];
+
+              // Fast path: append to current text segment
+              if (lastSeg?.type === 'text' && lastSeg.id === activeTextSegmentId) {
+                return updateSegment(prev, activeTextSegmentId, seg => ({
+                  ...seg,
+                  content: accumulatedText.slice(textSegmentOffset),
+                }));
               }
-              segmentOffset = assistantText.length - content.length;
-              return [...prev, { type: 'assistant' as const, id: currentSegmentId, content: content, streaming: true }];
+
+              // New text segment (first text, or text after a tool/action segment)
+              const segId = nextId();
+              activeTextSegmentId = segId;
+              textSegmentOffset = accumulatedText.length - content.length;
+              const newSeg: TextSegment = {
+                type: 'text',
+                id: segId,
+                content,
+                streaming: true,
+              };
+              return appendSegmentToTurn(prev, activeTurnId, newSeg);
             });
             break;
           }
+
           case 'tool_call': {
             const tc = data as SSEToolCall;
             toolCalls.push({ id: tc.id, name: tc.name, arguments: tc.arguments });
-            setMessages(prev => [
-              ...prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m)),
-              { type: 'tool_call', id: tc.id, name: tc.name, arguments: tc.arguments, status: 'running' },
-            ]);
+
+            setTurns(prev => {
+              // Finalize any streaming text segment
+              let updated = activeTextSegmentId
+                ? updateSegment(prev, activeTextSegmentId, seg =>
+                    seg.type === 'text' ? { ...seg, streaming: false } : seg
+                  )
+                : prev;
+
+              const toolSeg: TurnSegment = {
+                type: 'tool_indicator',
+                id: tc.id,
+                name: tc.name,
+                status: 'running',
+              };
+              updated = appendSegmentToTurn(updated, activeTurnId, toolSeg);
+              return updated;
+            });
             break;
           }
+
           case 'tool_executing': {
             const { id } = data as SSEToolExecuting;
-            setMessages(prev =>
-              prev.map(m => (m.type === 'tool_call' && m.id === id ? { ...m, status: 'running' as const } : m))
+            setTurns(prev =>
+              updateSegment(prev, id, seg =>
+                seg.type === 'tool_indicator' ? { ...seg, status: 'running' as const } : seg
+              )
             );
             break;
           }
+
           case 'tool_result': {
             const tr = data as SSEToolResult;
             toolResults.push({ toolCallId: tr.id, output: tr.output });
-            setMessages(prev =>
-              prev.map(m => (m.type === 'tool_call' && m.id === tr.id ? { ...m, status: 'done' as const } : m))
-            );
-            setMessages(prev => [
-              ...prev,
-              { type: 'tool_result', id: tr.id, name: tr.name, output: tr.output, metadata: tr.metadata },
-            ]);
 
+            // Update tool indicator to done
+            setTurns(prev => {
+              let updated = updateSegment(prev, tr.id, seg =>
+                seg.type === 'tool_indicator' ? { ...seg, status: 'done' as const } : seg
+              );
+
+              // Add tool result segment (suffixed ID to avoid collision with tool_indicator)
+              const resultSeg: TurnSegment = {
+                type: 'tool_result',
+                id: `${tr.id}-result`,
+                name: tr.name,
+                output: tr.output,
+                metadata: tr.metadata,
+              };
+              updated = appendSegmentToTurn(updated, activeTurnId, resultSeg);
+              return updated;
+            });
+
+            // Side effects
             if (tr.output.startsWith('__NAVIGATE__:')) {
               const path = tr.output.split(':').slice(1).join(':');
               router.push(path);
             }
 
-            if (WRITE_TOOLS.has(tr.name)) {
-              const keys = TOOL_QUERY_KEYS[tr.name];
-              keys?.forEach(key => void queryClient.invalidateQueries({ queryKey: key }));
+            if (isWriteTool(tr.name)) {
+              const keys = getQueryKeysToInvalidate(tr.name);
+              keys.forEach(key => void queryClient.invalidateQueries({ queryKey: key }));
             }
 
             if (tr.name === 'edit_test' && tr.metadata?.removed_question_ids?.length) {
@@ -268,52 +316,42 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
             break;
           }
+
           case 'confirm_required': {
             const cr = data as SSEConfirmRequired;
             pendingToolIdsRef.current.add(cr.id);
-            setMessages(prev => [
-              ...prev,
-              {
-                type: 'confirm_required',
-                id: cr.id,
-                name: cr.name,
-                arguments: cr.arguments,
-                context: cr.context,
-                status: 'pending',
-              },
-            ]);
+
+            const actionSeg: TurnSegment = {
+              type: 'action_card',
+              id: cr.id,
+              name: cr.name,
+              arguments: cr.arguments,
+              context: cr.context,
+              status: 'pending',
+            };
+            setTurns(prev => appendSegmentToTurn(prev, activeTurnId, actionSeg));
             break;
           }
+
           case 'done': {
             void (data as SSEDone);
-            setMessages(prev => {
-              const updated = prev.map(m => (m.type === 'assistant' && m.streaming ? { ...m, streaming: false } : m));
-              // Merge tiny assistant fragments (e.g. "I" before a tool call) into
-              // the next assistant segment so they don't appear as separate bubbles.
-              const merged: typeof updated = [];
-              let carry = '';
-              for (const m of updated) {
-                if (m.type === 'assistant' && m.content.trim().length <= 5) {
-                  const hasLaterSegment = updated.some(
-                    n => n !== m && n.type === 'assistant' && n.content.trim().length > 5
-                  );
-                  if (hasLaterSegment) {
-                    carry += m.content;
-                    continue;
-                  }
-                }
-                if (carry && m.type === 'assistant') {
-                  merged.push({ ...m, content: carry + m.content });
-                  carry = '';
-                } else {
-                  merged.push(m);
-                }
-              }
-              return merged;
-            });
+            // Finalize any streaming text segments in the active turn
+            setTurns(prev =>
+              prev.map(t =>
+                t.id === activeTurnId
+                  ? {
+                      ...t,
+                      segments: t.segments.map(seg =>
+                        seg.type === 'text' && seg.streaming ? { ...seg, streaming: false } : seg
+                      ),
+                    }
+                  : t
+              )
+            );
+
             const assistantMsg: AssistMessage = {
               role: 'assistant',
-              content: assistantText,
+              content: accumulatedText,
               toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
             };
             conversationRef.current.push(assistantMsg);
@@ -326,9 +364,11 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             }
             break;
           }
+
           case 'error': {
             const { message } = data as SSEError;
-            setMessages(prev => [...prev, { type: 'error', id: nextId(), message }]);
+            const errorSeg: TurnSegment = { type: 'error', id: nextId(), message };
+            setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
             break;
           }
         }
@@ -337,88 +377,56 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     [router, queryClient, setPendingNoteDiff, setPendingTestDiff]
   );
 
+  // -------------------------------------------------------------------------
+  // Public API
+  // -------------------------------------------------------------------------
+
   const send = useCallback(
-    (text: string, displayText?: string) => {
+    (text: string, displayText?: string, onComplete?: () => void) => {
       if (!text.trim() || abortRef.current) return;
 
       resolvePendingConfirmations();
 
       const userMsg: AssistMessage = { role: 'user', content: text };
       conversationRef.current.push(userMsg);
-      setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text, displayContent: displayText }]);
+
+      const userTurn: AssistTurn = {
+        id: nextId(),
+        role: 'user',
+        segments: [{ type: 'text', id: nextId(), content: text, displayContent: displayText, streaming: false }],
+      };
+      setTurns(prev => [...prev, userTurn]);
 
       const request: AssistRequest = {
         messages: conversationRef.current,
         pageContext,
       };
-      void streamResponse(request);
+      void streamResponse(request, undefined, onComplete);
     },
     [pageContext, streamResponse, resolvePendingConfirmations]
   );
-
-  const addLocalMessage = useCallback((text: string) => {
-    setMessages(prev => [...prev, { type: 'user', id: nextId(), content: text }]);
-  }, []);
-
-  const addLocalAssistantMessage = useCallback((text: string) => {
-    const id = nextId();
-    setMessages(prev => [...prev, { type: 'assistant', id, content: text, streaming: false }]);
-    return id;
-  }, []);
-
-  const removeMessage = useCallback((id: string) => {
-    setMessages(prev => prev.filter(m => m.id !== id));
-  }, []);
-
-  const addLocalToolCall = useCallback((name: string) => {
-    const id = nextId();
-    setMessages(prev => [...prev, { type: 'tool_call', id, name, arguments: {}, status: 'running' }]);
-    return id;
-  }, []);
-
-  const updateToolCallStatus = useCallback((id: string, status: 'done' | 'failed') => {
-    setMessages(prev => prev.map(m => (m.type === 'tool_call' && m.id === id ? { ...m, status } : m)));
-  }, []);
-
-  useEffect(() => {
-    useAssistAttachmentsStore.getState().setCallbacks({
-      addLocalMessage,
-      addLocalAssistantMessage,
-      removeMessage,
-      addLocalToolCall,
-      updateToolCallStatus,
-    });
-    return () => {
-      useAssistAttachmentsStore.getState().setCallbacks({
-        addLocalMessage: null,
-        addLocalAssistantMessage: null,
-        removeMessage: null,
-        addLocalToolCall: null,
-        updateToolCallStatus: null,
-      });
-    };
-  }, [addLocalMessage, addLocalAssistantMessage, removeMessage, addLocalToolCall, updateToolCallStatus]);
 
   const confirm = useCallback(
     (toolCallId: string, approved: boolean) => {
       const otherPendingIds = [...pendingToolIdsRef.current].filter(id => id !== toolCallId);
       pendingToolIdsRef.current.clear();
 
-      // Mark all pending confirmations in the UI: the acted-on one + auto-reject the rest
-      setMessages(prev =>
-        prev.map(m => {
-          if (m.type !== 'confirm_required' || m.status !== 'pending') return m;
-          if (m.id === toolCallId) return { ...m, status: approved ? ('approved' as const) : ('rejected' as const) };
-          return { ...m, status: 'rejected' as const };
-        })
+      setTurns(prev =>
+        prev.map(turn => ({
+          ...turn,
+          segments: turn.segments.map(seg => {
+            if (seg.type !== 'action_card' || seg.status !== 'pending') return seg;
+            if (seg.id === toolCallId)
+              return { ...seg, status: approved ? ('approved' as const) : ('rejected' as const) };
+            return { ...seg, status: 'rejected' as const };
+          }),
+        }))
       );
 
-      // Build confirmations: the user's choice + rejections for all others
       const confirmations: ToolConfirmation[] = [{ toolCallId, approved }];
       otherPendingIds.forEach(id => confirmations.push({ toolCallId: id, approved: false }));
 
       if (!approved) {
-        // All rejected — push a single tool result message covering every tool_use id
         conversationRef.current.push({
           role: 'tool',
           content: '',
@@ -435,7 +443,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         pageContext,
         toolConfirmations: confirmations,
       };
-      void streamResponse(request);
+      void streamResponse(request, lastAssistantTurnIdRef.current);
     },
     [pageContext, streamResponse]
   );
@@ -448,9 +456,98 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     abortRef.current?.abort();
     conversationRef.current = [];
     pendingToolIdsRef.current.clear();
-    setMessages([]);
+    setTurns([]);
     setIsStreaming(false);
   }, []);
 
-  return { messages, isStreaming, send, addLocalMessage, stop, confirm, clear };
+  // -------------------------------------------------------------------------
+  // Command-bridge callbacks (registered on the attachments store)
+  // -------------------------------------------------------------------------
+
+  const addLocalUserTurn = useCallback((text: string) => {
+    setTurns(prev => [
+      ...prev,
+      {
+        id: nextId(),
+        role: 'user',
+        segments: [{ type: 'text', id: nextId(), content: text, streaming: false }],
+      },
+    ]);
+  }, []);
+
+  const addLocalAssistantText = useCallback((text: string): string => {
+    const turnId = nextId();
+    const segId = nextId();
+    lastAssistantTurnIdRef.current = turnId;
+    setTurns(prev => [
+      ...prev,
+      {
+        id: turnId,
+        role: 'assistant',
+        segments: [{ type: 'text', id: segId, content: text, streaming: false }],
+      },
+    ]);
+    return segId;
+  }, []);
+
+  const removeSegment = useCallback((segmentId: string) => {
+    setTurns(prev => {
+      const updated = prev.map(turn => ({
+        ...turn,
+        segments: turn.segments.filter(s => s.id !== segmentId),
+      }));
+      return updated.filter(t => t.segments.length > 0);
+    });
+  }, []);
+
+  const addLocalToolSegment = useCallback((name: string): string => {
+    const segId = nextId();
+    setTurns(prev => {
+      const lastTurn = prev[prev.length - 1];
+      if (lastTurn?.role === 'assistant') {
+        return appendSegmentToTurn(prev, lastTurn.id, {
+          type: 'tool_indicator',
+          id: segId,
+          name,
+          status: 'running',
+        });
+      }
+      const turnId = nextId();
+      lastAssistantTurnIdRef.current = turnId;
+      return [
+        ...prev,
+        {
+          id: turnId,
+          role: 'assistant',
+          segments: [{ type: 'tool_indicator', id: segId, name, status: 'running' }],
+        },
+      ];
+    });
+    return segId;
+  }, []);
+
+  const updateToolSegmentStatus = useCallback((segmentId: string, status: 'done' | 'failed') => {
+    setTurns(prev => updateSegment(prev, segmentId, seg => (seg.type === 'tool_indicator' ? { ...seg, status } : seg)));
+  }, []);
+
+  useEffect(() => {
+    useAssistAttachmentsStore.getState().setCallbacks({
+      addLocalMessage: addLocalUserTurn,
+      addLocalAssistantMessage: addLocalAssistantText,
+      removeMessage: removeSegment,
+      addLocalToolCall: addLocalToolSegment,
+      updateToolCallStatus: updateToolSegmentStatus,
+    });
+    return () => {
+      useAssistAttachmentsStore.getState().setCallbacks({
+        addLocalMessage: null,
+        addLocalAssistantMessage: null,
+        removeMessage: null,
+        addLocalToolCall: null,
+        updateToolCallStatus: null,
+      });
+    };
+  }, [addLocalUserTurn, addLocalAssistantText, removeSegment, addLocalToolSegment, updateToolSegmentStatus]);
+
+  return { turns, isStreaming, send, stop, confirm, clear };
 }

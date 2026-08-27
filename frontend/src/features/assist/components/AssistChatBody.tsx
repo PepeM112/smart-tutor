@@ -3,29 +3,29 @@
 import { WandSparkles } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
-import { AssistMessageRow } from './AssistMessage';
+import { AssistTurnRow } from './AssistTurnRow';
 
-import type { ChatMessage } from '../types';
+import type { AssistTurn } from '../types';
 
 type AssistChatBodyProps = {
-  messages: ChatMessage[];
+  turns: AssistTurn[];
   onConfirm: (toolCallId: string, approved: boolean) => void;
   footer: React.ReactNode;
 };
 
-export default function AssistChatBody({ messages, onConfirm, footer }: AssistChatBodyProps) {
+export default function AssistChatBody({ turns, onConfirm, footer }: AssistChatBodyProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [turns]);
 
   return (
     <>
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-5 py-3">
-        {messages.length === 0 && (
+        {turns.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <WandSparkles className="size-8 text-muted-foreground/30" />
             <p className="text-[13px] text-muted-foreground">Ask me anything about your studies.</p>
@@ -34,8 +34,8 @@ export default function AssistChatBody({ messages, onConfirm, footer }: AssistCh
             </p>
           </div>
         )}
-        {messages.map(msg => (
-          <AssistMessageRow key={`${msg.type}-${msg.id}`} message={msg} onConfirm={onConfirm} />
+        {turns.map(turn => (
+          <AssistTurnRow key={turn.id} turn={turn} onConfirm={onConfirm} />
         ))}
       </div>
       {footer}

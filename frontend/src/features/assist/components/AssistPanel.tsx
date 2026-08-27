@@ -17,7 +17,7 @@ export function AssistPanel() {
   const { isXl } = useBreakpoint();
   const mode = useAssistPanelStore(s => s.mode);
   const isOpen = useAssistPanelStore(s => s.isOpen);
-  const { messages, isStreaming, send, stop, confirm, clear } = useAssistContext();
+  const { turns, isStreaming, send, stop, confirm, clear } = useAssistContext();
 
   if (!aiAvailable) return null;
 
@@ -26,7 +26,7 @@ export function AssistPanel() {
 
   return (
     <AssistFloatingCard
-      messages={messages}
+      turns={turns}
       isStreaming={isStreaming}
       onSend={send}
       onStop={stop}

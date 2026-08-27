@@ -15,7 +15,7 @@ import { useAssistPanelStore } from '../store/use-assist-panel-store';
 import AssistChatBody from './AssistChatBody';
 import { AssistInput } from './AssistInput';
 
-import type { ChatMessage } from '../types';
+import type { AssistTurn } from '../types';
 
 const FAB_SIZE = 56;
 const DEFAULT_OFFSET = 16;
@@ -24,7 +24,7 @@ const MORPH_MS = 380;
 const CONTENT_FADE_MS = 120;
 
 type Props = {
-  messages: ChatMessage[];
+  turns: AssistTurn[];
   isStreaming: boolean;
   onSend: (text: string, displayText?: string) => void;
   onStop: () => void;
@@ -32,7 +32,7 @@ type Props = {
   onClear: () => void;
 };
 
-export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
+export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
   const { isMobile, isXl } = useBreakpoint();
   const [closing, setClosing] = useState(false);
 
@@ -224,7 +224,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
                   {headerRight('mobile')}
                 </div>
 
-                <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />
+                <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
               </motion.div>
             </>
           )}
@@ -304,7 +304,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
               {headerRight('desktop')}
             </div>
 
-            <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />
+            <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
 
             {/* Resize handles — edges */}
             <div

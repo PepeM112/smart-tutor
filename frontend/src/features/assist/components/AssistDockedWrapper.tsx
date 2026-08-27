@@ -17,13 +17,13 @@ export function AssistDockedWrapper() {
   const { isXl } = useBreakpoint();
   const mode = useAssistPanelStore(s => s.mode);
   const isOpen = useAssistPanelStore(s => s.isOpen);
-  const { messages, isStreaming, send, stop, confirm, clear } = useAssistContext();
+  const { turns, isStreaming, send, stop, confirm, clear } = useAssistContext();
 
   if (!aiAvailable || !isXl || mode !== 'docked' || !isOpen) return null;
 
   return (
     <AssistDockedColumn
-      messages={messages}
+      turns={turns}
       isStreaming={isStreaming}
       onSend={send}
       onStop={stop}

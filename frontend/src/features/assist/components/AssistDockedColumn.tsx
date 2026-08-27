@@ -10,10 +10,10 @@ import { MAX_DOCKED_WIDTH, MIN_DOCKED_WIDTH, useAssistPanelStore } from '../stor
 import AssistChatBody from './AssistChatBody';
 import { AssistInput } from './AssistInput';
 
-import type { ChatMessage } from '../types';
+import type { AssistTurn } from '../types';
 
 type Props = {
-  messages: ChatMessage[];
+  turns: AssistTurn[];
   isStreaming: boolean;
   onSend: (text: string, displayText?: string) => void;
   onStop: () => void;
@@ -21,7 +21,7 @@ type Props = {
   onClear: () => void;
 };
 
-export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
+export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
   const toggleMode = useAssistPanelStore(s => s.toggleMode);
   const setOpen = useAssistPanelStore(s => s.setOpen);
   const dockedWidth = useAssistPanelStore(s => s.dockedWidth);
@@ -110,7 +110,7 @@ export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onCo
       </div>
 
       {/* Chat body */}
-      <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />
+      <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
     </div>
   );
 }
