@@ -6,6 +6,7 @@ import type { DiffQuestionProps } from './types';
 
 export function DiffQuestionSimple({ old: oldQ, new: newQ }: DiffQuestionProps) {
   const t = useTranslations('test_editor');
+  // SAFETY: caller only renders this component for SIMPLE-type question diffs
   const oldContent = oldQ.content as SimpleContent;
   const newContent = newQ.content as SimpleContent;
 

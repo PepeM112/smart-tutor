@@ -11,37 +11,6 @@ type AssistTurnRowProps = {
 
 type RenderSegment = TurnSegment | { type: 'merged_text'; id: string; content: string; streaming: boolean };
 
-function mergeConsecutiveText(segments: TurnSegment[]): RenderSegment[] {
-  const result: RenderSegment[] = [];
-  let textBuffer: TextSegment[] = [];
-
-  const flushText = () => {
-    if (textBuffer.length === 0) return;
-    if (textBuffer.length === 1) {
-      result.push(textBuffer[0]);
-    } else {
-      result.push({
-        type: 'merged_text',
-        id: textBuffer[0].id,
-        content: textBuffer.map(s => s.content).join(''),
-        streaming: textBuffer[textBuffer.length - 1].streaming,
-      });
-    }
-    textBuffer = [];
-  };
-
-  segments.forEach(seg => {
-    if (seg.type === 'text') {
-      textBuffer.push(seg);
-    } else {
-      flushText();
-      result.push(seg);
-    }
-  });
-  flushText();
-  return result;
-}
-
 export function AssistTurnRow({ turn, onConfirm }: AssistTurnRowProps) {
   if (turn.role === 'user') {
     const seg = turn.segments[0];
@@ -95,4 +64,35 @@ function SegmentView({
     default:
       return null;
   }
+}
+
+function mergeConsecutiveText(segments: TurnSegment[]): RenderSegment[] {
+  const result: RenderSegment[] = [];
+  let textBuffer: TextSegment[] = [];
+
+  const flushText = () => {
+    if (textBuffer.length === 0) return;
+    if (textBuffer.length === 1) {
+      result.push(textBuffer[0]);
+    } else {
+      result.push({
+        type: 'merged_text',
+        id: textBuffer[0].id,
+        content: textBuffer.map(s => s.content).join(''),
+        streaming: textBuffer[textBuffer.length - 1].streaming,
+      });
+    }
+    textBuffer = [];
+  };
+
+  segments.forEach(seg => {
+    if (seg.type === 'text') {
+      textBuffer.push(seg);
+    } else {
+      flushText();
+      result.push(seg);
+    }
+  });
+  flushText();
+  return result;
 }

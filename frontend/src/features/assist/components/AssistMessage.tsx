@@ -11,9 +11,10 @@ import { cn } from '@/lib/utils';
 
 import { useStreamingText } from '../hooks/use-streaming-text';
 import { useAssistDiffStore } from '../store/use-assist-diff-store';
-import { getToolLabel, isWriteTool } from '../utils/tool-registry';
+import { getToolIcon, getToolLabel, isWriteTool } from '../utils/tool-registry';
 
 import type { ConfirmContext, ToolResultMetadata } from '../types';
+import type { LucideIcon } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // User bubble
@@ -110,17 +111,17 @@ export function ToolResultRow({
 }) {
   if (name === 'navigate_to') return null;
 
-  if (name === 'refine_note' && metadata?.note_id && metadata.old_content != null) {
-    return <RefineNoteResult noteId={metadata.note_id} />;
+  if (name === 'refine_note' && metadata?.noteId && metadata.oldContent != null) {
+    return <RefineNoteResult noteId={metadata.noteId} />;
   }
 
-  if (name === 'refine_questions' && metadata?.test_id && metadata.questions) {
-    return <RefineQuestionsResult testId={metadata.test_id} />;
+  if (name === 'refine_questions' && metadata?.testId && metadata.questions) {
+    return <RefineQuestionsResult testId={metadata.testId} />;
   }
 
   if (!isWriteTool(name)) return null;
 
-  const resourceId = metadata?.test_id ?? metadata?.note_id;
+  const resourceId = metadata?.testId ?? metadata?.noteId;
   const viewPath = resourceId
     ? name === 'create_test' || name === 'edit_test'
       ? Routes.TEST_EDIT(resourceId)
@@ -194,6 +195,14 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
 // Action card (approve / reject)
 // ---------------------------------------------------------------------------
 
+function ToolIconBadge({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <span className="flex size-5 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <Icon className="size-3" />
+    </span>
+  );
+}
+
 export function ActionCard({
   id,
   name,
@@ -219,9 +228,7 @@ export function ActionCard({
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
       <div className="mb-1.5 flex items-center gap-2">
-        <span className="flex size-5 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <AlertCircle className="size-3" />
-        </span>
+        <ToolIconBadge icon={getToolIcon(name)} />
         <span className="text-[12px] font-medium text-foreground">{label}</span>
       </div>
       {summary && !hasContextDetails && <p className="mb-2 text-[12px] text-muted-foreground">{summary}</p>}

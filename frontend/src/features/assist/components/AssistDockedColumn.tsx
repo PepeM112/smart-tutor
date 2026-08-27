@@ -30,6 +30,8 @@ export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfi
   const resizingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
+  const handleMouseMoveRef = useRef<((ev: MouseEvent) => void) | null>(null);
+  const handleMouseUpRef = useRef<(() => void) | null>(null);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -49,8 +51,12 @@ export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfi
         resizingRef.current = false;
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        handleMouseMoveRef.current = null;
+        handleMouseUpRef.current = null;
       };
 
+      handleMouseMoveRef.current = handleMouseMove;
+      handleMouseUpRef.current = handleMouseUp;
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
@@ -60,6 +66,8 @@ export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfi
   useEffect(() => {
     return () => {
       resizingRef.current = false;
+      if (handleMouseMoveRef.current) document.removeEventListener('mousemove', handleMouseMoveRef.current);
+      if (handleMouseUpRef.current) document.removeEventListener('mouseup', handleMouseUpRef.current);
     };
   }, []);
 

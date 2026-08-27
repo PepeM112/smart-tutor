@@ -16,6 +16,8 @@ import { QuestionBlockWrapper } from './question-block-wrapper';
 import { QuestionCardHeader } from './question-card-header';
 
 export type SimpleRow = {
+  /** Backend question ID. Undefined for newly-added, not-yet-saved rows. */
+  id?: string;
   prompt: string;
   answers: string[];
 };

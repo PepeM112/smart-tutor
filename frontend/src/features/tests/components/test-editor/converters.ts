@@ -77,6 +77,7 @@ function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
   const content = q.content as { options: string[]; correctIndices: number[] };
   return {
     key: crypto.randomUUID(),
+    id: q.id,
     type: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
     choices: (content.options ?? []).map((text, i) => ({
@@ -92,6 +93,7 @@ function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
   const content = q.content as { lengthLimit: number; rubric: { point: string; weight: number; category?: string }[] };
   return {
     key: crypto.randomUUID(),
+    id: q.id,
     type: QuestionType.LONG_TEXT,
     prompt: q.prompt,
     lengthLimit: content.lengthLimit ?? 2,
@@ -114,6 +116,7 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
       // SAFETY: group questions are always SIMPLE type with { answers: string[] } content
       const content = q.content as { answers: string[] };
       return {
+        id: q.id,
         prompt: q.prompt,
         answers: content.answers ?? [],
       } satisfies SimpleRow;
@@ -313,7 +316,7 @@ export function mergeAiEditResult(
         flatCursor++;
         if (!aiQ) return row;
         const content = aiQ.content as SimpleContent;
-        return { prompt: aiQ.prompt, answers: content.answers } satisfies SimpleRow;
+        return { id: row.id, prompt: aiQ.prompt, answers: content.answers } satisfies SimpleRow;
       }),
     };
   });

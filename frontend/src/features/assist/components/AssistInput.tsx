@@ -19,7 +19,7 @@ import { useAssistCommandBridgeStore } from '../store/use-assist-command-bridge'
 
 import type { Node as PmNode } from '@tiptap/pm/model';
 
-/* ─── helpers ─── */
+/* ─── constants ─── */
 
 type SlashCommand = {
   name: string;
@@ -33,88 +33,10 @@ const ATTACHMENT_HEADINGS: Record<ChatAttachment['type'], string> = {
   test_questions: '[Selected questions from test]',
 };
 
-function buildMessageWithAttachments(attachments: ChatAttachment[], text: string): string {
-  if (attachments.length === 0) return text;
-  const blocks = attachments.map(a => `${ATTACHMENT_HEADINGS[a.type]}\n---\n${a.content}\n---`);
-  return `${blocks.join('\n\n')}\n\n${text}`;
-}
-
-function buildEditTestMessage(attachments: ChatAttachment[], instructions: string): string {
-  const testId = attachments.find(a => a.type === 'test_questions')?.metadata.testId;
-  const blocks = attachments
-    .filter(a => a.type === 'test_questions')
-    .map(a => `${a.content}`)
-    .join('\n\n');
-  return (
-    `Use the refine_questions tool to edit the following question(s) in test ${testId ?? '(unknown)'}. ` +
-    `Call get_test_details first to find their exact qid values by matching the prompts below, then apply ` +
-    `these instructions to only those questions:\n\n${blocks}\n\nInstructions: ${instructions}`
-  );
-}
-
-function buildDisplayText(command: AssistCommand, attachments: ChatAttachment[], instructions: string): string {
-  const chipLabels = attachments.map(a => `[${a.label}]`).join(' ');
-  return `${command} ${chipLabels} ${instructions}`.trim();
-}
-
-function collectMentionContent(doc: PmNode): string[] {
-  const mentions: string[] = [];
-  doc.descendants(node => {
-    if (node.type.name === 'assistMention') {
-      mentions.push(node.attrs.content as string);
-    }
-  });
-  return mentions;
-}
-
-function buildDisplayFromDoc(doc: PmNode): string {
-  let result = '';
-  doc.descendants(node => {
-    if (node.isText) {
-      result += node.text ?? '';
-    } else if (node.type.name === 'assistMention') {
-      result += `@${node.attrs.label as string}`;
-    } else if (node.type.name === 'assistChip') {
-      result += `[${node.attrs.label as string}]`;
-    } else if (node.type.name === 'assistCommand') {
-      result += node.attrs.command as string;
-    }
-  });
-  return result.trim();
-}
-
-function prependMentions(mentionContent: string[], text: string): string {
-  if (mentionContent.length === 0) return text;
-  const block = `[Referenced questions]\n---\n${mentionContent.join('\n')}\n---`;
-  return `${block}\n\n${text}`;
-}
-
 const COMMAND_PLACEHOLDERS: Record<AssistCommand, string> = {
   '/edit-note': 'Describe how the selected text should change...',
   '/edit-test': 'Describe how the selected question(s) should change...',
 };
-
-/* ─── mention trigger helpers ─── */
-
-type MentionState = {
-  query: string;
-  from: number;
-  to: number;
-};
-
-function detectMentionTrigger(ed: ReturnType<typeof useEditor>): MentionState | null {
-  if (!ed) return null;
-  const { $anchor } = ed.state.selection;
-  const textBefore = $anchor.parent.textBetween(0, $anchor.parentOffset, undefined, '￼');
-  const atIndex = textBefore.lastIndexOf('@');
-  if (atIndex === -1) return null;
-  if (atIndex > 0 && /\S/.test(textBefore[atIndex - 1])) return null;
-
-  const query = textBefore.slice(atIndex + 1).toLowerCase();
-  const from = $anchor.start() + atIndex;
-  const to = $anchor.pos;
-  return { query, from, to };
-}
 
 /* ─── component ─── */
 
@@ -192,6 +114,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       handleKeyDown: (_view, event) => {
         if (event.key === 'Enter' && !event.shiftKey && !('isComposing' in event && event.isComposing)) {
           event.preventDefault();
+          event.stopPropagation();
           if (mentionMenuOpenRef.current) {
             insertMentionFromMenuRef.current();
           } else {
@@ -200,6 +123,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
           return true;
         }
         if (event.key === 'Escape') {
+          event.stopPropagation();
           resetInputRef.current();
           return true;
         }
@@ -576,4 +500,88 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       </div>
     </div>
   );
+}
+
+/* ─── helpers ─── */
+
+function buildMessageWithAttachments(attachments: ChatAttachment[], text: string): string {
+  if (attachments.length === 0) return text;
+  const blocks = attachments.map(a => `${ATTACHMENT_HEADINGS[a.type]}\n---\n${a.content}\n---`);
+  return `${blocks.join('\n\n')}\n\n${text}`;
+}
+
+function buildEditTestMessage(attachments: ChatAttachment[], instructions: string): string {
+  const testAttachments = attachments.filter(a => a.type === 'test_questions');
+  const testId = testAttachments[0]?.metadata.testId;
+  const blocks = testAttachments.map(a => `${a.content}`).join('\n\n');
+
+  const questionIds = testAttachments.flatMap(a => a.metadata.questionIds ?? []);
+  const hasAllIds = questionIds.length === testAttachments.length;
+  const idInstruction = hasAllIds
+    ? `Call the refine_questions tool directly with question_ids: [${questionIds.join(', ')}].`
+    : `Call get_test_details first to find their exact qid values by matching the prompts below, then call refine_questions.`;
+
+  return (
+    `Use the refine_questions tool to edit the following question(s) in test ${testId ?? '(unknown)'}. ` +
+    `${idInstruction} Apply these instructions to only those questions:\n\n${blocks}\n\nInstructions: ${instructions}`
+  );
+}
+
+function buildDisplayText(command: AssistCommand, attachments: ChatAttachment[], instructions: string): string {
+  const chipLabels = attachments.map(a => `[${a.label}]`).join(' ');
+  return `${command} ${chipLabels} ${instructions}`.trim();
+}
+
+function collectMentionContent(doc: PmNode): string[] {
+  const mentions: string[] = [];
+  doc.descendants(node => {
+    if (node.type.name === 'assistMention') {
+      mentions.push(node.attrs.content as string);
+    }
+  });
+  return mentions;
+}
+
+function buildDisplayFromDoc(doc: PmNode): string {
+  let result = '';
+  doc.descendants(node => {
+    if (node.isText) {
+      result += node.text ?? '';
+    } else if (node.type.name === 'assistMention') {
+      result += `@${node.attrs.label as string}`;
+    } else if (node.type.name === 'assistChip') {
+      result += `[${node.attrs.label as string}]`;
+    } else if (node.type.name === 'assistCommand') {
+      result += node.attrs.command as string;
+    }
+  });
+  return result.trim();
+}
+
+function prependMentions(mentionContent: string[], text: string): string {
+  if (mentionContent.length === 0) return text;
+  const block = `[Referenced questions]\n---\n${mentionContent.join('\n')}\n---`;
+  return `${block}\n\n${text}`;
+}
+
+/* ─── mention trigger helpers ─── */
+
+type MentionState = {
+  query: string;
+  from: number;
+  to: number;
+};
+
+function detectMentionTrigger(ed: ReturnType<typeof useEditor>): MentionState | null {
+  if (!ed) return null;
+  const { $anchor } = ed.state.selection;
+  const textBefore = $anchor.parent.textBetween(0, $anchor.parentOffset, undefined, '￼');
+  const atIndex = textBefore.lastIndexOf('@');
+  if (atIndex === -1) return null;
+  if (atIndex > 0 && /\S/.test(textBefore[atIndex - 1])) return null;
+
+  const query = textBefore.slice(atIndex + 1).toLowerCase();
+  const from = $anchor.start() + atIndex;
+  const to = $anchor.pos;
+  return { query, from, to };
 }

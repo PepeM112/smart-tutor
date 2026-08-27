@@ -160,7 +160,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
             type: 'test_questions',
             label: t('test_generation.chip_question_label', { index: questionNumber }),
             content: `[${questionNumber}] ${row.prompt}`,
-            metadata: { testId },
+            metadata: { testId, questionIds: row.id ? [row.id] : undefined },
           });
         });
       } else {
@@ -170,7 +170,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           type: 'test_questions',
           label: t('test_generation.chip_question_label', { index: questionNumber }),
           content: `[${questionNumber}] ${item.prompt}`,
-          metadata: { testId },
+          metadata: { testId, questionIds: item.id ? [item.id] : undefined },
         });
       }
     });

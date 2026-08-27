@@ -472,7 +472,7 @@ const MOCK_TURNS: AssistTurn[] = [
         id: 's-7-1-result',
         name: 'edit_test',
         output: 'Test updated successfully.',
-        metadata: { test_id: 'mock-test-2' },
+        metadata: { testId: 'mock-test-2' },
       },
       { type: 'text', id: 's-7-2', content: 'Done! Renamed the test to **European Geography**.', streaming: false },
     ],

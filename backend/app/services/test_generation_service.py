@@ -342,10 +342,47 @@ def edit_test_questions(
         expected_count=expected,
     )
 
-    return TestGenerationResponse(
-        questions=result.questions,
-        warning=result.warning,
+    questions, type_lock_warning = _enforce_type_lock(
+        edited_questions=result.questions,
+        original_questions=data.all_questions,
+        selected_indices=data.selected_indices,
     )
+    warning = result.warning or type_lock_warning
+
+    return TestGenerationResponse(
+        questions=questions,
+        warning=warning,
+    )
+
+
+def _enforce_type_lock(
+    *,
+    edited_questions: list[GeneratedQuestionPreview],
+    original_questions: list[GeneratedQuestionPreview],
+    selected_indices: list[int],
+) -> tuple[list[GeneratedQuestionPreview], str | None]:
+    """Reject AI type changes on edited questions, reverting to the original.
+
+    "AI correctly rejects semantically invalid requests" is only a prompt-level
+    guardrail — a cheaper model can still silently change a question's fundamental type
+    mid-edit. This enforces it deterministically rather than trusting prompt compliance.
+    """
+    reverted: list[int] = []
+    questions = list(edited_questions)
+    for i in selected_indices:
+        if i >= len(questions) or i >= len(original_questions):
+            continue
+        if questions[i].question_type != original_questions[i].question_type:
+            reverted.append(i)
+            questions[i] = original_questions[i]
+
+    if not reverted:
+        return questions, None
+
+    labels = [f"Question {i + 1}" for i in reverted]
+    warning = f"AI attempted to change the question type for {', '.join(labels)}; reverted to keep the original type."
+    logger.warning(warning)
+    return questions, warning
 
 
 def _question_to_ai_dict(q: GeneratedQuestionPreview) -> dict[str, object]:

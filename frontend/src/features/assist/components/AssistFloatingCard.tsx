@@ -2,7 +2,7 @@
 
 import { Minus, PanelRight, RotateCw, WandSparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
@@ -46,6 +46,15 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
   const card = useDraggable(undefined, size);
 
   const panelRef = useRef<HTMLDivElement>(null);
+  const minimizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (minimizeTimeoutRef.current) clearTimeout(minimizeTimeoutRef.current);
+      if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
+    };
+  }, []);
 
   const isDragging = fab.isDragging || card.isDragging;
 
@@ -97,7 +106,7 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
 
   const handleMinimize = () => {
     setClosing(true);
-    setTimeout(() => {
+    minimizeTimeoutRef.current = setTimeout(() => {
       if (fab.position.x === -1) {
         const cardPos = card.position.x !== -1 ? card.position : resolveElement();
         if (cardPos) {
@@ -114,7 +123,7 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
     const targetY = window.innerHeight - 640 - DEFAULT_OFFSET;
     card.setPosition({ x: targetX, y: targetY });
     resetSize();
-    setTimeout(() => {
+    resetTimeoutRef.current = setTimeout(() => {
       card.resetPosition();
       fab.resetPosition();
     }, MORPH_MS + 50);

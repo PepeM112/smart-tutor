@@ -42,13 +42,13 @@ export type SSEError = { message: string };
 
 export type ToolResultMetadata = {
   route?: string;
-  removed_question_ids?: string[];
-  test_id?: string;
-  note_id?: string;
-  old_content?: string;
-  new_content?: string;
+  removedQuestionIds?: string[];
+  testId?: string;
+  noteId?: string;
+  oldContent?: string;
+  newContent?: string;
   questions?: GeneratedQuestionPreviewOutput[];
-  selected_indices?: number[];
+  selectedIndices?: number[];
 };
 
 // ---------------------------------------------------------------------------

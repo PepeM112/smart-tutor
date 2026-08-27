@@ -5,6 +5,7 @@ import type { MultipleChoiceContent } from '@/client';
 import type { DiffQuestionProps } from './types';
 
 export function DiffQuestionMultipleChoice({ old: oldQ, new: newQ }: DiffQuestionProps) {
+  // SAFETY: caller only renders this component for MULTIPLE_CHOICE-type question diffs
   const oldContent = oldQ.content as MultipleChoiceContent;
   const newContent = newQ.content as MultipleChoiceContent;
 

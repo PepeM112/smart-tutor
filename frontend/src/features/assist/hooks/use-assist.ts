@@ -279,8 +279,8 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               keys.forEach(key => void queryClient.invalidateQueries({ queryKey: key }));
             }
 
-            if (tr.name === 'edit_test' && tr.metadata?.removed_question_ids?.length) {
-              const ids = tr.metadata.removed_question_ids;
+            if (tr.name === 'edit_test' && tr.metadata?.removedQuestionIds?.length) {
+              const ids = tr.metadata.removedQuestionIds;
               toast('Questions removed', {
                 description: `${ids.length} question(s) soft-deleted. You can undo this.`,
                 duration: UNDO_TOAST_DURATION,
@@ -297,19 +297,19 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               });
             }
 
-            if (tr.name === 'refine_note' && tr.metadata?.note_id && tr.metadata.old_content != null) {
+            if (tr.name === 'refine_note' && tr.metadata?.noteId && tr.metadata.oldContent != null) {
               setPendingNoteDiff({
-                noteId: tr.metadata.note_id,
-                oldContent: tr.metadata.old_content,
-                newContent: tr.metadata.new_content ?? '',
+                noteId: tr.metadata.noteId,
+                oldContent: tr.metadata.oldContent,
+                newContent: tr.metadata.newContent ?? '',
               });
             }
 
-            if (tr.name === 'refine_questions' && tr.metadata?.test_id && tr.metadata.questions) {
+            if (tr.name === 'refine_questions' && tr.metadata?.testId && tr.metadata.questions) {
               setPendingTestDiff({
-                testId: tr.metadata.test_id,
+                testId: tr.metadata.testId,
                 questions: tr.metadata.questions,
-                selectedIndices: tr.metadata.selected_indices ?? [],
+                selectedIndices: tr.metadata.selectedIndices ?? [],
               });
             }
 

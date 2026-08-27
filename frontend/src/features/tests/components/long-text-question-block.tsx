@@ -25,6 +25,8 @@ export type Criterion = {
 
 export type LongTextQuestionData = {
   key: string;
+  /** Backend question ID. Undefined for newly-added, not-yet-saved questions. */
+  id?: string;
   type: QuestionType.LONG_TEXT;
   prompt: string;
   lengthLimit: number;

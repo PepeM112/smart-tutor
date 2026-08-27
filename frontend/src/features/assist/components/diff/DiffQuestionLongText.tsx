@@ -3,6 +3,7 @@ import type { LongTextContent } from '@/client';
 import type { DiffQuestionProps } from './types';
 
 export function DiffQuestionLongText({ old: oldQ, new: newQ }: DiffQuestionProps) {
+  // SAFETY: caller only renders this component for LONG_TEXT-type question diffs
   const oldContent = oldQ.content as LongTextContent;
   const newContent = newQ.content as LongTextContent;
 
