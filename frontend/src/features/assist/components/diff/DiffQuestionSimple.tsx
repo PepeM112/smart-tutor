@@ -11,13 +11,11 @@ export function DiffQuestionSimple({ old: oldQ, new: newQ }: DiffQuestionProps) 
 
   return (
     <div className="space-y-2">
-      {/* Old question */}
       <div className="rounded-lg border border-feedback-wrong-border bg-feedback-wrong-bg p-3 space-y-1">
         <p className="text-sm text-foreground font-medium">{oldQ.prompt}</p>
         <p className="text-xs text-foreground/80">{t('diff_answers', { answers: oldContent.answers.join(', ') })}</p>
       </div>
 
-      {/* New question */}
       <div className="rounded-lg border border-feedback-correct-border bg-feedback-correct-bg p-3 space-y-1">
         <p className="text-sm text-foreground font-medium">{newQ.prompt}</p>
         <p className="text-xs text-foreground/80">{t('diff_answers', { answers: newContent.answers.join(', ') })}</p>

@@ -13,6 +13,7 @@ import { QueryState } from '@/components/shared/query-state';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
+import { DiffNoteContent, DiffPanel } from '@/features/assist/components/diff';
 import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
 import { useAssistDiffStore } from '@/features/assist/store/use-assist-diff-store';
 import { formatNoteDetail } from '@/features/assist/utils/format-page-data';
@@ -22,7 +23,6 @@ import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-action
 import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { sdk } from '@/lib/api-client';
 
-import { MarkdownRenderer } from './markdown-renderer';
 import { NoteEditor } from './note-editor';
 import { RefineNoteDialog } from './refine-note-dialog';
 import { TagInput } from './tag-input';
@@ -265,12 +265,16 @@ function NoteForm({ note }: { note: NoteRead }) {
               className="min-w-0 overflow-hidden rounded-xl border border-border bg-card"
               style={{ flex: 1 - assistDiffRatio }}
             >
-              <AssistDiffPanel
-                oldContent={pendingNoteDiff.oldContent}
-                newContent={pendingNoteDiff.newContent}
+              <DiffPanel
+                title={t('notes_ai.changes')}
                 onAccept={() => acceptRefinement()}
                 onReject={clearPendingNoteDiff}
-              />
+              >
+                <DiffNoteContent
+                  oldContent={pendingNoteDiff.oldContent}
+                  newContent={pendingNoteDiff.newContent}
+                />
+              </DiffPanel>
             </div>
           </>
         )}
@@ -281,12 +285,16 @@ function NoteForm({ note }: { note: NoteRead }) {
             <DrawerContent className="max-h-[75dvh]" title={t('notes_ai.changes')}>
               {pendingNoteDiff && (
                 <div className="overflow-y-auto px-4 pb-8">
-                  <AssistDiffPanel
-                    oldContent={pendingNoteDiff.oldContent}
-                    newContent={pendingNoteDiff.newContent}
+                  <DiffPanel
+                    title={t('notes_ai.changes')}
                     onAccept={() => acceptRefinement()}
                     onReject={clearPendingNoteDiff}
-                  />
+                  >
+                    <DiffNoteContent
+                      oldContent={pendingNoteDiff.oldContent}
+                      newContent={pendingNoteDiff.newContent}
+                    />
+                  </DiffPanel>
                 </div>
               )}
             </DrawerContent>
@@ -297,46 +305,3 @@ function NoteForm({ note }: { note: NoteRead }) {
   );
 }
 
-function AssistDiffPanel({
-  oldContent,
-  newContent,
-  onAccept,
-  onReject,
-}: {
-  oldContent: string;
-  newContent: string;
-  onAccept: () => void;
-  onReject: () => void;
-}) {
-  const t = useTranslations();
-  return (
-    <div className="flex h-full flex-col p-4">
-      <div className="flex items-center justify-between mb-3 shrink-0">
-        <h3 className="text-sm font-semibold text-foreground">{t('notes_ai.changes')}</h3>
-        <Button variant="ghost" size="icon-sm" onClick={onReject} className="text-muted-foreground">
-          <X className="size-4" />
-        </Button>
-      </div>
-
-      <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">{t('notes_ai.old')}</p>
-      <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
-        <MarkdownRenderer content={oldContent} />
-      </div>
-
-      <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">{t('notes_ai.new')}</p>
-      <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
-        <MarkdownRenderer content={newContent} />
-      </div>
-
-      <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
-        <Button variant="outline" size="sm" onClick={onReject}>
-          {t('common.reject')}
-        </Button>
-        <Button size="sm" onClick={onAccept}>
-          <Check className="size-3" />
-          {t('common.accept')}
-        </Button>
-      </div>
-    </div>
-  );
-}

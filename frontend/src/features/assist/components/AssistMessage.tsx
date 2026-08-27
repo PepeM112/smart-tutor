@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { Button } from '@/components/ui/button';
+import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 import { useStreamingText } from '../hooks/use-streaming-text';
@@ -107,7 +108,7 @@ export function ToolResultRow({
   output: string;
   metadata?: ToolResultMetadata;
 }) {
-  if (output.startsWith('__NAVIGATE__:')) return null;
+  if (name === 'navigate_to') return null;
 
   if (name === 'refine_note' && metadata?.note_id && metadata.old_content != null) {
     return <RefineNoteResult noteId={metadata.note_id} />;
@@ -119,13 +120,12 @@ export function ToolResultRow({
 
   if (!isWriteTool(name)) return null;
 
-  const idMatch = output.match(/\*\*ID:\*\* `([^`]+)`/);
-  const resourceId = idMatch?.[1];
+  const resourceId = metadata?.test_id ?? metadata?.note_id;
   const viewPath = resourceId
     ? name === 'create_test' || name === 'edit_test'
-      ? `/tests/${resourceId}/edit`
+      ? Routes.TEST_EDIT(resourceId)
       : name === 'create_note'
-        ? `/notes/${resourceId}`
+        ? Routes.NOTE_DETAIL(resourceId)
         : null
     : null;
 
@@ -158,7 +158,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
       </span>
       {hasDiff && (
         <Link
-          href={`/notes/${noteId}?diff=assist`}
+          href={`${Routes.NOTE_DETAIL(noteId)}?diff=assist`}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
           View changes <Eye className="size-3" />
@@ -180,7 +180,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
       </span>
       {hasDiff && (
         <Link
-          href={`/tests/${testId}/edit?diff=assist`}
+          href={`${Routes.TEST_EDIT(testId)}?diff=assist`}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
           View changes <Eye className="size-3" />

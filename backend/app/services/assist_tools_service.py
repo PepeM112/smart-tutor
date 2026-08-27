@@ -126,7 +126,10 @@ def navigate_to(db: Session, *, current_user: User, arguments: dict[str, object]
     path = str(arguments.get("path", "/dashboard"))
     if not path.startswith(_ALLOWED_ROUTE_PREFIXES):
         path = "/dashboard"
-    return ToolResult(output=f"__NAVIGATE__:{path}")
+    return ToolResult(
+        output=f"Navigating to {path}",
+        metadata={"route": path},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -151,9 +154,9 @@ def create_note(db: Session, *, current_user: User, arguments: dict[str, object]
         output=(
             f"Note created successfully!\n"
             f"- **Title:** {note.title}\n"
-            f"- **ID:** `{note.id}`\n"
             f"- **Preview:** {(note.content or '')[:300]}…"
         ),
+        metadata={"note_id": note.id},
     )
 
 
@@ -245,9 +248,9 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
         output=(
             f"Test created successfully!\n"
             f"- **Title:** {test.title}\n"
-            f"- **ID:** `{test.id}`\n"
             f"- **Questions:** {len(questions)}"
         ),
+        metadata={"test_id": test.id},
     )
 
 
@@ -300,7 +303,6 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
         output=(
             f"Test edited successfully!\n"
             f"- **Title:** {test.title}\n"
-            f"- **ID:** `{test.id}`\n"
             f"- **Changes:** {', '.join(changes)}"
         ),
         metadata=metadata,

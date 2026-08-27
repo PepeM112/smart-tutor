@@ -41,6 +41,7 @@ export type SSEDone = {
 export type SSEError = { message: string };
 
 export type ToolResultMetadata = {
+  route?: string;
   removed_question_ids?: string[];
   test_id?: string;
   note_id?: string;

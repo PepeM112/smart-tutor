@@ -270,9 +270,8 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             });
 
             // Side effects
-            if (tr.output.startsWith('__NAVIGATE__:')) {
-              const path = tr.output.split(':').slice(1).join(':');
-              router.push(path);
+            if (tr.name === 'navigate_to' && tr.metadata?.route) {
+              router.push(tr.metadata.route);
             }
 
             if (isWriteTool(tr.name)) {
