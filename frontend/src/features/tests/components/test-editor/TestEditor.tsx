@@ -30,7 +30,10 @@ export function TestEditor({ testId }: Props) {
   const test = existing?.data;
 
   const mentionCandidates = useMemo(() => (test ? buildTestMentionCandidates(test) : []), [test]);
-  useProvidePageData(useMemo(() => (test ? formatTestDetail(test) : null), [test]), mentionCandidates);
+  useProvidePageData(
+    useMemo(() => (test ? formatTestDetail(test) : null), [test]),
+    mentionCandidates
+  );
 
   if (testId && isLoading) {
     return <p className="text-muted-foreground">{t('common.loading')}</p>;

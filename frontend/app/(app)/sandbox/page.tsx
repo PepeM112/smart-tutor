@@ -539,7 +539,8 @@ const MOCK_TURNS: AssistTurn[] = [
       {
         type: 'text',
         id: 's-12-2',
-        content: 'I created a new note on **Photosynthesis**. It covers the light-dependent reactions and the Calvin cycle...',
+        content:
+          'I created a new note on **Photosynthesis**. It covers the light-dependent reactions and the Calvin cycle...',
         streaming: true,
       },
     ],

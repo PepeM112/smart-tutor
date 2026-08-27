@@ -151,11 +151,7 @@ def create_note(db: Session, *, current_user: User, arguments: dict[str, object]
     )
     logger.info("create_note: created note=%s", note.id)
     return ToolResult(
-        output=(
-            f"Note created successfully!\n"
-            f"- **Title:** {note.title}\n"
-            f"- **Preview:** {(note.content or '')[:300]}…"
-        ),
+        output=(f"Note created successfully!\n- **Title:** {note.title}\n- **Preview:** {(note.content or '')[:300]}…"),
         metadata={"note_id": note.id},
     )
 
@@ -245,11 +241,7 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
     )
 
     return ToolResult(
-        output=(
-            f"Test created successfully!\n"
-            f"- **Title:** {test.title}\n"
-            f"- **Questions:** {len(questions)}"
-        ),
+        output=(f"Test created successfully!\n- **Title:** {test.title}\n- **Questions:** {len(questions)}"),
         metadata={"test_id": test.id},
     )
 
@@ -300,11 +292,7 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
         metadata["removed_question_ids"] = removed_question_ids
 
     return ToolResult(
-        output=(
-            f"Test edited successfully!\n"
-            f"- **Title:** {test.title}\n"
-            f"- **Changes:** {', '.join(changes)}"
-        ),
+        output=(f"Test edited successfully!\n- **Title:** {test.title}\n- **Changes:** {', '.join(changes)}"),
         metadata=metadata,
     )
 

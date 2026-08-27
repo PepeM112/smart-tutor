@@ -270,10 +270,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                 onAccept={() => acceptRefinement()}
                 onReject={clearPendingNoteDiff}
               >
-                <DiffNoteContent
-                  oldContent={pendingNoteDiff.oldContent}
-                  newContent={pendingNoteDiff.newContent}
-                />
+                <DiffNoteContent oldContent={pendingNoteDiff.oldContent} newContent={pendingNoteDiff.newContent} />
               </DiffPanel>
             </div>
           </>
@@ -290,10 +287,7 @@ function NoteForm({ note }: { note: NoteRead }) {
                     onAccept={() => acceptRefinement()}
                     onReject={clearPendingNoteDiff}
                   >
-                    <DiffNoteContent
-                      oldContent={pendingNoteDiff.oldContent}
-                      newContent={pendingNoteDiff.newContent}
-                    />
+                    <DiffNoteContent oldContent={pendingNoteDiff.oldContent} newContent={pendingNoteDiff.newContent} />
                   </DiffPanel>
                 </div>
               )}
@@ -304,4 +298,3 @@ function NoteForm({ note }: { note: NoteRead }) {
     </div>
   );
 }
-
