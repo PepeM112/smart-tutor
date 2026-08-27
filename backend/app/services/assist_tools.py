@@ -13,16 +13,58 @@ from typing import TYPE_CHECKING, Any, Protocol
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.schemas.base import BaseSchema
+from app.schemas.test_generation import GeneratedQuestionPreview
+
 if TYPE_CHECKING:
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.assist.tools")
 
 
+class NavigateMetadata(BaseSchema):
+    route: str
+
+
+class NoteCreatedMetadata(BaseSchema):
+    note_id: str
+
+
+class NoteRefineMetadata(BaseSchema):
+    note_id: str
+    old_content: str
+    new_content: str
+
+
+class TestCreatedMetadata(BaseSchema):
+    test_id: str
+
+
+class TestEditMetadata(BaseSchema):
+    test_id: str
+    removed_question_ids: list[str] | None = None
+
+
+class QuestionRefineMetadata(BaseSchema):
+    test_id: str
+    questions: list[GeneratedQuestionPreview]
+    selected_indices: list[int]
+
+
+ToolResultMetadata = (
+    NavigateMetadata
+    | NoteCreatedMetadata
+    | NoteRefineMetadata
+    | TestCreatedMetadata
+    | TestEditMetadata
+    | QuestionRefineMetadata
+)
+
+
 @dataclass(frozen=True, slots=True)
 class ToolResult:
     output: str
-    metadata: dict[str, Any] | None = None
+    metadata: ToolResultMetadata | None = None
 
 
 class ToolHandler(Protocol):

@@ -6,46 +6,21 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { Button } from '@/components/ui/button';
+import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 import { useStreamingText } from '../hooks/use-streaming-text';
 import { useAssistDiffStore } from '../store/use-assist-diff-store';
-import { TOOL_LABELS, WRITE_TOOLS, type ChatMessage, type ConfirmContext, type ToolResultMetadata } from '../types';
+import { getToolIcon, getToolLabel, isWriteTool } from '../utils/tool-registry';
 
-type AssistMessageRowProps = {
-  message: ChatMessage;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
-};
+import type { ConfirmContext, ToolResultMetadata } from '../types';
+import type { LucideIcon } from 'lucide-react';
 
-export function AssistMessageRow({ message, onConfirm }: AssistMessageRowProps) {
-  switch (message.type) {
-    case 'user':
-      return <UserBubble content={message.displayContent ?? message.content} />;
-    case 'assistant':
-      return <AssistantBubble content={message.content} streaming={message.streaming} />;
-    case 'tool_call':
-      return <ToolCallRow name={message.name} status={message.status} />;
-    case 'tool_result':
-      return <ToolResultRow name={message.name} output={message.output} metadata={message.metadata} />;
-    case 'confirm_required':
-      return (
-        <ConfirmCard
-          id={message.id}
-          name={message.name}
-          arguments={message.arguments}
-          context={message.context}
-          status={message.status}
-          onConfirm={onConfirm}
-        />
-      );
-    case 'error':
-      return <ErrorRow message={message.message} />;
-    default:
-      return null;
-  }
-}
+// ---------------------------------------------------------------------------
+// User bubble
+// ---------------------------------------------------------------------------
 
-function UserBubble({ content }: { content: string }) {
+export function UserBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-end pl-14">
       <div className="rounded-xl bg-muted px-3 py-1.5 text-[13px] leading-[1.4] text-foreground">{content}</div>
@@ -53,7 +28,11 @@ function UserBubble({ content }: { content: string }) {
   );
 }
 
-function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
+// ---------------------------------------------------------------------------
+// Assistant text segment
+// ---------------------------------------------------------------------------
+
+export function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
   const displayed = useStreamingText(content, streaming);
   const isRevealing = streaming && displayed.length < content.length;
 
@@ -96,8 +75,12 @@ function AssistantBubble({ content, streaming }: { content: string; streaming: b
   );
 }
 
-function ToolCallRow({ name, status }: { name: string; status: string }) {
-  const label = TOOL_LABELS[name] ?? name;
+// ---------------------------------------------------------------------------
+// Tool indicator (spinner / check / error)
+// ---------------------------------------------------------------------------
+
+export function ToolIndicatorRow({ name, status }: { name: string; status: string }) {
+  const label = getToolLabel(name);
 
   return (
     <div className="flex items-center gap-2 py-0.5">
@@ -113,26 +96,37 @@ function ToolCallRow({ name, status }: { name: string; status: string }) {
   );
 }
 
-function ToolResultRow({ name, output, metadata }: { name: string; output: string; metadata?: ToolResultMetadata }) {
-  if (output.startsWith('__NAVIGATE__:')) return null;
+// ---------------------------------------------------------------------------
+// Tool result
+// ---------------------------------------------------------------------------
 
-  if (name === 'refine_note' && metadata?.note_id && metadata.old_content != null) {
-    return <RefineNoteResult noteId={metadata.note_id} />;
+export function ToolResultRow({
+  name,
+  output,
+  metadata,
+}: {
+  name: string;
+  output: string;
+  metadata?: ToolResultMetadata;
+}) {
+  if (name === 'navigate_to') return null;
+
+  if (name === 'refine_note' && metadata?.noteId && metadata.oldContent != null) {
+    return <RefineNoteResult noteId={metadata.noteId} />;
   }
 
-  if (name === 'refine_questions' && metadata?.test_id && metadata.questions) {
-    return <RefineQuestionsResult testId={metadata.test_id} />;
+  if (name === 'refine_questions' && metadata?.testId && metadata.questions) {
+    return <RefineQuestionsResult testId={metadata.testId} />;
   }
 
-  if (!WRITE_TOOLS.has(name)) return null;
+  if (!isWriteTool(name)) return null;
 
-  const idMatch = output.match(/\*\*ID:\*\* `([^`]+)`/);
-  const resourceId = idMatch?.[1];
+  const resourceId = metadata?.testId ?? metadata?.noteId;
   const viewPath = resourceId
     ? name === 'create_test' || name === 'edit_test'
-      ? `/tests/${resourceId}/edit`
+      ? Routes.TEST_EDIT(resourceId)
       : name === 'create_note'
-        ? `/notes/${resourceId}`
+        ? Routes.NOTE_DETAIL(resourceId)
         : null
     : null;
 
@@ -165,7 +159,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
       </span>
       {hasDiff && (
         <Link
-          href={`/notes/${noteId}?diff=assist`}
+          href={`${Routes.NOTE_DETAIL(noteId)}?diff=assist`}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
           View changes <Eye className="size-3" />
@@ -187,7 +181,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
       </span>
       {hasDiff && (
         <Link
-          href={`/tests/${testId}/edit?diff=assist`}
+          href={`${Routes.TEST_EDIT(testId)}?diff=assist`}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
           View changes <Eye className="size-3" />
@@ -197,7 +191,19 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
   );
 }
 
-function ConfirmCard({
+// ---------------------------------------------------------------------------
+// Action card (approve / reject)
+// ---------------------------------------------------------------------------
+
+function ToolIconBadge({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <span className="flex size-5 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <Icon className="size-3" />
+    </span>
+  );
+}
+
+export function ActionCard({
   id,
   name,
   arguments: args,
@@ -212,7 +218,7 @@ function ConfirmCard({
   status: 'pending' | 'approved' | 'rejected';
   onConfirm: (id: string, approved: boolean) => void;
 }) {
-  const label = TOOL_LABELS[name] ?? name;
+  const label = getToolLabel(name);
   const summary = _summarizeArgs(name, args);
   const questionsToRemove = context?.questions_to_remove;
   const titleChange = context?.title_change;
@@ -222,9 +228,7 @@ function ConfirmCard({
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
       <div className="mb-1.5 flex items-center gap-2">
-        <span className="flex size-5 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <AlertCircle className="size-3" />
-        </span>
+        <ToolIconBadge icon={getToolIcon(name)} />
         <span className="text-[12px] font-medium text-foreground">{label}</span>
       </div>
       {summary && !hasContextDetails && <p className="mb-2 text-[12px] text-muted-foreground">{summary}</p>}
@@ -302,7 +306,11 @@ function ConfirmCard({
   );
 }
 
-function ErrorRow({ message }: { message: string }) {
+// ---------------------------------------------------------------------------
+// Error
+// ---------------------------------------------------------------------------
+
+export function ErrorRow({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2.5">
       <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
@@ -310,6 +318,10 @@ function ErrorRow({ message }: { message: string }) {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function _argStr(value: unknown, fallback = 'Unknown'): string {
   return typeof value === 'string' ? value : fallback;

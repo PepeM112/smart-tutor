@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, Pencil, SquareCheck, WandSparkles, X } from 'lucide-react';
+import { Pencil, SquareCheck, WandSparkles } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
@@ -19,6 +19,12 @@ import { AutoTextarea } from '@/components/shared/auto-textarea';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
+import {
+  DiffPanel,
+  DiffQuestionLongText,
+  DiffQuestionMultipleChoice,
+  DiffQuestionSimple,
+} from '@/features/assist/components/diff';
 import { useAssistAttachmentsStore } from '@/features/assist/store/use-assist-attachments-store';
 import { useAssistDiffStore } from '@/features/assist/store/use-assist-diff-store';
 import { useAssistPanelStore } from '@/features/assist/store/use-assist-panel-store';
@@ -43,7 +49,6 @@ import {
   mcToApiQuestion,
   mergeAiEditResult,
 } from './converters';
-import { DiffQuestionLongText, DiffQuestionMultipleChoice, DiffQuestionSimple } from './diff';
 import { newLongText, newMultipleChoice, newQuestionGroup } from './helpers';
 
 import type { EditorItem } from './types';
@@ -155,7 +160,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
             type: 'test_questions',
             label: t('test_generation.chip_question_label', { index: questionNumber }),
             content: `[${questionNumber}] ${row.prompt}`,
-            metadata: { testId },
+            metadata: { testId, questionIds: row.id ? [row.id] : undefined },
           });
         });
       } else {
@@ -165,7 +170,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           type: 'test_questions',
           label: t('test_generation.chip_question_label', { index: questionNumber }),
           content: `[${questionNumber}] ${item.prompt}`,
-          metadata: { testId },
+          metadata: { testId, questionIds: item.id ? [item.id] : undefined },
         });
       }
     });
@@ -409,14 +414,7 @@ function AssistTestDiffPanel({
   }, []);
 
   return (
-    <div className="flex flex-col p-4">
-      <div className="flex items-center justify-between mb-3 shrink-0">
-        <h3 className="text-sm font-semibold text-foreground">{t('test_editor.proposed_changes')}</h3>
-        <Button variant="ghost" size="icon-sm" onClick={onReject} className="text-muted-foreground">
-          <X className="size-4" />
-        </Button>
-      </div>
-
+    <DiffPanel title={t('test_editor.proposed_changes')} onAccept={onAccept} onReject={onReject}>
       {changes.length === 0 ? (
         <p className="text-xs text-muted-foreground">{t('test_editor.no_changes')}</p>
       ) : (
@@ -431,16 +429,6 @@ function AssistTestDiffPanel({
           ))}
         </div>
       )}
-
-      <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
-        <Button variant="outline" size="sm" onClick={onReject}>
-          {t('common.reject')}
-        </Button>
-        <Button size="sm" onClick={onAccept}>
-          <Check className="size-3" />
-          {t('common.accept')}
-        </Button>
-      </div>
-    </div>
+    </DiffPanel>
   );
 }

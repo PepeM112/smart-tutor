@@ -1,11 +1,12 @@
 'use client';
 
-import { Eye, Pencil, WandSparkles, X } from 'lucide-react';
+import { Eye, Pencil, WandSparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
+import { DiffNoteContent, DiffPanel } from '@/features/assist/components/diff';
 import { useAssistAttachmentsStore } from '@/features/assist/store/use-assist-attachments-store';
 import { useAssistPanelStore } from '@/features/assist/store/use-assist-panel-store';
 import { useAiAvailable } from '@/hooks/use-ai-available';
@@ -15,7 +16,6 @@ import { useResizableSplit } from '@/hooks/use-resizable-split';
 import { useNoteAiEdit } from '../hooks/use-note-ai-edit';
 
 import { MarkdownEditor } from './markdown-editor';
-import { MarkdownRenderer } from './markdown-renderer';
 
 type Props = {
   content: string;
@@ -72,38 +72,14 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
   // ── Diff panel content (shared between desktop side pane and mobile drawer) ──
 
   const diffPanelContent = activeDiff && (
-    <div className="flex h-full flex-col bg-card p-4">
-      <div className="flex items-center justify-between mb-3 shrink-0">
-        <h3 className="text-sm font-semibold text-foreground">{t('notes_ai.changes')}</h3>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setActiveDiffIndex(null)}
-          className="text-muted-foreground"
-        >
-          <X className="size-4" />
-        </Button>
-      </div>
-
-      <p className="text-xs font-medium text-muted-foreground mb-1.5 shrink-0">{t('notes_ai.old')}</p>
-      <div className="rounded-md border border-feedback-wrong-border bg-feedback-wrong-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
-        <MarkdownRenderer content={activeDiff.originalMarkdown} />
-      </div>
-
-      <p className="text-xs font-medium text-muted-foreground mb-1.5 mt-3 shrink-0">{t('notes_ai.new')}</p>
-      <div className="rounded-md border border-feedback-correct-border bg-feedback-correct-bg p-3 overflow-y-auto scrollbar-none flex-1 min-h-0">
-        <MarkdownRenderer content={activeDiff.editedText} />
-      </div>
-
-      <div className="flex items-center justify-end gap-2 mt-4 shrink-0">
-        <Button variant="outline" size="sm" onClick={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}>
-          {t('common.cancel')}
-        </Button>
-        <Button size="sm" onClick={handleAcceptDiff}>
-          {t('common.accept')}
-        </Button>
-      </div>
-    </div>
+    <DiffPanel
+      title={t('notes_ai.changes')}
+      onClose={() => setActiveDiffIndex(null)}
+      onReject={() => activeDiffIndex !== null && removeDiff(activeDiffIndex)}
+      onAccept={handleAcceptDiff}
+    >
+      <DiffNoteContent oldContent={activeDiff.originalMarkdown} newContent={activeDiff.editedText} />
+    </DiffPanel>
   );
 
   // ── Render ──────────────────────────────────────────────────────
@@ -164,7 +140,10 @@ export function NoteEditor({ content, onChange, noteId }: Props) {
             <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
             <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
           </div>
-          <div className="min-w-0 overflow-hidden rounded-lg border border-border" style={{ flex: 1 - splitRatio }}>
+          <div
+            className="min-w-0 overflow-hidden rounded-lg border border-border bg-card"
+            style={{ flex: 1 - splitRatio }}
+          >
             {diffPanelContent}
           </div>
         </>

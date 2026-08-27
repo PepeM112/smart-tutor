@@ -7,6 +7,8 @@ import {
   type TestReadStripped,
 } from '@/client';
 
+import type { MentionCandidate } from '../context/page-data-context';
+
 export function formatNotesList(notes: NoteRead[]): string {
   if (notes.length === 0) return 'No notes to display.';
   const lines = [`Notes list (${notes.length} shown):`];
@@ -92,4 +94,14 @@ export function formatResultDetail(result: {
     `Date: ${String(result.createdAt)}`,
   ].filter(Boolean) as string[];
   return lines.join('\n');
+}
+
+export function buildTestMentionCandidates(test: TestRead | TestReadStripped): MentionCandidate[] {
+  const allQuestions = [...(test.questions ?? []), ...(test.questionGroups ?? []).flatMap(g => g.questions ?? [])];
+  return allQuestions.map((q, i) => ({
+    id: q.id,
+    label: `Question ${i + 1}`,
+    preview: q.prompt,
+    content: `[${i + 1}] [${q.questionType}] ${q.prompt} (ID: ${q.id})`,
+  }));
 }

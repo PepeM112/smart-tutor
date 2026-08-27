@@ -2,7 +2,7 @@
 
 import { Minus, PanelRight, RotateCw, WandSparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
@@ -15,7 +15,7 @@ import { useAssistPanelStore } from '../store/use-assist-panel-store';
 import AssistChatBody from './AssistChatBody';
 import { AssistInput } from './AssistInput';
 
-import type { ChatMessage } from '../types';
+import type { AssistTurn } from '../types';
 
 const FAB_SIZE = 56;
 const DEFAULT_OFFSET = 16;
@@ -24,7 +24,7 @@ const MORPH_MS = 380;
 const CONTENT_FADE_MS = 120;
 
 type Props = {
-  messages: ChatMessage[];
+  turns: AssistTurn[];
   isStreaming: boolean;
   onSend: (text: string, displayText?: string) => void;
   onStop: () => void;
@@ -32,7 +32,7 @@ type Props = {
   onClear: () => void;
 };
 
-export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
+export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
   const { isMobile, isXl } = useBreakpoint();
   const [closing, setClosing] = useState(false);
 
@@ -46,6 +46,15 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
   const card = useDraggable(undefined, size);
 
   const panelRef = useRef<HTMLDivElement>(null);
+  const minimizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (minimizeTimeoutRef.current) clearTimeout(minimizeTimeoutRef.current);
+      if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
+    };
+  }, []);
 
   const isDragging = fab.isDragging || card.isDragging;
 
@@ -97,7 +106,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
 
   const handleMinimize = () => {
     setClosing(true);
-    setTimeout(() => {
+    minimizeTimeoutRef.current = setTimeout(() => {
       if (fab.position.x === -1) {
         const cardPos = card.position.x !== -1 ? card.position : resolveElement();
         if (cardPos) {
@@ -114,7 +123,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
     const targetY = window.innerHeight - 640 - DEFAULT_OFFSET;
     card.setPosition({ x: targetX, y: targetY });
     resetSize();
-    setTimeout(() => {
+    resetTimeoutRef.current = setTimeout(() => {
       card.resetPosition();
       fab.resetPosition();
     }, MORPH_MS + 50);
@@ -224,7 +233,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
                   {headerRight('mobile')}
                 </div>
 
-                <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />
+                <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
               </motion.div>
             </>
           )}
@@ -304,7 +313,7 @@ export function AssistFloatingCard({ messages, isStreaming, onSend, onStop, onCo
               {headerRight('desktop')}
             </div>
 
-            <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />
+            <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
 
             {/* Resize handles — edges */}
             <div

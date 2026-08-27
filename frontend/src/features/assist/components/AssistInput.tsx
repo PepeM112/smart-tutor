@@ -4,10 +4,12 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { ArrowUp, Square } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { usePageData, type MentionCandidate } from '../context/page-data-context';
 import { ChipNode } from '../extensions/chip-node';
 import { CommandNode } from '../extensions/command-node';
+import { MentionNode } from '../extensions/mention-node';
 import {
   useAssistAttachmentsStore,
   type AssistCommand,
@@ -15,7 +17,9 @@ import {
 } from '../store/use-assist-attachments-store';
 import { useAssistCommandBridgeStore } from '../store/use-assist-command-bridge';
 
-/* ─── helpers ─── */
+import type { Node as PmNode } from '@tiptap/pm/model';
+
+/* ─── constants ─── */
 
 type SlashCommand = {
   name: string;
@@ -28,30 +32,6 @@ const ATTACHMENT_HEADINGS: Record<ChatAttachment['type'], string> = {
   note_chunk: '[Selected text from note]',
   test_questions: '[Selected questions from test]',
 };
-
-function buildMessageWithAttachments(attachments: ChatAttachment[], text: string): string {
-  if (attachments.length === 0) return text;
-  const blocks = attachments.map(a => `${ATTACHMENT_HEADINGS[a.type]}\n---\n${a.content}\n---`);
-  return `${blocks.join('\n\n')}\n\n${text}`;
-}
-
-function buildEditTestMessage(attachments: ChatAttachment[], instructions: string): string {
-  const testId = attachments.find(a => a.type === 'test_questions')?.metadata.testId;
-  const blocks = attachments
-    .filter(a => a.type === 'test_questions')
-    .map(a => `${a.content}`)
-    .join('\n\n');
-  return (
-    `Use the refine_questions tool to edit the following question(s) in test ${testId ?? '(unknown)'}. ` +
-    `Call get_test_details first to find their exact qid values by matching the prompts below, then apply ` +
-    `these instructions to only those questions:\n\n${blocks}\n\nInstructions: ${instructions}`
-  );
-}
-
-function buildDisplayText(command: AssistCommand, attachments: ChatAttachment[], instructions: string): string {
-  const chipLabels = attachments.map(a => `[${a.label}]`).join(' ');
-  return `${command} ${chipLabels} ${instructions}`.trim();
-}
 
 const COMMAND_PLACEHOLDERS: Record<AssistCommand, string> = {
   '/edit-note': 'Describe how the selected text should change...',
@@ -79,11 +59,15 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const activeCommand = useAssistAttachmentsStore(s => s.activeCommand);
   const setActiveCommand = useAssistAttachmentsStore(s => s.setActiveCommand);
 
+  const { mentionCandidates } = usePageData();
+
   // Refs so Tiptap callbacks (which capture once) always see current values
   const draftRef = useRef(draft);
   const handleSendRef = useRef<() => void>(() => {});
   const resetInputRef = useRef<() => void>(() => {});
   const placeholderRef = useRef('Ask anything... (/ for commands)');
+  const mentionMenuOpenRef = useRef(false);
+  const insertMentionFromMenuRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     draftRef.current = draft;
@@ -92,6 +76,16 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   useEffect(() => {
     placeholderRef.current = activeCommand ? COMMAND_PLACEHOLDERS[activeCommand] : 'Ask anything... (/ for commands)';
   }, [activeCommand]);
+
+  /* ─── mention state ─── */
+
+  const [mentionTrigger, setMentionTrigger] = useState<MentionState | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const mentionCandidatesRef = useRef(mentionCandidates);
+
+  useEffect(() => {
+    mentionCandidatesRef.current = mentionCandidates;
+  }, [mentionCandidates]);
 
   /* ─── Tiptap editor ─── */
 
@@ -111,6 +105,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       Placeholder.configure({ placeholder: () => placeholderRef.current }),
       ChipNode,
       CommandNode,
+      MentionNode,
     ],
     editorProps: {
       attributes: {
@@ -119,10 +114,16 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       handleKeyDown: (_view, event) => {
         if (event.key === 'Enter' && !event.shiftKey && !('isComposing' in event && event.isComposing)) {
           event.preventDefault();
-          handleSendRef.current();
+          event.stopPropagation();
+          if (mentionMenuOpenRef.current) {
+            insertMentionFromMenuRef.current();
+          } else {
+            handleSendRef.current();
+          }
           return true;
         }
         if (event.key === 'Escape') {
+          event.stopPropagation();
           resetInputRef.current();
           return true;
         }
@@ -133,6 +134,13 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       const text = ed.getText();
       setDraft(text);
       setDismissed(false);
+
+      if (mentionCandidatesRef.current.length > 0) {
+        const trigger = detectMentionTrigger(ed);
+        setMentionTrigger(trigger);
+      } else {
+        setMentionTrigger(null);
+      }
     },
     onTransaction: ({ transaction, editor: ed }) => {
       if (syncingRef.current || !hasSyncedRef.current || !transaction.docChanged) return;
@@ -150,7 +158,63 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
         if (!chipIds.has(a.id)) store.removeAttachment(a.id);
       });
     },
+    onSelectionUpdate: ({ editor: ed }) => {
+      if (mentionCandidatesRef.current.length > 0) {
+        const trigger = detectMentionTrigger(ed);
+        setMentionTrigger(trigger);
+      }
+    },
   });
+
+  /* ─── mention filtering + insertion (depends on editor) ─── */
+
+  const filteredMentions = useMemo(
+    () =>
+      mentionTrigger && mentionCandidates.length > 0
+        ? mentionCandidates.filter(
+            c =>
+              c.label.toLowerCase().includes(mentionTrigger.query) ||
+              c.preview.toLowerCase().includes(mentionTrigger.query)
+          )
+        : [],
+    [mentionTrigger, mentionCandidates]
+  );
+
+  const mentionMenuOpen = filteredMentions.length > 0 && !!mentionTrigger;
+  const clampedMentionIndex = Math.min(mentionIndex, Math.max(0, filteredMentions.length - 1));
+
+  useEffect(() => {
+    setMentionIndex(0);
+  }, [mentionTrigger?.query]);
+
+  const insertMention = useCallback(
+    (candidate: MentionCandidate) => {
+      if (!editor || !mentionTrigger) return;
+      editor
+        .chain()
+        .deleteRange({ from: mentionTrigger.from, to: mentionTrigger.to })
+        .insertContentAt(mentionTrigger.from, {
+          type: 'assistMention',
+          attrs: { id: candidate.id, label: candidate.label, content: candidate.content },
+        })
+        .focus()
+        .run();
+      setMentionTrigger(null);
+    },
+    [editor, mentionTrigger]
+  );
+
+  useEffect(() => {
+    mentionMenuOpenRef.current = mentionMenuOpen;
+  }, [mentionMenuOpen]);
+
+  useEffect(() => {
+    insertMentionFromMenuRef.current = () => {
+      if (filteredMentions.length > 0) {
+        insertMention(filteredMentions[clampedMentionIndex]);
+      }
+    };
+  }, [filteredMentions, clampedMentionIndex, insertMention]);
 
   /* ─── slash-command menu ─── */
 
@@ -185,6 +249,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     clearAttachments();
     setActiveCommand(null);
     setDraft('');
+    setMentionTrigger(null);
   }, [editor, clearAttachments, setActiveCommand]);
 
   useEffect(() => {
@@ -201,6 +266,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     const store = useAssistAttachmentsStore.getState();
     const cmd = store.activeCommand;
     const atts = store.attachments;
+
+    const mentions = editor ? collectMentionContent(editor.state.doc) : [];
 
     if (cmd === '/edit-note') {
       const chip = atts.find(a => a.type === 'note_chunk');
@@ -231,9 +298,11 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       return;
     }
 
-    onSend(buildMessageWithAttachments(atts, instructions));
+    const messageText = prependMentions(mentions, buildMessageWithAttachments(atts, instructions));
+    const displayText = mentions.length > 0 && editor ? buildDisplayFromDoc(editor.state.doc) : undefined;
+    onSend(messageText, displayText);
     resetInput();
-  }, [isStreaming, onSend, resetInput]);
+  }, [isStreaming, onSend, resetInput, editor]);
 
   useEffect(() => {
     handleSendRef.current = handleSend;
@@ -308,9 +377,31 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     });
   }, [editor, activeCommand, attachments]);
 
-  /* ─── keyboard: slash menu navigation ─── */
+  /* ─── keyboard: slash menu + mention menu navigation ─── */
 
   const handleEditorKeyDown = (e: React.KeyboardEvent) => {
+    if (mentionMenuOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(i =>
+          e.key === 'ArrowDown'
+            ? (i + 1) % filteredMentions.length
+            : (i - 1 + filteredMentions.length) % filteredMentions.length
+        );
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(filteredMentions[clampedMentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionTrigger(null);
+        return;
+      }
+    }
+
     if (!commandMenuOpen || filteredCommands.length === 0) return;
 
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -333,6 +424,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
   return (
     <div className="relative mt-auto shrink-0 p-2">
+      {/* Slash command popover */}
       {commandMenuOpen && (
         <div className="absolute inset-x-1.5 bottom-full mb-1 rounded-lg border border-border bg-background p-1 shadow-md">
           {filteredCommands.map((cmd, i) => (
@@ -352,6 +444,28 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
           <div className="mt-0.5 border-t border-border px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
             Type to filter commands
           </div>
+        </div>
+      )}
+
+      {/* Mention popover */}
+      {mentionMenuOpen && (
+        <div className="absolute inset-x-1.5 bottom-full mb-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-background p-1 shadow-md">
+          {filteredMentions.map((candidate, i) => (
+            <button
+              key={candidate.id}
+              type="button"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => insertMention(candidate)}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors duration-75 ${
+                i === clampedMentionIndex ? 'bg-muted' : ''
+              }`}
+            >
+              <span className="text-[12px] font-medium text-primary">@{candidate.label}</span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                {candidate.preview.length > 60 ? `${candidate.preview.slice(0, 60)}…` : candidate.preview}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
@@ -386,4 +500,88 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       </div>
     </div>
   );
+}
+
+/* ─── helpers ─── */
+
+function buildMessageWithAttachments(attachments: ChatAttachment[], text: string): string {
+  if (attachments.length === 0) return text;
+  const blocks = attachments.map(a => `${ATTACHMENT_HEADINGS[a.type]}\n---\n${a.content}\n---`);
+  return `${blocks.join('\n\n')}\n\n${text}`;
+}
+
+function buildEditTestMessage(attachments: ChatAttachment[], instructions: string): string {
+  const testAttachments = attachments.filter(a => a.type === 'test_questions');
+  const testId = testAttachments[0]?.metadata.testId;
+  const blocks = testAttachments.map(a => `${a.content}`).join('\n\n');
+
+  const questionIds = testAttachments.flatMap(a => a.metadata.questionIds ?? []);
+  const hasAllIds = questionIds.length === testAttachments.length;
+  const idInstruction = hasAllIds
+    ? `Call the refine_questions tool directly with question_ids: [${questionIds.join(', ')}].`
+    : `Call get_test_details first to find their exact qid values by matching the prompts below, then call refine_questions.`;
+
+  return (
+    `Use the refine_questions tool to edit the following question(s) in test ${testId ?? '(unknown)'}. ` +
+    `${idInstruction} Apply these instructions to only those questions:\n\n${blocks}\n\nInstructions: ${instructions}`
+  );
+}
+
+function buildDisplayText(command: AssistCommand, attachments: ChatAttachment[], instructions: string): string {
+  const chipLabels = attachments.map(a => `[${a.label}]`).join(' ');
+  return `${command} ${chipLabels} ${instructions}`.trim();
+}
+
+function collectMentionContent(doc: PmNode): string[] {
+  const mentions: string[] = [];
+  doc.descendants(node => {
+    if (node.type.name === 'assistMention') {
+      mentions.push(node.attrs.content as string);
+    }
+  });
+  return mentions;
+}
+
+function buildDisplayFromDoc(doc: PmNode): string {
+  let result = '';
+  doc.descendants(node => {
+    if (node.isText) {
+      result += node.text ?? '';
+    } else if (node.type.name === 'assistMention') {
+      result += `@${node.attrs.label as string}`;
+    } else if (node.type.name === 'assistChip') {
+      result += `[${node.attrs.label as string}]`;
+    } else if (node.type.name === 'assistCommand') {
+      result += node.attrs.command as string;
+    }
+  });
+  return result.trim();
+}
+
+function prependMentions(mentionContent: string[], text: string): string {
+  if (mentionContent.length === 0) return text;
+  const block = `[Referenced questions]\n---\n${mentionContent.join('\n')}\n---`;
+  return `${block}\n\n${text}`;
+}
+
+/* ─── mention trigger helpers ─── */
+
+type MentionState = {
+  query: string;
+  from: number;
+  to: number;
+};
+
+function detectMentionTrigger(ed: ReturnType<typeof useEditor>): MentionState | null {
+  if (!ed) return null;
+  const { $anchor } = ed.state.selection;
+  const textBefore = $anchor.parent.textBetween(0, $anchor.parentOffset, undefined, '￼');
+  const atIndex = textBefore.lastIndexOf('@');
+  if (atIndex === -1) return null;
+  if (atIndex > 0 && /\S/.test(textBefore[atIndex - 1])) return null;
+
+  const query = textBefore.slice(atIndex + 1).toLowerCase();
+  const from = $anchor.start() + atIndex;
+  const to = $anchor.pos;
+  return { query, from, to };
 }

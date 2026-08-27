@@ -20,7 +20,15 @@ from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import GeneratedQuestionPreview, QuestionEditRequest, TestGenerationRequest
 from app.services import note_service, question_service, test_generation_service, test_service
-from app.services.assist_tools import ToolResult
+from app.services.assist_tools import (
+    NavigateMetadata,
+    NoteCreatedMetadata,
+    NoteRefineMetadata,
+    QuestionRefineMetadata,
+    TestCreatedMetadata,
+    TestEditMetadata,
+    ToolResult,
+)
 from app.services.service_helpers import get_owned_or_404
 
 if TYPE_CHECKING:
@@ -126,7 +134,10 @@ def navigate_to(db: Session, *, current_user: User, arguments: dict[str, object]
     path = str(arguments.get("path", "/dashboard"))
     if not path.startswith(_ALLOWED_ROUTE_PREFIXES):
         path = "/dashboard"
-    return ToolResult(output=f"__NAVIGATE__:{path}")
+    return ToolResult(
+        output=f"Navigating to {path}",
+        metadata=NavigateMetadata(route=path),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -148,12 +159,8 @@ def create_note(db: Session, *, current_user: User, arguments: dict[str, object]
     )
     logger.info("create_note: created note=%s", note.id)
     return ToolResult(
-        output=(
-            f"Note created successfully!\n"
-            f"- **Title:** {note.title}\n"
-            f"- **ID:** `{note.id}`\n"
-            f"- **Preview:** {(note.content or '')[:300]}…"
-        ),
+        output=(f"Note created successfully!\n- **Title:** {note.title}\n- **Preview:** {(note.content or '')[:300]}…"),
+        metadata=NoteCreatedMetadata(note_id=note.id),
     )
 
 
@@ -173,11 +180,11 @@ def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]
     )
     return ToolResult(
         output="Note refinement ready for review.",
-        metadata={
-            "note_id": note_id,
-            "old_content": old_content,
-            "new_content": refined_text,
-        },
+        metadata=NoteRefineMetadata(
+            note_id=note_id,
+            old_content=old_content,
+            new_content=refined_text,
+        ),
     )
 
 
@@ -242,12 +249,8 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
     )
 
     return ToolResult(
-        output=(
-            f"Test created successfully!\n"
-            f"- **Title:** {test.title}\n"
-            f"- **ID:** `{test.id}`\n"
-            f"- **Questions:** {len(questions)}"
-        ),
+        output=(f"Test created successfully!\n- **Title:** {test.title}\n- **Questions:** {len(questions)}"),
+        metadata=TestCreatedMetadata(test_id=test.id),
     )
 
 
@@ -292,18 +295,12 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
         return ToolResult(output="No changes specified.")
 
     logger.info("edit_test: test=%s changes=%s", test_id, changes)
-    metadata: dict[str, Any] = {"test_id": test_id}
-    if removed_question_ids:
-        metadata["removed_question_ids"] = removed_question_ids
-
     return ToolResult(
-        output=(
-            f"Test edited successfully!\n"
-            f"- **Title:** {test.title}\n"
-            f"- **ID:** `{test.id}`\n"
-            f"- **Changes:** {', '.join(changes)}"
+        output=(f"Test edited successfully!\n- **Title:** {test.title}\n- **Changes:** {', '.join(changes)}"),
+        metadata=TestEditMetadata(
+            test_id=test_id,
+            removed_question_ids=removed_question_ids or None,
         ),
-        metadata=metadata,
     )
 
 
@@ -349,9 +346,9 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
 
     return ToolResult(
         output=f"Question refinement ready for review ({len(selected_indices)} question(s)).",
-        metadata={
-            "test_id": test_id,
-            "questions": [q.model_dump(by_alias=True) for q in result.questions],
-            "selected_indices": selected_indices,
-        },
+        metadata=QuestionRefineMetadata(
+            test_id=test_id,
+            questions=result.questions,
+            selected_indices=selected_indices,
+        ),
     )

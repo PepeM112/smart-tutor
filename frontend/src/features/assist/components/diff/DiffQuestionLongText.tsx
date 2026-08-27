@@ -3,12 +3,12 @@ import type { LongTextContent } from '@/client';
 import type { DiffQuestionProps } from './types';
 
 export function DiffQuestionLongText({ old: oldQ, new: newQ }: DiffQuestionProps) {
+  // SAFETY: caller only renders this component for LONG_TEXT-type question diffs
   const oldContent = oldQ.content as LongTextContent;
   const newContent = newQ.content as LongTextContent;
 
   return (
     <div className="space-y-2">
-      {/* Old question */}
       <div className="rounded-lg border border-feedback-wrong-border bg-feedback-wrong-bg p-3 space-y-1.5">
         <p className="text-sm text-foreground font-medium">{oldQ.prompt}</p>
         <div className="space-y-0.5">
@@ -20,7 +20,6 @@ export function DiffQuestionLongText({ old: oldQ, new: newQ }: DiffQuestionProps
         </div>
       </div>
 
-      {/* New question */}
       <div className="rounded-lg border border-feedback-correct-border bg-feedback-correct-bg p-3 space-y-1.5">
         <p className="text-sm text-foreground font-medium">{newQ.prompt}</p>
         <div className="space-y-0.5">

@@ -21,6 +21,8 @@ export type Choice = {
 
 export type MultipleChoiceQuestionData = {
   key: string;
+  /** Backend question ID. Undefined for newly-added, not-yet-saved questions. */
+  id?: string;
   type: QuestionType.MULTIPLE_CHOICE;
   prompt: string;
   choices: Choice[];

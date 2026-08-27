@@ -1,3 +1,5 @@
+export { DiffPanel } from './DiffPanel';
+export { DiffNoteContent } from './DiffNoteContent';
 export { DiffQuestionLongText } from './DiffQuestionLongText';
 export { DiffQuestionMultipleChoice } from './DiffQuestionMultipleChoice';
 export { DiffQuestionSimple } from './DiffQuestionSimple';

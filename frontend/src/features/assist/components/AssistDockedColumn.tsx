@@ -10,10 +10,10 @@ import { MAX_DOCKED_WIDTH, MIN_DOCKED_WIDTH, useAssistPanelStore } from '../stor
 import AssistChatBody from './AssistChatBody';
 import { AssistInput } from './AssistInput';
 
-import type { ChatMessage } from '../types';
+import type { AssistTurn } from '../types';
 
 type Props = {
-  messages: ChatMessage[];
+  turns: AssistTurn[];
   isStreaming: boolean;
   onSend: (text: string, displayText?: string) => void;
   onStop: () => void;
@@ -21,7 +21,7 @@ type Props = {
   onClear: () => void;
 };
 
-export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
+export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
   const toggleMode = useAssistPanelStore(s => s.toggleMode);
   const setOpen = useAssistPanelStore(s => s.setOpen);
   const dockedWidth = useAssistPanelStore(s => s.dockedWidth);
@@ -30,6 +30,8 @@ export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onCo
   const resizingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
+  const handleMouseMoveRef = useRef<((ev: MouseEvent) => void) | null>(null);
+  const handleMouseUpRef = useRef<(() => void) | null>(null);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -49,8 +51,12 @@ export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onCo
         resizingRef.current = false;
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        handleMouseMoveRef.current = null;
+        handleMouseUpRef.current = null;
       };
 
+      handleMouseMoveRef.current = handleMouseMove;
+      handleMouseUpRef.current = handleMouseUp;
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
@@ -60,6 +66,8 @@ export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onCo
   useEffect(() => {
     return () => {
       resizingRef.current = false;
+      if (handleMouseMoveRef.current) document.removeEventListener('mousemove', handleMouseMoveRef.current);
+      if (handleMouseUpRef.current) document.removeEventListener('mouseup', handleMouseUpRef.current);
     };
   }, []);
 
@@ -110,7 +118,7 @@ export function AssistDockedColumn({ messages, isStreaming, onSend, onStop, onCo
       </div>
 
       {/* Chat body */}
-      <AssistChatBody messages={messages} onConfirm={onConfirm} footer={composer} />
+      <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
     </div>
   );
 }

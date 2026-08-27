@@ -234,7 +234,7 @@ def _stream_assist_inner(
                         "output": result.output,
                     }
                     if result.metadata:
-                        tr_event["metadata"] = result.metadata
+                        tr_event["metadata"] = result.metadata.model_dump(by_alias=True, mode="json")
                     yield _sse("tool_result", tr_event)
                     # Feed the result back into the conversation
                     if is_anthropic:
@@ -329,7 +329,7 @@ def _stream_assist_inner(
                 logger.info("Read tool %s result: %s", tc.name, result.output[:200])
                 tr_event: dict[str, Any] = {"id": tc.id, "name": tc.name, "output": result.output}
                 if result.metadata:
-                    tr_event["metadata"] = result.metadata
+                    tr_event["metadata"] = result.metadata.model_dump(by_alias=True, mode="json")
                 yield _sse("tool_result", tr_event)
                 read_results.append({"id": tc.id, "output": result.output})
 
