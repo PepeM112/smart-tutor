@@ -23,6 +23,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
+import { AssistTurnRow } from '@/features/assist/components/AssistTurnRow';
+import type { AssistTurn } from '@/features/assist/types';
 import { ThemePicker } from '@/features/settings/components/theme-picker';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 
@@ -378,6 +380,196 @@ export default function SandboxPage() {
           </div>
         </div>
       </SandboxBlock>
+
+      {/* ── AI Chat Segments ── */}
+      <SandboxBlock title="AI Assistant — all segment types & states">
+        <AssistChatSandbox />
+      </SandboxBlock>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AI Assistant sandbox — mock turns
+// ---------------------------------------------------------------------------
+
+const MOCK_TURNS: AssistTurn[] = [
+  // 1. Simple user → assistant text exchange
+  {
+    id: 'turn-1',
+    role: 'user',
+    segments: [{ type: 'text', id: 's-1-1', content: 'What tests do I have?', streaming: false }],
+  },
+  {
+    id: 'turn-2',
+    role: 'assistant',
+    segments: [
+      { type: 'tool_indicator', id: 's-2-1', name: 'list_tests', status: 'done' },
+      {
+        type: 'text',
+        id: 's-2-2',
+        content: 'You have **3 tests**:\n1. Spanish Vocabulary\n2. European Capitals\n3. Anatomy Basics',
+        streaming: false,
+      },
+    ],
+  },
+  // 2. Multi-tool turn (parallel reads)
+  {
+    id: 'turn-3',
+    role: 'user',
+    segments: [{ type: 'text', id: 's-3-1', content: 'Show me the details of my Spanish test', streaming: false }],
+  },
+  {
+    id: 'turn-4',
+    role: 'assistant',
+    segments: [
+      { type: 'tool_indicator', id: 's-4-1', name: 'get_test_details', status: 'done' },
+      {
+        type: 'text',
+        id: 's-4-2',
+        content:
+          '**Spanish Vocabulary** has 5 questions:\n1. "to go" → ir, marchar\n2. "house" → casa\n3. "to eat" → comer\n4. "thank you" → gracias\n5. "goodbye" → adiós',
+        streaming: false,
+      },
+    ],
+  },
+  // 3. Write tool with action card — pending
+  {
+    id: 'turn-5',
+    role: 'user',
+    segments: [{ type: 'text', id: 's-5-1', content: 'Remove the question about "goodbye"', streaming: false }],
+  },
+  {
+    id: 'turn-6',
+    role: 'assistant',
+    segments: [
+      { type: 'tool_indicator', id: 's-6-1', name: 'get_test_details', status: 'done' },
+      {
+        type: 'action_card',
+        id: 's-6-2',
+        name: 'edit_test',
+        arguments: { test_id: 'mock-test-1', remove_question_ids: ['q-5'] },
+        context: { questions_to_remove: [{ id: 'q-5', prompt: '"goodbye" → adiós' }] },
+        status: 'pending',
+      },
+    ],
+  },
+  // 4. Write tool — approved
+  {
+    id: 'turn-7',
+    role: 'assistant',
+    segments: [
+      {
+        type: 'action_card',
+        id: 's-7-1',
+        name: 'edit_test',
+        arguments: { test_id: 'mock-test-2', title: 'European Geography' },
+        context: { title_change: { from: 'European Capitals', to: 'European Geography' } },
+        status: 'approved',
+      },
+      {
+        type: 'tool_result',
+        id: 's-7-1-result',
+        name: 'edit_test',
+        output: 'Test updated successfully.',
+        metadata: { test_id: 'mock-test-2' },
+      },
+      { type: 'text', id: 's-7-2', content: 'Done! Renamed the test to **European Geography**.', streaming: false },
+    ],
+  },
+  // 5. Write tool — rejected
+  {
+    id: 'turn-8',
+    role: 'assistant',
+    segments: [
+      {
+        type: 'action_card',
+        id: 's-8-1',
+        name: 'edit_test',
+        arguments: { test_id: 'mock-test-3', remove_question_ids: ['q-10', 'q-11'] },
+        context: {
+          questions_to_remove: [
+            { id: 'q-10', prompt: 'What is the mitral valve?' },
+            { id: 'q-11', prompt: 'Name the four chambers of the heart' },
+          ],
+        },
+        status: 'rejected',
+      },
+      {
+        type: 'text',
+        id: 's-8-2',
+        content: "No problem — I won't remove those questions.",
+        streaming: false,
+      },
+    ],
+  },
+  // 6. Tool indicator states (running, done, failed)
+  {
+    id: 'turn-9',
+    role: 'user',
+    segments: [{ type: 'text', id: 's-9-1', content: 'Tool indicator states demo', streaming: false }],
+  },
+  {
+    id: 'turn-10',
+    role: 'assistant',
+    segments: [
+      { type: 'tool_indicator', id: 's-10-1', name: 'list_notes', status: 'running' },
+      { type: 'tool_indicator', id: 's-10-2', name: 'get_test_details', status: 'done' },
+      { type: 'tool_indicator', id: 's-10-3', name: 'search_questions', status: 'failed' },
+    ],
+  },
+  // 7. Error segment
+  {
+    id: 'turn-11',
+    role: 'assistant',
+    segments: [
+      {
+        type: 'error',
+        id: 's-11-1',
+        message: 'Something went wrong while processing your request. Please try again.',
+      },
+    ],
+  },
+  // 8. Streaming text (simulated)
+  {
+    id: 'turn-12',
+    role: 'assistant',
+    segments: [
+      { type: 'tool_indicator', id: 's-12-1', name: 'create_note', status: 'done' },
+      {
+        type: 'text',
+        id: 's-12-2',
+        content: 'I created a new note on **Photosynthesis**. It covers the light-dependent reactions and the Calvin cycle...',
+        streaming: true,
+      },
+    ],
+  },
+  // 9. Text with description change context
+  {
+    id: 'turn-13',
+    role: 'assistant',
+    segments: [
+      {
+        type: 'action_card',
+        id: 's-13-1',
+        name: 'edit_test',
+        arguments: { test_id: 'mock-test-4', description: 'Updated description' },
+        context: {
+          title_change: { from: 'Old Title', to: 'New Title' },
+          description_change: { from: 'Basic vocabulary drills', to: 'Advanced vocabulary with context sentences' },
+        },
+        status: 'pending',
+      },
+    ],
+  },
+];
+
+function AssistChatSandbox() {
+  return (
+    <div className="mx-auto max-w-md space-y-3 rounded-xl border border-border bg-background p-4">
+      {MOCK_TURNS.map(turn => (
+        <AssistTurnRow key={turn.id} turn={turn} onConfirm={() => {}} />
+      ))}
     </div>
   );
 }
