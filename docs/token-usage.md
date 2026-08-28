@@ -27,6 +27,7 @@ Each AI call creates one `token_usage` row with:
 | `NOTE_REFINEMENT` | 4          | Refining an existing note with AI            |
 | `NOTE_CHUNK_EDIT` | 5          | Editing a selected text chunk in a note      |
 | `TEST_GENERATION` | 6          | Generating or editing test questions         |
+| `ASSIST`          | 7          | A turn of the AI Assistant chat (see [AI Assistant](ai-assistant.md)) |
 
 ## How Recording Works
 

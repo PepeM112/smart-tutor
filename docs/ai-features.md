@@ -2,7 +2,7 @@
 
 ## Overview
 
-SmartTutor uses AI for six capabilities:
+SmartTutor uses AI for seven capabilities:
 
 1. **Long Text grading** — evaluating paragraph-style answers against rubric criteria (see [Answer Grading](answer-grading.md#long-text-questions-ai-grading))
 2. **Challenge re-evaluation** — re-assessing disputed grading results (see [Answer Grading](answer-grading.md#challenge--re-evaluation))
@@ -10,8 +10,9 @@ SmartTutor uses AI for six capabilities:
 4. **Test generation** — creating questions from study notes (see [AI Test Generation](test-generation.md))
 5. **Note chunk editing** — user selects text inside a note's preview, gives an instruction, and the AI rewrites only that selection
 6. **Test question editing** — user selects one or more questions (in the test editor or in a generated test preview), gives an instruction, and the AI edits them. Unlike automatic test generation, this can also produce Long Text questions.
+7. **AI Assistant** — a chat panel, present on every page, that can answer questions about the user's content, navigate the app, and create or edit notes/tests through an agentic tool-calling loop (see [AI Assistant](ai-assistant.md))
 
-All six features share the same LLM abstraction, provider setup, and error-handling model, described below.
+The first six all share the same request/response shape: call `complete_for_user`, get a single structured result back. The Assistant is different — a chat turn streams incrementally and can involve multiple rounds of tool calls, so it uses `stream_with_tools()` instead of `complete()` on the same underlying `LLMClient`. It still shares everything else described below: provider setup, per-user keys, and token usage tracking. See [AI Assistant](ai-assistant.md) for its protocol, tools, and streaming architecture in full.
 
 ## Provider Architecture
 

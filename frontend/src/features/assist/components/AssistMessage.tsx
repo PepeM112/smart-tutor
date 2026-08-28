@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-import { useStreamingText } from '../hooks/use-streaming-text';
 import { useAssistDiffStore } from '../store/use-assist-diff-store';
 import { getToolIcon, getToolLabel, isWriteTool } from '../utils/tool-registry';
 
@@ -33,9 +32,9 @@ export function UserBubble({ content }: { content: string }) {
 // ---------------------------------------------------------------------------
 
 export function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
-  const displayed = useStreamingText(content, streaming);
-  const isRevealing = streaming && displayed.length < content.length;
-
+  // `content` already holds the queue's currently-revealed slice — the
+  // reveal/pacing loop lives centrally in use-stream-queue.ts now, so this
+  // component just renders precomputed state instead of animating locally.
   if (!content && streaming) {
     return (
       <div className="flex items-center gap-2 py-1">
@@ -66,10 +65,8 @@ export function AssistantBubble({ content, streaming }: { content: string; strea
           '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5'
         )}
       >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayed}</ReactMarkdown>
-        {(streaming || isRevealing) && (
-          <span className="ml-0.5 inline-block size-1.5 animate-pulse rounded-full bg-foreground/50" />
-        )}
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        {streaming && <span className="ml-0.5 inline-block size-1.5 animate-pulse rounded-full bg-foreground/50" />}
       </div>
     </div>
   );

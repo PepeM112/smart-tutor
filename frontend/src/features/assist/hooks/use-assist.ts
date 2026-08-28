@@ -12,6 +12,9 @@ import { useAssistDiffStore } from '../store/use-assist-diff-store';
 import { consumeSSEStream } from '../utils/sse-stream';
 import { getQueryKeysToInvalidate, isWriteTool } from '../utils/tool-registry';
 
+import { createStreamQueue } from './use-stream-queue';
+
+import type { StreamQueueHandle } from './use-stream-queue';
 import type {
   AssistMessage,
   AssistRequest,
@@ -76,6 +79,15 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   const pendingToolIdsRef = useRef<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
   const lastAssistantTurnIdRef = useRef('');
+  const queueRef = useRef<StreamQueueHandle | null>(null);
+
+  // Safety net: cancel any in-flight reveal timers if the panel unmounts
+  // mid-stream (the normal path is done/error/abort tearing the queue down).
+  useEffect(() => {
+    return () => {
+      queueRef.current?.destroy();
+    };
+  }, []);
 
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -125,8 +137,34 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       let activeTextSegmentId = '';
       let accumulatedText = '';
       let textSegmentOffset = 0;
+      let receivedDone = false;
+      // Tracks wire order directly instead of reading (delayed, gated) `turns`
+      // state — a boundary event closes the open segment synchronously, the
+      // moment it's parsed, regardless of when its own queued `run()` fires.
+      let textSegmentOpen = false;
       const toolCalls: ToolCallData[] = [];
       const toolResults: ToolResultData[] = [];
+
+      const queue = createStreamQueue({
+        // Upsert: the queue only calls this once a text item reaches the head
+        // of its FIFO (i.e. every boundary ahead of it has already run), so
+        // creating the segment here — rather than eagerly in `text_delta` —
+        // is what keeps `turns` insertion order matching wire order.
+        updateTextSegment: (segmentId, content, streaming) => {
+          setTurns(prev => {
+            const turn = prev.find(t => t.id === activeTurnId);
+            const exists = turn?.segments.some(s => s.id === segmentId) ?? false;
+            if (exists) {
+              return updateSegment(prev, segmentId, seg =>
+                seg.type === 'text' ? { ...seg, content, streaming } : seg
+              );
+            }
+            const newSeg: TextSegment = { type: 'text', id: segmentId, content, streaming };
+            return appendSegmentToTurn(prev, activeTurnId, newSeg);
+          });
+        },
+      });
+      queueRef.current = queue;
 
       if (resumeTurnId) {
         activeTurnId = resumeTurnId;
@@ -173,9 +211,17 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
         }
       } finally {
-        setIsStreaming(false);
-        abortRef.current = null;
-        onComplete?.();
+        // A clean `done` event finalizes streaming state itself (gated behind
+        // the last text segment's reveal, see the 'done' case below) — only
+        // handle cleanup here for the abort/error paths, where `done` never
+        // arrives and any in-progress reveal must snap instantly (R6/C6).
+        if (!receivedDone) {
+          queue.flush();
+          setIsStreaming(false);
+          abortRef.current = null;
+          queueRef.current = null;
+          onComplete?.();
+        }
       }
 
       function handleSSEEvent(event: string, data: unknown): void {
@@ -184,55 +230,33 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             const { content } = data as SSETextDelta;
             accumulatedText += content;
 
-            setTurns(prev => {
-              const turn = prev.find(t => t.id === activeTurnId);
-              if (!turn) return prev;
-
-              const lastSeg = turn.segments[turn.segments.length - 1];
-
-              // Fast path: append to current text segment
-              if (lastSeg?.type === 'text' && lastSeg.id === activeTextSegmentId) {
-                return updateSegment(prev, activeTextSegmentId, seg => ({
-                  ...seg,
-                  content: accumulatedText.slice(textSegmentOffset),
-                }));
-              }
-
-              // New text segment (first text, or text after a tool/action segment)
-              const segId = nextId();
-              activeTextSegmentId = segId;
+            // Continuation is decided from wire order (this flag), never from
+            // `turns` state — that state only catches up once the queue's
+            // reveal/gating has actually run, which can lag several rounds
+            // behind the parser (P0-1).
+            if (!textSegmentOpen) {
+              activeTextSegmentId = nextId();
               textSegmentOffset = accumulatedText.length - content.length;
-              const newSeg: TextSegment = {
-                type: 'text',
-                id: segId,
-                content,
-                streaming: true,
-              };
-              return appendSegmentToTurn(prev, activeTurnId, newSeg);
-            });
+              textSegmentOpen = true;
+            }
+
+            queue.extendTarget(activeTextSegmentId, accumulatedText.slice(textSegmentOffset));
             break;
           }
 
           case 'tool_call': {
             const tc = data as SSEToolCall;
             toolCalls.push({ id: tc.id, name: tc.name, arguments: tc.arguments });
+            textSegmentOpen = false;
 
-            setTurns(prev => {
-              // Finalize any streaming text segment
-              let updated = activeTextSegmentId
-                ? updateSegment(prev, activeTextSegmentId, seg =>
-                    seg.type === 'text' ? { ...seg, streaming: false } : seg
-                  )
-                : prev;
-
-              const toolSeg: TurnSegment = {
-                type: 'tool_indicator',
-                id: tc.id,
-                name: tc.name,
-                status: 'running',
-              };
-              updated = appendSegmentToTurn(updated, activeTurnId, toolSeg);
-              return updated;
+            const toolSeg: TurnSegment = {
+              type: 'tool_indicator',
+              id: tc.id,
+              name: tc.name,
+              status: 'running',
+            };
+            queue.enqueue('tool_call', () => {
+              setTurns(prev => appendSegmentToTurn(prev, activeTurnId, toolSeg));
             });
             break;
           }
@@ -250,75 +274,78 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'tool_result': {
             const tr = data as SSEToolResult;
             toolResults.push({ toolCallId: tr.id, output: tr.output });
+            textSegmentOpen = false;
 
-            // Update tool indicator to done
-            setTurns(prev => {
-              let updated = updateSegment(prev, tr.id, seg =>
-                seg.type === 'tool_indicator' ? { ...seg, status: 'done' as const } : seg
-              );
+            queue.enqueue('tool_result', () => {
+              // Update tool indicator to done
+              setTurns(prev => {
+                let updated = updateSegment(prev, tr.id, seg =>
+                  seg.type === 'tool_indicator' ? { ...seg, status: 'done' as const } : seg
+                );
 
-              // Add tool result segment (suffixed ID to avoid collision with tool_indicator)
-              const resultSeg: TurnSegment = {
-                type: 'tool_result',
-                id: `${tr.id}-result`,
-                name: tr.name,
-                output: tr.output,
-                metadata: tr.metadata,
-              };
-              updated = appendSegmentToTurn(updated, activeTurnId, resultSeg);
-              return updated;
-            });
+                // Add tool result segment (suffixed ID to avoid collision with tool_indicator)
+                const resultSeg: TurnSegment = {
+                  type: 'tool_result',
+                  id: `${tr.id}-result`,
+                  name: tr.name,
+                  output: tr.output,
+                  metadata: tr.metadata,
+                };
+                updated = appendSegmentToTurn(updated, activeTurnId, resultSeg);
+                return updated;
+              });
 
-            // Side effects
-            if (tr.name === 'navigate_to' && tr.metadata?.route) {
-              router.push(tr.metadata.route);
-            }
+              // Side effects
+              if (tr.name === 'navigate_to' && tr.metadata?.route) {
+                router.push(tr.metadata.route);
+              }
 
-            if (isWriteTool(tr.name)) {
-              const keys = getQueryKeysToInvalidate(tr.name);
-              keys.forEach(key => void queryClient.invalidateQueries({ queryKey: key }));
-            }
+              if (isWriteTool(tr.name)) {
+                const keys = getQueryKeysToInvalidate(tr.name);
+                keys.forEach(key => void queryClient.invalidateQueries({ queryKey: key }));
+              }
 
-            if (tr.name === 'edit_test' && tr.metadata?.removedQuestionIds?.length) {
-              const ids = tr.metadata.removedQuestionIds;
-              toast('Questions removed', {
-                description: `${ids.length} question(s) soft-deleted. You can undo this.`,
-                duration: UNDO_TOAST_DURATION,
-                action: {
-                  label: 'Undo',
-                  onClick: () => {
-                    void sdk.questionsBulkRestore({ body: { questionIds: ids } }).then(() => {
-                      void queryClient.invalidateQueries({ queryKey: ['tests'] });
-                      void queryClient.invalidateQueries({ queryKey: ['questions'] });
-                      toast.success('Questions restored');
-                    });
+              if (tr.name === 'edit_test' && tr.metadata?.removedQuestionIds?.length) {
+                const ids = tr.metadata.removedQuestionIds;
+                toast('Questions removed', {
+                  description: `${ids.length} question(s) soft-deleted. You can undo this.`,
+                  duration: UNDO_TOAST_DURATION,
+                  action: {
+                    label: 'Undo',
+                    onClick: () => {
+                      void sdk.questionsBulkRestore({ body: { questionIds: ids } }).then(() => {
+                        void queryClient.invalidateQueries({ queryKey: ['tests'] });
+                        void queryClient.invalidateQueries({ queryKey: ['questions'] });
+                        toast.success('Questions restored');
+                      });
+                    },
                   },
-                },
-              });
-            }
+                });
+              }
 
-            if (tr.name === 'refine_note' && tr.metadata?.noteId && tr.metadata.oldContent != null) {
-              setPendingNoteDiff({
-                noteId: tr.metadata.noteId,
-                oldContent: tr.metadata.oldContent,
-                newContent: tr.metadata.newContent ?? '',
-              });
-            }
+              if (tr.name === 'refine_note' && tr.metadata?.noteId && tr.metadata.oldContent != null) {
+                setPendingNoteDiff({
+                  noteId: tr.metadata.noteId,
+                  oldContent: tr.metadata.oldContent,
+                  newContent: tr.metadata.newContent ?? '',
+                });
+              }
 
-            if (tr.name === 'refine_questions' && tr.metadata?.testId && tr.metadata.questions) {
-              setPendingTestDiff({
-                testId: tr.metadata.testId,
-                questions: tr.metadata.questions,
-                selectedIndices: tr.metadata.selectedIndices ?? [],
-              });
-            }
-
+              if (tr.name === 'refine_questions' && tr.metadata?.testId && tr.metadata.questions) {
+                setPendingTestDiff({
+                  testId: tr.metadata.testId,
+                  questions: tr.metadata.questions,
+                  selectedIndices: tr.metadata.selectedIndices ?? [],
+                });
+              }
+            });
             break;
           }
 
           case 'confirm_required': {
             const cr = data as SSEConfirmRequired;
             pendingToolIdsRef.current.add(cr.id);
+            textSegmentOpen = false;
 
             const actionSeg: TurnSegment = {
               type: 'action_card',
@@ -328,46 +355,63 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               context: cr.context,
               status: 'pending',
             };
-            setTurns(prev => appendSegmentToTurn(prev, activeTurnId, actionSeg));
+            queue.enqueue('confirm_required', () => {
+              setTurns(prev => appendSegmentToTurn(prev, activeTurnId, actionSeg));
+            });
             break;
           }
 
           case 'done': {
             void (data as SSEDone);
-            // Finalize any streaming text segments in the active turn
-            setTurns(prev =>
-              prev.map(t =>
-                t.id === activeTurnId
-                  ? {
-                      ...t,
-                      segments: t.segments.map(seg =>
-                        seg.type === 'text' && seg.streaming ? { ...seg, streaming: false } : seg
-                      ),
-                    }
-                  : t
-              )
-            );
+            receivedDone = true;
+            textSegmentOpen = false;
 
-            const assistantMsg: AssistMessage = {
-              role: 'assistant',
-              content: accumulatedText,
-              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-            };
-            conversationRef.current.push(assistantMsg);
-            if (toolResults.length > 0) {
-              conversationRef.current.push({
-                role: 'tool',
-                content: '',
-                toolResults,
-              });
-            }
+            queue.enqueue('done', () => {
+              // Finalize any streaming text segments in the active turn
+              // (normally already false by the time reveal caught up, this
+              // is just a safety net).
+              setTurns(prev =>
+                prev.map(t =>
+                  t.id === activeTurnId
+                    ? {
+                        ...t,
+                        segments: t.segments.map(seg =>
+                          seg.type === 'text' && seg.streaming ? { ...seg, streaming: false } : seg
+                        ),
+                      }
+                    : t
+                )
+              );
+
+              const assistantMsg: AssistMessage = {
+                role: 'assistant',
+                content: accumulatedText,
+                toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+              };
+              conversationRef.current.push(assistantMsg);
+              if (toolResults.length > 0) {
+                conversationRef.current.push({
+                  role: 'tool',
+                  content: '',
+                  toolResults,
+                });
+              }
+
+              // Turn fully revealed and finalized — safe to unlock input now (C7).
+              setIsStreaming(false);
+              abortRef.current = null;
+              queueRef.current = null;
+              onComplete?.();
+            });
             break;
           }
 
           case 'error': {
             const { message } = data as SSEError;
             const errorSeg: TurnSegment = { type: 'error', id: nextId(), message };
-            setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
+            queue.runImmediately(() => {
+              setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
+            });
             break;
           }
         }
@@ -449,10 +493,13 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
+    queueRef.current?.flush();
   }, []);
 
   const clear = useCallback(() => {
     abortRef.current?.abort();
+    queueRef.current?.destroy();
+    queueRef.current = null;
     conversationRef.current = [];
     pendingToolIdsRef.current.clear();
     setTurns([]);

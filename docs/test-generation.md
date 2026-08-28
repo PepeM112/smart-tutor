@@ -57,6 +57,8 @@ This works for all question types, including Long Text — the AI can generate a
 
 - Endpoint: `POST /tests/generate/edit-questions`
 
+Test creation, editing, and question editing are also exposed as AI Assistant tools (`create_test`, `edit_test`, `refine_questions`) — see [AI Assistant](ai-assistant.md#tools).
+
 ## Saving
 
 Saving a generated set creates a test the same way any other test is created. The test keeps a reference to the note it was generated from, so its origin remains visible later. Once saved, generated questions behave exactly like manually written ones — they enter the spaced repetition cycle and show up in future review sessions based on how the user performs on them (see [Review & Spaced Repetition](review-and-srs.md)).

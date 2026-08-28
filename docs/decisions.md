@@ -273,3 +273,29 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** Locale is stored in a cookie, not in the URL path (`/en/dashboard` vs `/dashboard`).
 
 **Why:** SmartTutor is a personal app, not a content site. Locale-prefixed URLs add routing complexity (middleware, link rewriting, redirects) without SEO benefit — the content is private and behind auth. A cookie-based approach keeps URLs clean and is simpler to implement with Next.js App Router.
+
+---
+
+## Stateless Backend for AI Assistant Conversations
+
+**Decision:** The Assistant endpoint (`POST /api/v1/assist`) keeps no conversation state. The client sends the full message history on every request, including every follow-up and every confirmation round-trip.
+
+**Alternative considered:** A `conversation`/`message` table, with the client sending only the new message and an id.
+
+**Why:** The app has no other multi-turn, long-lived server session anywhere else, so a conversation store would be new infrastructure (persistence, retention, cleanup) built for exactly one feature. Chat history isn't a durable asset the way tests and notes are — losing it on reload is an acceptable tradeoff for a personal, single-user app. Resending the full history costs more tokens per call as a conversation grows, but conversations here are short-lived by nature (they're grounded in the current page, not a long-term thread), so the cost has not been a problem in practice.
+
+---
+
+## Producer–Consumer Queue for Assistant Streaming
+
+**Decision:** The frontend does not render SSE events as they arrive. `use-stream-queue.ts` buffers them in a FIFO and gates non-text events (a tool call, a tool result, a confirmation card) behind the full reveal of whatever text preceded them.
+
+**Why:** The Assistant's word-by-word text reveal happens slower than the network delivers events. Without a queue, a tool-call event arriving mid-reveal would render its indicator immediately, visually splitting a still-typing sentence into two bubbles. Gating boundary events on reveal progress — rather than on arrival — keeps what's on screen in wire order regardless of how fast the model or the network is relative to the reveal animation. See [AI Assistant](ai-assistant.md#streaming-reveal-pipeline) for the mechanism.
+
+---
+
+## Two Confirmation Patterns for Assistant Write Tools
+
+**Decision:** `create_note`, `create_test`, and `edit_test` pause server-side and require an explicit approve/reject before running (`confirm_required`). `refine_note` and `refine_questions` run immediately and instead surface an old/new diff for the user to accept or reject afterward.
+
+**Why:** The first group either creates something from nothing or removes content outright — there's no natural "before" to show, so an upfront yes/no gate is the only sensible review. The second group revises something that already exists, which produces a natural diff — showing the actual before/after is a clearer review than a plain description of the pending change would be, and both are reversible (the diff panel can reject; `edit_test`'s question removals separately get an undo toast since they're a soft delete). The cost is an extra tool-name distinction to remember (`WRITE_TOOLS` vs. everything else) rather than one uniform rule for all write tools.

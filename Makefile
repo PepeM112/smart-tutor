@@ -51,8 +51,11 @@ logs: ## View backend logs in real-time
 shell: ## Open bash shell in backend container
 	$(DOCKER_COMPOSE) exec backend bash
 
-test: ## Run tests in backend container
+test: ## Run tests (backend + frontend)
+	@echo "=== Backend: pytest ==="
 	$(DOCKER_COMPOSE) exec backend pytest tests/ -v
+	@echo "\n=== Frontend: vitest ==="
+	cd frontend && npm run test
 
 install-backend: ## Install backend dependencies in container
 	$(DOCKER_COMPOSE) exec backend poetry install

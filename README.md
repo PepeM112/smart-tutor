@@ -33,11 +33,15 @@ Users create or import Markdown study notes for reference material. Notes can al
 
 ### AI Features
 
-AI powers four capabilities: Long Text answer grading, challenge re-evaluation of disputed grades, study note generation, and test generation from notes. Two providers are supported (Anthropic Claude Haiku 4.5 and OpenAI GPT-4o-mini), switchable via environment variable. See [AI Features](docs/ai-features.md) for architecture details.
+AI powers seven capabilities: Long Text answer grading, challenge re-evaluation of disputed grades, study note generation and refinement, test generation and question editing from notes, note chunk editing, and an agentic AI Assistant chat panel. Each user configures their own provider (Anthropic Claude Haiku 4.5 or OpenAI GPT-4o-mini) and API key in Settings. See [AI Features](docs/ai-features.md) for architecture details.
 
 ### AI Test Generation
 
 Users can generate tests automatically from study notes. The AI creates Simple and Multiple Choice questions matching the user's preferences (count, difficulty, types). A preview step lets users accept, reject, or refine questions before saving.
+
+### AI Assistant
+
+A chat panel, available on every page (floating or docked to the side), lets the user ask questions about their own tests and notes, navigate the app, and — with confirmation — create or edit notes and tests. It streams its replies over SSE and can call tools across multiple rounds before responding. See [AI Assistant](docs/ai-assistant.md) for the full protocol and architecture.
 
 ## Tech Stack
 
@@ -48,7 +52,7 @@ Users can generate tests automatically from study notes. The AI creates Simple a
 | Database | PostgreSQL (Neon.tech) |
 | Auth | JWT via HTTP-only cookies |
 | API Contract | OpenAPI schema with auto-generated TypeScript client (hey-api) |
-| AI | Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini (grading, notes, test generation) |
+| AI | Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini (grading, notes, test generation, AI Assistant chat) |
 | Infrastructure | Docker Compose (local dev), Render (backend), Vercel (frontend) |
 
 ## Architecture
@@ -142,8 +146,10 @@ make seed                # Seed database with sample data
 - Challenge / re-evaluation of AI grading results
 - Results history with detailed breakdowns and split-panel detail view
 - SRS-based review sessions (SM-2 algorithm)
-- Study notes with AI generation and Markdown editor
-- AI test generation from study notes
+- Study notes with AI generation, refinement, and Markdown editor
+- AI test generation from study notes, with question editing and preview
+- Question Bank — standalone questions with filtering, sorting, pagination, bulk actions
+- AI Assistant — chat panel with agentic tool-calling (read, navigate, write with confirmation), SSE streaming
 - Soft delete for tests
 
 ## Documentation
@@ -159,6 +165,8 @@ Detailed documentation on how features work and why they were built that way liv
 - [Study Notes](docs/study-notes.md) — Note entity, AI generation, Markdown editor
 - [AI Features](docs/ai-features.md) — LLM architecture, provider pattern, async operations
 - [AI Test Generation](docs/test-generation.md) — Generating tests from notes, preferences, preview
+- [AI Assistant](docs/ai-assistant.md) — Chat panel, SSE protocol, agentic tool-calling, streaming pipeline
+- [Token Usage & Cost Tracking](docs/token-usage.md) — Token metering, model pricing, cost calculation
 
 ## License
 
