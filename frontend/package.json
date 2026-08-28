@@ -13,7 +13,8 @@
     "format:check": "eslint . --ext .ts,.tsx && stylelint \"src/**/*.{css}\" --allow-empty-input && prettier \"**/*.{css,ts,tsx,js,json,yaml,yml}\" --check --ignore-path .prettierignore",
     "format:branch": "f() { FILES=$(git diff --name-only --diff-filter=ACMR $(git merge-base HEAD ${BASE_BRANCH:-dev}) | grep '^frontend/' | sed 's|^frontend/||'); TSX_FILES=$(echo \"$FILES\" | grep -E '\\.(ts|tsx)$'); CSS_FILES=$(echo \"$FILES\" | grep -E '\\.css$'); if [ -n \"$TSX_FILES\" ]; then eslint $TSX_FILES --fix; fi; if [ -n \"$CSS_FILES\" ]; then stylelint $CSS_FILES --fix --allow-empty-input; fi; if [ -n \"$FILES\" ]; then prettier $FILES --write --ignore-unknown; fi; }; f",
     "format:branch:check": "f() { FILES=$(git diff --name-only --diff-filter=ACMR $(git merge-base HEAD ${BASE_BRANCH:-dev}) | grep '^frontend/' | sed 's|^frontend/||'); TSX_FILES=$(echo \"$FILES\" | grep -E '\\.(ts|tsx)$'); CSS_FILES=$(echo \"$FILES\" | grep -E '\\.css$'); if [ -n \"$TSX_FILES\" ]; then eslint $TSX_FILES; fi && if [ -n \"$CSS_FILES\" ]; then stylelint $CSS_FILES --allow-empty-input; fi && if [ -n \"$FILES\" ]; then prettier $FILES --check --ignore-unknown; fi; }; f",
-    "gen-client": "openapi-ts"
+    "gen-client": "openapi-ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.96.1",
@@ -70,6 +71,7 @@
     "stylelint-order": "^8.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "typescript-eslint": "^8.57.2"
+    "typescript-eslint": "^8.57.2",
+    "vitest": "^4.1.11"
   }
 }
