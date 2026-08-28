@@ -140,4 +140,106 @@ describe('use-stream-queue', () => {
     const kinds = events.map(e => (e.type === 'run' ? e.kind : e.type === 'update' ? `update:${e.id}` : ''));
     expect(kinds).toEqual(['update:seg-1', 'tool_call', 'tool_result', 'update:seg-2', 'done']);
   });
+
+  // These tests drive the queue through the exact call pattern use-assist.ts's
+  // streamResponse now uses: a synchronous "is a segment open" flag decides
+  // continuation (never `turns` state), and `updateTextSegment` upserts
+  // (create-or-update) instead of the caller creating the segment eagerly.
+  // Regression coverage for P0-1 (segment identity reuse on a fast tool
+  // round-trip) and P0-2 (text landing in `turns` ahead of the tool_result
+  // that should gate it).
+  describe('caller pattern: sync flag + upserting updateTextSegment', () => {
+    type TextSeg = { type: 'text'; id: string; content: string; streaming: boolean };
+    type MarkerSeg = { type: 'tool_indicator' | 'tool_result'; id: string };
+    type Seg = TextSeg | MarkerSeg;
+
+    function simulateAssistStream(): {
+      queue: StreamQueueHandle;
+      segments: Seg[];
+      textDelta: (content: string) => void;
+      toolCall: (id: string) => void;
+      toolResult: (id: string) => void;
+    } {
+      const segments: Seg[] = [];
+
+      const queue = createStreamQueue({
+        updateTextSegment: (segmentId, content, streaming) => {
+          const existing = segments.find(s => s.id === segmentId);
+          if (existing && existing.type === 'text') {
+            existing.content = content;
+            existing.streaming = streaming;
+          } else {
+            segments.push({ type: 'text', id: segmentId, content, streaming });
+          }
+        },
+      });
+
+      let textSegmentOpen = false;
+      let activeTextSegmentId = '';
+      let accumulatedText = '';
+      let textSegmentOffset = 0;
+      let idCounter = 0;
+      const nextId = () => `seg-${++idCounter}`;
+
+      function textDelta(content: string): void {
+        accumulatedText += content;
+        if (!textSegmentOpen) {
+          activeTextSegmentId = nextId();
+          textSegmentOffset = accumulatedText.length - content.length;
+          textSegmentOpen = true;
+        }
+        queue.extendTarget(activeTextSegmentId, accumulatedText.slice(textSegmentOffset));
+      }
+
+      function toolCall(id: string): void {
+        textSegmentOpen = false;
+        queue.enqueue('tool_call', () => segments.push({ type: 'tool_indicator', id }));
+      }
+
+      function toolResult(id: string): void {
+        textSegmentOpen = false;
+        queue.enqueue('tool_result', () => segments.push({ type: 'tool_result', id: `${id}-result` }));
+      }
+
+      return { queue, segments, textDelta, toolCall, toolResult };
+    }
+
+    it('P0-1: a fast tool round-trip never merges into or clobbers the next text round', () => {
+      const { queue, segments, textDelta, toolCall, toolResult } = simulateAssistStream();
+
+      textDelta('Round one. ');
+      // Tool call+result both arrive (and get enqueued) before round one's
+      // text has revealed a single character — the old code decided
+      // continuation from `turns` state, which hadn't caught up yet, and
+      // would have reused round one's segment id here.
+      toolCall('t1');
+      toolResult('t1');
+      textDelta('Round two.');
+
+      runToCompletion();
+      queue.flush();
+
+      const textSegs = segments.filter((s): s is TextSeg => s.type === 'text');
+      expect(textSegs).toHaveLength(2);
+      expect(textSegs[0]).toMatchObject({ content: 'Round one. ', streaming: false });
+      expect(textSegs[1]).toMatchObject({ content: 'Round two.', streaming: false });
+    });
+
+    it('P0-2: a new text round is never written to `turns` ahead of the tool_result gating it', () => {
+      const { queue, segments, textDelta, toolCall, toolResult } = simulateAssistStream();
+
+      textDelta('Before. ');
+      toolCall('t1');
+      toolResult('t1');
+      textDelta('After.');
+
+      runToCompletion();
+      queue.flush();
+
+      const toolResultIdx = segments.findIndex(s => s.type === 'tool_result' && s.id === 't1-result');
+      const afterSegIdx = segments.findIndex(s => s.type === 'text' && s.content === 'After.');
+      expect(toolResultIdx).toBeGreaterThanOrEqual(0);
+      expect(afterSegIdx).toBeGreaterThan(toolResultIdx);
+    });
+  });
 });

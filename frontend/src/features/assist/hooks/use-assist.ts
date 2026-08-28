@@ -138,14 +138,30 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       let accumulatedText = '';
       let textSegmentOffset = 0;
       let receivedDone = false;
+      // Tracks wire order directly instead of reading (delayed, gated) `turns`
+      // state — a boundary event closes the open segment synchronously, the
+      // moment it's parsed, regardless of when its own queued `run()` fires.
+      let textSegmentOpen = false;
       const toolCalls: ToolCallData[] = [];
       const toolResults: ToolResultData[] = [];
 
       const queue = createStreamQueue({
+        // Upsert: the queue only calls this once a text item reaches the head
+        // of its FIFO (i.e. every boundary ahead of it has already run), so
+        // creating the segment here — rather than eagerly in `text_delta` —
+        // is what keeps `turns` insertion order matching wire order.
         updateTextSegment: (segmentId, content, streaming) => {
-          setTurns(prev =>
-            updateSegment(prev, segmentId, seg => (seg.type === 'text' ? { ...seg, content, streaming } : seg))
-          );
+          setTurns(prev => {
+            const turn = prev.find(t => t.id === activeTurnId);
+            const exists = turn?.segments.some(s => s.id === segmentId) ?? false;
+            if (exists) {
+              return updateSegment(prev, segmentId, seg =>
+                seg.type === 'text' ? { ...seg, content, streaming } : seg
+              );
+            }
+            const newSeg: TextSegment = { type: 'text', id: segmentId, content, streaming };
+            return appendSegmentToTurn(prev, activeTurnId, newSeg);
+          });
         },
       });
       queueRef.current = queue;
@@ -214,31 +230,15 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
             const { content } = data as SSETextDelta;
             accumulatedText += content;
 
-            setTurns(prev => {
-              const turn = prev.find(t => t.id === activeTurnId);
-              if (!turn) return prev;
-
-              const lastSeg = turn.segments[turn.segments.length - 1];
-
-              // Fast path: same segment already exists — content is written by
-              // the queue's reveal loop, not here, so nothing to change.
-              if (lastSeg?.type === 'text' && lastSeg.id === activeTextSegmentId) {
-                return prev;
-              }
-
-              // New text segment (first text, or text after a tool/action segment).
-              // Starts empty — the queue reveals it character-by-character.
-              const segId = nextId();
-              activeTextSegmentId = segId;
+            // Continuation is decided from wire order (this flag), never from
+            // `turns` state — that state only catches up once the queue's
+            // reveal/gating has actually run, which can lag several rounds
+            // behind the parser (P0-1).
+            if (!textSegmentOpen) {
+              activeTextSegmentId = nextId();
               textSegmentOffset = accumulatedText.length - content.length;
-              const newSeg: TextSegment = {
-                type: 'text',
-                id: segId,
-                content: '',
-                streaming: true,
-              };
-              return appendSegmentToTurn(prev, activeTurnId, newSeg);
-            });
+              textSegmentOpen = true;
+            }
 
             queue.extendTarget(activeTextSegmentId, accumulatedText.slice(textSegmentOffset));
             break;
@@ -247,6 +247,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'tool_call': {
             const tc = data as SSEToolCall;
             toolCalls.push({ id: tc.id, name: tc.name, arguments: tc.arguments });
+            textSegmentOpen = false;
 
             const toolSeg: TurnSegment = {
               type: 'tool_indicator',
@@ -273,6 +274,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'tool_result': {
             const tr = data as SSEToolResult;
             toolResults.push({ toolCallId: tr.id, output: tr.output });
+            textSegmentOpen = false;
 
             queue.enqueue('tool_result', () => {
               // Update tool indicator to done
@@ -343,6 +345,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'confirm_required': {
             const cr = data as SSEConfirmRequired;
             pendingToolIdsRef.current.add(cr.id);
+            textSegmentOpen = false;
 
             const actionSeg: TurnSegment = {
               type: 'action_card',
@@ -361,6 +364,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           case 'done': {
             void (data as SSEDone);
             receivedDone = true;
+            textSegmentOpen = false;
 
             queue.enqueue('done', () => {
               // Finalize any streaming text segments in the active turn

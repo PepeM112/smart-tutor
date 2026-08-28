@@ -34,7 +34,15 @@
 export type BoundaryKind = 'tool_call' | 'tool_result' | 'confirm_required' | 'done';
 
 export type StreamQueueDeps = {
-  /** Write the currently-revealed slice of an open text segment into `turns` state. */
+  /**
+   * Write the currently-revealed slice of a text segment into `turns` state.
+   * Must upsert: create the segment if `segmentId` isn't in `turns` yet (its
+   * first reveal tick), otherwise update it in place. Upserting here — rather
+   * than the caller creating the segment eagerly on the first `text_delta` —
+   * is what makes insertion order into `turns` match this queue's own FIFO
+   * order: a text item is never written to `turns` before every boundary
+   * item ahead of it has already run.
+   */
   updateTextSegment: (segmentId: string, content: string, streaming: boolean) => void;
 };
 
@@ -145,9 +153,9 @@ export function createStreamQueue(deps: StreamQueueDeps): StreamQueueHandle {
   }
 
   function processPendingIfReady(): void {
-    if (minHoldTimer !== null) return;
+    if (destroyed || minHoldTimer !== null) return;
 
-    while (items.length > 0) {
+    while (!destroyed && items.length > 0) {
       const head = items[0];
 
       if (head.kind === 'text') {
@@ -237,6 +245,7 @@ export function createStreamQueue(deps: StreamQueueDeps): StreamQueueHandle {
   }
 
   function flush(): void {
+    if (destroyed) return;
     cancelTimers();
     while (items.length > 0) {
       const item = items.shift()!;
