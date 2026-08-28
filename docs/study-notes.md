@@ -45,6 +45,8 @@ Once a note exists — whether written by hand or generated — the user can ask
 
 Refinement operates on the note as a whole; it does not require regenerating from the original topic.
 
+Both generation and refinement are also exposed as AI Assistant tools (`create_note`, `refine_note`) — see [AI Assistant](ai-assistant.md#tools).
+
 ## AI Chunk Editing
 
 Refinement changes the whole note. Chunk editing changes one part of it.
