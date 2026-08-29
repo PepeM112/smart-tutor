@@ -33,6 +33,7 @@ export function PageDataProvider({ children }: { children: ReactNode }) {
   return <PageDataContext.Provider value={value}>{children}</PageDataContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePageData() {
   return useContext(PageDataContext);
 }

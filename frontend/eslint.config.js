@@ -133,7 +133,6 @@ export default defineConfig([
       'src/components/ui/**',
       'app/(app)/components-ideas/**',
       'app/**/{page,layout,loading,error,not-found,template,default,global-error,forbidden,unauthorized,route}.{ts,tsx}',
-      'src/features/assist/extensions/chipNode.tsx',
       'src/features/assist/hooks/useAssist.test.tsx',
     ],
     plugins: { 'check-file': checkFile },

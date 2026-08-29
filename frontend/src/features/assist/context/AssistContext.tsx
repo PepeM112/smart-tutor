@@ -16,6 +16,7 @@ export function AssistProvider({ children }: { children: ReactNode }) {
   return <AssistContext.Provider value={assist}>{children}</AssistContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAssistContext(): AssistContextValue {
   const ctx = useContext(AssistContext);
   if (!ctx) throw new Error('useAssistContext must be used within AssistProvider');
