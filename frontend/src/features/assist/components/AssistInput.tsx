@@ -7,6 +7,7 @@ import { ArrowUp, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePageData, type MentionCandidate } from '../context/PageDataContext';
+import { AtomArrowNav } from '../extensions/atomArrowNav';
 import { ChipNode } from '../extensions/chipNode';
 import { CommandNode } from '../extensions/commandNode';
 import { MentionNode } from '../extensions/mentionNode';
@@ -77,6 +78,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const placeholderRef = useRef('Ask anything... (/ for commands)');
   const mentionMenuOpenRef = useRef(false);
   const insertMentionFromMenuRef = useRef<() => void>(() => {});
+  const commandMenuOpenRef = useRef(false);
+  const executeSelectedCommandRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     draftRef.current = draft;
@@ -115,6 +118,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       ChipNode,
       CommandNode,
       MentionNode,
+      AtomArrowNav,
     ],
     editorProps: {
       attributes: {
@@ -126,6 +130,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
           event.stopPropagation();
           if (mentionMenuOpenRef.current) {
             insertMentionFromMenuRef.current();
+          } else if (commandMenuOpenRef.current) {
+            executeSelectedCommandRef.current();
           } else {
             handleSendRef.current();
           }
@@ -227,10 +233,16 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
   /* ─── slash-command menu ─── */
 
-  const availableCommands = isNotePage ? COMMANDS : COMMANDS.filter(c => !NOTE_PAGE_COMMANDS.has(c.name));
+  const availableCommands = useMemo(
+    () => (isNotePage ? COMMANDS : COMMANDS.filter(c => !NOTE_PAGE_COMMANDS.has(c.name))),
+    [isNotePage]
+  );
   const query = draft.startsWith('/') ? draft.slice(1).toLowerCase() : '';
-  const filteredCommands =
-    !activeCommand && draft.startsWith('/') ? availableCommands.filter(c => c.name.slice(1).startsWith(query)) : [];
+  const filteredCommands = useMemo(
+    () =>
+      !activeCommand && draft.startsWith('/') ? availableCommands.filter(c => c.name.slice(1).startsWith(query)) : [],
+    [activeCommand, draft, availableCommands, query]
+  );
 
   useEffect(() => {
     setActiveIndex(0);
@@ -247,17 +259,32 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
   const executeCommand = useCallback(
     (cmd: SlashCommand) => {
+      // Clear the typed text first — clearing after setActiveCommand would fire
+      // onTransaction's "command node missing" cleanup before the chip insertion
+      // microtask runs, immediately nulling the command back out.
+      editor?.commands.clearContent();
       if (NOTE_PAGE_COMMANDS.has(cmd.name)) {
         setActiveCommand(cmd.name as AssistCommand);
       } else {
         onCommand(cmd.name);
       }
-      editor?.commands.clearContent();
       setDraft('');
       setDismissed(false);
     },
     [onCommand, editor, setActiveCommand]
   );
+
+  useEffect(() => {
+    commandMenuOpenRef.current = commandMenuOpen;
+  }, [commandMenuOpen]);
+
+  useEffect(() => {
+    executeSelectedCommandRef.current = () => {
+      if (filteredCommands.length > 0) {
+        executeCommand(filteredCommands[clampedIndex]);
+      }
+    };
+  }, [filteredCommands, clampedIndex, executeCommand]);
 
   const resetInput = useCallback(() => {
     syncingRef.current = true;

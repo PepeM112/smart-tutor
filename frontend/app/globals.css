@@ -91,6 +91,17 @@
   }
 }
 
+/* iOS Safari auto-zooms the page on focus when a form field's font-size is
+   under 16px. Force 16px on mobile only so text entry never triggers it. */
+@media (width <= 767px) {
+  input,
+  textarea,
+  select,
+  [contenteditable='true'] {
+    font-size: 16px;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Theme definitions — Light
    ═══════════════════════════════════════════════════════════════ */
@@ -539,8 +550,6 @@
      size is an `em` multiple of this, so overriding it (e.g. on mobile)
      rescales the entire renderer proportionally. */
   --markdown-base-size: 14px;
-
-  text-align: justify;
 }
 
 @media (width <= 767px) {
