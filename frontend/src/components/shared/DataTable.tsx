@@ -90,9 +90,7 @@ export function DataTable<T>({
             description={renderDescription?.(row.original) ?? undefined}
             cells={row
               .getVisibleCells()
-              .filter(
-                cell => !(cell.column.columnDef.meta as { hideOnMobile?: boolean } | undefined)?.hideOnMobile
-              )
+              .filter(cell => !(cell.column.columnDef.meta as { hideOnMobile?: boolean } | undefined)?.hideOnMobile)
               .map(cell => ({
                 id: cell.id,
                 headerLabel:
