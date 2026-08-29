@@ -3,6 +3,7 @@ import { defineConfig } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
 import prettierConfig from 'eslint-config-prettier';
+import checkFile from 'eslint-plugin-check-file';
 import importPlugin from 'eslint-plugin-import';
 import prettierPlugin from 'eslint-plugin-prettier';
 import react from 'eslint-plugin-react';
@@ -123,4 +124,35 @@ export default defineConfig([
     ...tseslint.configs.disableTypeChecked,
   },
   prettierConfig,
+
+  // ST-55: enforce PascalCase (components) / camelCase (logic) file naming
+  {
+    files: ['app/**/*.{ts,tsx}', 'src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/client/**',
+      'src/components/ui/**',
+      'app/(app)/components-ideas/**',
+      'app/**/{page,layout,loading,error,not-found,template,default,global-error,forbidden,unauthorized,route}.{ts,tsx}',
+      'src/features/assist/hooks/useAssist.test.tsx',
+    ],
+    plugins: { 'check-file': checkFile },
+    rules: {
+      'check-file/filename-naming-convention': [
+        'error',
+        { '**/*.tsx': 'PASCAL_CASE', '**/*.ts': 'CAMEL_CASE' },
+        { ignoreMiddleExtensions: true },
+      ],
+    },
+  },
+  {
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    plugins: { 'check-file': checkFile },
+    rules: {
+      'check-file/filename-naming-convention': [
+        'error',
+        { '**/*.{ts,tsx}': 'KEBAB_CASE' },
+        { ignoreMiddleExtensions: true },
+      ],
+    },
+  },
 ]);

@@ -1,10 +1,10 @@
 'use client';
 
-import { useAiAvailable } from '@/hooks/use-ai-available';
-import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useAiAvailable } from '@/hooks/useAiAvailable';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
-import { useAssistContext } from '../context/assist-context';
-import { useAssistPanelStore } from '../store/use-assist-panel-store';
+import { useAssistContext } from '../context/AssistContext';
+import { useAssistPanelStore } from '../store/useAssistPanelStore';
 
 import { AssistDockedColumn } from './AssistDockedColumn';
 

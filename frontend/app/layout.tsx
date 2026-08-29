@@ -3,11 +3,11 @@ import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 
-import { FontSizeProvider } from '@/components/font-size-provider';
-import { Providers } from '@/components/providers';
-import { ThemeProvider } from '@/components/theme-provider';
-import { FONT_SIZE_COOKIE, getFontSizeValue } from '@/lib/font-size';
-import type { FontSizeId } from '@/lib/font-size';
+import { FontSizeProvider } from '@/components/FontSizeProvider';
+import { Providers } from '@/components/Providers';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { FONT_SIZE_COOKIE, getFontSizeValue } from '@/lib/fontSize';
+import type { FontSizeId } from '@/lib/fontSize';
 import { THEME_COOKIE, THEME_STORAGE_KEY } from '@/lib/themes';
 
 import type { Metadata } from 'next';

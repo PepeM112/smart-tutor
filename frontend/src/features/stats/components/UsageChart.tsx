@@ -5,8 +5,8 @@ import { useMemo, useState } from 'react';
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { AiFeature, AiProvider, type TokenUsageDailySummary } from '@/client';
-import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { AI_FEATURE_LABEL_KEYS } from '@/lib/ai-feature';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { AI_FEATURE_LABEL_KEYS } from '@/lib/aiFeature';
 import { formatTokens } from '@/lib/format';
 
 import type { UsageGroupBy as GroupBy } from '../types';

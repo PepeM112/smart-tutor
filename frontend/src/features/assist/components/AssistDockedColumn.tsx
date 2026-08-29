@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-import { MAX_DOCKED_WIDTH, MIN_DOCKED_WIDTH, useAssistPanelStore } from '../store/use-assist-panel-store';
+import { MAX_DOCKED_WIDTH, MIN_DOCKED_WIDTH, useAssistPanelStore } from '../store/useAssistPanelStore';
 
 import AssistChatBody from './AssistChatBody';
 import { AssistInput } from './AssistInput';

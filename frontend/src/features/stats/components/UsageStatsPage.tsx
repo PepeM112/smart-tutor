@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import type { AiFeature, AiProvider } from '@/client';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
-import { sdk } from '@/lib/api-client';
+import { sdk } from '@/lib/apiClient';
 import type { FilterValue, Primitive } from '@/lib/filters';
 
 import { UsageChart } from './UsageChart';

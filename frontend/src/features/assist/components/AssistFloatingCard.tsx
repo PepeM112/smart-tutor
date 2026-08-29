@@ -5,12 +5,12 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
 
-import { useDraggable } from '../hooks/use-draggable';
-import { useResizable } from '../hooks/use-resizable';
-import { useAssistPanelStore } from '../store/use-assist-panel-store';
+import { useDraggable } from '../hooks/useDraggable';
+import { useResizable } from '../hooks/useResizable';
+import { useAssistPanelStore } from '../store/useAssistPanelStore';
 
 import AssistChatBody from './AssistChatBody';
 import { AssistInput } from './AssistInput';

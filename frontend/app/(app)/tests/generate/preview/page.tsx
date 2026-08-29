@@ -2,8 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 
-import { GeneratedTestPreview } from '@/features/tests/components/generated-test-preview';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
+import { GeneratedTestPreview } from '@/features/tests/components/GeneratedTestPreview';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { Routes } from '@/lib/routes';
 
 export default function GeneratePreviewPage() {

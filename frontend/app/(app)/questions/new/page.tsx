@@ -2,8 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 
-import { QuestionForm } from '@/features/questions/components/question-form';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
+import { QuestionForm } from '@/features/questions/components/QuestionForm';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 
 export default function NewQuestionPage() {
   const t = useTranslations();

@@ -5,12 +5,12 @@ import { BookOpen, PartyPopper } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { QueryState } from '@/components/shared/query-state';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
-import { ReviewSession } from '@/features/review/components/review-session';
+import { ReviewSession } from '@/features/review/components/ReviewSession';
 import { REVIEW_BATCH_SIZE } from '@/features/review/helpers';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { sdk } from '@/lib/api-client';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { sdk } from '@/lib/apiClient';
 
 export default function ReviewPage() {
   const t = useTranslations();

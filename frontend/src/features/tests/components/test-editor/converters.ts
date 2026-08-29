@@ -12,9 +12,9 @@ import {
   type TestQuestionGroupRead,
 } from '@/client';
 
-import type { Criterion, LongTextQuestionData } from '../long-text-question-block';
-import type { Choice, MultipleChoiceQuestionData } from '../multiple-choice-question-block';
-import type { QuestionGroupData, SimpleRow } from '../question-group-block';
+import type { Criterion, LongTextQuestionData } from '../LongTextQuestionBlock';
+import type { Choice, MultipleChoiceQuestionData } from '../MultipleChoiceQuestionBlock';
+import type { QuestionGroupData, SimpleRow } from '../QuestionGroupBlock';
 import type { EditorItem } from './types';
 
 /* ------------------------------------------------------------------ */
