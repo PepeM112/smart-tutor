@@ -123,7 +123,10 @@ export function MarkdownEditor({
       {isViewMode ? (
         <div
           ref={viewCallbackRef}
-          className={cn('h-full overflow-y-auto overflow-x-hidden scrollbar-none', onTapView && 'cursor-pointer')}
+          className={cn(
+            'h-full overflow-y-auto overflow-x-hidden scrollbar-none p-4 lg:p-6',
+            onTapView && 'cursor-pointer'
+          )}
           onClick={onTapView}
         >
           {content ? (

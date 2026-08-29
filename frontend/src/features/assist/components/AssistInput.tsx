@@ -537,7 +537,10 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       >
         <div className="flex items-end gap-1">
           <div
-            className="min-w-0 flex-1 overflow-y-auto text-[13px] leading-[1.8]"
+            // 16px on mobile matches globals.css's iOS-zoom-prevention rule (any
+            // font-size under 16px on a focused contenteditable/input triggers
+            // Safari's auto-zoom) — shrinking below that here would reintroduce it.
+            className="min-w-0 flex-1 overflow-y-auto text-[13px] leading-[1.8] max-md:text-base"
             style={{ maxHeight: 120 }}
             onKeyDown={handleEditorKeyDown}
           >
