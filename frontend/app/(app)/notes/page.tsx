@@ -7,9 +7,9 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
 import { NoteSource } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { Pagination } from '@/components/shared/pagination';
-import { QueryState } from '@/components/shared/query-state';
+import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { Pagination } from '@/components/shared/Pagination';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
 import { formatNotesList } from '@/features/assist/utils/format-page-data';

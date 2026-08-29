@@ -8,8 +8,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
-import { AutoTextarea } from '@/components/shared/auto-textarea';
-import { QueryState } from '@/components/shared/query-state';
+import { AutoTextarea } from '@/components/shared/AutoTextarea';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';

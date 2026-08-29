@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { AiProvider } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/filter-popover';
+import { FilterPopover } from '@/components/shared/filters/FilterPopover';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { AI_FEATURE_FILTER_OPTIONS } from '@/lib/ai-feature';
 import { FilterType, type FilterEntity, type FilterItem, type FilterValue } from '@/lib/filters';

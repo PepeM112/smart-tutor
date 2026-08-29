@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-import { QueryState } from '@/components/shared/query-state';
+import { QueryState } from '@/components/shared/QueryState';
 import { QuestionForm } from '@/features/questions/components/question-form';
 import { useBreadcrumb } from '@/hooks/use-breadcrumb';
 import { sdk } from '@/lib/api-client';

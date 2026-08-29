@@ -5,7 +5,7 @@ import { BookOpen, PartyPopper } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { QueryState } from '@/components/shared/query-state';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { ReviewSession } from '@/features/review/components/review-session';
 import { REVIEW_BATCH_SIZE } from '@/features/review/helpers';

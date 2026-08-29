@@ -7,8 +7,8 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useMemo } from 'react';
 
 import type { TestResultListItem } from '@/client';
-import { DataTable } from '@/components/shared/data-table';
-import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
+import { DataTable } from '@/components/shared/DataTable';
+import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { getScoreBadgeClasses } from '@/features/history/utils/score-colors';
 import { formatShortDate } from '@/lib/format';

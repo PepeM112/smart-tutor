@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
-import { SidebarNav } from './sidebar-nav';
+import { SidebarNav } from './SidebarNav';
 
 export function MobileHeader() {
   const t = useTranslations();

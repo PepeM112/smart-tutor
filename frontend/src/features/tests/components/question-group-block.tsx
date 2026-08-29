@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 
 import { QuestionGroupType } from '@/client';
-import { AutoTextarea } from '@/components/shared/auto-textarea';
+import { AutoTextarea } from '@/components/shared/AutoTextarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

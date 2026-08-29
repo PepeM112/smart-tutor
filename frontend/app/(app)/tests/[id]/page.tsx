@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { use, useMemo } from 'react';
 import { toast } from 'sonner';
 
-import { QueryState } from '@/components/shared/query-state';
+import { QueryState } from '@/components/shared/QueryState';
 import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
 import { formatTestDetail } from '@/features/assist/utils/format-page-data';
 import { ExamView } from '@/features/tests/components/exam-view';

@@ -8,9 +8,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { QuestionType } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { Pagination } from '@/components/shared/pagination';
-import { QueryState } from '@/components/shared/query-state';
+import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { Pagination } from '@/components/shared/Pagination';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';

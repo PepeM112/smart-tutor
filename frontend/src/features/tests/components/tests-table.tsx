@@ -9,8 +9,8 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
-import { DataTable, type MobileAction } from '@/components/shared/data-table';
-import { type SortDirection, type SortState } from '@/components/shared/sortable-header';
+import { DataTable, type MobileAction } from '@/components/shared/DataTable';
+import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { getQuestionTypeInfo } from '@/features/tests/utils/question-icons';

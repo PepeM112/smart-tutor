@@ -1,6 +1,6 @@
 'use client';
 
-import { LoadingSpinner } from '@/components/shared/loading-spinner';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 import type { ReactNode } from 'react';
 

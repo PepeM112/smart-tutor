@@ -10,9 +10,9 @@ import {
 import { useTranslations } from 'next-intl';
 import { type ReactNode } from 'react';
 
-import { type MobileAction } from '@/components/shared/actions-menu';
-import { MobileCard } from '@/components/shared/mobile-card';
-import { SortableHeader, type SortDirection, type SortState } from '@/components/shared/sortable-header';
+import { type MobileAction } from '@/components/shared/ActionsMenu';
+import { MobileCard } from '@/components/shared/MobileCard';
+import { SortableHeader, type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 

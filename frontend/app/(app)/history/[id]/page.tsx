@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { use, useMemo } from 'react';
 
-import { QueryState } from '@/components/shared/query-state';
+import { QueryState } from '@/components/shared/QueryState';
 import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
 import { formatResultDetail } from '@/features/assist/utils/format-page-data';
 import { ResultDetail } from '@/features/history/components/result-detail';

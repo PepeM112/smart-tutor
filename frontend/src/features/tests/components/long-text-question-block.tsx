@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { LongTextLength, type QuestionType } from '@/client';
-import { AutoTextarea } from '@/components/shared/auto-textarea';
+import { AutoTextarea } from '@/components/shared/AutoTextarea';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';

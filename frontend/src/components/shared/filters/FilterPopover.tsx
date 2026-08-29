@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import type { FilterItem, FilterValue } from '@/lib/filters';
 
-import { FilterField } from './filter-field';
+import { FilterField } from './FilterField';
 
 type Props = {
   filterConfig: FilterItem[];

@@ -6,7 +6,7 @@ import { useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { SidebarNav } from './sidebar-nav';
+import { SidebarNav } from './SidebarNav';
 
 export function Sidebar() {
   const t = useTranslations();

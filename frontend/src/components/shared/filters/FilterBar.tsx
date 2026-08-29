@@ -13,7 +13,7 @@ import type {
   RangeFilterValue,
 } from '@/lib/filters';
 
-import { FilterField } from './filter-field';
+import { FilterField } from './FilterField';
 
 type FilterChangeValue =
   | Primitive

@@ -15,7 +15,7 @@ import {
   type TestQuestionGroupCreate,
   type TestUpdate,
 } from '@/client';
-import { AutoTextarea } from '@/components/shared/auto-textarea';
+import { AutoTextarea } from '@/components/shared/AutoTextarea';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';

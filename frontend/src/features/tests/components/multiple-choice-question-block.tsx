@@ -4,7 +4,7 @@ import { Check, CircleMinus, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import type { QuestionType } from '@/client';
-import { AutoTextarea } from '@/components/shared/auto-textarea';
+import { AutoTextarea } from '@/components/shared/AutoTextarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';

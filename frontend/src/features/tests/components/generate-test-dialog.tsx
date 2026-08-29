@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { QuestionType } from '@/client';
-import { DialogLoading } from '@/components/shared/dialog-loading';
+import { DialogLoading } from '@/components/shared/DialogLoading';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {

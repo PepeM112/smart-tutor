@@ -3,7 +3,7 @@
 import { ChevronDown } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 
-import { ActionsMenu, type MobileAction } from '@/components/shared/actions-menu';
+import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { cn } from '@/lib/utils';
 
 export type CellData = {

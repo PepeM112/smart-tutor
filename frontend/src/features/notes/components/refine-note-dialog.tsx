@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { DialogLoading } from '@/components/shared/dialog-loading';
+import { DialogLoading } from '@/components/shared/DialogLoading';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

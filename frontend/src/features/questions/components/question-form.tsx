@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { QuestionType, type QuestionRead } from '@/client';
-import { AutoTextarea } from '@/components/shared/auto-textarea';
+import { AutoTextarea } from '@/components/shared/AutoTextarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
