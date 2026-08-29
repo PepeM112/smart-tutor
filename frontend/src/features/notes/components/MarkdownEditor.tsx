@@ -123,14 +123,11 @@ export function MarkdownEditor({
       {isViewMode ? (
         <div
           ref={viewCallbackRef}
-          className={cn(
-            'h-full overflow-y-auto overflow-x-hidden scrollbar-none p-4 lg:p-6',
-            onTapView && 'cursor-pointer'
-          )}
+          className={cn('h-full overflow-y-auto overflow-x-hidden scrollbar-none', onTapView && 'cursor-pointer')}
           onClick={onTapView}
         >
           {content ? (
-            <div className="markdown-body max-w-none text-[length:var(--markdown-base-size)] text-foreground">
+            <div className="markdown-body max-w-none text-(length:--markdown-base-size) text-foreground text-left">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeSourcePositions]}
@@ -149,7 +146,7 @@ export function MarkdownEditor({
           onChange={e => onChange?.(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t('notes.start_writing')}
-          className="w-full h-full resize-none scrollbar-none bg-transparent p-4 lg:p-6 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="w-full h-full resize-none scrollbar-none bg-transparent p-4 lg:p-6 text-sm font-mono text-foreground text-left placeholder:text-muted-foreground/50 focus:outline-none"
           spellCheck={false}
           autoFocus
         />
