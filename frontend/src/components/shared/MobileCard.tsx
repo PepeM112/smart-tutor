@@ -12,6 +12,11 @@ export type CellData = {
   content: ReactNode;
 };
 
+export type DescriptionField = {
+  label: ReactNode;
+  value: ReactNode;
+};
+
 export type MobileCardProps<T> = {
   data: T;
   preview: ReactNode;
@@ -19,9 +24,19 @@ export type MobileCardProps<T> = {
   actions?: MobileAction[];
   onRowClick?: (row: T) => void | Promise<void>;
   cells: CellData[];
+  /** A paragraph-length field (e.g. a description) shown as its own wrapping block, distinct from the short key/value grid. */
+  description?: DescriptionField;
 };
 
-export function MobileCard<T>({ data, preview, expandable, actions, onRowClick, cells }: MobileCardProps<T>) {
+export function MobileCard<T>({
+  data,
+  preview,
+  expandable,
+  actions,
+  onRowClick,
+  cells,
+  description,
+}: MobileCardProps<T>) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasActions = actions && actions.length > 0;
   const isClickable = expandable || !!onRowClick;
@@ -49,7 +64,13 @@ export function MobileCard<T>({ data, preview, expandable, actions, onRowClick, 
       </div>
 
       {expandable && isExpanded && (
-        <div className="border-t border-border px-4 py-3">
+        <div className="border-t border-border px-4 py-3 space-y-3">
+          {description && (
+            <div>
+              <dt className="text-xs text-muted-foreground mb-1">{description.label}</dt>
+              <dd className="text-sm whitespace-pre-wrap">{description.value}</dd>
+            </div>
+          )}
           <dl className="space-y-2">
             {expandableCells.map(cell => (
               <div key={cell.id} className="flex items-baseline justify-between gap-4">

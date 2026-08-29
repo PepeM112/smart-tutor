@@ -78,6 +78,7 @@ export function TestsTable({ data, sort, onSort }: Props) {
       {
         label: t('tests.take_test_action'),
         icon: Dumbbell,
+        className: 'text-feedback-partial',
         onClick: () => router.push(Routes.TEST_DETAIL(test.id)),
       },
       {
@@ -104,6 +105,9 @@ export function TestsTable({ data, sort, onSort }: Props) {
       onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
       renderPreview={renderPreview}
       renderActions={renderActions}
+      renderDescription={test =>
+        test.description ? { label: t('tests.column_description'), value: test.description } : undefined
+      }
     />
   );
 }
@@ -140,7 +144,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
     {
       accessorKey: 'title',
       header: t('tests.column_title'),
-      meta: { sortKey: 'title' },
+      meta: { sortKey: 'title', hideOnMobile: true },
       cell: ({ row }) => {
         const { title, description } = row.original;
         return (

@@ -176,6 +176,7 @@
     "questions_updated": "Questions updated",
     "failed_to_edit_questions": "Failed to edit questions. Please try again.",
     "column_title": "Title",
+    "column_description": "Description",
     "column_questions": "Questions",
     "column_types": "Types",
     "column_created": "Created",

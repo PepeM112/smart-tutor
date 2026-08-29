@@ -16,7 +16,7 @@ export type ChatAttachment = {
   };
 };
 
-export type AssistCommand = '/edit-note' | '/edit-test';
+export type AssistCommand = '/edit-note' | '/edit-test' | '/refine-notes' | '/generate-test';
 
 type LocalMessageFn = (text: string) => void;
 type LocalAssistantMessageFn = (text: string) => string;

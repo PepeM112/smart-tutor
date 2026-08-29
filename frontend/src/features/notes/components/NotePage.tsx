@@ -17,14 +17,12 @@ import { DiffNoteContent, DiffPanel } from '@/features/assist/components/diff';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
 import { formatNoteDetail } from '@/features/assist/utils/formatPageData';
-import { GenerateTestDialog } from '@/features/tests/components/GenerateTestDialog';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/useMobileBreadcrumbActions';
 import { useResizableSplit } from '@/hooks/useResizableSplit';
 import { sdk } from '@/lib/apiClient';
 
 import { NoteEditor } from './NoteEditor';
-import { RefineNoteDialog } from './RefineNoteDialog';
 import { TagInput } from './TagInput';
 
 type Props = {
@@ -134,7 +132,7 @@ function NoteForm({ note }: { note: NoteRead }) {
 
   useMobileBreadcrumbActions(
     isDirty ? (
-      <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
+      <Button size="lg" icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
         {isSaving ? t('notes.saving') : t('common.save')}
       </Button>
     ) : undefined
@@ -217,19 +215,10 @@ function NoteForm({ note }: { note: NoteRead }) {
           {/* Actions: desktop inline, mobile right-aligned below */}
           <div className="flex items-center gap-2 self-end lg:self-auto">
             {isDesktop && isDirty && (
-              <Button icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
+              <Button size="lg" icon={Save} onClick={() => save()} disabled={isSaving || !title.trim()}>
                 {isSaving ? t('notes.saving') : t('common.save')}
               </Button>
             )}
-            <RefineNoteDialog
-              noteId={note.id}
-              onRefined={newContent => {
-                setContent(newContent);
-                setEditorKey(k => k + 1);
-                markDirty();
-              }}
-            />
-            <GenerateTestDialog noteId={note.id} noteTitle={note.title} />
           </div>
         </div>
       </div>

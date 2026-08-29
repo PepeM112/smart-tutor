@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
 import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
@@ -98,15 +99,17 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <FilterPopover
-          filterConfig={filterConfig}
-          filters={filters}
-          onFilterChange={setFilter}
-          onClear={clearFilters}
-        />
-        <p className="text-sm text-muted-foreground">{t('history.subtitle')}</p>
-      </div>
+      <ListPageHeader
+        filters={
+          <FilterPopover
+            filterConfig={filterConfig}
+            filters={filters}
+            onFilterChange={setFilter}
+            onClear={clearFilters}
+          />
+        }
+        actions={<p className="truncate text-sm text-muted-foreground">{t('history.subtitle')}</p>}
+      />
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('history.failed_to_load')}>
         {isFilteredEmpty ? (

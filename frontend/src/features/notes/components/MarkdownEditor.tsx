@@ -130,7 +130,7 @@ export function MarkdownEditor({
           onClick={onTapView}
         >
           {content ? (
-            <div className="markdown-body max-w-none text-sm text-foreground">
+            <div className="markdown-body max-w-none text-[length:var(--markdown-base-size)] text-foreground">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeSourcePositions]}

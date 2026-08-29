@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { NoteSource } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
@@ -104,23 +105,25 @@ export default function NotesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-2">
+      <ListPageHeader
+        filters={
           <FilterPopover
             filterConfig={filterConfig}
             filters={filters}
             onFilterChange={setFilter}
             onClear={clearFilters}
           />
-        </div>
-        <div className="flex items-center gap-2 self-end lg:self-auto">
-          <ImportNoteButton compact />
-          <GenerateNoteDialog compact />
-          <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.NOTE_NEW}>{t('notes.new_note')}</Link>
-          </Button>
-        </div>
-      </div>
+        }
+        actions={
+          <>
+            <ImportNoteButton compact />
+            <GenerateNoteDialog compact />
+            <Button size="lg" icon={Plus} asChild>
+              <Link href={Routes.NOTE_NEW}>{t('notes.new_note')}</Link>
+            </Button>
+          </>
+        }
+      />
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load')}>
         {isFilteredEmpty ? (
