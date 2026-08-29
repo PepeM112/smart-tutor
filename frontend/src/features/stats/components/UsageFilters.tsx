@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { AiProvider } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/FilterPopover';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
-import { AI_FEATURE_FILTER_OPTIONS } from '@/lib/ai-feature';
+import { AI_FEATURE_FILTER_OPTIONS } from '@/lib/aiFeature';
 import { FilterType, type FilterEntity, type FilterItem, type FilterValue } from '@/lib/filters';
 
 import type { UsageGroupBy as GroupBy } from '../types';

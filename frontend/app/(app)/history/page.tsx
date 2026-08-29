@@ -8,11 +8,11 @@ import { FilterPopover } from '@/components/shared/filters/FilterPopover';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
-import { HistoryTable } from '@/features/history/components/history-table';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { useFilters } from '@/hooks/use-filters';
-import { useUrlSort } from '@/hooks/use-url-sort';
-import { sdk } from '@/lib/api-client';
+import { HistoryTable } from '@/features/history/components/HistoryTable';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useFilters } from '@/hooks/useFilters';
+import { useUrlSort } from '@/hooks/useUrlSort';
+import { sdk } from '@/lib/apiClient';
 import { FilterType, type DateFilterValue, type FilterItem, type RangeFilterValue } from '@/lib/filters';
 
 const PER_PAGE = 20;

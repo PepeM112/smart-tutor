@@ -16,8 +16,8 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { UserRole } from '@/client';
-import { LogoutButton } from '@/features/auth/components/logout-button';
-import { useAuthStore } from '@/features/auth/store/auth-store';
+import { LogoutButton } from '@/features/auth/components/LogoutButton';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 

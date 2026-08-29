@@ -25,8 +25,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
 import { AssistTurnRow } from '@/features/assist/components/AssistTurnRow';
 import type { AssistTurn } from '@/features/assist/types';
-import { ThemePicker } from '@/features/settings/components/theme-picker';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
+import { ThemePicker } from '@/features/settings/components/ThemePicker';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 
 import type { VariantProps } from 'class-variance-authority';
 

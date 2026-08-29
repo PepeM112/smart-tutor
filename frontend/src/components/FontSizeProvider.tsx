@@ -1,6 +1,6 @@
 'use client';
 
-import { FontSizeContext, useFontSizeProvider } from '@/hooks/use-font-size';
+import { FontSizeContext, useFontSizeProvider } from '@/hooks/useFontSize';
 
 export function FontSizeProvider({ children }: { children: React.ReactNode }) {
   const value = useFontSizeProvider();

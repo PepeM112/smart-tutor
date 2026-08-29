@@ -14,7 +14,7 @@ import { type MobileAction } from '@/components/shared/ActionsMenu';
 import { MobileCard } from '@/components/shared/MobileCard';
 import { SortableHeader, type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 export type { MobileAction };
 

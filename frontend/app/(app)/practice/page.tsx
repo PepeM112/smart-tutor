@@ -3,7 +3,7 @@
 import { Dumbbell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 
 export default function PracticePage() {
   const t = useTranslations();

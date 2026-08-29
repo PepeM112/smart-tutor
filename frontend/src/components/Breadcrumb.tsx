@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { type BreadcrumbItem, useBreadcrumbStore } from '@/store/use-breadcrumb-store';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { type BreadcrumbItem, useBreadcrumbStore } from '@/store/useBreadcrumbStore';
 
 // Renders nothing — lets server component pages set the breadcrumb without becoming client components
 export function SetBreadcrumb({ title, crumbs, back }: { title: string; crumbs?: BreadcrumbItem[]; back?: string }) {

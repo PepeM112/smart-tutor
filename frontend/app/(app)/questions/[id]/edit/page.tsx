@@ -5,9 +5,9 @@ import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { QueryState } from '@/components/shared/QueryState';
-import { QuestionForm } from '@/features/questions/components/question-form';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { sdk } from '@/lib/api-client';
+import { QuestionForm } from '@/features/questions/components/QuestionForm';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { sdk } from '@/lib/apiClient';
 
 export default function EditQuestionPage() {
   const t = useTranslations();

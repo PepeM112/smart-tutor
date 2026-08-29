@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import type { ChatAttachment } from '../store/use-assist-attachments-store';
+import type { ChatAttachment } from '../store/useAssistAttachmentsStore';
 
 const LABEL_MAX_LENGTH = 30;
 const PREVIEW_HEIGHT = 120;

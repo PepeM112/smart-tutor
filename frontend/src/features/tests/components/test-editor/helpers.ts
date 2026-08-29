@@ -1,8 +1,8 @@
 import { QuestionGroupType, QuestionType } from '@/client';
 
-import type { LongTextQuestionData } from '../long-text-question-block';
-import type { Choice, MultipleChoiceQuestionData } from '../multiple-choice-question-block';
-import type { QuestionGroupData } from '../question-group-block';
+import type { LongTextQuestionData } from '../LongTextQuestionBlock';
+import type { Choice, MultipleChoiceQuestionData } from '../MultipleChoiceQuestionBlock';
+import type { QuestionGroupData } from '../QuestionGroupBlock';
 
 export function newMultipleChoice(): MultipleChoiceQuestionData {
   return {

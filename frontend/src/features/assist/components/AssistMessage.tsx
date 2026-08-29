@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-import { useAssistDiffStore } from '../store/use-assist-diff-store';
-import { getToolIcon, getToolLabel, isWriteTool } from '../utils/tool-registry';
+import { useAssistDiffStore } from '../store/useAssistDiffStore';
+import { getToolIcon, getToolLabel, isWriteTool } from '../utils/toolRegistry';
 
 import type { ConfirmContext, ToolResultMetadata } from '../types';
 import type { LucideIcon } from 'lucide-react';
@@ -33,7 +33,7 @@ export function UserBubble({ content }: { content: string }) {
 
 export function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
   // `content` already holds the queue's currently-revealed slice — the
-  // reveal/pacing loop lives centrally in use-stream-queue.ts now, so this
+  // reveal/pacing loop lives centrally in useStreamQueue.ts now, so this
   // component just renders precomputed state instead of animating locally.
   if (!content && streaming) {
     return (

@@ -6,16 +6,16 @@ import StarterKit from '@tiptap/starter-kit';
 import { ArrowUp, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { usePageData, type MentionCandidate } from '../context/page-data-context';
-import { ChipNode } from '../extensions/chip-node';
-import { CommandNode } from '../extensions/command-node';
-import { MentionNode } from '../extensions/mention-node';
+import { usePageData, type MentionCandidate } from '../context/PageDataContext';
+import { ChipNode } from '../extensions/chipNode';
+import { CommandNode } from '../extensions/commandNode';
+import { MentionNode } from '../extensions/mentionNode';
 import {
   useAssistAttachmentsStore,
   type AssistCommand,
   type ChatAttachment,
-} from '../store/use-assist-attachments-store';
-import { useAssistCommandBridgeStore } from '../store/use-assist-command-bridge';
+} from '../store/useAssistAttachmentsStore';
+import { useAssistCommandBridgeStore } from '../store/useAssistCommandBridge';
 
 import type { Node as PmNode } from '@tiptap/pm/model';
 

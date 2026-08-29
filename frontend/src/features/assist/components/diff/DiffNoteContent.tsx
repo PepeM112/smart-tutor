@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
-import { MarkdownRenderer } from '@/features/notes/components/markdown-renderer';
+import { MarkdownRenderer } from '@/features/notes/components/MarkdownRenderer';
 
 type DiffNoteContentProps = {
   oldContent: string;

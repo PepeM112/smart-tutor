@@ -3,9 +3,9 @@ import { MobileHeader } from '@/components/layout/MobileHeader';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AssistDockedWrapper } from '@/features/assist/components/AssistDockedWrapper';
 import { AssistPanel } from '@/features/assist/components/AssistPanel';
-import { AssistProvider } from '@/features/assist/context/assist-context';
-import { PageDataProvider } from '@/features/assist/context/page-data-context';
-import { AuthGuard } from '@/features/auth/components/auth-guard';
+import { AssistProvider } from '@/features/assist/context/AssistContext';
+import { PageDataProvider } from '@/features/assist/context/PageDataContext';
+import { AuthGuard } from '@/features/auth/components/AuthGuard';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

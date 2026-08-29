@@ -5,12 +5,12 @@ import { useTranslations } from 'next-intl';
 import { use, useMemo } from 'react';
 
 import { QueryState } from '@/components/shared/QueryState';
-import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
-import { formatResultDetail } from '@/features/assist/utils/format-page-data';
-import { ResultDetail } from '@/features/history/components/result-detail';
-import { useTestResult } from '@/features/history/hooks/use-test-result';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { sdk } from '@/lib/api-client';
+import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
+import { formatResultDetail } from '@/features/assist/utils/formatPageData';
+import { ResultDetail } from '@/features/history/components/ResultDetail';
+import { useTestResult } from '@/features/history/hooks/useTestResult';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
 type Props = {

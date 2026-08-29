@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 
-import { SignupForm } from '@/features/auth/components/signup-form';
+import { SignupForm } from '@/features/auth/components/SignupForm';
 
 export default async function SignupPage() {
   const t = await getTranslations('app');

@@ -25,22 +25,22 @@ import {
   DiffQuestionMultipleChoice,
   DiffQuestionSimple,
 } from '@/features/assist/components/diff';
-import { useAssistAttachmentsStore } from '@/features/assist/store/use-assist-attachments-store';
-import { useAssistDiffStore } from '@/features/assist/store/use-assist-diff-store';
-import { useAssistPanelStore } from '@/features/assist/store/use-assist-panel-store';
-import { useAiAvailable } from '@/hooks/use-ai-available';
-import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { useMobileBreadcrumbActions } from '@/hooks/use-mobile-breadcrumb-actions';
-import { useResizableSplit } from '@/hooks/use-resizable-split';
-import { sdk } from '@/lib/api-client';
+import { useAssistAttachmentsStore } from '@/features/assist/store/useAssistAttachmentsStore';
+import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
+import { useAssistPanelStore } from '@/features/assist/store/useAssistPanelStore';
+import { useAiAvailable } from '@/hooks/useAiAvailable';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { useMobileBreadcrumbActions } from '@/hooks/useMobileBreadcrumbActions';
+import { useResizableSplit } from '@/hooks/useResizableSplit';
+import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
-import { useBlockSelection } from '../../hooks/use-block-selection';
-import { useQuestionBlockList } from '../../hooks/use-question-block-list';
-import { type AddItemType, AddQuestionDropdown } from '../add-question-dropdown';
-import { LongTextQuestionBlock } from '../long-text-question-block';
-import { MultipleChoiceQuestionBlock } from '../multiple-choice-question-block';
-import { QuestionGroupBlock } from '../question-group-block';
+import { useBlockSelection } from '../../hooks/useBlockSelection';
+import { useQuestionBlockList } from '../../hooks/useQuestionBlockList';
+import { type AddItemType, AddQuestionDropdown } from '../AddQuestionDropdown';
+import { LongTextQuestionBlock } from '../LongTextQuestionBlock';
+import { MultipleChoiceQuestionBlock } from '../MultipleChoiceQuestionBlock';
+import { QuestionGroupBlock } from '../QuestionGroupBlock';
 
 import {
   flattenEditorItems,

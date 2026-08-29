@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
-import { useProvidePageData } from '@/features/assist/hooks/use-provide-page-data';
-import { buildTestMentionCandidates, formatTestDetail } from '@/features/assist/utils/format-page-data';
-import { sdk } from '@/lib/api-client';
+import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
+import { buildTestMentionCandidates, formatTestDetail } from '@/features/assist/utils/formatPageData';
+import { sdk } from '@/lib/apiClient';
 
 import { fromApiToEditorItems } from './converters';
 import { TestEditorForm } from './TestEditorForm';
