@@ -10,11 +10,7 @@ import { usePageData, type MentionCandidate } from '../context/PageDataContext';
 import { ChipNode } from '../extensions/chipNode';
 import { CommandNode } from '../extensions/commandNode';
 import { MentionNode } from '../extensions/mentionNode';
-import {
-  useAssistAttachmentsStore,
-  type AssistCommand,
-  type ChatAttachment,
-} from '../store/useAssistAttachmentsStore';
+import { useAssistAttachmentsStore, type AssistCommand, type ChatAttachment } from '../store/useAssistAttachmentsStore';
 import { useAssistCommandBridgeStore } from '../store/useAssistCommandBridge';
 
 import type { Node as PmNode } from '@tiptap/pm/model';

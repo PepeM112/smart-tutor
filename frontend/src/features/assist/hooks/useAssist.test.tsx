@@ -12,7 +12,10 @@ import type { ReactNode } from 'react';
 // queue's render loop (useStreamQueue.ts) relies on rAF for pacing, so we
 // polyfill it with setTimeout the same way useStreamQueue.test.ts does.
 beforeEach(() => {
-  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0) as unknown as number);
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+  );
   vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
 });
 
@@ -58,7 +61,7 @@ function mockFetchWithSSE(events: MockSSEEvent[]): void {
       ok: true,
       body: { getReader: () => makeSSEReader(events) },
       json: () => Promise.resolve({}),
-    }),
+    })
   );
 }
 
