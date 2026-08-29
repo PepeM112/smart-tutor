@@ -11,7 +11,7 @@ import { useTranslations } from 'next-intl';
 import { type ReactNode } from 'react';
 
 import { type MobileAction } from '@/components/shared/ActionsMenu';
-import { MobileCard } from '@/components/shared/MobileCard';
+import { type DescriptionField, MobileCard } from '@/components/shared/MobileCard';
 import { SortableHeader, type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
@@ -26,6 +26,8 @@ type Props<T> = {
   renderPreview?: (row: T) => ReactNode;
   expandable?: boolean;
   renderActions?: (row: T) => MobileAction[];
+  /** Paragraph-length field (e.g. a description) shown as its own wrapping block in the expanded mobile card. */
+  renderDescription?: (row: T) => DescriptionField | null | undefined;
   sort?: SortState;
   onSort?: (column: string | null, order: SortDirection) => void;
 };
@@ -38,6 +40,7 @@ export function DataTable<T>({
   renderPreview,
   expandable = true,
   renderActions,
+  renderDescription,
   sort,
   onSort,
 }: Props<T>) {
@@ -84,13 +87,17 @@ export function DataTable<T>({
             expandable={expandable}
             actions={renderActions?.(row.original)}
             onRowClick={onRowClick}
-            cells={row.getVisibleCells().map(cell => ({
-              id: cell.id,
-              headerLabel:
-                (cell.column.columnDef.meta as { label?: string } | undefined)?.label ??
-                (typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : null),
-              content: flexRender(cell.column.columnDef.cell, cell.getContext()),
-            }))}
+            description={renderDescription?.(row.original) ?? undefined}
+            cells={row
+              .getVisibleCells()
+              .filter(cell => !(cell.column.columnDef.meta as { hideOnMobile?: boolean } | undefined)?.hideOnMobile)
+              .map(cell => ({
+                id: cell.id,
+                headerLabel:
+                  (cell.column.columnDef.meta as { label?: string } | undefined)?.label ??
+                  (typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : null),
+                content: flexRender(cell.column.columnDef.cell, cell.getContext()),
+              }))}
           />
         ))}
       </div>

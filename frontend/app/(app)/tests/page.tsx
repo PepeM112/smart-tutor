@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { QuestionType } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
@@ -113,22 +114,24 @@ export default function TestsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-2">
+      <ListPageHeader
+        filters={
           <FilterPopover
             filterConfig={filterConfig}
             filters={filters}
             onFilterChange={setFilter}
             onClear={clearFilters}
           />
-        </div>
-        <div className="flex items-center gap-2 self-end lg:self-auto">
-          <QuickTestDialog compact />
-          <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.TEST_NEW}>{t('tests.create_test')}</Link>
-          </Button>
-        </div>
-      </div>
+        }
+        actions={
+          <>
+            <QuickTestDialog compact />
+            <Button size="lg" icon={Plus} asChild>
+              <Link href={Routes.TEST_NEW}>{t('tests.create_test')}</Link>
+            </Button>
+          </>
+        }
+      />
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
         {isFilteredEmpty ? (

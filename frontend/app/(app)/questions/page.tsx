@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 import { QuestionType } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
@@ -157,21 +158,21 @@ export default function QuestionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-2">
+      <ListPageHeader
+        filters={
           <FilterPopover
             filterConfig={filterConfig}
             filters={filters}
             onFilterChange={setFilter}
             onClear={clearFilters}
           />
-        </div>
-        <div className="flex items-center gap-2 self-end lg:self-auto">
+        }
+        actions={
           <Button size="lg" icon={Plus} asChild>
             <Link href={Routes.QUESTION_NEW}>{t('questions.new_question')}</Link>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 rounded-lg bg-muted px-4 py-2">

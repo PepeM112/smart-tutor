@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Pencil, SquareCheck, WandSparkles } from 'lucide-react';
+import { Pencil, SquareCheck } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
@@ -25,17 +25,13 @@ import {
   DiffQuestionMultipleChoice,
   DiffQuestionSimple,
 } from '@/features/assist/components/diff';
-import { useAssistAttachmentsStore } from '@/features/assist/store/useAssistAttachmentsStore';
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
-import { useAssistPanelStore } from '@/features/assist/store/useAssistPanelStore';
-import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/useMobileBreadcrumbActions';
 import { useResizableSplit } from '@/hooks/useResizableSplit';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
-import { useBlockSelection } from '../../hooks/useBlockSelection';
 import { useQuestionBlockList } from '../../hooks/useQuestionBlockList';
 import { type AddItemType, AddQuestionDropdown } from '../AddQuestionDropdown';
 import { LongTextQuestionBlock } from '../LongTextQuestionBlock';
@@ -78,13 +74,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     setItems,
     addItem: appendItem,
     updateItem,
-    removeItem: removeListItem,
+    removeItem,
   } = useQuestionBlockList<EditorItem>(initialItems);
-  const { selectedIndices, toggleSelection, removeAndReindex, clearSelection } = useBlockSelection();
-  const addAttachment = useAssistAttachmentsStore(s => s.addAttachment);
-  const setActiveCommand = useAssistAttachmentsStore(s => s.setActiveCommand);
-  const setAssistOpen = useAssistPanelStore(s => s.setOpen);
-  const aiAvailable = useAiAvailable();
 
   const pendingTestDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const clearPendingTestDiff = useAssistDiffStore(s => s.clearPendingTestDiff);
@@ -147,38 +138,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
   });
 
-  const handleSendToAssistant = useCallback(() => {
-    const sortedIndices = [...selectedIndices].sort((a, b) => a - b);
-
-    let questionNumber = 0;
-    items.forEach((item, idx) => {
-      if (item.type === 'group') {
-        item.rows.forEach(row => {
-          questionNumber++;
-          if (!sortedIndices.includes(idx)) return;
-          addAttachment({
-            type: 'test_questions',
-            label: t('test_generation.chip_question_label', { index: questionNumber }),
-            content: `[${questionNumber}] ${row.prompt}`,
-            metadata: { testId, questionIds: row.id ? [row.id] : undefined },
-          });
-        });
-      } else {
-        questionNumber++;
-        if (!sortedIndices.includes(idx)) return;
-        addAttachment({
-          type: 'test_questions',
-          label: t('test_generation.chip_question_label', { index: questionNumber }),
-          content: `[${questionNumber}] ${item.prompt}`,
-          metadata: { testId, questionIds: item.id ? [item.id] : undefined },
-        });
-      }
-    });
-    setActiveCommand('/edit-test');
-    setAssistOpen(true);
-    clearSelection();
-  }, [items, selectedIndices, testId, addAttachment, setActiveCommand, setAssistOpen, clearSelection, t]);
-
   const addItem = useCallback(
     (type: AddItemType) => {
       const factories = { group: newQuestionGroup, mc: newMultipleChoice, long: newLongText };
@@ -188,11 +147,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
     [appendItem]
   );
-
-  function removeItem(idx: number) {
-    removeListItem(idx);
-    removeAndReindex(idx);
-  }
 
   useMobileBreadcrumbActions(
     <div className="flex items-center gap-2">
@@ -256,30 +210,11 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           )}
         </div>
 
-        {selectedIndices.size > 0 && (
-          <div className="flex items-center gap-2 mb-3">
-            <Button
-              variant="outline"
-              size="lg"
-              icon={WandSparkles}
-              disabled={!aiAvailable}
-              tooltip={!aiAvailable ? t('settings.ai_not_configured') : undefined}
-              onClick={handleSendToAssistant}
-            >
-              {t('test_generation.ai_edit')}
-            </Button>
-          </div>
-        )}
-
         <div className="space-y-3 mb-4 transition-opacity">
           {items.map((item, i) => {
-            const selected = selectedIndices.has(i);
-            const selectionClick = (e: React.MouseEvent) => toggleSelection(i, e);
             const sharedProps = {
               index: i,
               onRemove: () => removeItem(i),
-              selected,
-              onClick: selectionClick,
               isEditing,
             } as const;
 

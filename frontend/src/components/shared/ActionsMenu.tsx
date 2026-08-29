@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -19,6 +20,8 @@ export type MobileAction = {
   icon: LucideIcon;
   onClick: () => void;
   variant?: 'destructive';
+  /** Custom className merged onto the rendered menu item, e.g. for a semantic color that isn't `destructive`. */
+  className?: string;
   node?: ReactNode;
   confirm?: {
     title: string;
@@ -47,7 +50,7 @@ export function ActionsMenu({ actions }: { actions: MobileAction[] }) {
                   else action.onClick();
                 }}
                 variant={action.variant === 'destructive' ? 'destructive' : 'default'}
-                className="gap-2.5 px-3 py-2.5 text-sm"
+                className={cn('gap-2.5 px-3 py-2.5 text-sm', action.className)}
               >
                 <action.icon className="size-4" />
                 {action.label}

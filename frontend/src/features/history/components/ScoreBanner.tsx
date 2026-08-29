@@ -44,7 +44,7 @@ export function ScoreBanner({ result, testTitle, isOlderVersion }: Props) {
       </div>
       <div
         className={cn(
-          'flex items-center justify-center size-20 rounded-full border-[3px] shrink-0',
+          'flex items-center justify-center size-16 sm:size-20 rounded-full border-[3px] shrink-0',
           getScoreCircleClasses(score)
         )}
       >

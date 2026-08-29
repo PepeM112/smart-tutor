@@ -14,7 +14,7 @@ type Props = {
 
 export function MarkdownRenderer({ content, className }: Props) {
   return (
-    <div className={cn('markdown-body max-w-none text-sm text-foreground', className)}>
+    <div className={cn('markdown-body max-w-none text-(length:--markdown-base-size) text-foreground', className)}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {content}
       </ReactMarkdown>

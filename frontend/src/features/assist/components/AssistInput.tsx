@@ -7,9 +7,11 @@ import { ArrowUp, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePageData, type MentionCandidate } from '../context/PageDataContext';
+import { AtomArrowNav } from '../extensions/atomArrowNav';
 import { ChipNode } from '../extensions/chipNode';
 import { CommandNode } from '../extensions/commandNode';
 import { MentionNode } from '../extensions/mentionNode';
+import { usePageContext } from '../hooks/usePageContext';
 import { useAssistAttachmentsStore, type AssistCommand, type ChatAttachment } from '../store/useAssistAttachmentsStore';
 import { useAssistCommandBridgeStore } from '../store/useAssistCommandBridge';
 
@@ -22,7 +24,15 @@ type SlashCommand = {
   description: string;
 };
 
-const COMMANDS: SlashCommand[] = [{ name: '/clear', description: 'Clear the conversation' }];
+const COMMANDS: SlashCommand[] = [
+  { name: '/clear', description: 'Clear the conversation' },
+  { name: '/refine-notes', description: 'Refine this note with AI' },
+  { name: '/generate-test', description: 'Generate a test from this note' },
+];
+
+// Commands that only make sense while viewing a specific note — hidden from
+// the menu everywhere else (there is no "current note" to act on).
+const NOTE_PAGE_COMMANDS = new Set(['/refine-notes', '/generate-test']);
 
 const ATTACHMENT_HEADINGS: Record<ChatAttachment['type'], string> = {
   note_chunk: '[Selected text from note]',
@@ -32,6 +42,8 @@ const ATTACHMENT_HEADINGS: Record<ChatAttachment['type'], string> = {
 const COMMAND_PLACEHOLDERS: Record<AssistCommand, string> = {
   '/edit-note': 'Describe how the selected text should change...',
   '/edit-test': 'Describe how the selected question(s) should change...',
+  '/refine-notes': 'Describe how the note should change...',
+  '/generate-test': 'Describe the test you want (count, types, difficulty)... or leave blank for defaults',
 };
 
 /* ─── component ─── */
@@ -56,6 +68,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const setActiveCommand = useAssistAttachmentsStore(s => s.setActiveCommand);
 
   const { mentionCandidates } = usePageData();
+  const pageContext = usePageContext();
+  const isNotePage = pageContext.resourceType === 'note';
 
   // Refs so Tiptap callbacks (which capture once) always see current values
   const draftRef = useRef(draft);
@@ -64,6 +78,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const placeholderRef = useRef('Ask anything... (/ for commands)');
   const mentionMenuOpenRef = useRef(false);
   const insertMentionFromMenuRef = useRef<() => void>(() => {});
+  const commandMenuOpenRef = useRef(false);
+  const executeSelectedCommandRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     draftRef.current = draft;
@@ -102,6 +118,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       ChipNode,
       CommandNode,
       MentionNode,
+      AtomArrowNav,
     ],
     editorProps: {
       attributes: {
@@ -113,6 +130,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
           event.stopPropagation();
           if (mentionMenuOpenRef.current) {
             insertMentionFromMenuRef.current();
+          } else if (commandMenuOpenRef.current) {
+            executeSelectedCommandRef.current();
           } else {
             handleSendRef.current();
           }
@@ -214,9 +233,16 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
   /* ─── slash-command menu ─── */
 
+  const availableCommands = useMemo(
+    () => (isNotePage ? COMMANDS : COMMANDS.filter(c => !NOTE_PAGE_COMMANDS.has(c.name))),
+    [isNotePage]
+  );
   const query = draft.startsWith('/') ? draft.slice(1).toLowerCase() : '';
-  const filteredCommands =
-    !activeCommand && draft.startsWith('/') ? COMMANDS.filter(c => c.name.slice(1).startsWith(query)) : [];
+  const filteredCommands = useMemo(
+    () =>
+      !activeCommand && draft.startsWith('/') ? availableCommands.filter(c => c.name.slice(1).startsWith(query)) : [],
+    [activeCommand, draft, availableCommands, query]
+  );
 
   useEffect(() => {
     setActiveIndex(0);
@@ -225,17 +251,40 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const commandMenuOpen = !dismissed && !activeCommand && draft.startsWith('/') && filteredCommands.length > 0;
   const clampedIndex = Math.min(activeIndex, Math.max(0, filteredCommands.length - 1));
 
-  const canSend = (draft.trim().length > 0 || attachments.length > 0) && !isStreaming;
+  // /generate-test has no required free-text input (the tool has sensible
+  // defaults), so it can be sent with an empty draft — everything else still
+  // needs either typed text or an attachment.
+  const canSend =
+    (draft.trim().length > 0 || attachments.length > 0 || activeCommand === '/generate-test') && !isStreaming;
 
   const executeCommand = useCallback(
     (cmd: SlashCommand) => {
-      onCommand(cmd.name);
+      // Clear the typed text first — clearing after setActiveCommand would fire
+      // onTransaction's "command node missing" cleanup before the chip insertion
+      // microtask runs, immediately nulling the command back out.
       editor?.commands.clearContent();
+      if (NOTE_PAGE_COMMANDS.has(cmd.name)) {
+        setActiveCommand(cmd.name as AssistCommand);
+      } else {
+        onCommand(cmd.name);
+      }
       setDraft('');
       setDismissed(false);
     },
-    [onCommand, editor]
+    [onCommand, editor, setActiveCommand]
   );
+
+  useEffect(() => {
+    commandMenuOpenRef.current = commandMenuOpen;
+  }, [commandMenuOpen]);
+
+  useEffect(() => {
+    executeSelectedCommandRef.current = () => {
+      if (filteredCommands.length > 0) {
+        executeCommand(filteredCommands[clampedIndex]);
+      }
+    };
+  }, [filteredCommands, clampedIndex, executeCommand]);
 
   const resetInput = useCallback(() => {
     syncingRef.current = true;
@@ -254,13 +303,13 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
   const handleSend = useCallback(() => {
     const currentDraft = draftRef.current;
+    const store = useAssistAttachmentsStore.getState();
+    const cmd = store.activeCommand;
     const currentCanSend =
-      (currentDraft.trim().length > 0 || useAssistAttachmentsStore.getState().attachments.length > 0) && !isStreaming;
+      (currentDraft.trim().length > 0 || store.attachments.length > 0 || cmd === '/generate-test') && !isStreaming;
     if (!currentCanSend) return;
 
     const instructions = currentDraft.trim();
-    const store = useAssistAttachmentsStore.getState();
-    const cmd = store.activeCommand;
     const atts = store.attachments;
 
     const mentions = editor ? collectMentionContent(editor.state.doc) : [];
@@ -294,11 +343,27 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       return;
     }
 
+    if (cmd === '/refine-notes') {
+      const noteId = pageContext.resourceType === 'note' ? pageContext.resourceId : undefined;
+      const display = buildDisplayText(cmd, atts, instructions);
+      onSend(buildRefineNoteMessage(noteId, instructions), display);
+      resetInput();
+      return;
+    }
+
+    if (cmd === '/generate-test') {
+      const noteId = pageContext.resourceType === 'note' ? pageContext.resourceId : undefined;
+      const display = buildDisplayText(cmd, atts, instructions || 'Use defaults');
+      onSend(buildGenerateTestMessage(noteId, instructions), display);
+      resetInput();
+      return;
+    }
+
     const messageText = prependMentions(mentions, buildMessageWithAttachments(atts, instructions));
     const displayText = mentions.length > 0 && editor ? buildDisplayFromDoc(editor.state.doc) : undefined;
     onSend(messageText, displayText);
     resetInput();
-  }, [isStreaming, onSend, resetInput, editor]);
+  }, [isStreaming, onSend, resetInput, editor, pageContext]);
 
   useEffect(() => {
     handleSendRef.current = handleSend;
@@ -472,7 +537,10 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       >
         <div className="flex items-end gap-1">
           <div
-            className="min-w-0 flex-1 overflow-y-auto text-[13px] leading-[1.8]"
+            // 16px on mobile matches globals.css's iOS-zoom-prevention rule (any
+            // font-size under 16px on a focused contenteditable/input triggers
+            // Safari's auto-zoom) — shrinking below that here would reintroduce it.
+            className="min-w-0 flex-1 overflow-y-auto text-[13px] leading-[1.8] max-md:text-base"
             style={{ maxHeight: 120 }}
             onKeyDown={handleEditorKeyDown}
           >
@@ -521,6 +589,19 @@ function buildEditTestMessage(attachments: ChatAttachment[], instructions: strin
     `Use the refine_questions tool to edit the following question(s) in test ${testId ?? '(unknown)'}. ` +
     `${idInstruction} Apply these instructions to only those questions:\n\n${blocks}\n\nInstructions: ${instructions}`
   );
+}
+
+function buildRefineNoteMessage(noteId: string | null | undefined, instructions: string): string {
+  return (
+    `Use the refine_note tool to refine note ${noteId ?? '(unknown)'}. ` + `Apply these instructions: ${instructions}`
+  );
+}
+
+function buildGenerateTestMessage(noteId: string | null | undefined, instructions: string): string {
+  const guidance = instructions
+    ? ` Use these preferences where applicable: ${instructions}`
+    : ' Use sensible defaults for question count, types, and difficulty.';
+  return `Use the create_test tool to generate a test from note ${noteId ?? '(unknown)'}.${guidance}`;
 }
 
 function buildDisplayText(command: AssistCommand, attachments: ChatAttachment[], instructions: string): string {

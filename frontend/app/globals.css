@@ -91,6 +91,17 @@
   }
 }
 
+/* iOS Safari auto-zooms the page on focus when a form field's font-size is
+   under 16px. Force 16px on mobile only so text entry never triggers it. */
+@media (width <= 767px) {
+  input,
+  textarea,
+  select,
+  [contenteditable='true'] {
+    font-size: 16px;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Theme definitions — Light
    ═══════════════════════════════════════════════════════════════ */
@@ -535,11 +546,20 @@
    Markdown rendering styles
    ═══════════════════════════════════════════════════════════════ */
 .markdown-body {
-  text-align: justify;
+  /* Single reference size for the whole type scale below — every element
+     size is an `em` multiple of this, so overriding it (e.g. on mobile)
+     rescales the entire renderer proportionally. */
+  --markdown-base-size: 14px;
+}
+
+@media (width <= 767px) {
+  .markdown-body {
+    --markdown-base-size: 13px;
+  }
 }
 
 .markdown-body h1 {
-  font-size: 1.5rem;
+  font-size: 1.714em; /* 24px @ 14px base */
   font-weight: 700;
   margin-top: 1.5rem;
   margin-bottom: 0.75rem;
@@ -547,7 +567,7 @@
 }
 
 .markdown-body h2 {
-  font-size: 1.25rem;
+  font-size: 1.429em; /* 20px @ 14px base */
   font-weight: 600;
   margin-top: 1.25rem;
   margin-bottom: 0.5rem;
@@ -555,7 +575,7 @@
 }
 
 .markdown-body h3 {
-  font-size: 1.1rem;
+  font-size: 1.257em; /* ~17.6px @ 14px base */
   font-weight: 600;
   margin-top: 1rem;
   margin-bottom: 0.5rem;
@@ -637,7 +657,7 @@
   border-radius: 0.5rem;
   overflow: hidden;
   margin-bottom: 0.75rem;
-  font-size: 0.875rem;
+  font-size: 1em; /* 14px @ 14px base */
 }
 
 .markdown-body th,
