@@ -119,7 +119,8 @@
     "noteRefinement": "Note Editing (Refine)",
     "noteChunkEdit": "Note Editing (Chunk Edit)",
     "testGeneration": "Test Generation",
-    "assist": "Chat"
+    "assist": "Chat",
+    "embedding": "Embedding"
   },
   "review": {
     "title": "Review Now",
@@ -297,7 +298,8 @@
     "start_writing": "Start writing in Markdown…",
     "add_tags": "Add tags…",
     "remove_tag": "Remove tag {tag}",
-    "filter_search": "Search",
+    "filter_title": "Title",
+    "filter_content": "Content",
     "filter_source": "Source",
     "no_results": "No notes match your filters.",
     "clear_filters": "Clear filters"

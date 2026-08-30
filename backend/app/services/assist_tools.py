@@ -81,16 +81,39 @@ class ToolHandler(Protocol):
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "list_notes",
-        "description": "List the user's study notes. Returns titles and IDs.",
+        "description": "List the user's study notes. Returns titles and IDs. Use for browsing/listing notes.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "search": {
+                "title": {
                     "type": "string",
                     "description": "Optional search term to filter notes by title.",
                 },
             },
             "required": [],
+        },
+    },
+    {
+        "name": "search_user_notes",
+        "description": (
+            "Semantically search the user's study notes using AI embeddings. "
+            "Returns the most relevant text chunks from notes that match the query meaning, "
+            "not just keyword matches. Use this when the user asks about a topic and you want "
+            "to find relevant information from their notes."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural language query describing what to search for.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return (1-10). Defaults to 5.",
+                },
+            },
+            "required": ["query"],
         },
     },
     {
@@ -353,6 +376,7 @@ def _build_handlers() -> dict[str, ToolHandler]:
 
     return {
         "list_notes": svc.list_notes,
+        "search_user_notes": svc.search_user_notes,
         "list_tests": svc.list_tests,
         "get_note_content": svc.get_note_content,
         "get_test_details": svc.get_test_details,

@@ -8,22 +8,23 @@ import logging
 import os
 import sys
 
+from seed_data.clean import clean_user_data
+from seed_data.notes import seed_notes
+from seed_data.questions import seed_bank_questions
+from seed_data.test_results import seed_history_result, seed_spanish_result
+from seed_data.test_versioning import seed_versioned_edit
+from seed_data.tests import seed_tests
+from seed_data.token_usage import seed_token_usage
+from sqlalchemy import text
+
+from app.database import SessionLocal
+from app.models.user import User  # noqa: F401 — FK resolution for all ORM models
+
 logging.disable(logging.INFO)
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, script_dir)
 sys.path.insert(0, os.path.dirname(script_dir))
 
-from seed_data.clean import clean_user_data  # noqa: E402
-from seed_data.notes import seed_notes  # noqa: E402
-from seed_data.questions import seed_bank_questions  # noqa: E402
-from seed_data.test_results import seed_history_result, seed_spanish_result  # noqa: E402
-from seed_data.test_versioning import seed_versioned_edit  # noqa: E402
-from seed_data.tests import seed_tests  # noqa: E402
-from seed_data.token_usage import seed_token_usage  # noqa: E402
-from sqlalchemy import text  # noqa: E402
-
-from app.database import SessionLocal  # noqa: E402
-from app.models.user import User  # noqa: E402, F401 — FK resolution for all ORM models
 
 email = sys.argv[1]
 db = SessionLocal()

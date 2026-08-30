@@ -42,10 +42,16 @@ export default function NotesPage() {
   const filterConfig: FilterItem[] = useMemo(
     () => [
       {
-        label: t('notes.filter_search'),
-        key: 'search',
+        label: t('notes.filter_title'),
+        key: 'title',
         type: FilterType.SINGLE,
-        query: 'search',
+        query: 'title',
+      },
+      {
+        label: t('notes.filter_content'),
+        key: 'content',
+        type: FilterType.SINGLE,
+        query: 'content',
       },
       {
         label: t('notes.filter_source'),
@@ -73,7 +79,8 @@ export default function NotesPage() {
     setPage(1);
   }, [rawClearFilters]);
 
-  const search = getValue<string>('search');
+  const titleFilter = getValue<string>('title');
+  const contentFilter = getValue<string>('content');
   const source = getValue<string>('source');
 
   const {
@@ -82,11 +89,12 @@ export default function NotesPage() {
     isFetching,
     isError,
   } = useQuery({
-    queryKey: ['notes', { search, source, page, sortBy, sortOrder }],
+    queryKey: ['notes', { title: titleFilter, content: contentFilter, source, page, sortBy, sortOrder }],
     queryFn: () =>
       sdk.notesList({
         query: {
-          search: search || undefined,
+          title: titleFilter || undefined,
+          content: contentFilter || undefined,
           source: source ? [Number(source)] : undefined,
           page,
           per_page: PER_PAGE,

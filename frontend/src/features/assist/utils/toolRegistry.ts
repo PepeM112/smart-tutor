@@ -64,7 +64,6 @@ export function isWriteTool(name: string): boolean {
   return TOOL_REGISTRY[name]?.isWrite ?? false;
 }
 
-
 export function getQueryKeysToInvalidate(name: string): string[][] {
   return TOOL_REGISTRY[name]?.queryKeysToInvalidate ?? [];
 }

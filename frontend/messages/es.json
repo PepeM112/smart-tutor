@@ -119,7 +119,8 @@
     "noteRefinement": "Edición de notas (Refinar)",
     "noteChunkEdit": "Edición de notas (Editar fragmento)",
     "testGeneration": "Generación de tests",
-    "assist": "Chat"
+    "assist": "Chat",
+    "embedding": "Embedding"
   },
   "review": {
     "title": "Repasar Ahora",
@@ -297,7 +298,8 @@
     "start_writing": "Empieza a escribir en Markdown…",
     "add_tags": "Añadir etiquetas…",
     "remove_tag": "Eliminar etiqueta {tag}",
-    "filter_search": "Buscar",
+    "filter_title": "Título",
+    "filter_content": "Contenido",
     "filter_source": "Origen",
     "no_results": "Ninguna nota coincide con tus filtros.",
     "clear_filters": "Limpiar filtros"

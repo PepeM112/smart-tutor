@@ -35,7 +35,11 @@ export enum AiFeature {
     /**
      * ASSIST
      */
-    ASSIST = 7
+    ASSIST = 7,
+    /**
+     * EMBEDDING
+     */
+    EMBEDDING = 8
 }
 
 /**
@@ -516,6 +520,10 @@ export type NoteRead = {
      */
     userId: string;
     source: NoteSource;
+    /**
+     * Isindexed
+     */
+    isIndexed: boolean;
     /**
      * Createdat
      */
@@ -2738,9 +2746,13 @@ export type NotesListData = {
     path?: never;
     query?: {
         /**
-         * Search
+         * Title
          */
-        search?: string | null;
+        title?: string | null;
+        /**
+         * Content
+         */
+        content?: string | null;
         /**
          * Source
          */

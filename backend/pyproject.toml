@@ -20,6 +20,8 @@ openai = ">=1.13.0"
 anthropic = ">=0.39.0"
 python-multipart = ">=0.0.9"  # Needed for OAuth2
 python-ulid = ">=2.7.0"
+pgvector = ">=0.3.0"
+tiktoken = ">=0.7.0"
 
 [tool.poetry.group.dev.dependencies]
 pyright = "*"
@@ -58,7 +60,7 @@ ignore = [
 "tests/**/*.py" = [
     "ANN",   # no need to annotate test functions
 ]
-"scripts/**/*.py" = [
+"**/scripts/**/*.py" = [
     "T20",   # print() is fine in CLI seed scripts
     "ANN",   # no need to annotate seed scripts
     "E501",  # long lines in seed data (rubric text) are content, not code

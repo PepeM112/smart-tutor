@@ -7,13 +7,13 @@ import logging
 import os
 import sys
 
+from app.database import SessionLocal
+from app.services.pricing_service import fetch_and_update_prices
+
 logging.disable(logging.INFO)
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, script_dir)
 sys.path.insert(0, os.path.dirname(script_dir))
-
-from app.database import SessionLocal  # noqa: E402
-from app.services.pricing_service import fetch_and_update_prices  # noqa: E402
 
 db = SessionLocal()
 
