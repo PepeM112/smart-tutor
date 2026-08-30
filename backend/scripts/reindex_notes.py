@@ -11,17 +11,18 @@ import logging
 import os
 import sys
 
+from sqlalchemy import select
+
+from app.database import SessionLocal
+from app.models.note import Note
+from app.services.note_service import schedule_indexing
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, script_dir)
 sys.path.insert(0, os.path.dirname(script_dir))
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 
-from sqlalchemy import select
-
-from app.database import SessionLocal
-from app.models.note import Note
-from app.services.note_service import schedule_indexing
 
 db = SessionLocal()
 
