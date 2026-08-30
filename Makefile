@@ -86,15 +86,15 @@ migrate-history: ## Show migration history
 
 lint: ## Check linting + formatting for the whole project (no changes)
 	@echo "=== Backend: ruff ==="
-	$(DOCKER_COMPOSE) exec backend ruff check app/
-	$(DOCKER_COMPOSE) exec backend ruff format --check app/
+	$(DOCKER_COMPOSE) exec backend ruff check app/ scripts/
+	$(DOCKER_COMPOSE) exec backend ruff format --check app/ scripts/
 	@echo "\n=== Frontend: eslint + prettier ==="
 	cd frontend && npm run format:check
 
 format: ## Auto-fix linting + formatting for the whole project
 	@echo "=== Backend: ruff ==="
-	$(DOCKER_COMPOSE) exec backend ruff check --fix app/
-	$(DOCKER_COMPOSE) exec backend ruff format app/
+	$(DOCKER_COMPOSE) exec backend ruff check --fix app/ scripts/
+	$(DOCKER_COMPOSE) exec backend ruff format app/ scripts/
 	@echo "\n=== Frontend: eslint + prettier ==="
 	cd frontend && npm run format
 
@@ -111,8 +111,8 @@ format-branch: ## Auto-fix lint + format only files changed on current branch (v
 
 format-check: ## Check lint + format for the whole project (no changes)
 	@echo "=== Backend: ruff ==="
-	$(DOCKER_COMPOSE) exec backend ruff check app/
-	$(DOCKER_COMPOSE) exec backend ruff format --check app/
+	$(DOCKER_COMPOSE) exec backend ruff check app/ scripts/
+	$(DOCKER_COMPOSE) exec backend ruff format --check app/ scripts/
 	@echo "\n=== Frontend: eslint + prettier ==="
 	cd frontend && npm run format:check
 

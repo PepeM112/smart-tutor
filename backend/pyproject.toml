@@ -60,7 +60,7 @@ ignore = [
 "tests/**/*.py" = [
     "ANN",   # no need to annotate test functions
 ]
-"scripts/**/*.py" = [
+"**/scripts/**/*.py" = [
     "T20",   # print() is fine in CLI seed scripts
     "ANN",   # no need to annotate seed scripts
     "E501",  # long lines in seed data (rubric text) are content, not code
