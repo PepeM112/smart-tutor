@@ -31,7 +31,7 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
     label: 'Creating note',
     icon: FilePlus,
     isWrite: true,
-    requiresConfirm: true,
+    requiresConfirm: false,
     queryKeysToInvalidate: [['notes']],
   },
   refine_note: { label: 'Refining note', icon: Pencil, isWrite: true, requiresConfirm: false },
@@ -39,7 +39,7 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
     label: 'Creating test',
     icon: ClipboardList,
     isWrite: true,
-    requiresConfirm: true,
+    requiresConfirm: false,
     queryKeysToInvalidate: [['tests']],
   },
   edit_test: {
