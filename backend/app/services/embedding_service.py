@@ -33,6 +33,8 @@ _encoding = tiktoken.get_encoding("cl100k_base")
 
 
 def _get_client() -> OpenAI:
+    if not settings.system_openai_api_key:
+        raise ValueError("SYSTEM_OPENAI_API_KEY is not set — embedding service unavailable")
     return OpenAI(api_key=settings.system_openai_api_key)
 
 
@@ -111,6 +113,10 @@ def index_note(db: Session, *, note_id: str) -> None:
 
     try:
         embeddings, total_tokens = _generate_embeddings([c.text for c in chunks])
+    except ValueError:
+        logger.warning("index_note: embedding service unavailable, skipping note %s", note_id)
+        db.rollback()
+        return
     except Exception:
         logger.exception("index_note: embedding generation failed for note %s", note_id)
         db.rollback()

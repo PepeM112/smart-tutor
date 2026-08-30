@@ -1,13 +1,24 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
-import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  type TooltipContentProps,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { AiFeature, AiProvider, type TokenUsageDailySummary } from '@/client';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { AI_FEATURE_LABEL_KEYS } from '@/lib/aiFeature';
-import { formatTokens } from '@/lib/format';
+import { formatChartDate, formatCost, formatTokens } from '@/lib/format';
 
 import type { UsageGroupBy as GroupBy } from '../types';
 
@@ -28,6 +39,7 @@ const FEATURE_COLORS: Record<number, string> = {
   [AiFeature.NOTE_REFINEMENT]: 'var(--chart-feature-note-refinement)',
   [AiFeature.TEST_GENERATION]: 'var(--chart-feature-test-generation)',
   [AiFeature.ASSIST]: 'var(--chart-feature-assist)',
+  [AiFeature.EMBEDDING]: 'var(--chart-feature-embedding)',
 };
 
 const BOTH_COLORS: Record<string, string> = {
@@ -37,12 +49,14 @@ const BOTH_COLORS: Record<string, string> = {
   [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_REFINEMENT}`]: 'var(--chart-both-anthropic-note-refinement)',
   [`${AiProvider.ANTHROPIC}_${AiFeature.TEST_GENERATION}`]: 'var(--chart-both-anthropic-test-generation)',
   [`${AiProvider.ANTHROPIC}_${AiFeature.ASSIST}`]: 'var(--chart-both-anthropic-assist)',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.EMBEDDING}`]: 'var(--chart-both-anthropic-embedding)',
   [`${AiProvider.OPENAI}_${AiFeature.GRADING}`]: 'var(--chart-both-openai-grading)',
   [`${AiProvider.OPENAI}_${AiFeature.CHALLENGE}`]: 'var(--chart-both-openai-challenge)',
   [`${AiProvider.OPENAI}_${AiFeature.NOTE_GENERATION}`]: 'var(--chart-both-openai-note-generation)',
   [`${AiProvider.OPENAI}_${AiFeature.NOTE_REFINEMENT}`]: 'var(--chart-both-openai-note-refinement)',
   [`${AiProvider.OPENAI}_${AiFeature.TEST_GENERATION}`]: 'var(--chart-both-openai-test-generation)',
   [`${AiProvider.OPENAI}_${AiFeature.ASSIST}`]: 'var(--chart-both-openai-assist)',
+  [`${AiProvider.OPENAI}_${AiFeature.EMBEDDING}`]: 'var(--chart-both-openai-embedding)',
 };
 
 type SeriesInfo = { key: string; label: string; color: string };
@@ -54,6 +68,7 @@ const ALL_FEATURES = [
   AiFeature.NOTE_REFINEMENT,
   AiFeature.TEST_GENERATION,
   AiFeature.ASSIST,
+  AiFeature.EMBEDDING,
 ];
 
 const ALL_PROVIDERS = [AiProvider.ANTHROPIC, AiProvider.OPENAI];
@@ -91,18 +106,22 @@ function buildChartData(daily: TokenUsageDailySummary[], groupBy: GroupBy): Reco
   daily.forEach(entry => {
     const existing = byDate.get(entry.date) ?? {};
     const tokens = entry.inputTokens + entry.outputTokens;
+    const cost = entry.estimatedCost ? parseFloat(entry.estimatedCost) : 0;
 
+    let key: string | undefined;
     if (groupBy === 'provider' && entry.provider != null) {
-      const key = `p_${entry.provider}`;
-      existing[key] = (existing[key] ?? 0) + tokens;
+      key = `p_${entry.provider}`;
     } else if (groupBy === 'feature' && entry.feature != null) {
       const featureKey = entry.feature === AiFeature.NOTE_CHUNK_EDIT ? AiFeature.NOTE_REFINEMENT : entry.feature;
-      const key = `f_${featureKey}`;
-      existing[key] = (existing[key] ?? 0) + tokens;
+      key = `f_${featureKey}`;
     } else if (groupBy === 'both' && entry.provider != null && entry.feature != null) {
       const featureKey = entry.feature === AiFeature.NOTE_CHUNK_EDIT ? AiFeature.NOTE_REFINEMENT : entry.feature;
-      const key = `pf_${entry.provider}_${featureKey}`;
+      key = `pf_${entry.provider}_${featureKey}`;
+    }
+
+    if (key) {
       existing[key] = (existing[key] ?? 0) + tokens;
+      existing[`${key}_cost`] = (existing[`${key}_cost`] ?? 0) + cost;
     }
 
     byDate.set(entry.date, existing);
@@ -112,16 +131,12 @@ function buildChartData(daily: TokenUsageDailySummary[], groupBy: GroupBy): Reco
 
   let cumulative = 0;
   return sorted.map(([date, values]) => {
-    const total = Object.values(values).reduce((sum, v) => sum + v, 0);
+    const total = Object.entries(values)
+      .filter(([k]) => !k.endsWith('_cost'))
+      .reduce((sum, [, v]) => sum + v, 0);
     cumulative += total;
     return { date, ...values, cumulative };
   });
-}
-
-function formatDate(dateStr: string): string {
-  if (dateStr.includes(':')) return dateStr;
-  const [, month, day] = dateStr.split('-');
-  return `${month}/${day}`;
 }
 
 type Props = {
@@ -147,10 +162,16 @@ export function UsageChart({ daily, groupBy }: Props) {
     });
   }, [series]);
 
-  // In "both" mode, only show series that have data to avoid a cluttered legend
   const visibleSeries = useMemo(() => {
-    if (groupBy !== 'both') return uniqueSeries;
-    const keysWithData = new Set(data.flatMap(row => Object.keys(row).filter(k => k.startsWith('pf_'))));
+    const prefixes: Record<GroupBy, string> = { provider: 'p_', feature: 'f_', both: 'pf_' };
+    const prefix = prefixes[groupBy];
+    const keysWithData = new Set(
+      data.flatMap(row =>
+        Object.entries(row)
+          .filter(([k, v]) => k.startsWith(prefix) && !k.endsWith('_cost') && (v as number) > 0)
+          .map(([k]) => k)
+      )
+    );
     return uniqueSeries.filter(s => keysWithData.has(s.key));
   }, [uniqueSeries, data, groupBy]);
 
@@ -163,11 +184,59 @@ export function UsageChart({ daily, groupBy }: Props) {
     });
   };
 
+  const seriesLabelMap = useMemo(() => Object.fromEntries(visibleSeries.map(s => [s.key, s.label])), [visibleSeries]);
+
+  const renderTooltip = useCallback(
+    (props: TooltipContentProps) => {
+      if (!props.active || !props.payload?.length) return null;
+      const sorted = [...props.payload]
+        .filter(entry => !String(entry.dataKey).endsWith('_cost'))
+        .sort((a, b) => {
+          const ka = String(a.dataKey);
+          const kb = String(b.dataKey);
+          if (ka === 'cumulative') return 1;
+          if (kb === 'cumulative') return -1;
+          const la = seriesLabelMap[ka] ?? ka;
+          const lb = seriesLabelMap[kb] ?? kb;
+          return la.localeCompare(lb);
+        });
+      const cumulativeIdx = sorted.findIndex(e => String(e.dataKey) === 'cumulative');
+      return (
+        <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs ring-1 ring-foreground/10">
+          <p className="mb-1.5 font-medium">{formatChartDate(String(props.label))}</p>
+          {sorted.map((entry, i) => {
+            const key = String(entry.dataKey);
+            const isCumulative = key === 'cumulative';
+            const seriesLabel = isCumulative ? t('dashboard.cumulative') : (seriesLabelMap[key] ?? key);
+            const dataPoint = entry.payload as Record<string, number> | undefined;
+            const costValue = isCumulative ? undefined : dataPoint?.[`${key}_cost`];
+            return (
+              <div key={key}>
+                {cumulativeIdx > 0 && i === cumulativeIdx && <div className="my-1 border-t border-border/50" />}
+                <div className="flex items-center justify-between gap-6 py-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: entry.color }} />
+                    <span className="text-muted-foreground">{seriesLabel}</span>
+                  </div>
+                  <div className="flex items-center gap-2 tabular-nums">
+                    <span className="font-medium">{formatTokens(Number(entry.value))}</span>
+                    {costValue != null && costValue > 0 && (
+                      <span className="text-muted-foreground">({formatCost(costValue)})</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    },
+    [seriesLabelMap, t]
+  );
+
   if (data.length === 0) {
     return <p className="py-12 text-center text-sm text-muted-foreground">{t('dashboard.no_usage_data')}</p>;
   }
-
-  const seriesLabelMap = Object.fromEntries(visibleSeries.map(s => [s.key, s.label]));
 
   return (
     <ResponsiveContainer width="100%" height={isMobile ? 280 : 400}>
@@ -175,7 +244,7 @@ export function UsageChart({ daily, groupBy }: Props) {
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis
           dataKey="date"
-          tickFormatter={formatDate}
+          tickFormatter={formatChartDate}
           className="text-xs"
           tick={{ fontSize: isMobile ? 10 : 11 }}
           interval={isMobile ? 'preserveStartEnd' : undefined}
@@ -196,20 +265,7 @@ export function UsageChart({ daily, groupBy }: Props) {
             tick={{ fontSize: 11 }}
           />
         )}
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'var(--color-card)',
-            borderColor: 'var(--color-border)',
-            borderRadius: 8,
-            fontSize: 12,
-          }}
-          labelFormatter={label => formatDate(`${label as string | number}`)}
-          formatter={(value, name) => {
-            const nameStr = `${name as string}`;
-            const label = nameStr === 'cumulative' ? t('dashboard.cumulative') : (seriesLabelMap[nameStr] ?? nameStr);
-            return [formatTokens(Number(value)), label];
-          }}
-        />
+        <Tooltip content={renderTooltip} />
         <Legend
           onClick={e => {
             if (typeof e.dataKey === 'string') toggleSeries(e.dataKey);
