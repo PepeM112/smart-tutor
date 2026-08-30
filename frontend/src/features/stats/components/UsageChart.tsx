@@ -18,7 +18,7 @@ import {
 import { AiFeature, AiProvider, type TokenUsageDailySummary } from '@/client';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { AI_FEATURE_LABEL_KEYS } from '@/lib/aiFeature';
-import { formatCost, formatTokens } from '@/lib/format';
+import { formatChartDate, formatCost, formatTokens } from '@/lib/format';
 
 import type { UsageGroupBy as GroupBy } from '../types';
 
@@ -139,12 +139,6 @@ function buildChartData(daily: TokenUsageDailySummary[], groupBy: GroupBy): Reco
   });
 }
 
-function formatDate(dateStr: string): string {
-  if (dateStr.includes(':')) return dateStr;
-  const [, month, day] = dateStr.split('-');
-  return `${month}/${day}`;
-}
-
 type Props = {
   daily: TokenUsageDailySummary[];
   groupBy: GroupBy;
@@ -209,7 +203,7 @@ export function UsageChart({ daily, groupBy }: Props) {
       const cumulativeIdx = sorted.findIndex(e => String(e.dataKey) === 'cumulative');
       return (
         <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs ring-1 ring-foreground/10">
-          <p className="mb-1.5 font-medium">{formatDate(String(props.label))}</p>
+          <p className="mb-1.5 font-medium">{formatChartDate(String(props.label))}</p>
           {sorted.map((entry, i) => {
             const key = String(entry.dataKey);
             const isCumulative = key === 'cumulative';
@@ -227,7 +221,7 @@ export function UsageChart({ daily, groupBy }: Props) {
                   <div className="flex items-center gap-2 tabular-nums">
                     <span className="font-medium">{formatTokens(Number(entry.value))}</span>
                     {costValue != null && costValue > 0 && (
-                      <span className="text-muted-foreground">({formatCost(String(costValue))})</span>
+                      <span className="text-muted-foreground">({formatCost(costValue)})</span>
                     )}
                   </div>
                 </div>
@@ -250,7 +244,7 @@ export function UsageChart({ daily, groupBy }: Props) {
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis
           dataKey="date"
-          tickFormatter={formatDate}
+          tickFormatter={formatChartDate}
           className="text-xs"
           tick={{ fontSize: isMobile ? 10 : 11 }}
           interval={isMobile ? 'preserveStartEnd' : undefined}

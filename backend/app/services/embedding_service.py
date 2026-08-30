@@ -113,6 +113,10 @@ def index_note(db: Session, *, note_id: str) -> None:
 
     try:
         embeddings, total_tokens = _generate_embeddings([c.text for c in chunks])
+    except ValueError:
+        logger.warning("index_note: embedding service unavailable, skipping note %s", note_id)
+        db.rollback()
+        return
     except Exception:
         logger.exception("index_note: embedding generation failed for note %s", note_id)
         db.rollback()
