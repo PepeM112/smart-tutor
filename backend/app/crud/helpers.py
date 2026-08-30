@@ -6,6 +6,16 @@ from sqlalchemy.orm import InstrumentedAttribute
 _TextColumn: TypeAlias = InstrumentedAttribute[str] | InstrumentedAttribute[str | None]
 
 
+def _escape_ilike(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def ilike_search(column: _TextColumn, *, value: str) -> ColumnElement[bool]:
+    """Single-column ILIKE containment search with escaped wildcards."""
+    escaped = _escape_ilike(value)
+    return column.ilike(f"%{escaped}%", escape="\\")
+
+
 def token_search(*columns: _TextColumn, search: str) -> ColumnElement[bool]:
     """AND-match every whitespace-delimited token against any of the given columns.
 
@@ -16,5 +26,5 @@ def token_search(*columns: _TextColumn, search: str) -> ColumnElement[bool]:
     tokens = search.split()
     if not tokens:
         return true()
-    escaped = [t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") for t in tokens]
+    escaped = [_escape_ilike(t) for t in tokens]
     return and_(*(or_(*(col.ilike(f"%{e}%", escape="\\") for col in columns)) for e in escaped))

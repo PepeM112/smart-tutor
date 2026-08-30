@@ -23,8 +23,6 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
 
-    op.execute("TRUNCATE TABLE note CASCADE")
-
     op.add_column("note", sa.Column("is_indexed", sa.Boolean(), server_default="false", nullable=False))
 
     op.execute("CREATE INDEX idx_notes_title_trgm ON note USING gin (title gin_trgm_ops)")
