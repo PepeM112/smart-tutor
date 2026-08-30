@@ -2,7 +2,8 @@
 
 Read tools route through service-layer ownership helpers (``get_owned_or_404``)
 instead of duplicating inline checks.  Write tools delegate to existing
-``*_service`` modules — they are only called after the user has confirmed.
+``*_service`` modules. Only ``edit_test`` requires user confirmation;
+other write tools (create, refine) execute directly.
 """
 
 from __future__ import annotations

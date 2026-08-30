@@ -319,7 +319,7 @@ def _stream_assist_inner(
             if tc.name in WRITE_TOOLS:
                 write_calls.append(tc)
             else:
-                logger.info("Auto-executing read tool: %s", tc.name)
+                logger.info("Auto-executing tool: %s", tc.name)
                 result = execute_tool(
                     db,
                     current_user=current_user,
