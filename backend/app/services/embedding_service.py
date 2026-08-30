@@ -183,9 +183,7 @@ def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> li
     )
     db.flush()
 
-    rows = note_chunk_crud.search_by_similarity(
-        db, user_id=user_id, query_embedding=query_embedding, limit=limit
-    )
+    rows = note_chunk_crud.search_by_similarity(db, user_id=user_id, query_embedding=query_embedding, limit=limit)
     return [
         SearchResult(
             note_id=row.note_id,
