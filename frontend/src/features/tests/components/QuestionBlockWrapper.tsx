@@ -13,7 +13,7 @@ export function QuestionBlockWrapper({ mode, selected, onClick, className, child
     <div
       onClick={onClick}
       className={cn(
-        'cursor-pointer rounded-xl border border-border bg-card text-sm shadow-card transition-colors sm:text-base',
+        'rounded-xl border border-border bg-card text-sm shadow-card transition-colors sm:text-base',
         mode === 'view' ? 'overflow-hidden' : 'p-4',
         selected && 'bg-muted/60',
         className

@@ -146,7 +146,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, index, selecte
               placeholder={t('test_editor.criterion_placeholder')}
               value={criterion.point}
               onChange={e => updateCriterion(ci, { point: e.target.value })}
-              className="order-last basis-full sm:order-none sm:basis-auto sm:flex-1"
+              className="order-last basis-full sm:order-0 sm:basis-auto sm:flex-1"
             />
             <Input
               type="number"
