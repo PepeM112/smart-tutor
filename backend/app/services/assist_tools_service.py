@@ -67,13 +67,45 @@ _ALLOWED_ROUTE_PREFIXES = (
 
 
 def list_notes(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
-    search = str(arguments.get("search", "")) or None
-    notes, total = note_crud.list_by_user(db, user_id=current_user.id, search=search, per_page=_TOOL_LIST_LIMIT)
+    title = str(arguments.get("title", "")) or None
+    notes, total = note_crud.list_by_user(db, user_id=current_user.id, title=title, per_page=_TOOL_LIST_LIMIT)
     if not notes:
         return ToolResult(output="No notes found.")
     lines = [f"Found {total} note(s):"]
     for n in notes:
         lines.append(f"- **{n.title}** (ID: `{n.id}`)")
+    return ToolResult(output="\n".join(lines))
+
+
+def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
+    from app.services import embedding_service
+
+    query = str(arguments.get("query", ""))
+    if not query.strip():
+        return ToolResult(output="Error: query is required.")
+
+    raw_limit = arguments.get("limit", 5)
+    try:
+        limit = max(1, min(10, int(raw_limit) if isinstance(raw_limit, (int, str)) else 5))
+    except (TypeError, ValueError):
+        limit = 5
+
+    try:
+        results = embedding_service.search_notes(db, user_id=current_user.id, query=query, limit=limit)
+    except ValueError as exc:
+        logger.warning("search_user_notes: embedding service unavailable: %s", exc)
+        return ToolResult(output="Error: Semantic search is not available. The embedding service is not configured.")
+    except Exception:
+        logger.exception("search_user_notes: search failed")
+        return ToolResult(output="Error: Search failed unexpectedly.")
+
+    if not results:
+        return ToolResult(output="No matching notes found.")
+
+    lines = [f"Found {len(results)} relevant chunk(s):"]
+    for r in results:
+        lines.append(f"\n**{r.note_title}** (ID: `{r.note_id}`, similarity: {r.similarity:.3f})")
+        lines.append(r.chunk_content)
     return ToolResult(output="\n".join(lines))
 
 

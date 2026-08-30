@@ -9,7 +9,8 @@ export const AIFeatureSchema = {
         4,
         5,
         6,
-        7
+        7,
+        8
     ],
     title: 'AIFeature',
     'x-enum-varnames': [
@@ -19,7 +20,8 @@ export const AIFeatureSchema = {
         'NOTE_REFINEMENT',
         'NOTE_CHUNK_EDIT',
         'TEST_GENERATION',
-        'ASSIST'
+        'ASSIST',
+        'EMBEDDING'
     ]
 } as const;
 
@@ -837,6 +839,10 @@ export const NoteReadSchema = {
         source: {
             $ref: '#/components/schemas/NoteSource'
         },
+        isIndexed: {
+            type: 'boolean',
+            title: 'Isindexed'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -854,6 +860,7 @@ export const NoteReadSchema = {
         'id',
         'userId',
         'source',
+        'isIndexed',
         'createdAt',
         'updatedAt'
     ],

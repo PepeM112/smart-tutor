@@ -11,6 +11,7 @@ export const AI_FEATURE_LABEL_KEYS: Record<AiFeature, string> = {
   [AiFeature.NOTE_CHUNK_EDIT]: 'aiFeatures.noteEditing',
   [AiFeature.TEST_GENERATION]: 'aiFeatures.testGeneration',
   [AiFeature.ASSIST]: 'aiFeatures.assist',
+  [AiFeature.EMBEDDING]: 'aiFeatures.embedding',
 };
 
 // Options for the single-value feature filter dropdown. NOTE_REFINEMENT and
@@ -23,4 +24,5 @@ export const AI_FEATURE_FILTER_OPTIONS: { value: AiFeature; labelKey: string }[]
   { value: AiFeature.NOTE_REFINEMENT, labelKey: 'aiFeatures.noteEditing' },
   { value: AiFeature.TEST_GENERATION, labelKey: 'aiFeatures.testGeneration' },
   { value: AiFeature.ASSIST, labelKey: 'aiFeatures.assist' },
+  { value: AiFeature.EMBEDDING, labelKey: 'aiFeatures.embedding' },
 ];

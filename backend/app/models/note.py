@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,3 +17,4 @@ class Note(Base, CreatedAtMixin, UpdatedAtMixin):
     content: Mapped[str] = mapped_column(Text, default="")
     source: Mapped[int] = mapped_column(Integer, default=int(NoteSource.USER_CREATED))
     tags: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
+    is_indexed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

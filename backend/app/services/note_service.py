@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, NoteLength, NoteSource
 from app.crud import note as note_crud
+from app.database import SessionLocal
 from app.models.note import Note
 from app.models.user import User
 from app.schemas.note import (
@@ -36,11 +37,23 @@ _NOTE_MAX_TOKENS: dict[int, int] = {
 _DEFAULT_MAX_TOKENS = 4096
 
 
+def schedule_indexing(note_id: str) -> None:
+    """Run note embedding indexing in a fresh DB session (for BackgroundTasks)."""
+    from app.services import embedding_service
+
+    db = SessionLocal()
+    try:
+        embedding_service.index_note(db, note_id=note_id)
+    finally:
+        db.close()
+
+
 def list_notes(
     db: Session,
     *,
     current_user: User,
-    search: str | None = None,
+    title: str | None = None,
+    content: str | None = None,
     source: list[int] | None = None,
     sort_by: NoteSortBy | None = None,
     sort_order: SortOrder = "desc",
@@ -50,7 +63,8 @@ def list_notes(
     items, total = note_crud.list_by_user(
         db,
         user_id=current_user.id,
-        search=search,
+        title=title,
+        content=content,
         source=source,
         sort_by=sort_by,
         sort_order=sort_order,
@@ -81,6 +95,8 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
 
 def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpdate) -> Note:
     note = get_note(db, note_id=note_id, current_user=current_user)
+    if data.content is not None:
+        note.is_indexed = False
     updated = note_crud.update(db, note=note, data=data)
     db.commit()
     db.refresh(updated)

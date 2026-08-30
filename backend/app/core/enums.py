@@ -96,3 +96,4 @@ class AIFeature(NamedIntEnum):
     NOTE_CHUNK_EDIT = 5
     TEST_GENERATION = 6
     ASSIST = 7
+    EMBEDDING = 8
