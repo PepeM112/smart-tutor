@@ -6,7 +6,7 @@ import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, T
 
 import { AiProvider, type TokenUsageDailySummary } from '@/client';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { formatTokens } from '@/lib/format';
+import { formatCost, formatTokens } from '@/lib/format';
 
 const PROVIDER_COLORS: Record<number, { fill: string; label: string }> = {
   [AiProvider.ANTHROPIC]: { fill: '#F97316', label: 'Anthropic' },
@@ -18,21 +18,26 @@ type ChartDataPoint = {
   anthropic: number;
   openai: number;
   cumulative: number;
+  anthropic_cost: number;
+  openai_cost: number;
 };
 
 function buildChartData(daily: TokenUsageDailySummary[]): ChartDataPoint[] {
-  const byDate = new Map<string, { anthropic: number; openai: number }>();
+  const byDate = new Map<string, { anthropic: number; openai: number; anthropic_cost: number; openai_cost: number }>();
 
   daily.forEach(entry => {
     const dateStr = entry.date;
 
-    const existing = byDate.get(dateStr) ?? { anthropic: 0, openai: 0 };
+    const existing = byDate.get(dateStr) ?? { anthropic: 0, openai: 0, anthropic_cost: 0, openai_cost: 0 };
     const tokens = entry.inputTokens + entry.outputTokens;
+    const cost = entry.estimatedCost ? parseFloat(entry.estimatedCost) : 0;
 
     if (entry.provider === AiProvider.ANTHROPIC) {
       existing.anthropic += tokens;
+      existing.anthropic_cost += cost;
     } else if (entry.provider === AiProvider.OPENAI) {
       existing.openai += tokens;
+      existing.openai_cost += cost;
     }
 
     byDate.set(dateStr, existing);
@@ -45,8 +50,7 @@ function buildChartData(daily: TokenUsageDailySummary[]): ChartDataPoint[] {
     cumulative += values.anthropic + values.openai;
     return {
       date,
-      anthropic: values.anthropic,
-      openai: values.openai,
+      ...values,
       cumulative,
     };
   });
@@ -113,22 +117,56 @@ export function TokenUsageChart({ daily }: Props) {
           />
         )}
         <Tooltip
-          contentStyle={{
-            backgroundColor: 'var(--color-card)',
-            borderColor: 'var(--color-border)',
-            borderRadius: 8,
-            fontSize: 12,
-          }}
-          labelFormatter={label => formatDate(`${label as string | number}`)}
-          formatter={(value, name) => {
-            const numVal = Number(value);
-            const nameStr = `${name as string}`;
-            const providerLabel =
-              nameStr === 'cumulative'
-                ? t('dashboard.cumulative')
-                : (PROVIDER_COLORS[nameStr === 'anthropic' ? AiProvider.ANTHROPIC : AiProvider.OPENAI]?.label ??
-                  nameStr);
-            return [formatTokens(numVal), providerLabel];
+          content={props => {
+            if (!props.active || !props.payload?.length) return null;
+            const sorted = [...props.payload].sort((a, b) => {
+              const ka = String(a.dataKey);
+              const kb = String(b.dataKey);
+              if (ka === 'cumulative') return 1;
+              if (kb === 'cumulative') return -1;
+              return ka.localeCompare(kb);
+            });
+            const cumulativeIdx = sorted.findIndex(e => String(e.dataKey) === 'cumulative');
+            return (
+              <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-md">
+                <p className="mb-1.5 font-medium">{formatDate(String(props.label))}</p>
+                {sorted.map((entry, i) => {
+                  const key = String(entry.dataKey);
+                  const isCumulative = key === 'cumulative';
+                  const providerKey =
+                    key === 'anthropic' ? AiProvider.ANTHROPIC : key === 'openai' ? AiProvider.OPENAI : null;
+                  const seriesLabel = isCumulative
+                    ? t('dashboard.cumulative')
+                    : providerKey !== null
+                      ? PROVIDER_COLORS[providerKey].label
+                      : key;
+                  const dataPoint = entry.payload as Record<string, number> | undefined;
+                  const costValue = isCumulative ? undefined : dataPoint?.[`${key}_cost`];
+                  return (
+                    <div key={key}>
+                      {cumulativeIdx > 0 && i === cumulativeIdx && (
+                        <div className="my-1 border-t border-border/50" />
+                      )}
+                      <div className="flex items-center justify-between gap-6 py-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-sm"
+                            style={{ backgroundColor: entry.color }}
+                          />
+                          <span className="text-muted-foreground">{seriesLabel}</span>
+                        </div>
+                        <div className="flex items-center gap-2 tabular-nums">
+                          <span className="font-medium">{formatTokens(Number(entry.value))}</span>
+                          {costValue != null && costValue > 0 && (
+                            <span className="text-muted-foreground">({formatCost(String(costValue))})</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
           }}
         />
         <Legend
