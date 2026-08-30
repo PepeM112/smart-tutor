@@ -164,6 +164,9 @@ class SearchResult:
 
 def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> list[SearchResult]:
     """Search user's notes by semantic similarity. Returns top matching chunks."""
+    if note_chunk_crud.count_by_user(db, user_id=user_id) == 0:
+        return []
+
     embeddings, total_tokens = _generate_embeddings([query])
     query_embedding = embeddings[0]
 

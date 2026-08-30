@@ -3,10 +3,10 @@ from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.base import generate_ulid
+from app.models.base import CreatedAtMixin, generate_ulid
 
 
-class NoteChunk(Base):
+class NoteChunk(Base, CreatedAtMixin):
     __tablename__ = "note_chunk"
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
