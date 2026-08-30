@@ -326,13 +326,6 @@ function _argStr(value: unknown, fallback = 'Unknown'): string {
 
 function _summarizeArgs(name: string, args: Record<string, unknown>): string {
   switch (name) {
-    case 'create_note':
-      return `Topic: ${_argStr(args.topic)}${args.length ? ` (${_argStr(args.length)})` : ''}`;
-    case 'create_test': {
-      const count = typeof args.question_count === 'number' ? args.question_count : 10;
-      const difficulty = _argStr(args.difficulty as string, 'medium');
-      return `${count} questions, ${difficulty} difficulty`;
-    }
     case 'edit_test': {
       const parts: string[] = [];
       if (args.title) parts.push(`Rename to "${_argStr(args.title)}"`);
