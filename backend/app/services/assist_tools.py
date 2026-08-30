@@ -162,7 +162,9 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "create_note",
         "description": (
-            "Generate a new AI-powered study note on a given topic. Requires user confirmation before executing."
+            "Generate a new AI-powered study note on a given topic. "
+            "Call directly when the user explicitly asks to create a note. "
+            "Ask conversationally first only if intent is ambiguous."
         ),
         "input_schema": {
             "type": "object",
@@ -187,7 +189,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "refine_note",
         "description": (
-            "Refine an existing note with AI based on instructions. Requires user confirmation before executing."
+            "Refine an existing note with AI based on instructions. "
+            "Executes directly — the user reviews the proposed changes in a diff view before accepting."
         ),
         "input_schema": {
             "type": "object",
@@ -205,7 +208,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "name": "create_test",
         "description": (
             "Generate a test with AI-created questions from an existing note. "
-            "Use list_notes first to find the note ID. Requires user confirmation before executing."
+            "Use list_notes first to find the note ID. "
+            "Executes directly — the user will see a link to review the generated test on the edit page."
         ),
         "input_schema": {
             "type": "object",
@@ -271,7 +275,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "description": (
             "Edit the content of specific questions in a test using AI. "
             "Use get_test_details first to see the test's questions. "
-            "Requires user confirmation before executing."
+            "Executes directly — the user reviews the proposed changes in a diff view before accepting."
         ),
         "input_schema": {
             "type": "object",
@@ -295,7 +299,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
 ]
 
-WRITE_TOOLS = {"create_note", "create_test", "edit_test"}
+WRITE_TOOLS = {"edit_test"}
 
 
 def get_tool_definitions_anthropic() -> list[dict[str, Any]]:

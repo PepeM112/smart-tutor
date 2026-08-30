@@ -14,8 +14,8 @@ export type ToolDefinition = {
   icon: LucideIcon;
   /** Mutates user data, as opposed to a read-only lookup. */
   isWrite: boolean;
-  /** Requires explicit user approval before executing (a subset of write tools — some writes, like
-   * refine_note/refine_questions, are reviewed via a diff accept/reject flow instead). */
+  /** Pauses for explicit user approval before executing. Currently only `edit_test` uses this;
+   * other write tools execute directly (create tools) or via diff accept/reject (refine tools). */
   requiresConfirm: boolean;
   queryKeysToInvalidate?: string[][];
 };
@@ -31,7 +31,7 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
     label: 'Creating note',
     icon: FilePlus,
     isWrite: true,
-    requiresConfirm: true,
+    requiresConfirm: false,
     queryKeysToInvalidate: [['notes']],
   },
   refine_note: { label: 'Refining note', icon: Pencil, isWrite: true, requiresConfirm: false },
@@ -39,7 +39,7 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
     label: 'Creating test',
     icon: ClipboardList,
     isWrite: true,
-    requiresConfirm: true,
+    requiresConfirm: false,
     queryKeysToInvalidate: [['tests']],
   },
   edit_test: {
@@ -64,9 +64,6 @@ export function isWriteTool(name: string): boolean {
   return TOOL_REGISTRY[name]?.isWrite ?? false;
 }
 
-export function requiresConfirmation(name: string): boolean {
-  return TOOL_REGISTRY[name]?.requiresConfirm ?? false;
-}
 
 export function getQueryKeysToInvalidate(name: string): string[][] {
   return TOOL_REGISTRY[name]?.queryKeysToInvalidate ?? [];

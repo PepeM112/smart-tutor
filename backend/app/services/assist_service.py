@@ -309,33 +309,33 @@ def _stream_assist_inner(
             return
 
         # Process tool calls
-        write_calls: list[ToolCallDelta] = []
-        read_results: list[dict[str, Any]] = []
+        confirm_calls: list[ToolCallDelta] = []
+        auto_results: list[dict[str, Any]] = []
 
         for tc in stream_result.tool_calls:
             logger.info("Tool call: %s (id=%s, args=%s)", tc.name, tc.id, tc.arguments)
             yield _sse("tool_call", {"id": tc.id, "name": tc.name, "arguments": tc.arguments})
 
             if tc.name in WRITE_TOOLS:
-                write_calls.append(tc)
+                confirm_calls.append(tc)
             else:
-                logger.info("Auto-executing read tool: %s", tc.name)
+                logger.info("Auto-executing tool: %s", tc.name)
                 result = execute_tool(
                     db,
                     current_user=current_user,
                     tool_name=tc.name,
                     arguments=tc.arguments,
                 )
-                logger.info("Read tool %s result: %s", tc.name, result.output[:200])
+                logger.info("Tool %s result: %s", tc.name, result.output[:200])
                 tr_event: dict[str, Any] = {"id": tc.id, "name": tc.name, "output": result.output}
                 if result.metadata:
                     tr_event["metadata"] = result.metadata.model_dump(by_alias=True, mode="json")
                 yield _sse("tool_result", tr_event)
-                read_results.append({"id": tc.id, "output": result.output})
+                auto_results.append({"id": tc.id, "output": result.output})
 
-        if write_calls:
+        if confirm_calls:
             # Pause: emit confirm_required for each write tool, then stop
-            for wc in write_calls:
+            for wc in confirm_calls:
                 event_data: dict[str, Any] = {"id": wc.id, "name": wc.name, "arguments": wc.arguments}
                 context = _build_confirm_context(db, wc.name, wc.arguments, current_user)
                 if context:
@@ -348,12 +348,12 @@ def _stream_assist_inner(
                 "done",
                 {
                     "usage": {"input_tokens": total_input, "output_tokens": total_output},
-                    "pending_confirmations": [wc.id for wc in write_calls],
+                    "pending_confirmations": [wc.id for wc in confirm_calls],
                 },
             )
             return
 
-        # Feed read tool results back into the conversation
+        # Feed auto-executed tool results back into the conversation
         assistant_content: list[dict[str, Any]] = []
         if stream_result.text:
             assistant_content.append({"type": "text", "text": stream_result.text})
@@ -370,7 +370,7 @@ def _stream_assist_inner(
                 )
             provider_messages.append({"role": "assistant", "content": assistant_content})
             tool_result_content = [
-                {"type": "tool_result", "tool_use_id": r["id"], "content": r["output"]} for r in read_results
+                {"type": "tool_result", "tool_use_id": r["id"], "content": r["output"]} for r in auto_results
             ]
             provider_messages.append({"role": "user", "content": tool_result_content})
         else:
@@ -384,7 +384,7 @@ def _stream_assist_inner(
                 for tc in stream_result.tool_calls
             ]
             provider_messages.append(entry)
-            for r in read_results:
+            for r in auto_results:
                 provider_messages.append({"role": "tool", "tool_call_id": r["id"], "content": r["output"]})
 
     # Exceeded MAX_TOOL_ROUNDS
