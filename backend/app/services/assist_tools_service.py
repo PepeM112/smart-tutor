@@ -190,6 +190,7 @@ def create_note(db: Session, *, current_user: User, arguments: dict[str, object]
         current_user=current_user,
         data=NoteGenerate(topic=topic, guidance=guidance, length=length),
     )
+    note_service.schedule_indexing(note.id)
     logger.info("create_note: created note=%s", note.id)
     return ToolResult(
         output=(f"Note created successfully!\n- **Title:** {note.title}\n- **Preview:** {(note.content or '')[:300]}…"),

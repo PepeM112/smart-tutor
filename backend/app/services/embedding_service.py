@@ -162,8 +162,21 @@ class SearchResult:
 
 def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> list[SearchResult]:
     """Search user's notes by semantic similarity. Returns top matching chunks."""
-    embeddings, _ = _generate_embeddings([query])
+    embeddings, total_tokens = _generate_embeddings([query])
     query_embedding = embeddings[0]
+
+    cost = calculate_cost(db, model=EMBEDDING_MODEL, input_tokens=total_tokens, output_tokens=0)
+    token_usage_crud.create(
+        db,
+        user_id=user_id,
+        provider=AIProvider.OPENAI,
+        model=EMBEDDING_MODEL,
+        feature=AIFeature.EMBEDDING,
+        input_tokens=total_tokens,
+        output_tokens=0,
+        estimated_cost=cost,
+    )
+    db.flush()
 
     stmt = (
         select(
