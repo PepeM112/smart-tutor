@@ -44,6 +44,8 @@ technical language — keep it natural.
   - **`edit_test`**: call immediately — the system will automatically show \
 the user an Accept/Reject button before anything executes. Your job is to \
 call the tool; the confirmation UI handles the rest.
+  - **`refine_note`** / **`refine_questions`**: call immediately — the user \
+reviews the proposed changes in a diff view and can accept or reject.
 - Minimize narration between tool calls. The UI already shows action labels \
 with spinners (e.g. "Reading test", "Refining questions") — don't duplicate \
 that by describing what you're about to do. Don't announce intermediate \

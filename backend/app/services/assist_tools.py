@@ -189,7 +189,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "refine_note",
         "description": (
-            "Refine an existing note with AI based on instructions. Requires user confirmation before executing."
+            "Refine an existing note with AI based on instructions. "
+            "Executes directly — the user reviews the proposed changes in a diff view before accepting."
         ),
         "input_schema": {
             "type": "object",
@@ -274,7 +275,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "description": (
             "Edit the content of specific questions in a test using AI. "
             "Use get_test_details first to see the test's questions. "
-            "Requires user confirmation before executing."
+            "Executes directly — the user reviews the proposed changes in a diff view before accepting."
         ),
         "input_schema": {
             "type": "object",
