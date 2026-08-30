@@ -12,13 +12,13 @@ from dataclasses import dataclass
 
 import tiktoken
 from openai import OpenAI
-from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core.enums import AIFeature, AIProvider
+from app.crud import note as note_crud
+from app.crud import note_chunk as note_chunk_crud
 from app.crud import token_usage as token_usage_crud
-from app.models.note import Note
 from app.models.note_chunk import NoteChunk
 from app.services.pricing_service import calculate_cost
 
@@ -96,13 +96,12 @@ def index_note(db: Session, *, note_id: str) -> None:
 
     Called as a BackgroundTask after note creation or update.
     """
-    note = db.get(Note, note_id)
+    note = note_crud.get_by_id(db, id=note_id)
     if note is None:
         logger.warning("index_note: note %s not found, skipping", note_id)
         return
 
-    db.execute(delete(NoteChunk).where(NoteChunk.note_id == note_id))
-    db.flush()
+    note_chunk_crud.delete_by_note_id(db, note_id=note_id)
 
     chunks = chunk_text(note.content or "")
     if not chunks:
@@ -117,15 +116,18 @@ def index_note(db: Session, *, note_id: str) -> None:
         db.rollback()
         return
 
-    for chunk, embedding in zip(chunks, embeddings, strict=True):
-        db.add(
+    note_chunk_crud.bulk_create(
+        db,
+        chunks=[
             NoteChunk(
                 note_id=note_id,
                 content=chunk.text,
                 embedding=embedding,
                 chunk_index=chunk.index,
             )
-        )
+            for chunk, embedding in zip(chunks, embeddings, strict=True)
+        ],
+    )
 
     note.is_indexed = True
     db.flush()
@@ -178,21 +180,9 @@ def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> li
     )
     db.flush()
 
-    stmt = (
-        select(
-            NoteChunk.note_id,
-            Note.title,
-            NoteChunk.content,
-            NoteChunk.chunk_index,
-            (1 - NoteChunk.embedding.cosine_distance(query_embedding)).label("similarity"),
-        )
-        .join(Note, NoteChunk.note_id == Note.id)
-        .where(Note.user_id == user_id)
-        .order_by(text("similarity DESC"))
-        .limit(limit)
+    rows = note_chunk_crud.search_by_similarity(
+        db, user_id=user_id, query_embedding=query_embedding, limit=limit
     )
-
-    rows = db.execute(stmt).all()
     return [
         SearchResult(
             note_id=row.note_id,
