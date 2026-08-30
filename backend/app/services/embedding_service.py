@@ -33,6 +33,8 @@ _encoding = tiktoken.get_encoding("cl100k_base")
 
 
 def _get_client() -> OpenAI:
+    if not settings.system_openai_api_key:
+        raise ValueError("SYSTEM_OPENAI_API_KEY is not set — embedding service unavailable")
     return OpenAI(api_key=settings.system_openai_api_key)
 
 

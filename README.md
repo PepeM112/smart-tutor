@@ -166,36 +166,40 @@ User
 - Docker & Docker Compose
 - Node.js 18+
 
-### Quick Start
+### Quick Demo (No External Services)
 
 ```bash
 git clone https://github.com/PepeM112/smart-tutor.git
 cd smart-tutor
+make demo
+```
 
-# Create backend .env (fill in DATABASE_URL, JWT_SECRET)
-cp backend/.env.example backend/.env
+This starts a local PostgreSQL (via Docker), runs migrations, and seeds sample data.
+Open [http://localhost:3000](http://localhost:3000) and log in with `reviewer@test.com` / `Test1234!`.
+
+AI features are disabled by default. To enable them, add your API keys to `backend/.env` and run `make demo-restart`. Users can also configure their own keys in the Settings page.
+
+### Development Setup
+
+```bash
+# Create backend .env from template
+cp backend/env.example backend/.env
+# Edit DATABASE_URL to point to your PostgreSQL (e.g. Neon.tech)
 
 # Start services
 make build
 
-# Seed with sample data (creates test user: reviewer@test.com / Test1234!)
+# Seed with sample data
 make seed
-```
-
-### AI Setup (Optional)
-
-To enable AI features, add API keys to `backend/.env`:
-
-```env
-# At least one of these — or configure per-user in Settings
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
 ```
 
 ### Useful Commands
 
 ```bash
-make up                  # Start all services
+make demo                # One-command demo with local PostgreSQL
+make demo-stop           # Stop demo (keep data)
+make demo-clean          # Stop demo and delete all data
+make up                  # Start all services (requires your own .env)
 make test                # Run backend + frontend tests
 make lint                # Check linting (Ruff + ESLint + Stylelint)
 make frontend-gen        # Regenerate TypeScript API client from OpenAPI schema
