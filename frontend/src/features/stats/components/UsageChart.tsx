@@ -1,8 +1,19 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
-import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  type TooltipContentProps,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { AiFeature, AiProvider, type TokenUsageDailySummary } from '@/client';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
@@ -28,6 +39,7 @@ const FEATURE_COLORS: Record<number, string> = {
   [AiFeature.NOTE_REFINEMENT]: 'var(--chart-feature-note-refinement)',
   [AiFeature.TEST_GENERATION]: 'var(--chart-feature-test-generation)',
   [AiFeature.ASSIST]: 'var(--chart-feature-assist)',
+  [AiFeature.EMBEDDING]: 'var(--chart-feature-embedding)',
 };
 
 const BOTH_COLORS: Record<string, string> = {
@@ -37,12 +49,14 @@ const BOTH_COLORS: Record<string, string> = {
   [`${AiProvider.ANTHROPIC}_${AiFeature.NOTE_REFINEMENT}`]: 'var(--chart-both-anthropic-note-refinement)',
   [`${AiProvider.ANTHROPIC}_${AiFeature.TEST_GENERATION}`]: 'var(--chart-both-anthropic-test-generation)',
   [`${AiProvider.ANTHROPIC}_${AiFeature.ASSIST}`]: 'var(--chart-both-anthropic-assist)',
+  [`${AiProvider.ANTHROPIC}_${AiFeature.EMBEDDING}`]: 'var(--chart-both-anthropic-embedding)',
   [`${AiProvider.OPENAI}_${AiFeature.GRADING}`]: 'var(--chart-both-openai-grading)',
   [`${AiProvider.OPENAI}_${AiFeature.CHALLENGE}`]: 'var(--chart-both-openai-challenge)',
   [`${AiProvider.OPENAI}_${AiFeature.NOTE_GENERATION}`]: 'var(--chart-both-openai-note-generation)',
   [`${AiProvider.OPENAI}_${AiFeature.NOTE_REFINEMENT}`]: 'var(--chart-both-openai-note-refinement)',
   [`${AiProvider.OPENAI}_${AiFeature.TEST_GENERATION}`]: 'var(--chart-both-openai-test-generation)',
   [`${AiProvider.OPENAI}_${AiFeature.ASSIST}`]: 'var(--chart-both-openai-assist)',
+  [`${AiProvider.OPENAI}_${AiFeature.EMBEDDING}`]: 'var(--chart-both-openai-embedding)',
 };
 
 type SeriesInfo = { key: string; label: string; color: string };
@@ -54,6 +68,7 @@ const ALL_FEATURES = [
   AiFeature.NOTE_REFINEMENT,
   AiFeature.TEST_GENERATION,
   AiFeature.ASSIST,
+  AiFeature.EMBEDDING,
 ];
 
 const ALL_PROVIDERS = [AiProvider.ANTHROPIC, AiProvider.OPENAI];
@@ -175,11 +190,59 @@ export function UsageChart({ daily, groupBy }: Props) {
     });
   };
 
+  const seriesLabelMap = useMemo(() => Object.fromEntries(visibleSeries.map(s => [s.key, s.label])), [visibleSeries]);
+
+  const renderTooltip = useCallback(
+    (props: TooltipContentProps) => {
+      if (!props.active || !props.payload?.length) return null;
+      const sorted = [...props.payload]
+        .filter(entry => !String(entry.dataKey).endsWith('_cost'))
+        .sort((a, b) => {
+          const ka = String(a.dataKey);
+          const kb = String(b.dataKey);
+          if (ka === 'cumulative') return 1;
+          if (kb === 'cumulative') return -1;
+          const la = seriesLabelMap[ka] ?? ka;
+          const lb = seriesLabelMap[kb] ?? kb;
+          return la.localeCompare(lb);
+        });
+      const cumulativeIdx = sorted.findIndex(e => String(e.dataKey) === 'cumulative');
+      return (
+        <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs ring-1 ring-foreground/10">
+          <p className="mb-1.5 font-medium">{formatDate(String(props.label))}</p>
+          {sorted.map((entry, i) => {
+            const key = String(entry.dataKey);
+            const isCumulative = key === 'cumulative';
+            const seriesLabel = isCumulative ? t('dashboard.cumulative') : (seriesLabelMap[key] ?? key);
+            const dataPoint = entry.payload as Record<string, number> | undefined;
+            const costValue = isCumulative ? undefined : dataPoint?.[`${key}_cost`];
+            return (
+              <div key={key}>
+                {cumulativeIdx > 0 && i === cumulativeIdx && <div className="my-1 border-t border-border/50" />}
+                <div className="flex items-center justify-between gap-6 py-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: entry.color }} />
+                    <span className="text-muted-foreground">{seriesLabel}</span>
+                  </div>
+                  <div className="flex items-center gap-2 tabular-nums">
+                    <span className="font-medium">{formatTokens(Number(entry.value))}</span>
+                    {costValue != null && costValue > 0 && (
+                      <span className="text-muted-foreground">({formatCost(String(costValue))})</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    },
+    [seriesLabelMap, t]
+  );
+
   if (data.length === 0) {
     return <p className="py-12 text-center text-sm text-muted-foreground">{t('dashboard.no_usage_data')}</p>;
   }
-
-  const seriesLabelMap = Object.fromEntries(visibleSeries.map(s => [s.key, s.label]));
 
   return (
     <ResponsiveContainer width="100%" height={isMobile ? 280 : 400}>
@@ -208,59 +271,7 @@ export function UsageChart({ daily, groupBy }: Props) {
             tick={{ fontSize: 11 }}
           />
         )}
-        <Tooltip
-          content={props => {
-            if (!props.active || !props.payload?.length) return null;
-            const sorted = [...props.payload]
-              .filter(entry => !String(entry.dataKey).endsWith('_cost'))
-              .sort((a, b) => {
-                const ka = String(a.dataKey);
-                const kb = String(b.dataKey);
-                if (ka === 'cumulative') return 1;
-                if (kb === 'cumulative') return -1;
-                const la = seriesLabelMap[ka] ?? ka;
-                const lb = seriesLabelMap[kb] ?? kb;
-                return la.localeCompare(lb);
-              });
-            const cumulativeIdx = sorted.findIndex(e => String(e.dataKey) === 'cumulative');
-            return (
-              <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-md">
-                <p className="mb-1.5 font-medium">{formatDate(String(props.label))}</p>
-                {sorted.map((entry, i) => {
-                  const key = String(entry.dataKey);
-                  const isCumulative = key === 'cumulative';
-                  const seriesLabel = isCumulative
-                    ? t('dashboard.cumulative')
-                    : (seriesLabelMap[key] ?? key);
-                  const dataPoint = entry.payload as Record<string, number> | undefined;
-                  const costValue = isCumulative ? undefined : dataPoint?.[`${key}_cost`];
-                  return (
-                    <div key={key}>
-                      {cumulativeIdx > 0 && i === cumulativeIdx && (
-                        <div className="my-1 border-t border-border/50" />
-                      )}
-                      <div className="flex items-center justify-between gap-6 py-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="inline-block h-2.5 w-2.5 rounded-sm"
-                            style={{ backgroundColor: entry.color }}
-                          />
-                          <span className="text-muted-foreground">{seriesLabel}</span>
-                        </div>
-                        <div className="flex items-center gap-2 tabular-nums">
-                          <span className="font-medium">{formatTokens(Number(entry.value))}</span>
-                          {costValue != null && costValue > 0 && (
-                            <span className="text-muted-foreground">({formatCost(String(costValue))})</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          }}
-        />
+        <Tooltip content={renderTooltip} />
         <Legend
           onClick={e => {
             if (typeof e.dataKey === 'string') toggleSeries(e.dataKey);
