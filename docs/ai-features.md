@@ -2,7 +2,7 @@
 
 ## Overview
 
-SmartTutor uses AI for seven capabilities:
+SmartTutor uses AI for eight capabilities:
 
 1. **Long Text grading** — evaluating paragraph-style answers against rubric criteria (see [Answer Grading](answer-grading.md#long-text-questions-ai-grading))
 2. **Challenge re-evaluation** — re-assessing disputed grading results (see [Answer Grading](answer-grading.md#challenge--re-evaluation))
@@ -11,8 +11,9 @@ SmartTutor uses AI for seven capabilities:
 5. **Note chunk editing** — user selects text inside a note's preview, gives an instruction, and the AI rewrites only that selection
 6. **Test question editing** — user selects one or more questions (in the test editor or in a generated test preview), gives an instruction, and the AI edits them. Unlike automatic test generation, this can also produce Long Text questions.
 7. **AI Assistant** — a chat panel, present on every page, that can answer questions about the user's content, navigate the app, and create or edit notes/tests through an agentic tool-calling loop (see [AI Assistant](ai-assistant.md))
+8. **Semantic search (RAG)** — notes are chunked and embedded into vectors, enabling the AI Assistant to find relevant content by meaning rather than keyword match (see [RAG & Semantic Search](#rag--semantic-search) below)
 
-The first six all share the same request/response shape: call `complete_for_user`, get a single structured result back. The Assistant is different — a chat turn streams incrementally and can involve multiple rounds of tool calls, so it uses `stream_with_tools()` instead of `complete()` on the same underlying `LLMClient`. It still shares everything else described below: provider setup, per-user keys, and token usage tracking. See [AI Assistant](ai-assistant.md) for its protocol, tools, and streaming architecture in full.
+Features 1–6 share the same request/response shape: call `complete_for_user`, get a single structured result back. The Assistant (#7) is different — a chat turn streams incrementally and can involve multiple rounds of tool calls, so it uses `stream_with_tools()` instead of `complete()` on the same underlying `LLMClient`. RAG (#8) uses a separate embedding model and infrastructure but shares per-user token tracking. All features share provider setup and per-user keys. See [AI Assistant](ai-assistant.md) for the Assistant's protocol, tools, and streaming architecture in full.
 
 ## Provider Architecture
 
@@ -113,6 +114,35 @@ Users see their usage on the Dashboard:
 - **Chart** — a stacked bar chart of daily token usage, one color per provider, with a cumulative-total line overlaid.
 - **Time range filter** — 1D, 1W, 1M, 3M, or 1Y.
 
+## RAG & Semantic Search
+
+The AI Assistant can semantically search a user's study notes — finding content by meaning, not just keyword match. This is powered by a Retrieval-Augmented Generation (RAG) pipeline.
+
+### Embedding model
+
+Embeddings use OpenAI's `text-embedding-3-small` (1536 dimensions), called via a system-level `SYSTEM_OPENAI_API_KEY`. This is independent of the user's LLM provider choice — a user configured for Anthropic still gets OpenAI embeddings, since the embedding model is infrastructure, not a user-facing preference.
+
+### Chunking
+
+Notes are split into ~500-token chunks with 50-token overlap using `tiktoken` (`cl100k_base` encoding). Short notes (≤500 tokens) are stored as a single chunk. Chunking preserves context at boundaries while keeping each chunk small enough for precise retrieval.
+
+### Storage (pgvector)
+
+Chunks and their embeddings are stored in a `NoteChunk` model with a `Vector(1536)` column, powered by the `pgvector` PostgreSQL extension. An HNSW index (`vector_cosine_ops`) enables fast approximate nearest-neighbor lookups. The `pg_trgm` extension with GIN trigram indexes on `note.title` and `note.content` supports traditional ILIKE search as a complement.
+
+### Indexing pipeline
+
+Embedding generation is asynchronous via `BackgroundTask`:
+
+1. A note is created or updated.
+2. `index_note()` fires as a background task: deletes existing chunks → splits text → batch-embeds via OpenAI → `bulk_create` chunks → sets `note.is_indexed = True` → records token usage under `AIFeature.EMBEDDING`.
+
+### Semantic search
+
+The `search_user_notes` tool (available to the AI Assistant) embeds the query string, then finds the top-k chunks (default 5, max 10) by cosine similarity, filtered to the current user's notes. The Assistant receives the matched note titles and chunk text as context, which it uses to answer questions grounded in the user's own material.
+
+The frontend notes list page also exposes a semantic search toggle alongside the traditional keyword filter.
+
 ## Synchronous vs Asynchronous Features
 
 AI calls take anywhere from one to several seconds. Whether a feature waits for the result or hands it off in the background depends on what the user is doing at that moment:
@@ -125,6 +155,7 @@ AI calls take anywhere from one to several seconds. Whether a feature waits for 
 | Test generation          | Synchronous  | Same — the user watches a preview populate                                            |
 | Note chunk editing       | Synchronous  | The user is watching the selected text and waits for the rewritten version            |
 | Test question editing    | Synchronous  | Same — the user watches the selected questions update in the editor or preview        |
+| Note embedding (RAG)     | Asynchronous | Happens after note save; the user continues editing while chunks are indexed          |
 
 **Asynchronous flow:** the record is created immediately in a pending state, and the AI call happens afterward. The user's screen polls periodically until the pending state clears and the real result appears.
 

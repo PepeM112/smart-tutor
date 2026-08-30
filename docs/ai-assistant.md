@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Assistant is a floating/dockable chat panel available on every authenticated page. It can answer questions about the user's own content, navigate the app on the user's behalf, and — with explicit confirmation — create or edit notes and tests.
+The Assistant is a floating/dockable chat panel available on every authenticated page. It can answer questions about the user's own content (including semantic search via RAG), navigate the app on the user's behalf, and create or edit notes and tests. Only `edit_test` requires explicit confirmation; other write tools execute immediately and let the user review the result on the resource's own page.
 
 It is AI feature #7 (`AIFeature.ASSIST`), and shares the same per-user provider/API-key infrastructure as the other six features described in [AI Features](ai-features.md) (Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini, per-user encrypted keys, `get_user_llm_client`). What makes it different is the interaction shape: the other six features call `LLMClient.complete()` once and get a single structured response back. The Assistant calls `LLMClient.stream_with_tools()` — a streaming, multi-round, agentic tool-use loop — because a chat turn can involve the model reading data, calling tools, and replying incrementally rather than in one shot.
 
@@ -55,23 +55,26 @@ Tool call arguments are never streamed incrementally — both the Anthropic and 
 
 Defined in `assist_tools.py` (`TOOL_DEFINITIONS`), mirrored on the frontend in `utils/tool-registry.ts` for icons/labels.
 
-| Tool                | Kind  | Confirmation | Purpose                                                        |
-| -------------------- | ----- | ------------ | ----------------------------------------------------------------- |
-| `list_notes`         | read  | no           | List the user's notes (optional search)                          |
-| `list_tests`         | read  | no           | List the user's tests                                             |
-| `get_note_content`   | read  | no           | Full content of one note                                          |
-| `get_test_details`   | read  | no           | A test plus its questions, with IDs                               |
-| `search_questions`   | read  | no           | Search the question bank                                          |
-| `navigate_to`        | read* | no           | Route the user's browser to an allowed page                       |
-| `create_note`        | write | **yes**      | AI-generate a new note from a topic                                |
-| `create_test`        | write | **yes**      | AI-generate a test from a note                                     |
-| `edit_test`          | write | **yes**      | Rename/describe a test, or remove questions from it                |
-| `refine_note`        | write | no**         | AI-revise an existing note (produces a reviewable diff)             |
-| `refine_questions`   | write | no**         | AI-edit specific questions in a test (produces a reviewable diff)   |
+| Tool                  | Kind  | Confirmation | Purpose                                                        |
+| ---------------------- | ----- | ------------ | ----------------------------------------------------------------- |
+| `list_notes`           | read  | no           | List the user's notes (optional search)                          |
+| `list_tests`           | read  | no           | List the user's tests                                             |
+| `get_note_content`     | read  | no           | Full content of one note                                          |
+| `get_test_details`     | read  | no           | A test plus its questions, with IDs                               |
+| `search_questions`     | read  | no           | Search the question bank                                          |
+| `search_user_notes`    | read  | no           | Semantic search across user's notes via RAG embeddings            |
+| `navigate_to`          | read* | no           | Route the user's browser to an allowed page                       |
+| `create_note`          | write | no***        | AI-generate a new note from a topic                                |
+| `create_test`          | write | no***        | AI-generate a test from a note                                     |
+| `edit_test`            | write | **yes**      | Rename/describe a test, or remove questions from it                |
+| `refine_note`          | write | no**         | AI-revise an existing note (produces a reviewable diff)             |
+| `refine_questions`     | write | no**         | AI-edit specific questions in a test (produces a reviewable diff)   |
 
 \* `navigate_to` is auto-executed like a read tool (no server-side pause), but it has a client-side side effect: it tells the frontend to route the user somewhere. It's restricted to an allowlist of route prefixes (`_ALLOWED_ROUTE_PREFIXES` in `assist_tools_service.py`: `/dashboard /notes /tests /questions /review /history /settings /stats`); anything else falls back to `/dashboard`.
 
-\*\* `refine_note` and `refine_questions` are **not** in the backend's `WRITE_TOOLS` set, so they execute immediately without a `confirm_required` pause, unlike `create_note`/`create_test`/`edit_test`. This is intentional, not an oversight: their output is naturally reviewable as an old/new diff, so the frontend shows a lightweight "view changes → accept/reject" flow instead of an upfront yes/no gate (see [Diff Review Flow](#diff-review-flow-refine_note--refine_questions) below). The tradeoff is that the AI writes before the user has seen anything — acceptable here because both are reversible (the diff panel can reject, and `edit_test`'s question removals get their own undo toast — see below).
+\*\* `refine_note` and `refine_questions` are **not** in the backend's `WRITE_TOOLS` set, so they execute immediately without a `confirm_required` pause. This is intentional: their output is naturally reviewable as an old/new diff, so the frontend shows a lightweight "view changes → accept/reject" flow instead of an upfront yes/no gate (see [Diff Review Flow](#diff-review-flow-refine_note--refine_questions) below). The tradeoff is that the AI writes before the user has seen anything — acceptable here because both are reversible (the diff panel can reject, and `edit_test`'s question removals get their own undo toast — see below).
+
+\*\*\* `create_note` and `create_test` also execute immediately without confirmation. The system prompt instructs the model to call them directly when intent is clear — the user is taken to the edit page to review the result, so the output is naturally inspectable without a gate. Only `edit_test` remains in `WRITE_TOOLS` with a `confirm_required` pause, because its changes (renames, question removals) modify existing content in place.
 
 ## Agentic Loop
 
