@@ -40,7 +40,7 @@ export function TestsTable({ data, sort, onSort }: Props) {
   const columns = useTestsColumns({ deleteTest, isDeleting: deleteIsPending });
 
   const renderPreview = useCallback((test: TestRead) => {
-    const questions = test.questions ?? [];
+    const questions = getAllQuestions(test);
     const simple = countByType(questions, QuestionType.SIMPLE);
     const mc = countByType(questions, QuestionType.MULTIPLE_CHOICE);
     const longText = countByType(questions, QuestionType.LONG_TEXT);
@@ -112,6 +112,12 @@ export function TestsTable({ data, sort, onSort }: Props) {
   );
 }
 
+function getAllQuestions(test: TestRead): QuestionRead[] {
+  const standalone = test.questions ?? [];
+  const grouped = (test.questionGroups ?? []).flatMap(g => g.questions ?? []);
+  return [...standalone, ...grouped];
+}
+
 function countByType(questions: QuestionRead[], type: QuestionType): number {
   return questions.filter(q => q.questionType === type).length;
 }
@@ -159,7 +165,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
       id: 'questions',
       header: t('tests.column_questions'),
       cell: ({ row }) => {
-        const questions = row.original.questions ?? [];
+        const questions = getAllQuestions(row.original);
         return <span className="tabular-nums text-muted-foreground">{questions.length}</span>;
       },
     },
@@ -167,7 +173,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
       id: 'types',
       header: t('tests.column_types'),
       cell: ({ row }) => {
-        const questions = row.original.questions ?? [];
+        const questions = getAllQuestions(row.original);
         const simple = countByType(questions, QuestionType.SIMPLE);
         const mc = countByType(questions, QuestionType.MULTIPLE_CHOICE);
         const longText = countByType(questions, QuestionType.LONG_TEXT);

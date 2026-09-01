@@ -99,7 +99,7 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
         logger.exception("search_user_notes: search failed")
         return ToolResult(output="Error: Search failed unexpectedly.")
 
-    relevant = [r for r in results if r.similarity >= 0.3]
+    relevant = [r for r in results if r.similarity >= 0.15]
     if not relevant:
         return ToolResult(output="No matching notes found.")
 

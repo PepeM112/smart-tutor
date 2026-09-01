@@ -1,7 +1,8 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Pencil, SquareCheck } from 'lucide-react';
+import { Dumbbell, Pencil, SquareCheck } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
@@ -69,13 +70,30 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [isEditing, setIsEditing] = useState(!isEdit);
+  const [isDirty, setIsDirty] = useState(false);
   const {
     items,
     setItems,
     addItem: appendItem,
-    updateItem,
-    removeItem,
+    updateItem: rawUpdateItem,
+    removeItem: rawRemoveItem,
   } = useQuestionBlockList<EditorItem>(initialItems);
+
+  const updateItem = useCallback(
+    (i: number, data: EditorItem) => {
+      rawUpdateItem(i, data);
+      setIsDirty(true);
+    },
+    [rawUpdateItem]
+  );
+
+  const removeItem = useCallback(
+    (i: number) => {
+      rawRemoveItem(i);
+      setIsDirty(true);
+    },
+    [rawRemoveItem]
+  );
 
   const pendingTestDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const clearPendingTestDiff = useAssistDiffStore(s => s.clearPendingTestDiff);
@@ -92,6 +110,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     if (!pendingTestDiff) return;
     setItems(mergeAiEditResult(items, pendingTestDiff.questions, pendingTestDiff.selectedIndices));
     clearPendingTestDiff();
+    setIsDirty(true);
   }, [pendingTestDiff, items, setItems, clearPendingTestDiff]);
 
   const { mutate: saveTest, isPending: isSaving } = useMutation({
@@ -129,6 +148,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
       toast.success(isEdit ? t('tests.test_updated') : t('tests.test_created'));
+      setIsDirty(false);
       if (!isEdit && res.data?.id) {
         router.replace(Routes.TEST_EDIT(res.data.id));
       }
@@ -144,12 +164,18 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       const newItem = factories[type]();
       appendItem(newItem);
       setIsEditing(true);
+      setIsDirty(true);
     },
     [appendItem]
   );
 
   useMobileBreadcrumbActions(
     <div className="flex items-center gap-2">
+      {isEdit && (
+        <Button variant="outline" size="sm" icon={Dumbbell} className="text-feedback-partial" asChild>
+          <Link href={Routes.TEST_DETAIL(testId!)}>{t('tests.take_test_action')}</Link>
+        </Button>
+      )}
       {isEditing ? (
         <Button variant="outline" size="sm" icon={SquareCheck} onClick={() => setIsEditing(false)}>
           {t('test_editor.done_editing')}
@@ -159,7 +185,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           {t('test_editor.edit_questions')}
         </Button>
       )}
-      <Button size="sm" loading={isSaving} disabled={!title.trim()} onClick={() => saveTest()}>
+      <Button size="sm" loading={isSaving} disabled={!title.trim() || (!isDirty && isEdit)} onClick={() => saveTest()}>
         {t('tests.save_test')}
       </Button>
     </div>
@@ -176,13 +202,19 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                   className="w-full lg:w-1/2"
                   placeholder={t('tests.test_name')}
                   value={title}
-                  onChange={e => setTitle(e.target.value)}
+                  onChange={e => {
+                    setTitle(e.target.value);
+                    setIsDirty(true);
+                  }}
                 />
                 <AutoTextarea
                   rows={2}
                   placeholder={t('tests.description_optional')}
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
+                  onChange={e => {
+                    setDescription(e.target.value);
+                    setIsDirty(true);
+                  }}
                 />
               </>
             ) : (
@@ -194,6 +226,11 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           </div>
           {isDesktop && (
             <div className="flex items-center gap-2">
+              {isEdit && (
+                <Button variant="outline" size="lg" icon={Dumbbell} className="text-feedback-partial" asChild>
+                  <Link href={Routes.TEST_DETAIL(testId!)}>{t('tests.take_test_action')}</Link>
+                </Button>
+              )}
               {isEditing ? (
                 <Button variant="outline" size="lg" icon={SquareCheck} onClick={() => setIsEditing(false)}>
                   {t('test_editor.done_editing')}
@@ -203,7 +240,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                   {t('test_editor.edit_questions')}
                 </Button>
               )}
-              <Button size="lg" loading={isSaving} disabled={!title.trim()} onClick={() => saveTest()}>
+              <Button size="lg" loading={isSaving} disabled={!title.trim() || (!isDirty && isEdit)} onClick={() => saveTest()}>
                 {t('tests.save_test')}
               </Button>
             </div>
