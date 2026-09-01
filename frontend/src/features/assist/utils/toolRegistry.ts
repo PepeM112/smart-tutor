@@ -25,6 +25,7 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
   list_tests: { label: 'Listing tests', icon: ClipboardList, isWrite: false, requiresConfirm: false },
   get_note_content: { label: 'Reading note', icon: FileText, isWrite: false, requiresConfirm: false },
   get_test_details: { label: 'Reading test', icon: ClipboardList, isWrite: false, requiresConfirm: false },
+  search_user_notes: { label: 'Searching notes', icon: Search, isWrite: false, requiresConfirm: false },
   search_questions: { label: 'Searching questions', icon: Search, isWrite: false, requiresConfirm: false },
   navigate_to: { label: 'Navigating', icon: ArrowRight, isWrite: false, requiresConfirm: false },
   create_note: {
