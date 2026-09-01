@@ -26,7 +26,7 @@ Users build **Tests** — collections of questions mixing three types:
 
 Tests support **question groups** (batch patterns like vocabulary tables), **weighted scoring** with partial credit, and **copy-on-write versioning** so editing a test after an exam preserves the original in results.
 
-<!-- VIDEO: Creating a test with mixed question types, taking an exam, reviewing the scored result -->
+<video src="docs/media/vid_2_test_flow.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ### Spaced Repetition (SRS)
 
@@ -57,7 +57,7 @@ Eight AI capabilities, all with per-user provider selection and token cost track
 | 7 | **AI Assistant** | Agentic chat panel with 12 tools — reads content, navigates the app, creates and edits resources |
 | 8 | **Semantic Search (RAG)** | Notes are chunked and embedded (pgvector + HNSW), enabling meaning-based retrieval |
 
-<!-- VIDEO: AI Assistant conversation — user asks about their notes, assistant calls search_user_notes, reads a note, then generates a test from it, all in one streaming conversation -->
+<video src="docs/media/vid_4_ai_assistant.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ### AI Assistant — Agentic Chat
 
