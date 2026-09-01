@@ -99,11 +99,12 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
         logger.exception("search_user_notes: search failed")
         return ToolResult(output="Error: Search failed unexpectedly.")
 
-    if not results:
+    relevant = [r for r in results if r.similarity >= 0.3]
+    if not relevant:
         return ToolResult(output="No matching notes found.")
 
-    lines = [f"Found {len(results)} relevant chunk(s):"]
-    for r in results:
+    lines = [f"Found {len(relevant)} relevant chunk(s):"]
+    for r in relevant:
         lines.append(f"\n**{r.note_title}** (ID: `{r.note_id}`, similarity: {r.similarity:.3f})")
         lines.append(r.chunk_content)
     return ToolResult(output="\n".join(lines))
