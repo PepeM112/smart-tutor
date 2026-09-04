@@ -18,11 +18,11 @@ A full-stack learning platform where users create their own study content, take 
 
 Users build **Tests** — collections of questions mixing three types:
 
-| Type | How it works |
-|------|-------------|
-| **Simple** | Free-text answer with synonym support and typo tolerance (Levenshtein distance) |
-| **Multiple Choice** | 2–6 options, one or more correct |
-| **Long Text** | Paragraph answer graded by AI against a weighted rubric |
+| Type                | How it works                                                                    |
+| ------------------- | ------------------------------------------------------------------------------- |
+| **Simple**          | Free-text answer with synonym support and typo tolerance (Levenshtein distance) |
+| **Multiple Choice** | 2–6 options, one or more correct                                                |
+| **Long Text**       | Paragraph answer graded by AI against a weighted rubric                         |
 
 Tests support **question groups** (batch patterns like vocabulary tables), **weighted scoring** with partial credit, and **copy-on-write versioning** so editing a test after an exam preserves the original in results.
 
@@ -46,16 +46,16 @@ Standalone questions (not tied to a test) with server-side filtering, sorting, p
 
 Eight AI capabilities, all with per-user provider selection and token cost tracking:
 
-| # | Capability | Description |
-|---|-----------|-------------|
-| 1 | **Long Text Grading** | Evaluates paragraph answers against rubric criteria with per-criterion verdicts |
-| 2 | **Challenge Re-evaluation** | Re-assesses disputed grading with additional context from the user |
-| 3 | **Note Generation** | Creates Markdown study material from a topic and optional guidance |
-| 4 | **Test Generation** | Generates questions from study notes with configurable count, difficulty, and types |
-| 5 | **Note Chunk Editing** | Rewrites a selected section of a note based on user instruction |
-| 6 | **Question Editing** | AI-edits selected questions in a test editor or preview |
-| 7 | **AI Assistant** | Agentic chat panel with 12 tools — reads content, navigates the app, creates and edits resources |
-| 8 | **Semantic Search (RAG)** | Notes are chunked and embedded (pgvector + HNSW), enabling meaning-based retrieval |
+| #   | Capability                  | Description                                                                                      |
+| --- | --------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1   | **Long Text Grading**       | Evaluates paragraph answers against rubric criteria with per-criterion verdicts                  |
+| 2   | **Challenge Re-evaluation** | Re-assesses disputed grading with additional context from the user                               |
+| 3   | **Note Generation**         | Creates Markdown study material from a topic and optional guidance                               |
+| 4   | **Test Generation**         | Generates questions from study notes with configurable count, difficulty, and types              |
+| 5   | **Note Chunk Editing**      | Rewrites a selected section of a note based on user instruction                                  |
+| 6   | **Question Editing**        | AI-edits selected questions in a test editor or preview                                          |
+| 7   | **AI Assistant**            | Agentic chat panel with 12 tools — reads content, navigates the app, creates and edits resources |
+| 8   | **Semantic Search (RAG)**   | Notes are chunked and embedded (pgvector + HNSW), enabling meaning-based retrieval               |
 
 <video src="docs/media/vid_4_assistant.mp4" width="100%" autoplay loop muted playsinline></video>
 
@@ -88,15 +88,15 @@ Every AI call is metered — input/output tokens, model, provider, feature, and 
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | Next.js 16 (App Router), TypeScript (strict), Tailwind CSS, TanStack Query v5, Zustand, Tiptap, Recharts |
-| **Backend** | FastAPI, Python 3.12+, SQLAlchemy 2.0, Pydantic v2, Alembic |
-| **Database** | PostgreSQL (Neon.tech) with pgvector (embeddings) and pg_trgm (fuzzy text search) |
-| **Auth** | JWT via HTTP-only cookies (passlib + bcrypt) |
-| **AI** | Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini (LLM), OpenAI text-embedding-3-small (RAG) |
-| **API Contract** | OpenAPI schema → auto-generated TypeScript client (hey-api) |
-| **Infrastructure** | Docker Compose (local), Render (backend), Vercel (frontend) |
+| Layer              | Technology                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| **Frontend**       | Next.js 16 (App Router), TypeScript (strict), Tailwind CSS, TanStack Query v5, Zustand, Tiptap, Recharts |
+| **Backend**        | FastAPI, Python 3.10+, SQLAlchemy 2.0, Pydantic v2, Alembic                                              |
+| **Database**       | PostgreSQL (Neon.tech) with pgvector (embeddings) and pg_trgm (fuzzy text search)                        |
+| **Auth**           | JWT via HTTP-only cookies (passlib + bcrypt)                                                             |
+| **AI**             | Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini (LLM), OpenAI text-embedding-3-small (RAG)               |
+| **API Contract**   | OpenAPI schema → auto-generated TypeScript client (hey-api)                                              |
+| **Infrastructure** | Docker Compose (local), Render (backend), Vercel (frontend)                                              |
 
 ## Architecture
 
@@ -211,19 +211,19 @@ make migrate-upgrade     # Apply pending database migrations
 
 Detailed documentation lives in [`docs/`](docs/):
 
-| Document | Covers |
-|----------|--------|
-| [Content Model](docs/content-model.md) | Tests, questions, question types, content shapes |
-| [Answer Grading](docs/answer-grading.md) | Levenshtein matching, typo tolerance, AI grading |
-| [Exams](docs/exams.md) | Exam flow, weighted scoring, results |
-| [Review & SRS](docs/review-and-srs.md) | Spaced repetition, SM-2, review sessions |
-| [Authentication](docs/authentication.md) | JWT flow, HTTP-only cookies |
-| [Architecture Decisions](docs/decisions.md) | Key technical choices and rationale |
-| [Study Notes](docs/study-notes.md) | Note entity, AI generation, Markdown editor |
-| [AI Features](docs/ai-features.md) | LLM architecture, provider pattern, RAG, async operations |
-| [AI Test Generation](docs/test-generation.md) | Generating tests from notes, preferences, preview |
-| [AI Assistant](docs/ai-assistant.md) | Chat panel, SSE protocol, agentic tool-calling, streaming pipeline |
-| [Token Usage & Cost Tracking](docs/token-usage.md) | Token metering, model pricing, cost calculation |
+| Document                                           | Covers                                                             |
+| -------------------------------------------------- | ------------------------------------------------------------------ |
+| [Content Model](docs/content-model.md)             | Tests, questions, question types, content shapes                   |
+| [Answer Grading](docs/answer-grading.md)           | Levenshtein matching, typo tolerance, AI grading                   |
+| [Exams](docs/exams.md)                             | Exam flow, weighted scoring, results                               |
+| [Review & SRS](docs/review-and-srs.md)             | Spaced repetition, SM-2, review sessions                           |
+| [Authentication](docs/authentication.md)           | JWT flow, HTTP-only cookies                                        |
+| [Architecture Decisions](docs/decisions.md)        | Key technical choices and rationale                                |
+| [Study Notes](docs/study-notes.md)                 | Note entity, AI generation, Markdown editor                        |
+| [AI Features](docs/ai-features.md)                 | LLM architecture, provider pattern, RAG, async operations          |
+| [AI Test Generation](docs/test-generation.md)      | Generating tests from notes, preferences, preview                  |
+| [AI Assistant](docs/ai-assistant.md)               | Chat panel, SSE protocol, agentic tool-calling, streaming pipeline |
+| [Token Usage & Cost Tracking](docs/token-usage.md) | Token metering, model pricing, cost calculation                    |
 
 ## License
 
