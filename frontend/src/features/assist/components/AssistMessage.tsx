@@ -86,7 +86,7 @@ export function ToolIndicatorRow({ name, status }: { name: string; status: strin
       ) : status === 'done' ? (
         <CheckCircle className="size-3.5 text-feedback-correct" />
       ) : status === 'stopped' ? (
-        <Square className="size-3 fill-muted-foreground/60 text-muted-foreground/60" />
+        <Square className="size-3.5 fill-muted-foreground/60 text-muted-foreground/60" />
       ) : (
         <AlertCircle className="size-3.5 text-destructive" />
       )}

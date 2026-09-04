@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir poetry
 
 COPY pyproject.toml poetry.lock* ./
 
-# Instalar dependencias en el sistema de este stage
+# Install dependencies into this stage's system Python
 RUN poetry install --no-interaction --no-root --only main
 
 # --- STAGE 2: Runner ---
@@ -23,7 +23,7 @@ FROM python:3.10-slim AS runner
 
 WORKDIR /app
 
-# In final container we only need libpq5 (para Postgres)
+# Runtime only needs libpq5 (PostgreSQL client library)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 && \
     rm -rf /var/lib/apt/lists/*
