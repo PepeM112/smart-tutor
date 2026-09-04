@@ -42,6 +42,7 @@ logger = logging.getLogger("smarttutor.assist.tools")
 
 _TOOL_LIST_LIMIT = 20
 _TOOL_SEARCH_LIMIT = 15
+_SIMILARITY_THRESHOLD = 0.15
 
 _LENGTH_MAP: dict[str, NoteLength] = {
     "short": NoteLength.SHORT,
@@ -99,11 +100,12 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
         logger.exception("search_user_notes: search failed")
         return ToolResult(output="Error: Search failed unexpectedly.")
 
-    if not results:
+    relevant = [r for r in results if r.similarity >= _SIMILARITY_THRESHOLD]
+    if not relevant:
         return ToolResult(output="No matching notes found.")
 
-    lines = [f"Found {len(results)} relevant chunk(s):"]
-    for r in results:
+    lines = [f"Found {len(relevant)} relevant chunk(s):"]
+    for r in relevant:
         lines.append(f"\n**{r.note_title}** (ID: `{r.note_id}`, similarity: {r.similarity:.3f})")
         lines.append(r.chunk_content)
     return ToolResult(output="\n".join(lines))

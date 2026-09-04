@@ -4,7 +4,6 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
-import type { AiFeature, AiProvider } from '@/client';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { sdk } from '@/lib/apiClient';
 import type { FilterValue, Primitive } from '@/lib/filters';
@@ -23,12 +22,12 @@ export function UsageStatsPage() {
 
   const provider = useMemo(() => {
     const v = filters.provider as Primitive | undefined;
-    return v != null ? (Number(v) as AiProvider) : null;
+    return v != null ? (Number(v)) : null;
   }, [filters.provider]);
 
   const features = useMemo(() => {
     const v = filters.feature as Primitive[] | undefined;
-    return v?.length ? (v.map(Number) as AiFeature[]) : null;
+    return v?.length ? (v.map(Number)) : null;
   }, [filters.feature]);
 
   const timeRangeItems: ButtonGroupItem<number>[] = useMemo(

@@ -21,7 +21,7 @@ STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
 if [ "$STATUS" = "201" ]; then echo "created"; else echo "already exists (${STATUS})"; fi
 
 # --- Seed all data via ORM ---
-docker exec backend python3 /app/scripts/seed.py "$EMAIL"
+docker exec -e PYTHONPATH=/app backend python3 /app/scripts/seed.py "$EMAIL"
 
 echo ""
 echo "User:  $EMAIL / $PASSWORD"

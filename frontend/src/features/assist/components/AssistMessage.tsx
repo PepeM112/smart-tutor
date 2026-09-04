@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, X } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, Square, X } from 'lucide-react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -82,11 +82,13 @@ export function ToolIndicatorRow({ name, status }: { name: string; status: strin
   return (
     <div className="flex items-center gap-2 py-0.5">
       {status === 'running' ? (
-        <Loader2 className="size-3 animate-spin text-muted-foreground" />
+        <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
       ) : status === 'done' ? (
-        <CheckCircle className="size-3 text-feedback-correct" />
+        <CheckCircle className="size-3.5 text-feedback-correct" />
+      ) : status === 'stopped' ? (
+        <Square className="size-3.5 fill-muted-foreground/60 text-muted-foreground/60" />
       ) : (
-        <AlertCircle className="size-3 text-destructive" />
+        <AlertCircle className="size-3.5 text-destructive" />
       )}
       <span className="text-[12px] text-muted-foreground">{label}</span>
     </div>
@@ -150,7 +152,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
 
   return (
     <div className="flex items-center gap-2 py-0.5">
-      <CheckCircle className="size-3 text-feedback-correct" />
+      <CheckCircle className="size-3.5 text-feedback-correct" />
       <span className="text-[12px] text-muted-foreground">
         {hasDiff ? 'Refinement ready — review the changes before applying.' : 'Refinement applied.'}
       </span>
@@ -159,7 +161,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
           href={`${Routes.NOTE_DETAIL(noteId)}?diff=assist`}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
-          View changes <Eye className="size-3" />
+          View changes <Eye className="size-3.5" />
         </Link>
       )}
     </div>
@@ -172,7 +174,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
 
   return (
     <div className="flex items-center gap-2 py-0.5">
-      <CheckCircle className="size-3 text-feedback-correct" />
+      <CheckCircle className="size-3.5 text-feedback-correct" />
       <span className="text-[12px] text-muted-foreground">
         {hasDiff ? 'Question refinement ready — review the changes before applying.' : 'Refinement applied.'}
       </span>
@@ -181,7 +183,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
           href={`${Routes.TEST_EDIT(testId)}?diff=assist`}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
-          View changes <Eye className="size-3" />
+          View changes <Eye className="size-3.5" />
         </Link>
       )}
     </div>
@@ -195,7 +197,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
 function ToolIconBadge({ icon: Icon }: { icon: LucideIcon }) {
   return (
     <span className="flex size-5 items-center justify-center rounded-md bg-primary/10 text-primary">
-      <Icon className="size-3" />
+      <Icon className="size-3.5" />
     </span>
   );
 }
@@ -312,6 +314,15 @@ export function ErrorRow({ message }: { message: string }) {
     <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2.5">
       <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
       <p className="text-[12px] text-destructive">{message}</p>
+    </div>
+  );
+}
+
+export function StoppedRow() {
+  return (
+    <div className="flex items-center gap-1.5 py-1">
+      <Square className="size-2.5 fill-muted-foreground text-muted-foreground" />
+      <span className="text-xs text-muted-foreground">Response stopped</span>
     </div>
   );
 }

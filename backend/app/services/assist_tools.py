@@ -81,7 +81,12 @@ class ToolHandler(Protocol):
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "list_notes",
-        "description": "List the user's study notes. Returns titles and IDs. Use for browsing/listing notes.",
+        "description": (
+            "List the user's study notes. Returns titles and IDs. "
+            "Only filters by exact title text — does NOT search tags, content, or topics. "
+            "Use without a title filter to browse all notes. "
+            "For topic-based queries, prefer search_user_notes instead."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -97,9 +102,11 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "name": "search_user_notes",
         "description": (
             "Semantically search the user's study notes using AI embeddings. "
-            "Returns the most relevant text chunks from notes that match the query meaning, "
-            "not just keyword matches. Use this when the user asks about a topic and you want "
-            "to find relevant information from their notes."
+            "Returns the most relevant text chunks from notes that match the query meaning — "
+            "finds notes by topic, tags, and content, not just title keywords. "
+            "PREFERRED tool when the user asks about a subject or topic (e.g. 'history', "
+            "'biology', 'Spanish grammar'). Use this instead of list_notes for any "
+            "topic-based lookup."
         ),
         "input_schema": {
             "type": "object",

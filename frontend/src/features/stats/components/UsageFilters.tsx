@@ -29,9 +29,9 @@ export function UsageFilters({ groupBy, onGroupByChange, filters, onFilterChange
 
   const groupByItems: ButtonGroupItem<GroupBy>[] = useMemo(
     () => [
-      { label: t('stats.group_provider'), value: 'provider' as GroupBy },
-      { label: t('stats.group_feature'), value: 'feature' as GroupBy },
-      { label: t('stats.group_both'), value: 'both' as GroupBy },
+      { label: t('stats.group_provider'), value: 'provider' },
+      { label: t('stats.group_feature'), value: 'feature' },
+      { label: t('stats.group_both'), value: 'both' },
     ],
     [t]
   );

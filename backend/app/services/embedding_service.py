@@ -105,7 +105,14 @@ def index_note(db: Session, *, note_id: str) -> None:
 
     note_chunk_crud.delete_by_note_id(db, note_id=note_id)
 
-    chunks = chunk_text(note.content or "")
+    header_parts = [f"Title: {note.title}"]
+    if note.description:
+        header_parts.append(f"Description: {note.description}")
+    if note.tags:
+        header_parts.append(f"Tags: {', '.join(note.tags)}")
+    header = "\n".join(header_parts) + "\n\n"
+
+    chunks = chunk_text(header + (note.content or ""))
     if not chunks:
         note.is_indexed = True
         db.commit()

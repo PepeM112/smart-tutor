@@ -5,8 +5,8 @@ import { createStreamQueue, type StreamQueueHandle } from './useStreamQueue';
 // jsdom-less unit test: requestAnimationFrame isn't a Node global. Route it
 // through setTimeout so vi.useFakeTimers() drives it deterministically.
 globalThis.requestAnimationFrame = ((cb: FrameRequestCallback): number =>
-  setTimeout(() => cb(performance.now()), 16) as unknown as number) as typeof requestAnimationFrame;
-globalThis.cancelAnimationFrame = ((id: number): void => clearTimeout(id)) as typeof cancelAnimationFrame;
+  setTimeout(() => cb(performance.now()), 16) as unknown as number);
+globalThis.cancelAnimationFrame = ((id: number): void => clearTimeout(id));
 
 type Event =
   | { type: 'update'; id: string; content: string; streaming: boolean; at: number }

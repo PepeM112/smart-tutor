@@ -1,11 +1,10 @@
 """Main seed entry point — populates the database with sample data for a user.
 
 Usage: python seed.py <user_email>
-Runs inside the backend container via: docker exec -i backend python3 - <email> < scripts/seed.py
+Runs inside the backend container via seed.sh (PYTHONPATH=/app).
 """
 
 import logging
-import os
 import sys
 
 from seed_data.clean import clean_user_data
@@ -20,10 +19,7 @@ from sqlalchemy import text
 from app.database import SessionLocal
 from app.models.user import User  # noqa: F401 — FK resolution for all ORM models
 
-logging.disable(logging.INFO)
-script_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, script_dir)
-sys.path.insert(0, os.path.dirname(script_dir))
+logging.disable(logging.DEBUG)
 
 
 email = sys.argv[1]

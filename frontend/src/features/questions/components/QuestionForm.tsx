@@ -146,7 +146,7 @@ export function QuestionForm({ question }: Props) {
           <Label>{t('questions.column_type')}</Label>
           <select
             value={String(questionType)}
-            onChange={e => setQuestionType(Number(e.target.value) as QuestionType)}
+            onChange={e => setQuestionType(Number(e.target.value))}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value={String(QuestionType.SIMPLE)}>{t('test_editor.simple')}</option>
