@@ -2,7 +2,7 @@
 
 A full-stack learning platform where users create their own study content, take exams, and retain knowledge through spaced repetition — with AI grading, content generation, semantic search (RAG), and an agentic chat assistant.
 
-<!-- VIDEO: 30–60s walkthrough — create a test, take an exam, see the result, review with SRS. Show the AI Assistant asking about a note and navigating to it. -->
+<video src="docs/media/vid_1_hero.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ## Highlights
 
@@ -36,7 +36,7 @@ An SM-2 algorithm schedules review sessions based on past performance — correc
 
 Markdown study notes with a split-panel editor (raw + live preview). Notes can be AI-generated from a topic, refined chunk-by-chunk, and used as source material for test generation.
 
-<!-- VIDEO: Generating a study note from a topic, then generating a test from that note -->
+<video src="docs/media/vid_3_notes_ai.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ### Question Bank
 
@@ -57,7 +57,7 @@ Eight AI capabilities, all with per-user provider selection and token cost track
 | 7 | **AI Assistant** | Agentic chat panel with 12 tools — reads content, navigates the app, creates and edits resources |
 | 8 | **Semantic Search (RAG)** | Notes are chunked and embedded (pgvector + HNSW), enabling meaning-based retrieval |
 
-<!-- VIDEO: AI Assistant agentic demo — semantic search, read note, generate test, refine questions -->
+<video src="docs/media/vid_4_assistant.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ### AI Assistant — Agentic Chat
 
