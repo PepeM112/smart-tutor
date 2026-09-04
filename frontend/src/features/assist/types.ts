@@ -67,7 +67,7 @@ export type ToolIndicatorSegment = {
   type: 'tool_indicator';
   id: string;
   name: string;
-  status: 'running' | 'done' | 'failed';
+  status: 'running' | 'done' | 'failed' | 'stopped';
 };
 
 export type ToolResultSegment = {
@@ -93,7 +93,18 @@ export type ErrorSegment = {
   message: string;
 };
 
-export type TurnSegment = TextSegment | ToolIndicatorSegment | ToolResultSegment | ActionCardSegment | ErrorSegment;
+export type StoppedSegment = {
+  type: 'stopped';
+  id: string;
+};
+
+export type TurnSegment =
+  | TextSegment
+  | ToolIndicatorSegment
+  | ToolResultSegment
+  | ActionCardSegment
+  | ErrorSegment
+  | StoppedSegment;
 
 export type AssistTurn = {
   id: string;

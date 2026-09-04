@@ -1,6 +1,14 @@
 'use client';
 
-import { ActionCard, AssistantBubble, ErrorRow, ToolIndicatorRow, ToolResultRow, UserBubble } from './AssistMessage';
+import {
+  ActionCard,
+  AssistantBubble,
+  ErrorRow,
+  StoppedRow,
+  ToolIndicatorRow,
+  ToolResultRow,
+  UserBubble,
+} from './AssistMessage';
 
 import type { AssistTurn, TurnSegment } from '../types';
 
@@ -56,6 +64,8 @@ function SegmentView({
       );
     case 'error':
       return <ErrorRow message={segment.message} />;
+    case 'stopped':
+      return <StoppedRow />;
     default:
       return null;
   }

@@ -494,6 +494,30 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   const stop = useCallback(() => {
     abortRef.current?.abort();
     queueRef.current?.flush();
+
+    pendingToolIdsRef.current.clear();
+
+    setTurns(prev => {
+      const updated = prev.map(turn => ({
+        ...turn,
+        segments: turn.segments.map(seg => {
+          if (seg.type === 'tool_indicator' && seg.status === 'running') return { ...seg, status: 'stopped' as const };
+          if (seg.type === 'action_card' && seg.status === 'pending') return { ...seg, status: 'rejected' as const };
+          if (seg.type === 'text' && seg.streaming) return { ...seg, streaming: false };
+          return seg;
+        }),
+      }));
+
+      const lastAssistIdx = updated.findLastIndex(t => t.role === 'assistant');
+      if (lastAssistIdx >= 0) {
+        updated[lastAssistIdx] = {
+          ...updated[lastAssistIdx],
+          segments: [...updated[lastAssistIdx].segments, { type: 'stopped', id: nextId() }],
+        };
+      }
+
+      return updated;
+    });
   }, []);
 
   const clear = useCallback(() => {

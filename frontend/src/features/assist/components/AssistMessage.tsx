@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, X } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, Square, X } from 'lucide-react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -85,6 +85,8 @@ export function ToolIndicatorRow({ name, status }: { name: string; status: strin
         <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
       ) : status === 'done' ? (
         <CheckCircle className="size-3.5 text-feedback-correct" />
+      ) : status === 'stopped' ? (
+        <Square className="size-3 fill-muted-foreground/60 text-muted-foreground/60" />
       ) : (
         <AlertCircle className="size-3.5 text-destructive" />
       )}
@@ -312,6 +314,15 @@ export function ErrorRow({ message }: { message: string }) {
     <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2.5">
       <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
       <p className="text-[12px] text-destructive">{message}</p>
+    </div>
+  );
+}
+
+export function StoppedRow() {
+  return (
+    <div className="flex items-center gap-1.5 py-1">
+      <Square className="size-2.5 fill-muted-foreground text-muted-foreground" />
+      <span className="text-xs text-muted-foreground">Response stopped</span>
     </div>
   );
 }
