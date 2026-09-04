@@ -172,25 +172,16 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const canSave = !!title.trim() && (isDirty || !isEdit);
 
   useMobileBreadcrumbActions(
-    <div className="flex items-center gap-2">
-      {isEdit && (
-        <Button variant="outline" size="sm" icon={Dumbbell} className="text-feedback-partial" asChild>
-          <Link href={Routes.TEST_DETAIL(testId)}>{t('tests.take_test_action')}</Link>
-        </Button>
-      )}
-      {isEditing ? (
-        <Button variant="outline" size="sm" icon={SquareCheck} onClick={() => setIsEditing(false)}>
-          {t('test_editor.done_editing')}
-        </Button>
-      ) : (
-        <Button variant="outline" size="sm" icon={Pencil} onClick={() => setIsEditing(true)}>
-          {t('test_editor.edit_questions')}
-        </Button>
-      )}
-      <Button size="sm" loading={isSaving} disabled={!canSave} onClick={() => saveTest()}>
-        {t('tests.save_test')}
-      </Button>
-    </div>
+    <TestEditorActions
+      size="sm"
+      testId={testId}
+      isEdit={isEdit}
+      isEditing={isEditing}
+      isSaving={isSaving}
+      canSave={canSave}
+      onToggleEditing={setIsEditing}
+      onSave={saveTest}
+    />
   );
 
   return (
@@ -227,25 +218,16 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
             )}
           </div>
           {isDesktop && (
-            <div className="flex items-center gap-2">
-              {isEdit && (
-                <Button variant="outline" size="lg" icon={Dumbbell} className="text-feedback-partial" asChild>
-                  <Link href={Routes.TEST_DETAIL(testId)}>{t('tests.take_test_action')}</Link>
-                </Button>
-              )}
-              {isEditing ? (
-                <Button variant="outline" size="lg" icon={SquareCheck} onClick={() => setIsEditing(false)}>
-                  {t('test_editor.done_editing')}
-                </Button>
-              ) : (
-                <Button variant="outline" size="lg" icon={Pencil} onClick={() => setIsEditing(true)}>
-                  {t('test_editor.edit_questions')}
-                </Button>
-              )}
-              <Button size="lg" loading={isSaving} disabled={!canSave} onClick={() => saveTest()}>
-                {t('tests.save_test')}
-              </Button>
-            </div>
+            <TestEditorActions
+              size="lg"
+              testId={testId}
+              isEdit={isEdit}
+              isEditing={isEditing}
+              isSaving={isSaving}
+              canSave={canSave}
+              onToggleEditing={setIsEditing}
+              onSave={saveTest}
+            />
           )}
         </div>
 
@@ -335,6 +317,43 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
           </DrawerContent>
         </Drawer>
       )}
+    </div>
+  );
+}
+
+type EditorActionsProps = {
+  size: 'sm' | 'lg';
+  testId?: string;
+  isEdit: boolean;
+  isEditing: boolean;
+  isSaving: boolean;
+  canSave: boolean;
+  onToggleEditing: (editing: boolean) => void;
+  onSave: () => void;
+};
+
+function TestEditorActions({ size, testId, isEdit, isEditing, isSaving, canSave, onToggleEditing, onSave }: EditorActionsProps) {
+  const t = useTranslations();
+
+  return (
+    <div className="flex items-center gap-2">
+      {isEdit && testId && (
+        <Button variant="outline" size={size} icon={Dumbbell} className="text-feedback-partial" asChild>
+          <Link href={Routes.TEST_DETAIL(testId)}>{t('tests.take_test_action')}</Link>
+        </Button>
+      )}
+      {isEditing ? (
+        <Button variant="outline" size={size} icon={SquareCheck} onClick={() => onToggleEditing(false)}>
+          {t('test_editor.done_editing')}
+        </Button>
+      ) : (
+        <Button variant="outline" size={size} icon={Pencil} onClick={() => onToggleEditing(true)}>
+          {t('test_editor.edit_questions')}
+        </Button>
+      )}
+      <Button size={size} loading={isSaving} disabled={!canSave} onClick={onSave}>
+        {t('tests.save_test')}
+      </Button>
     </div>
   );
 }
