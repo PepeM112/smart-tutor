@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 
-import { LoginForm } from '@/features/auth/components/login-form';
+import { LoginForm } from '@/features/auth/components/LoginForm';
 
 export default async function LoginPage() {
   const t = await getTranslations('app');

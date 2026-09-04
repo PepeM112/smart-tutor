@@ -1,6 +1,6 @@
 from typing import Annotated, TypeAlias
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -31,7 +31,8 @@ CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 def list_(
     db: DbSession,
     current_user: CurrentUser,
-    search: str | None = None,
+    title: str | None = None,
+    content: str | None = None,
     source: Annotated[list[int] | None, Query()] = None,
     sort_by: Annotated[NoteSortBy | None, Query()] = None,
     sort_order: Annotated[SortOrder, Query()] = "desc",
@@ -41,7 +42,8 @@ def list_(
     items, total = note_service.list_notes(
         db,
         current_user=current_user,
-        search=search,
+        title=title,
+        content=content,
         source=source,
         sort_by=sort_by,
         sort_order=sort_order,
@@ -57,8 +59,10 @@ def list_(
 
 
 @router.post("/generate", response_model=NoteRead, status_code=status.HTTP_201_CREATED)
-def generate(data: NoteGenerate, db: DbSession, current_user: CurrentUser) -> Note:
-    return note_service.generate_note(db, current_user=current_user, data=data)
+def generate(data: NoteGenerate, db: DbSession, current_user: CurrentUser, bg: BackgroundTasks) -> Note:
+    note = note_service.generate_note(db, current_user=current_user, data=data)
+    bg.add_task(note_service.schedule_indexing, note.id)
+    return note
 
 
 @router.get("/{note_id}", response_model=NoteRead)
@@ -67,13 +71,17 @@ def get(note_id: str, db: DbSession, current_user: CurrentUser) -> Note:
 
 
 @router.post("", response_model=NoteRead, status_code=status.HTTP_201_CREATED)
-def create(data: NoteCreate, db: DbSession, current_user: CurrentUser) -> Note:
-    return note_service.create_note(db, current_user=current_user, data=data)
+def create(data: NoteCreate, db: DbSession, current_user: CurrentUser, bg: BackgroundTasks) -> Note:
+    note = note_service.create_note(db, current_user=current_user, data=data)
+    bg.add_task(note_service.schedule_indexing, note.id)
+    return note
 
 
 @router.post("/{note_id}/refine", response_model=NoteRead)
-def refine(note_id: str, data: NoteRefine, db: DbSession, current_user: CurrentUser) -> Note:
-    return note_service.refine_note(db, note_id=note_id, current_user=current_user, data=data)
+def refine(note_id: str, data: NoteRefine, db: DbSession, current_user: CurrentUser, bg: BackgroundTasks) -> Note:
+    note = note_service.refine_note(db, note_id=note_id, current_user=current_user, data=data)
+    bg.add_task(note_service.schedule_indexing, note.id)
+    return note
 
 
 @router.post("/{note_id}/edit-chunk", response_model=NoteChunkEditResponse)
@@ -82,8 +90,11 @@ def edit_chunk(note_id: str, data: NoteChunkEdit, db: DbSession, current_user: C
 
 
 @router.patch("/{note_id}", response_model=NoteRead)
-def update(note_id: str, data: NoteUpdate, db: DbSession, current_user: CurrentUser) -> Note:
-    return note_service.update_note(db, note_id=note_id, current_user=current_user, data=data)
+def update(note_id: str, data: NoteUpdate, db: DbSession, current_user: CurrentUser, bg: BackgroundTasks) -> Note:
+    note = note_service.update_note(db, note_id=note_id, current_user=current_user, data=data)
+    if data.content is not None:
+        bg.add_task(note_service.schedule_indexing, note.id)
+    return note
 
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)

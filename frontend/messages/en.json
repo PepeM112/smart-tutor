@@ -11,6 +11,7 @@
     "coming_soon": "Coming soon",
     "go": "Go",
     "accept": "Accept",
+    "reject": "Reject",
     "generate": "Generate",
     "refine": "Refine",
     "submit": "Submit",
@@ -35,7 +36,8 @@
     "from": "From",
     "to": "To",
     "min": "Min",
-    "max": "Max"
+    "max": "Max",
+    "points_abbr": "{count, plural, =1 {1pt} other {#pts}}"
   },
   "app": {
     "title": "SmartTutor",
@@ -101,11 +103,24 @@
     "daily_tokens": "Daily tokens",
     "cumulative": "Cumulative",
     "estimated_cost": "Est. Cost",
+    "top_feature": "Top Feature",
+    "view_details": "View details",
     "range_1d": "1D",
     "range_1w": "1W",
     "range_1m": "1M",
     "range_3m": "3M",
     "range_1y": "1Y"
+  },
+  "aiFeatures": {
+    "grading": "Grading",
+    "challenge": "Re-evaluation",
+    "noteGeneration": "Note Generation",
+    "noteEditing": "Note Editing",
+    "noteRefinement": "Note Editing (Refine)",
+    "noteChunkEdit": "Note Editing (Chunk Edit)",
+    "testGeneration": "Test Generation",
+    "assist": "Chat",
+    "embedding": "Embedding"
   },
   "review": {
     "title": "Review Now",
@@ -162,6 +177,7 @@
     "questions_updated": "Questions updated",
     "failed_to_edit_questions": "Failed to edit questions. Please try again.",
     "column_title": "Title",
+    "column_description": "Description",
     "column_questions": "Questions",
     "column_types": "Types",
     "column_created": "Created",
@@ -282,7 +298,8 @@
     "start_writing": "Start writing in Markdown…",
     "add_tags": "Add tags…",
     "remove_tag": "Remove tag {tag}",
-    "filter_search": "Search",
+    "filter_title": "Title",
+    "filter_content": "Content",
     "filter_source": "Source",
     "no_results": "No notes match your filters.",
     "clear_filters": "Clear filters"
@@ -318,7 +335,8 @@
     "could_not_locate": "Could not locate the original text — it may have changed.",
     "changes": "Changes",
     "old": "Old",
-    "new": "New"
+    "new": "New",
+    "note_text": "Note text"
   },
   "test_generation": {
     "generate_test": "Generate Test",
@@ -362,6 +380,8 @@
     "ai_edit": "AI Edit",
     "ai_edit_placeholder": "Describe how you want to edit the selected questions…",
     "questions_selected": "{count, plural, one {# question} other {# questions}} selected",
+    "chip_label": "{count, plural, one {# question} other {# questions}}",
+    "chip_question_label": "Question {index}",
     "applying": "Applying…",
     "two_column_layout": "2-column layout",
     "one_column_layout": "1-column layout",
@@ -388,6 +408,7 @@
     "vocabulary_mode": "Vocabulary mode",
     "prompt": "Prompt",
     "answer_n": "Answer {n}",
+    "answers_comma": "Answers (comma-separated)",
     "add": "Add",
     "add_question": "Add question",
     "simple": "Simple",
@@ -397,7 +418,15 @@
     "long_chars": "Long (~5000 chars)",
     "unknown": "Unknown",
     "simple_questions": "Simple questions",
-    "multiple_choice": "Multiple Choice"
+    "multiple_choice": "Multiple Choice",
+    "edit_questions": "Edit",
+    "done_editing": "Done",
+    "length_short": "Short",
+    "length_medium": "Medium",
+    "length_long": "Long",
+    "proposed_changes": "Proposed Changes",
+    "no_changes": "No changes detected.",
+    "diff_answers": "Answers: {answers}"
   },
   "history": {
     "title": "Test History",
@@ -446,8 +475,19 @@
     "grading_failed": "Grading failed. Try submitting the answer again."
   },
   "stats": {
-    "title": "Progress Stats",
-    "placeholder": "Charts and streaks will be displayed here."
+    "title": "AI Usage Stats",
+    "description": "Track AI token usage and estimated cost by provider and feature.",
+    "group_by": "Group by",
+    "group_provider": "Provider",
+    "group_feature": "Feature",
+    "group_both": "Both",
+    "provider_filter": "Provider",
+    "feature_filter": "Feature",
+    "all_features": "All features",
+    "all_providers": "All",
+    "total_input": "Total Input Tokens",
+    "total_output": "Total Output Tokens",
+    "total_cost": "Total Estimated Cost"
   },
   "settings": {
     "title": "Profile & Settings",

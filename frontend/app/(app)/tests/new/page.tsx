@@ -2,7 +2,7 @@
 import { useTranslations } from 'next-intl';
 
 import { TestEditor } from '@/features/tests/components/test-editor';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { Routes } from '@/lib/routes';
 
 export default function NewTestPage() {

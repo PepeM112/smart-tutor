@@ -7,12 +7,6 @@ Usage: docker exec backend python3 /app/scripts/backfill_costs.py
 import logging
 import os
 import sys
-
-logging.disable(logging.INFO)
-script_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, script_dir)
-sys.path.insert(0, os.path.dirname(script_dir))
-
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -21,6 +15,12 @@ from app.core.model_registry import SDK_TO_OPENROUTER
 from app.crud.model_pricing import get_active_price
 from app.database import SessionLocal
 from app.models.token_usage import TokenUsage
+
+logging.disable(logging.INFO)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, script_dir)
+sys.path.insert(0, os.path.dirname(script_dir))
+
 
 db = SessionLocal()
 

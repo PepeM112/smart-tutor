@@ -9,7 +9,7 @@ Rather than writing every question by hand, a user can generate a test directly 
 1. The user opens a study note and starts test generation.
 2. A preferences form collects:
    - **Question count** — between 5 and 30
-   - **Question types** — Simple (free-text), Multiple Choice, or both
+   - **Question types** — Simple (free-text), Multiple Choice, Long Text, or any combination
    - **Difficulty** — easy, medium, or hard
    - **Guidance** (optional) — free-text instructions, e.g. "focus on dates and events" or "avoid trick questions"
 3. The AI generates questions from the note's content and the chosen preferences.
@@ -56,6 +56,8 @@ The AI receives the selected questions and the instructions, and returns modifie
 This works for all question types, including Long Text — the AI can generate a rubric as part of the edit.
 
 - Endpoint: `POST /tests/generate/edit-questions`
+
+Test creation, editing, and question editing are also exposed as AI Assistant tools (`create_test`, `edit_test`, `refine_questions`) — see [AI Assistant](ai-assistant.md#tools).
 
 ## Saving
 

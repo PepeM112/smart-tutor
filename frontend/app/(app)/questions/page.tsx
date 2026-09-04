@@ -8,17 +8,20 @@ import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { QuestionType } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { Pagination } from '@/components/shared/pagination';
-import { QueryState } from '@/components/shared/query-state';
+import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { Pagination } from '@/components/shared/Pagination';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { AssignDialog } from '@/features/questions/components/assign-dialog';
-import { QuestionsTable } from '@/features/questions/components/questions-table';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { useFilters } from '@/hooks/use-filters';
-import { useUrlSort } from '@/hooks/use-url-sort';
-import { sdk } from '@/lib/api-client';
+import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
+import { formatQuestionsList } from '@/features/assist/utils/formatPageData';
+import { AssignDialog } from '@/features/questions/components/AssignDialog';
+import { QuestionsTable } from '@/features/questions/components/QuestionsTable';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useFilters } from '@/hooks/useFilters';
+import { useUrlSort } from '@/hooks/useUrlSort';
+import { sdk } from '@/lib/apiClient';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
@@ -136,10 +139,12 @@ export default function QuestionsPage() {
       }),
   });
 
-  const items = response?.data?.items ?? [];
+  const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
+
+  useProvidePageData(useMemo(() => (items.length > 0 ? formatQuestionsList(items) : null), [items]));
 
   const { mutate: bulkDelete, isPending: isBulkDeleting } = useMutation({
     mutationFn: (ids: string[]) => sdk.questionsBulkDelete({ body: { questionIds: ids } }),
@@ -153,21 +158,21 @@ export default function QuestionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-2">
+      <ListPageHeader
+        filters={
           <FilterPopover
             filterConfig={filterConfig}
             filters={filters}
             onFilterChange={setFilter}
             onClear={clearFilters}
           />
-        </div>
-        <div className="flex items-center gap-2 self-end lg:self-auto">
+        }
+        actions={
           <Button size="lg" icon={Plus} asChild>
             <Link href={Routes.QUESTION_NEW}>{t('questions.new_question')}</Link>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 rounded-lg bg-muted px-4 py-2">

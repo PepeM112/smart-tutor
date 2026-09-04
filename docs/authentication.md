@@ -70,10 +70,7 @@ Auth state is also mirrored in a Zustand store so components can read it synchro
 
 The `User` model has a `role` field: `ADMIN` or `USER` (the default).
 
-- **Backend:** the `get_current_admin_user` dependency raises a 403 if the current user's role is not `ADMIN`.
-- **Frontend:** the `RoleGuard` component checks the user's role and redirects away in a `useEffect` if it doesn't match the required role.
-
-Currently, this is only used to restrict the Sandbox/dev page to admins.
+The `ADMIN` role enum value and a frontend `RoleGuard` component exist, but neither is wired to any route yet. The Sandbox page is accessible to all authenticated users. Role-based restrictions can be added when a feature requires them.
 
 ## Why HTTP-only Cookies (Not localStorage)
 

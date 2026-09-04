@@ -5,6 +5,44 @@ export type ClientOptions = {
 };
 
 /**
+ * AIFeature
+ */
+export enum AiFeature {
+    /**
+     * GRADING
+     */
+    GRADING = 1,
+    /**
+     * CHALLENGE
+     */
+    CHALLENGE = 2,
+    /**
+     * NOTE_GENERATION
+     */
+    NOTE_GENERATION = 3,
+    /**
+     * NOTE_REFINEMENT
+     */
+    NOTE_REFINEMENT = 4,
+    /**
+     * NOTE_CHUNK_EDIT
+     */
+    NOTE_CHUNK_EDIT = 5,
+    /**
+     * TEST_GENERATION
+     */
+    TEST_GENERATION = 6,
+    /**
+     * ASSIST
+     */
+    ASSIST = 7,
+    /**
+     * EMBEDDING
+     */
+    EMBEDDING = 8
+}
+
+/**
  * AIProvider
  */
 export enum AiProvider {
@@ -82,6 +120,43 @@ export type AssignQuestionRequest = {
 };
 
 /**
+ * AssistMessage
+ */
+export type AssistMessage = {
+    /**
+     * Role
+     */
+    role: 'user' | 'assistant' | 'tool';
+    /**
+     * Content
+     */
+    content?: string;
+    /**
+     * Toolcalls
+     */
+    toolCalls?: Array<ToolCallData> | null;
+    /**
+     * Toolresults
+     */
+    toolResults?: Array<ToolResultData> | null;
+};
+
+/**
+ * AssistRequest
+ */
+export type AssistRequest = {
+    /**
+     * Messages
+     */
+    messages: Array<AssistMessage>;
+    pageContext?: PageContext | null;
+    /**
+     * Toolconfirmations
+     */
+    toolConfirmations?: Array<ToolConfirmation> | null;
+};
+
+/**
  * Body_usersLogin
  */
 export type BodyUsersLogin = {
@@ -153,6 +228,26 @@ export type BulkDeleteQuestionsResponse = {
      * Deleted
      */
     deleted: number;
+};
+
+/**
+ * BulkRestoreQuestionsRequest
+ */
+export type BulkRestoreQuestionsRequest = {
+    /**
+     * Questionids
+     */
+    questionIds: Array<string>;
+};
+
+/**
+ * BulkRestoreQuestionsResponse
+ */
+export type BulkRestoreQuestionsResponse = {
+    /**
+     * Restored
+     */
+    restored: number;
 };
 
 /**
@@ -426,6 +521,10 @@ export type NoteRead = {
     userId: string;
     source: NoteSource;
     /**
+     * Isindexed
+     */
+    isIndexed: boolean;
+    /**
      * Createdat
      */
     createdAt: Date;
@@ -479,6 +578,28 @@ export type NoteUpdate = {
      * Tags
      */
     tags?: Array<string> | null;
+};
+
+/**
+ * PageContext
+ */
+export type PageContext = {
+    /**
+     * Route
+     */
+    route: string;
+    /**
+     * Resourcetype
+     */
+    resourceType?: string | null;
+    /**
+     * Resourceid
+     */
+    resourceId?: string | null;
+    /**
+     * Contextdata
+     */
+    contextData?: string | null;
 };
 
 /**
@@ -1429,7 +1550,8 @@ export type TokenUsageDailySummary = {
      * Date
      */
     date: string;
-    provider: AiProvider;
+    provider?: AiProvider | null;
+    feature?: AiFeature | null;
     /**
      * Inputtokens
      */
@@ -1464,6 +1586,54 @@ export type TokenUsageSummaryResponse = {
      * Totalestimatedcost
      */
     totalEstimatedCost: string | null;
+};
+
+/**
+ * ToolCallData
+ */
+export type ToolCallData = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Arguments
+     */
+    arguments: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ToolConfirmation
+ */
+export type ToolConfirmation = {
+    /**
+     * Toolcallid
+     */
+    toolCallId: string;
+    /**
+     * Approved
+     */
+    approved: boolean;
+};
+
+/**
+ * ToolResultData
+ */
+export type ToolResultData = {
+    /**
+     * Toolcallid
+     */
+    toolCallId: string;
+    /**
+     * Output
+     */
+    output: unknown;
 };
 
 /**
@@ -2457,6 +2627,31 @@ export type QuestionsBulkDeleteResponses = {
 
 export type QuestionsBulkDeleteResponse = QuestionsBulkDeleteResponses[keyof QuestionsBulkDeleteResponses];
 
+export type QuestionsBulkRestoreData = {
+    body: BulkRestoreQuestionsRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/questions/bulk-restore';
+};
+
+export type QuestionsBulkRestoreErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type QuestionsBulkRestoreError = QuestionsBulkRestoreErrors[keyof QuestionsBulkRestoreErrors];
+
+export type QuestionsBulkRestoreResponses = {
+    /**
+     * Successful Response
+     */
+    200: BulkRestoreQuestionsResponse;
+};
+
+export type QuestionsBulkRestoreResponse = QuestionsBulkRestoreResponses[keyof QuestionsBulkRestoreResponses];
+
 export type QuestionsBulkAssignData = {
     body: BulkAssignQuestionsRequest;
     path?: never;
@@ -2551,9 +2746,13 @@ export type NotesListData = {
     path?: never;
     query?: {
         /**
-         * Search
+         * Title
          */
-        search?: string | null;
+        title?: string | null;
+        /**
+         * Content
+         */
+        content?: string | null;
         /**
          * Source
          */
@@ -2804,6 +3003,18 @@ export type TokenUsageGetUsageData = {
          * Days
          */
         days?: number;
+        /**
+         * Groupby
+         */
+        groupBy?: 'provider' | 'feature' | 'both';
+        /**
+         * Feature
+         */
+        feature?: Array<AiFeature> | null;
+        /**
+         * Provider
+         */
+        provider?: AiProvider | null;
     };
     url: '/api/v1/token-usage';
 };
@@ -2825,6 +3036,29 @@ export type TokenUsageGetUsageResponses = {
 };
 
 export type TokenUsageGetUsageResponse = TokenUsageGetUsageResponses[keyof TokenUsageGetUsageResponses];
+
+export type AssistAssistData = {
+    body: AssistRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/assist';
+};
+
+export type AssistAssistErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AssistAssistError = AssistAssistErrors[keyof AssistAssistErrors];
+
+export type AssistAssistResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type DefaultHealthData = {
     body?: never;

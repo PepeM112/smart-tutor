@@ -5,7 +5,7 @@ from sqlalchemy import UnaryExpression, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.core.enums import NoteSource
-from app.crud.helpers import token_search
+from app.crud.helpers import ilike_search
 from app.models.note import Note
 from app.schemas.note import NoteSortBy, NoteUpdate, SortOrder
 
@@ -32,7 +32,8 @@ def list_by_user(
     db: Session,
     *,
     user_id: str,
-    search: str | None = None,
+    title: str | None = None,
+    content: str | None = None,
     source: list[int] | None = None,
     sort_by: NoteSortBy | None = None,
     sort_order: SortOrder = "desc",
@@ -41,8 +42,10 @@ def list_by_user(
 ) -> tuple[Sequence[Note], int]:
     stmt = select(Note).where(Note.user_id == user_id)
 
-    if search:
-        stmt = stmt.where(token_search(Note.title, search=search))
+    if title:
+        stmt = stmt.where(ilike_search(Note.title, value=title))
+    if content:
+        stmt = stmt.where(ilike_search(Note.content, value=content))
     if source:
         stmt = stmt.where(Note.source.in_(source))
 

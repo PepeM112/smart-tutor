@@ -1,7 +1,10 @@
 from datetime import datetime
+from typing import Literal
 
 from app.core.enums import AIFeature, AIProvider
 from app.schemas.base import BaseSchema
+
+UsageGroupBy = Literal["provider", "feature", "both"]
 
 
 class TokenUsageRead(BaseSchema):
@@ -19,7 +22,8 @@ class TokenUsageRead(BaseSchema):
 class TokenUsageDailySummary(BaseSchema):
     # "2026-08-16" for daily views, "08:00" for hourly (1D)
     date: str
-    provider: AIProvider
+    provider: AIProvider | None = None
+    feature: AIFeature | None = None
     input_tokens: int
     output_tokens: int
     estimated_cost: str | None

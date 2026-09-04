@@ -3,13 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { use } from 'react';
+import { use, useMemo } from 'react';
 import { toast } from 'sonner';
 
-import { QueryState } from '@/components/shared/query-state';
-import { ExamView } from '@/features/tests/components/exam-view';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { sdk } from '@/lib/api-client';
+import { QueryState } from '@/components/shared/QueryState';
+import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
+import { formatTestDetail } from '@/features/assist/utils/formatPageData';
+import { ExamView } from '@/features/tests/components/ExamView';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -32,6 +34,8 @@ export default function TakeTestPage({ params }: Props) {
   });
 
   const test = testResponse?.data;
+
+  useProvidePageData(useMemo(() => (test ? formatTestDetail(test) : null), [test]));
 
   const { mutate: submitExam, isPending: isSubmitting } = useMutation({
     mutationFn: (answers: Record<string, string>) =>

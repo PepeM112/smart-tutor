@@ -1,0 +1,21 @@
+'use client';
+
+import { useCallback, useEffect, useRef } from 'react';
+
+export function useAutoResize(value?: string) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Reset first — otherwise scrollHeight keeps the old value and the textarea cannot shrink
+    el.style.height = '0';
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  useEffect(() => {
+    resize();
+  }, [resize, value]);
+
+  return { ref, resize };
+}

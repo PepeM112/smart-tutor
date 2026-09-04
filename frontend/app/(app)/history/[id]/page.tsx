@@ -2,13 +2,15 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { use } from 'react';
+import { use, useMemo } from 'react';
 
-import { QueryState } from '@/components/shared/query-state';
-import { ResultDetail } from '@/features/history/components/result-detail';
-import { useTestResult } from '@/features/history/hooks/use-test-result';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { sdk } from '@/lib/api-client';
+import { QueryState } from '@/components/shared/QueryState';
+import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
+import { formatResultDetail } from '@/features/assist/utils/formatPageData';
+import { ResultDetail } from '@/features/history/components/ResultDetail';
+import { useTestResult } from '@/features/history/hooks/useTestResult';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -23,6 +25,24 @@ export default function ResultDetailPage({ params }: Props) {
   const { data: resultResponse, isLoading: isLoadingResult, isError: isResultError } = useTestResult(id);
 
   const result = resultResponse?.data;
+
+  useProvidePageData(
+    useMemo(
+      () =>
+        result
+          ? formatResultDetail({
+              id: result.id,
+              testId: result.testId,
+              totalQuestions: result.totalQuestions,
+              correctAnswers: result.correctAnswers,
+              earnedPoints: result.earnedPoints ?? undefined,
+              totalPoints: result.totalPoints ?? undefined,
+              createdAt: result.createdAt,
+            })
+          : null,
+      [result]
+    )
+  );
 
   const {
     data: testResponse,

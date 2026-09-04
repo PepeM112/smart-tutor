@@ -16,6 +16,18 @@ export function formatShortDate(date: Date | string): string {
   });
 }
 
+export function formatCost(value: string | number): string {
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (num >= 1) return `$${num.toFixed(2)}`;
+  return `$${num.toFixed(4)}`;
+}
+
+export function formatChartDate(dateStr: string): string {
+  if (dateStr.includes(':')) return dateStr;
+  const [, month, day] = dateStr.split('-');
+  return `${month}/${day}`;
+}
+
 export function formatTokens(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;

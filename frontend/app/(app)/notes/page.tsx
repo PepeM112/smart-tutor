@@ -7,17 +7,20 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
 import { NoteSource } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { Pagination } from '@/components/shared/pagination';
-import { QueryState } from '@/components/shared/query-state';
+import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { Pagination } from '@/components/shared/Pagination';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
-import { GenerateNoteDialog } from '@/features/notes/components/generate-note-dialog';
-import { ImportNoteButton } from '@/features/notes/components/import-note-button';
-import { NotesList } from '@/features/notes/components/notes-list';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { useFilters } from '@/hooks/use-filters';
-import { useUrlSort } from '@/hooks/use-url-sort';
-import { sdk } from '@/lib/api-client';
+import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
+import { formatNotesList } from '@/features/assist/utils/formatPageData';
+import { GenerateNoteDialog } from '@/features/notes/components/GenerateNoteDialog';
+import { ImportNoteButton } from '@/features/notes/components/ImportNoteButton';
+import { NotesList } from '@/features/notes/components/NotesList';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useFilters } from '@/hooks/useFilters';
+import { useUrlSort } from '@/hooks/useUrlSort';
+import { sdk } from '@/lib/apiClient';
 import { FilterType, type FilterItem } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
@@ -39,10 +42,16 @@ export default function NotesPage() {
   const filterConfig: FilterItem[] = useMemo(
     () => [
       {
-        label: t('notes.filter_search'),
-        key: 'search',
+        label: t('notes.filter_title'),
+        key: 'title',
         type: FilterType.SINGLE,
-        query: 'search',
+        query: 'title',
+      },
+      {
+        label: t('notes.filter_content'),
+        key: 'content',
+        type: FilterType.SINGLE,
+        query: 'content',
       },
       {
         label: t('notes.filter_source'),
@@ -70,7 +79,8 @@ export default function NotesPage() {
     setPage(1);
   }, [rawClearFilters]);
 
-  const search = getValue<string>('search');
+  const titleFilter = getValue<string>('title');
+  const contentFilter = getValue<string>('content');
   const source = getValue<string>('source');
 
   const {
@@ -79,11 +89,12 @@ export default function NotesPage() {
     isFetching,
     isError,
   } = useQuery({
-    queryKey: ['notes', { search, source, page, sortBy, sortOrder }],
+    queryKey: ['notes', { title: titleFilter, content: contentFilter, source, page, sortBy, sortOrder }],
     queryFn: () =>
       sdk.notesList({
         query: {
-          search: search || undefined,
+          title: titleFilter || undefined,
+          content: contentFilter || undefined,
           source: source ? [Number(source)] : undefined,
           page,
           per_page: PER_PAGE,
@@ -93,30 +104,34 @@ export default function NotesPage() {
       }),
   });
 
-  const items = response?.data?.items ?? [];
+  const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
   const hasActiveFilters = Object.keys(filters).length > 0;
+
+  useProvidePageData(useMemo(() => (items.length > 0 ? formatNotesList(items) : null), [items]));
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-2">
+      <ListPageHeader
+        filters={
           <FilterPopover
             filterConfig={filterConfig}
             filters={filters}
             onFilterChange={setFilter}
             onClear={clearFilters}
           />
-        </div>
-        <div className="flex items-center gap-2 self-end lg:self-auto">
-          <ImportNoteButton compact />
-          <GenerateNoteDialog compact />
-          <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.NOTE_NEW}>{t('notes.new_note')}</Link>
-          </Button>
-        </div>
-      </div>
+        }
+        actions={
+          <>
+            <ImportNoteButton compact />
+            <GenerateNoteDialog compact />
+            <Button size="lg" icon={Plus} asChild>
+              <Link href={Routes.NOTE_NEW}>{t('notes.new_note')}</Link>
+            </Button>
+          </>
+        }
+      />
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load')}>
         {isFilteredEmpty ? (

@@ -30,6 +30,7 @@ class NoteRead(NoteBase):
     id: str
     user_id: str
     source: NoteSource
+    is_indexed: bool
     created_at: datetime
     updated_at: datetime
 

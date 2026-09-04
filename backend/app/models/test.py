@@ -19,7 +19,7 @@ class Test(Base, CreatedAtMixin):
     title: Mapped[str] = mapped_column(String, index=True)
     description: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"))
-    status: Mapped[TestStatus] = mapped_column(default=TestStatus.ACTIVE)
+    status: Mapped[int] = mapped_column(Integer, default=int(TestStatus.ACTIVE), server_default="1")
     source_note_id: Mapped[str | None] = mapped_column(
         String(26), ForeignKey("note.id", ondelete="SET NULL"), nullable=True, default=None
     )

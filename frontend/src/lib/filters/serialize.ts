@@ -75,7 +75,7 @@ export function serializeFilterValue(
 
   if (filterItem.options?.returnObject) {
     if (Array.isArray(value) && value.every(isFilterEntity)) {
-      return { [urlKey]: (value as FilterEntity[]).map(v => String(v.value)) };
+      return { [urlKey]: (value).map(v => String(v.value)) };
     }
     if (isFilterEntity(value)) {
       return { [urlKey]: String(value.value) };

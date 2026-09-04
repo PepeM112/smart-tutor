@@ -1,12 +1,14 @@
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import Integer, Row, cast, func, select
+from sqlalchemy import Integer, Row, cast, func, literal, select
 from sqlalchemy.orm import Session
 from sqlalchemy.types import Date
 
 from app.core.enums import AIFeature, AIProvider
 from app.models.token_usage import TokenUsage
+from app.schemas.token_usage import UsageGroupBy
 
 
 def create(
@@ -40,22 +42,46 @@ def get_daily_summary(
     user_id: str,
     start_date: date,
     end_date: date,
-) -> list[Row[tuple[date, int, int, int, Decimal | None]]]:
+    group_by: UsageGroupBy = "provider",
+    feature_filter: list[AIFeature] | None = None,
+    provider_filter: AIProvider | None = None,
+) -> list[Row[Any]]:
+    date_col = cast(TokenUsage.created_at, Date).label("date")
+
+    include_provider = group_by in ("provider", "both")
+    include_feature = group_by in ("feature", "both")
+
+    provider_col: Any = TokenUsage.provider if include_provider else literal(None).label("provider")
+    feature_col: Any = TokenUsage.feature if include_feature else literal(None).label("feature")
+
+    conditions: list[Any] = [
+        TokenUsage.user_id == user_id,
+        date_col >= start_date,
+        date_col <= end_date,
+    ]
+    if feature_filter:
+        conditions.append(TokenUsage.feature.in_([int(f) for f in feature_filter]))
+    if provider_filter is not None:
+        conditions.append(TokenUsage.provider == int(provider_filter))
+
+    group_cols: list[Any] = [date_col]
+    if include_provider:
+        group_cols.append(TokenUsage.provider)
+    if include_feature:
+        group_cols.append(TokenUsage.feature)
+
     stmt = (
         select(
-            cast(TokenUsage.created_at, Date).label("date"),
-            TokenUsage.provider,
+            date_col,
+            provider_col,
+            feature_col,
             func.sum(TokenUsage.input_tokens).label("input_tokens"),
             func.sum(TokenUsage.output_tokens).label("output_tokens"),
             func.sum(TokenUsage.estimated_cost).label("estimated_cost"),
         )
-        .where(
-            TokenUsage.user_id == user_id,
-            cast(TokenUsage.created_at, Date) >= start_date,
-            cast(TokenUsage.created_at, Date) <= end_date,
-        )
-        .group_by(cast(TokenUsage.created_at, Date), TokenUsage.provider)
-        .order_by(cast(TokenUsage.created_at, Date))
+        .where(*conditions)
+        .group_by(*group_cols)
+        .order_by(date_col)
     )
     return list(db.execute(stmt).all())
 
@@ -65,21 +91,44 @@ def get_hourly_summary(
     *,
     user_id: str,
     target_date: date,
-) -> list[Row[tuple[int, int, int, int, Decimal | None]]]:
+    group_by: UsageGroupBy = "provider",
+    feature_filter: list[AIFeature] | None = None,
+    provider_filter: AIProvider | None = None,
+) -> list[Row[Any]]:
     hour_col = cast(func.extract("hour", TokenUsage.created_at), Integer)
+
+    include_provider = group_by in ("provider", "both")
+    include_feature = group_by in ("feature", "both")
+
+    provider_col: Any = TokenUsage.provider if include_provider else literal(None).label("provider")
+    feature_col: Any = TokenUsage.feature if include_feature else literal(None).label("feature")
+
+    conditions: list[Any] = [
+        TokenUsage.user_id == user_id,
+        cast(TokenUsage.created_at, Date) == target_date,
+    ]
+    if feature_filter:
+        conditions.append(TokenUsage.feature.in_([int(f) for f in feature_filter]))
+    if provider_filter is not None:
+        conditions.append(TokenUsage.provider == int(provider_filter))
+
+    group_cols: list[Any] = [hour_col]
+    if include_provider:
+        group_cols.append(TokenUsage.provider)
+    if include_feature:
+        group_cols.append(TokenUsage.feature)
+
     stmt = (
         select(
             hour_col.label("hour"),
-            TokenUsage.provider,
+            provider_col,
+            feature_col,
             func.sum(TokenUsage.input_tokens).label("input_tokens"),
             func.sum(TokenUsage.output_tokens).label("output_tokens"),
             func.sum(TokenUsage.estimated_cost).label("estimated_cost"),
         )
-        .where(
-            TokenUsage.user_id == user_id,
-            cast(TokenUsage.created_at, Date) == target_date,
-        )
-        .group_by(hour_col, TokenUsage.provider)
+        .where(*conditions)
+        .group_by(*group_cols)
         .order_by(hour_col)
     )
     return list(db.execute(stmt).all())

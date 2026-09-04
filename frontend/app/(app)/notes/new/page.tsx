@@ -2,8 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 
-import { NewNotePage } from '@/features/notes/components/new-note-page';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
+import { NewNotePage } from '@/features/notes/components/NewNotePage';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { Routes } from '@/lib/routes';
 
 export default function NewNoteRoutePage() {

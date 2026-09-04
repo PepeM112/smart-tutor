@@ -4,15 +4,16 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
-import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { Pagination } from '@/components/shared/pagination';
-import { QueryState } from '@/components/shared/query-state';
+import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { Pagination } from '@/components/shared/Pagination';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
-import { HistoryTable } from '@/features/history/components/history-table';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { useFilters } from '@/hooks/use-filters';
-import { useUrlSort } from '@/hooks/use-url-sort';
-import { sdk } from '@/lib/api-client';
+import { HistoryTable } from '@/features/history/components/HistoryTable';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useFilters } from '@/hooks/useFilters';
+import { useUrlSort } from '@/hooks/useUrlSort';
+import { sdk } from '@/lib/apiClient';
 import { FilterType, type DateFilterValue, type FilterItem, type RangeFilterValue } from '@/lib/filters';
 
 const PER_PAGE = 20;
@@ -98,15 +99,17 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <FilterPopover
-          filterConfig={filterConfig}
-          filters={filters}
-          onFilterChange={setFilter}
-          onClear={clearFilters}
-        />
-        <p className="text-sm text-muted-foreground">{t('history.subtitle')}</p>
-      </div>
+      <ListPageHeader
+        filters={
+          <FilterPopover
+            filterConfig={filterConfig}
+            filters={filters}
+            onFilterChange={setFilter}
+            onClear={clearFilters}
+          />
+        }
+        actions={<p className="truncate text-sm text-muted-foreground">{t('history.subtitle')}</p>}
+      />
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('history.failed_to_load')}>
         {isFilteredEmpty ? (

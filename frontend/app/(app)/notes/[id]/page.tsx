@@ -3,8 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { use } from 'react';
 
-import { NotePage } from '@/features/notes/components/note-page';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
+import { NotePage } from '@/features/notes/components/NotePage';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { Routes } from '@/lib/routes';
 
 type Props = {

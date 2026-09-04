@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, NoteLength, NoteSource
 from app.crud import note as note_crud
+from app.database import SessionLocal
 from app.models.note import Note
 from app.models.user import User
 from app.schemas.note import (
@@ -36,11 +37,23 @@ _NOTE_MAX_TOKENS: dict[int, int] = {
 _DEFAULT_MAX_TOKENS = 4096
 
 
+def schedule_indexing(note_id: str) -> None:
+    """Run note embedding indexing in a fresh DB session (for BackgroundTasks)."""
+    from app.services import embedding_service
+
+    db = SessionLocal()
+    try:
+        embedding_service.index_note(db, note_id=note_id)
+    finally:
+        db.close()
+
+
 def list_notes(
     db: Session,
     *,
     current_user: User,
-    search: str | None = None,
+    title: str | None = None,
+    content: str | None = None,
     source: list[int] | None = None,
     sort_by: NoteSortBy | None = None,
     sort_order: SortOrder = "desc",
@@ -50,7 +63,8 @@ def list_notes(
     items, total = note_crud.list_by_user(
         db,
         user_id=current_user.id,
-        search=search,
+        title=title,
+        content=content,
         source=source,
         sort_by=sort_by,
         sort_order=sort_order,
@@ -81,6 +95,8 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
 
 def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpdate) -> Note:
     note = get_note(db, note_id=note_id, current_user=current_user)
+    if data.content is not None:
+        note.is_indexed = False
     updated = note_crud.update(db, note=note, data=data)
     db.commit()
     db.refresh(updated)
@@ -122,9 +138,8 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
     return note
 
 
-def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefine) -> Note:
-    note = get_note(db, note_id=note_id, current_user=current_user)
-
+def _run_refinement(db: Session, *, note: Note, instructions: str, current_user: User) -> str:
+    """Shared AI refinement call — validates, calls AI, records usage. Does NOT persist."""
     if not note.content or not note.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -133,7 +148,7 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
 
     user_prompt = build_note_refinement_user_prompt(
         current_content=note.content,
-        instructions=data.instructions,
+        instructions=instructions,
     )
 
     result = complete_for_user(
@@ -143,15 +158,25 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
         max_tokens=_DEFAULT_MAX_TOKENS,
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_REFINEMENT)
+    return result.text
 
-    updated = note_crud.update(
-        db,
-        note=note,
-        data=NoteUpdate(content=result.text),
-    )
+
+def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefine) -> Note:
+    note = get_note(db, note_id=note_id, current_user=current_user)
+    refined_text = _run_refinement(db, note=note, instructions=data.instructions, current_user=current_user)
+
+    updated = note_crud.update(db, note=note, data=NoteUpdate(content=refined_text))
     db.commit()
     db.refresh(updated)
     return updated
+
+
+def preview_refine_note(db: Session, *, note_id: str, current_user: User, instructions: str) -> str:
+    """Run the AI refinement but return the result WITHOUT saving to DB."""
+    note = get_note(db, note_id=note_id, current_user=current_user)
+    refined_text = _run_refinement(db, note=note, instructions=instructions, current_user=current_user)
+    db.commit()
+    return refined_text
 
 
 def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: NoteChunkEdit) -> NoteChunkEditResponse:

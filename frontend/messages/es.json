@@ -11,6 +11,7 @@
     "coming_soon": "Próximamente",
     "go": "Ir",
     "accept": "Aceptar",
+    "reject": "Rechazar",
     "generate": "Generar",
     "refine": "Refinar",
     "submit": "Enviar",
@@ -35,7 +36,8 @@
     "from": "Desde",
     "to": "Hasta",
     "min": "Mín",
-    "max": "Máx"
+    "max": "Máx",
+    "points_abbr": "{count, plural, =1 {1pt} other {#pts}}"
   },
   "app": {
     "title": "SmartTutor",
@@ -101,11 +103,24 @@
     "daily_tokens": "Tokens diarios",
     "cumulative": "Acumulado",
     "estimated_cost": "Coste est.",
+    "top_feature": "Principal",
+    "view_details": "Ver detalles",
     "range_1d": "1D",
     "range_1w": "1S",
     "range_1m": "1M",
     "range_3m": "3M",
     "range_1y": "1A"
+  },
+  "aiFeatures": {
+    "grading": "Evaluación",
+    "challenge": "Reevaluación",
+    "noteGeneration": "Generación de notas",
+    "noteEditing": "Edición de notas",
+    "noteRefinement": "Edición de notas (Refinar)",
+    "noteChunkEdit": "Edición de notas (Editar fragmento)",
+    "testGeneration": "Generación de tests",
+    "assist": "Chat",
+    "embedding": "Embedding"
   },
   "review": {
     "title": "Repasar Ahora",
@@ -162,6 +177,7 @@
     "questions_updated": "Preguntas actualizadas",
     "failed_to_edit_questions": "Error al editar las preguntas. Inténtalo de nuevo.",
     "column_title": "Título",
+    "column_description": "Descripción",
     "column_questions": "Preguntas",
     "column_types": "Tipos",
     "column_created": "Creado",
@@ -282,7 +298,8 @@
     "start_writing": "Empieza a escribir en Markdown…",
     "add_tags": "Añadir etiquetas…",
     "remove_tag": "Eliminar etiqueta {tag}",
-    "filter_search": "Buscar",
+    "filter_title": "Título",
+    "filter_content": "Contenido",
     "filter_source": "Origen",
     "no_results": "Ninguna nota coincide con tus filtros.",
     "clear_filters": "Limpiar filtros"
@@ -318,7 +335,8 @@
     "could_not_locate": "No se pudo localizar el texto original — puede haber cambiado.",
     "changes": "Cambios",
     "old": "Anterior",
-    "new": "Nuevo"
+    "new": "Nuevo",
+    "note_text": "Texto de nota"
   },
   "test_generation": {
     "generate_test": "Generar Test",
@@ -362,6 +380,8 @@
     "ai_edit": "Edición IA",
     "ai_edit_placeholder": "Describe cómo quieres editar las preguntas seleccionadas…",
     "questions_selected": "{count, plural, one {# pregunta seleccionada} other {# preguntas seleccionadas}}",
+    "chip_label": "{count, plural, one {# pregunta} other {# preguntas}}",
+    "chip_question_label": "Pregunta {index}",
     "applying": "Aplicando…",
     "two_column_layout": "Diseño de 2 columnas",
     "one_column_layout": "Diseño de 1 columna",
@@ -388,6 +408,7 @@
     "vocabulary_mode": "Modo vocabulario",
     "prompt": "Enunciado",
     "answer_n": "Respuesta {n}",
+    "answers_comma": "Respuestas (separadas por comas)",
     "add": "Añadir",
     "add_question": "Añadir pregunta",
     "simple": "Simple",
@@ -397,7 +418,15 @@
     "long_chars": "Largo (~5000 chars)",
     "unknown": "Desconocido",
     "simple_questions": "Preguntas simples",
-    "multiple_choice": "Opción Múltiple"
+    "multiple_choice": "Opción Múltiple",
+    "edit_questions": "Editar",
+    "done_editing": "Listo",
+    "length_short": "Corto",
+    "length_medium": "Medio",
+    "length_long": "Largo",
+    "proposed_changes": "Cambios Propuestos",
+    "no_changes": "No se detectaron cambios.",
+    "diff_answers": "Respuestas: {answers}"
   },
   "history": {
     "title": "Historial de Tests",
@@ -446,8 +475,19 @@
     "grading_failed": "La corrección falló. Intenta enviar la respuesta de nuevo."
   },
   "stats": {
-    "title": "Estadísticas de Progreso",
-    "placeholder": "Los gráficos y rachas se mostrarán aquí."
+    "title": "Uso de IA",
+    "description": "Controla el uso de tokens de IA y el coste estimado por proveedor y función.",
+    "group_by": "Agrupar por",
+    "group_provider": "Proveedor",
+    "group_feature": "Función",
+    "group_both": "Ambos",
+    "provider_filter": "Proveedor",
+    "feature_filter": "Función",
+    "all_features": "Todas las funciones",
+    "all_providers": "Todos",
+    "total_input": "Tokens de entrada totales",
+    "total_output": "Tokens de salida totales",
+    "total_cost": "Coste estimado total"
   },
   "settings": {
     "title": "Perfil y Ajustes",

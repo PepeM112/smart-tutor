@@ -24,7 +24,7 @@ Simple (free-text) questions are graded using Levenshtein distance, which counts
 
 The minimum token length of 3 for typo tolerance prevents false positives on short words (e.g. "ir" vs "or" would be WRONG, not PARTIAL).
 
-**Multi-token answers:** The user can type comma-separated answers (e.g. "ir, marchar"). Each token is graded independently against the valid answer list. The overall result is the *worst* individual result — if any token is WRONG, the whole answer is WRONG.
+**Multi-token answers:** The user can type comma-separated answers (e.g. "ir, marchar"). Each token is graded independently against the valid answer list. The overall result is the _worst_ individual result — if any token is WRONG, the whole answer is WRONG.
 
 **Normalization:** Both the user's answer and valid answers are lowercased and trimmed before comparison.
 
@@ -42,8 +42,8 @@ Long Text questions cannot be auto-graded like Simple or MC — they require an 
 
 1. The user writes a free-text answer (up to the character limit defined by the question's length tier)
 2. On submission, the answer receives `PENDING` status — a `BackgroundTask` is fired to grade it asynchronously
-3. The grading service (`grading_service.py`) calls the shared `LLMClient` (see `services/llm.py`) via `get_llm_client()`, which selects the provider based on `AI_GRADING_PROVIDER`:
-   - `anthropic` — Claude Haiku 4.5 (default)
+3. The grading service (`grading_service.py`) calls the user's configured `LLMClient` via `get_user_llm_client(user)`, which selects the provider and API key from the user's settings:
+   - `anthropic` — Claude Haiku 4.5
    - `openai` — GPT-4o-mini
 4. The AI receives: the question prompt, the rubric (criteria + weights), and the user's answer
 5. For each criterion, the AI returns `met: true/false` — stored in `Answer.rubric_result` as JSONB
@@ -82,12 +82,23 @@ Each graded Long Text answer stores its rubric result in `Answer.rubric_result` 
 
 ```json
 [
-  {"point": "Mentions Caesar crossing the Rubicon", "met": true, "weight": 0.15, "reason": "The answer explicitly references Caesar's crossing of the Rubicon in 49 BC."},
-  {"point": "Notes Pompey's assassination in Egypt", "met": false, "weight": 0.05, "reason": "No mention of Pompey's fate in Egypt."}
+  {
+    "point": "Mentions Caesar crossing the Rubicon",
+    "met": true,
+    "weight": 0.15,
+    "reason": "The answer explicitly references Caesar's crossing of the Rubicon in 49 BC."
+  },
+  {
+    "point": "Notes Pompey's assassination in Egypt",
+    "met": false,
+    "weight": 0.05,
+    "reason": "No mention of Pompey's fate in Egypt."
+  }
 ]
 ```
 
 The answer's `status` is derived from the rubric result:
+
 - All criteria met → `CORRECT`
 - Some criteria met → `PARTIAL`
 - No criteria met → `WRONG`
@@ -104,12 +115,12 @@ Long Text questions are excluded from the SRS review flow. Since they can't be g
 
 Every graded answer gets one of these statuses:
 
-| Status  | Meaning                                                         |
-| ------- | --------------------------------------------------------------- |
-| CORRECT | Exact match (or within tolerance for Simple)                    |
-| PARTIAL | Close but not exact (Simple only: 1 edit away, word >= 3 chars) |
-| WRONG   | Not close enough                                                |
-| PENDING | Not yet graded — awaiting AI evaluation (Long Text only)        |
+| Status  | Meaning                                                                                                                     |
+| ------- | --------------------------------------------------------------------------------------------------------------------------- |
+| CORRECT | Exact match (or within tolerance for Simple)                                                                                |
+| PARTIAL | Close but not exact (Simple only: 1 edit away, word >= 3 chars)                                                             |
+| WRONG   | Not close enough                                                                                                            |
+| PENDING | Not yet graded — awaiting AI evaluation (Long Text only)                                                                    |
 | FAILED  | AI grading failed (provider error, parse error, missing API key). Terminal — will not retry automatically. (Long Text only) |
 
 ## What the User Sees After Checking

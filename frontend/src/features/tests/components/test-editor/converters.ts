@@ -12,9 +12,9 @@ import {
   type TestQuestionGroupRead,
 } from '@/client';
 
-import type { Criterion, LongTextQuestionData } from '../long-text-question-block';
-import type { Choice, MultipleChoiceQuestionData } from '../multiple-choice-question-block';
-import type { QuestionGroupData, SimpleRow } from '../question-group-block';
+import type { Criterion, LongTextQuestionData } from '../LongTextQuestionBlock';
+import type { Choice, MultipleChoiceQuestionData } from '../MultipleChoiceQuestionBlock';
+import type { QuestionGroupData, SimpleRow } from '../QuestionGroupBlock';
 import type { EditorItem } from './types';
 
 /* ------------------------------------------------------------------ */
@@ -77,6 +77,7 @@ function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
   const content = q.content as { options: string[]; correctIndices: number[] };
   return {
     key: crypto.randomUUID(),
+    id: q.id,
     type: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
     choices: (content.options ?? []).map((text, i) => ({
@@ -92,6 +93,7 @@ function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
   const content = q.content as { lengthLimit: number; rubric: { point: string; weight: number; category?: string }[] };
   return {
     key: crypto.randomUUID(),
+    id: q.id,
     type: QuestionType.LONG_TEXT,
     prompt: q.prompt,
     lengthLimit: content.lengthLimit ?? 2,
@@ -114,6 +116,7 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
       // SAFETY: group questions are always SIMPLE type with { answers: string[] } content
       const content = q.content as { answers: string[] };
       return {
+        id: q.id,
         prompt: q.prompt,
         answers: content.answers ?? [],
       } satisfies SimpleRow;
@@ -249,27 +252,31 @@ export function editorItemsToPreviewInputs(items: EditorItem[]): GeneratedQuesti
  */
 export function mergeAiEditResult(
   currentItems: EditorItem[],
-  aiQuestions: GeneratedQuestionPreviewOutput[]
+  aiQuestions: GeneratedQuestionPreviewOutput[],
+  selectedIndices: number[]
 ): EditorItem[] {
   const flat = flattenEditorItems(currentItems);
+  const selectedSet = new Set(selectedIndices);
 
-  // Group AI response questions by their originating block index
-  const blockQuestions = new Map<number, GeneratedQuestionPreviewOutput[]>();
+  // Group AI response questions by their originating block index.
+  // When selectedIndices is provided, only include AI output at those flat positions —
+  // unselected positions keep the original editor content.
+  const blockQuestions = new Map<number, { flatIndex: number; question: GeneratedQuestionPreviewOutput }[]>();
   flat.forEach((entry, i) => {
     if (i >= aiQuestions.length) return;
+    if (selectedSet && !selectedSet.has(i)) return;
     const existing = blockQuestions.get(entry.blockIndex) ?? [];
-    existing.push(aiQuestions[i]);
+    existing.push({ flatIndex: i, question: aiQuestions[i] });
     blockQuestions.set(entry.blockIndex, existing);
   });
 
   return currentItems.map((item, blockIndex) => {
-    const questions = blockQuestions.get(blockIndex);
-    if (!questions || questions.length === 0) return item;
+    const entries = blockQuestions.get(blockIndex);
+    if (!entries || entries.length === 0) return item;
 
     // MC block: single question, rebuild with AI content
     if (item.type === QuestionType.MULTIPLE_CHOICE) {
-      const q = questions[0];
-      // SAFETY: item.type === MULTIPLE_CHOICE guarantees the AI returned MC content
+      const q = entries[0].question;
       const content = q.content as MultipleChoiceContent;
       return {
         ...item,
@@ -284,8 +291,7 @@ export function mergeAiEditResult(
 
     // Long Text block: single question, rebuild with AI content
     if (item.type === QuestionType.LONG_TEXT) {
-      const q = questions[0];
-      // SAFETY: item.type === LONG_TEXT guarantees the AI returned LT content
+      const q = entries[0].question;
       const content = q.content as LongTextContent;
       return {
         ...item,
@@ -300,13 +306,17 @@ export function mergeAiEditResult(
       };
     }
 
-    // Group block: rebuild rows from AI output, preserve group metadata
+    // Group block: only some rows may have AI replacements — merge selectively.
+    const aiByFlat = new Map(entries.map(e => [e.flatIndex, e.question]));
+    let flatCursor = flat.findIndex(f => f.blockIndex === blockIndex);
     return {
       ...item,
-      rows: questions.map(q => {
-        // SAFETY: group items are always SIMPLE type with { answers } content
-        const content = q.content as SimpleContent;
-        return { prompt: q.prompt, answers: content.answers } satisfies SimpleRow;
+      rows: item.rows.map(row => {
+        const aiQ = aiByFlat.get(flatCursor);
+        flatCursor++;
+        if (!aiQ) return row;
+        const content = aiQ.content as SimpleContent;
+        return { id: row.id, prompt: aiQ.prompt, answers: content.answers } satisfies SimpleRow;
       }),
     };
   });

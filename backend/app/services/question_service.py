@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import QuestionType
+from app.core.enums import QuestionStatus, QuestionType
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.models.question import Question
@@ -129,7 +129,7 @@ def duplicate_question(db: Session, *, question_id: str, current_user: User) -> 
     return duplicate
 
 
-def _delete_one_question(db: Session, *, question: Question) -> None:
+def _delete_one_question(db: Session, *, question: Question, force_soft_delete: bool = False) -> None:
     """Version the owning test if needed, then soft- or hard-delete depending on references.
 
     Does not commit — callers own the transaction boundary.
@@ -137,19 +137,40 @@ def _delete_one_question(db: Session, *, question: Question) -> None:
     test = _resolve_owning_test(db, question=question)
     if test:
         version_test_if_needed(db, test=test)
-    if question_crud.has_references(db, question_id=question.id):
+    if force_soft_delete or question_crud.has_references(db, question_id=question.id):
         question_crud.soft_delete(db, question=question)
     else:
         question_crud.hard_delete(db, question=question)
 
 
-def bulk_delete_questions(db: Session, *, question_ids: list[str], current_user: User) -> int:
-    """Delete every owned question in the batch. Questions the user doesn't own are skipped."""
+def bulk_delete_questions(
+    db: Session,
+    *,
+    question_ids: list[str],
+    current_user: User,
+    force_soft_delete: bool = False,
+) -> list[str]:
+    """Delete every owned question in the batch. Questions the user doesn't own are skipped.
+
+    Returns the list of deleted question IDs.
+    """
     owned = [q for q in question_crud.list_by_ids(db, ids=question_ids) if q.user_id == current_user.id]
+    owned_ids = [q.id for q in owned]
     for question in owned:
-        _delete_one_question(db, question=question)
+        _delete_one_question(db, question=question, force_soft_delete=force_soft_delete)
     db.commit()
-    return len(owned)
+    return owned_ids
+
+
+def restore_questions(db: Session, *, question_ids: list[str], current_user: User) -> int:
+    """Restore soft-deleted questions. Unowned or non-deleted questions are skipped."""
+    all_questions = question_crud.list_by_ids(db, ids=question_ids)
+    owned_deleted = [
+        q for q in all_questions if q.user_id == current_user.id and q.status == int(QuestionStatus.DELETED)
+    ]
+    question_crud.bulk_restore(db, questions=owned_deleted)
+    db.commit()
+    return len(owned_deleted)
 
 
 def bulk_assign_questions(db: Session, *, question_ids: list[str], test_id: str, current_user: User) -> int:
@@ -164,6 +185,18 @@ def bulk_assign_questions(db: Session, *, question_ids: list[str], test_id: str,
         )
     db.commit()
     return len(owned)
+
+
+def bulk_update_questions(
+    db: Session,
+    *,
+    questions: list[Question],
+    updates: list[QuestionUpdate],
+) -> None:
+    """Apply a QuestionUpdate to each question in order. Caller must ensure ownership."""
+    for question, data in zip(questions, updates, strict=True):
+        question_crud.update(db, question=question, data=data)
+    db.commit()
 
 
 def _to_question_list_read(question: Question) -> QuestionListRead:

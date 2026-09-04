@@ -212,4 +212,12 @@ class BulkAssignQuestionsResponse(BaseSchema):
     assigned: int
 
 
+class BulkRestoreQuestionsRequest(BaseSchema):
+    question_ids: list[str] = Field(..., min_length=1)
+
+
+class BulkRestoreQuestionsResponse(BaseSchema):
+    restored: int
+
+
 PaginatedQuestionListRead = PaginatedResponse[QuestionListRead]

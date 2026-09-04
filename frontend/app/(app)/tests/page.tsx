@@ -7,16 +7,19 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
 import { QuestionType } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/filter-popover';
-import { Pagination } from '@/components/shared/pagination';
-import { QueryState } from '@/components/shared/query-state';
+import { FilterPopover } from '@/components/shared/filters/FilterPopover';
+import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { Pagination } from '@/components/shared/Pagination';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
-import { QuickTestDialog } from '@/features/tests/components/quick-test-dialog';
-import { TestsTable } from '@/features/tests/components/tests-table';
-import { useBreadcrumb } from '@/hooks/use-breadcrumb';
-import { useFilters } from '@/hooks/use-filters';
-import { useUrlSort } from '@/hooks/use-url-sort';
-import { sdk } from '@/lib/api-client';
+import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
+import { formatTestsList } from '@/features/assist/utils/formatPageData';
+import { QuickTestDialog } from '@/features/tests/components/QuickTestDialog';
+import { TestsTable } from '@/features/tests/components/TestsTable';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useFilters } from '@/hooks/useFilters';
+import { useUrlSort } from '@/hooks/useUrlSort';
+import { sdk } from '@/lib/apiClient';
 import { FilterType, type DateFilterValue, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
@@ -102,29 +105,33 @@ export default function TestsPage() {
       }),
   });
 
-  const items = response?.data?.items ?? [];
+  const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
+  useProvidePageData(useMemo(() => (items.length > 0 ? formatTestsList(items) : null), [items]));
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-2">
+      <ListPageHeader
+        filters={
           <FilterPopover
             filterConfig={filterConfig}
             filters={filters}
             onFilterChange={setFilter}
             onClear={clearFilters}
           />
-        </div>
-        <div className="flex items-center gap-2 self-end lg:self-auto">
-          <QuickTestDialog compact />
-          <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.TEST_NEW}>{t('tests.create_test')}</Link>
-          </Button>
-        </div>
-      </div>
+        }
+        actions={
+          <>
+            <QuickTestDialog compact />
+            <Button size="lg" icon={Plus} asChild>
+              <Link href={Routes.TEST_NEW}>{t('tests.create_test')}</Link>
+            </Button>
+          </>
+        }
+      />
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
         {isFilteredEmpty ? (

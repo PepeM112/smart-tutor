@@ -35,6 +35,11 @@ class QuestionStatus(NamedIntEnum):
     DELETED = 2
 
 
+class GroupStatus(NamedIntEnum):
+    ACTIVE = 1
+    DELETED = 2
+
+
 class QuestionType(NamedIntEnum):
     SIMPLE = 1
     MULTIPLE_CHOICE = 2
@@ -90,3 +95,5 @@ class AIFeature(NamedIntEnum):
     NOTE_REFINEMENT = 4
     NOTE_CHUNK_EDIT = 5
     TEST_GENERATION = 6
+    ASSIST = 7
+    EMBEDDING = 8
