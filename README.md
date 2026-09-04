@@ -57,7 +57,7 @@ Eight AI capabilities, all with per-user provider selection and token cost track
 | 7 | **AI Assistant** | Agentic chat panel with 12 tools — reads content, navigates the app, creates and edits resources |
 | 8 | **Semantic Search (RAG)** | Notes are chunked and embedded (pgvector + HNSW), enabling meaning-based retrieval |
 
-<video src="docs/media/vid_4_ai_assistant.mp4" width="100%" autoplay loop muted playsinline></video>
+<!-- VIDEO: AI Assistant agentic demo — semantic search, read note, generate test, refine questions -->
 
 ### AI Assistant — Agentic Chat
 
@@ -76,7 +76,7 @@ The backend runs an agentic loop of up to 6 tool-calling rounds per request, str
 
 Every AI call is metered — input/output tokens, model, provider, feature, and estimated cost. Users see their usage on a dashboard with stacked bar charts (group by provider, feature, or both), stat cards, and time-range filters. Cost is calculated from model pricing fetched via OpenRouter's API.
 
-<!-- VIDEO: Stats page showing token usage chart with filtering by provider and feature, hovering to see per-action costs -->
+<video src="docs/media/vid_5_stats.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ### Additional Features
 

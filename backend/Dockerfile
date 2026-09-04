@@ -1,9 +1,11 @@
-FROM python:3.10-slim
+# --- STAGE 1: Builder ---
+FROM python:3.10-slim AS builder
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
+    build-essential libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false \
@@ -13,7 +15,23 @@ RUN pip install --no-cache-dir poetry
 
 COPY pyproject.toml poetry.lock* ./
 
-RUN poetry install --no-interaction --no-root
+# Instalar dependencias en el sistema de este stage
+RUN poetry install --no-interaction --no-root --only main
+
+# --- STAGE 2: Runner ---
+FROM python:3.10-slim AS runner
+
+WORKDIR /app
+
+# In final container we only need libpq5 (para Postgres)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONUNBUFFERED=1
+
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . .
 
