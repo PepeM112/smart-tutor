@@ -10,7 +10,7 @@ export function getErrorDetail(error: unknown, fallback: string): string {
     typeof error === 'object' &&
     error !== null &&
     'detail' in error &&
-    typeof (error as { detail: unknown }).detail === 'string'
+    typeof (error).detail === 'string'
   ) {
     return (error as { detail: string }).detail;
   }

@@ -77,7 +77,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, index, selecte
   const lengthChip = t(LENGTH_LABEL_KEYS[data.lengthLimit] ?? LENGTH_LABEL_KEYS[LongTextLength.SHORT]);
   const lengthItems: ButtonGroupItem<number>[] = LONG_TEXT_LENGTH_TIERS.map(tier => ({
     label: t(LENGTH_LABEL_KEYS[tier.value]),
-    value: tier.value as number,
+    value: tier.value,
   }));
 
   // View mode

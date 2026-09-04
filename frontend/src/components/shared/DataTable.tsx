@@ -62,7 +62,7 @@ export function DataTable<T>({
   function renderHeader<TData>(header: TanStackHeader<TData, unknown>) {
     if (header.isPlaceholder) return null;
 
-    const meta = header.column.columnDef.meta as { label?: string; sortKey?: string } | undefined;
+    const meta = header.column.columnDef.meta;
     if (meta?.sortKey && sort && onSort) {
       const label =
         meta.label ?? (typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : '');
@@ -90,11 +90,11 @@ export function DataTable<T>({
             description={renderDescription?.(row.original) ?? undefined}
             cells={row
               .getVisibleCells()
-              .filter(cell => !(cell.column.columnDef.meta as { hideOnMobile?: boolean } | undefined)?.hideOnMobile)
+              .filter(cell => !(cell.column.columnDef.meta)?.hideOnMobile)
               .map(cell => ({
                 id: cell.id,
                 headerLabel:
-                  (cell.column.columnDef.meta as { label?: string } | undefined)?.label ??
+                  (cell.column.columnDef.meta)?.label ??
                   (typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : null),
                 content: flexRender(cell.column.columnDef.cell, cell.getContext()),
               }))}
