@@ -2,7 +2,7 @@
 
 A full-stack learning platform where users create their own study content, take exams, and retain knowledge through spaced repetition — with AI grading, content generation, semantic search (RAG), and an agentic chat assistant.
 
-<video src="docs/media/vid_1_hero.mp4" width="100%" autoplay loop muted playsinline></video>
+<video src="https://github.com/user-attachments/assets/ab5a8613-6c79-4dd4-8717-4d6c58e7df17" width="100%" autoplay loop muted playsinline></video>
 
 ## Highlights
 
@@ -26,7 +26,7 @@ Users build **Tests** — collections of questions mixing three types:
 
 Tests support **question groups** (batch patterns like vocabulary tables), **weighted scoring** with partial credit, and **copy-on-write versioning** so editing a test after an exam preserves the original in results.
 
-<video src="docs/media/vid_2_test_flow.mp4" width="100%" autoplay loop muted playsinline></video>
+<video src="https://github.com/user-attachments/assets/b679901c-18a6-4f05-8a2a-d047407bf465" width="100%" autoplay loop muted playsinline></video>
 
 ### Spaced Repetition (SRS)
 
@@ -36,7 +36,7 @@ An SM-2 algorithm schedules review sessions based on past performance — correc
 
 Markdown study notes with a split-panel editor (raw + live preview). Notes can be AI-generated from a topic, refined chunk-by-chunk, and used as source material for test generation.
 
-<video src="docs/media/vid_3_notes_ai.mp4" width="100%" autoplay loop muted playsinline></video>
+<video src="https://github.com/user-attachments/assets/d0ba5db1-025e-4e2b-ab8d-bd15f78382d5" width="100%" autoplay loop muted playsinline></video>
 
 ### Question Bank
 
@@ -57,7 +57,7 @@ Eight AI capabilities, all with per-user provider selection and token cost track
 | 7   | **AI Assistant**            | Agentic chat panel with 12 tools — reads content, navigates the app, creates and edits resources |
 | 8   | **Semantic Search (RAG)**   | Notes are chunked and embedded (pgvector + HNSW), enabling meaning-based retrieval               |
 
-<video src="docs/media/vid_4_assistant.mp4" width="100%" autoplay loop muted playsinline></video>
+<video src="https://github.com/user-attachments/assets/92fdaee9-d1de-4a97-9b84-958c3dd42928" width="100%" autoplay loop muted playsinline></video>
 
 ### AI Assistant — Agentic Chat
 
@@ -76,7 +76,7 @@ The backend runs an agentic loop of up to 6 tool-calling rounds per request, str
 
 Every AI call is metered — input/output tokens, model, provider, feature, and estimated cost. Users see their usage on a dashboard with stacked bar charts (group by provider, feature, or both), stat cards, and time-range filters. Cost is calculated from model pricing fetched via OpenRouter's API.
 
-<video src="docs/media/vid_5_stats.mp4" width="100%" autoplay loop muted playsinline></video>
+<video src="https://github.com/user-attachments/assets/99b3941b-da22-4062-a0c0-998a89cb981b" width="100%" autoplay loop muted playsinline></video>
 
 ### Additional Features
 
