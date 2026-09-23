@@ -29,6 +29,8 @@ backend/dist/
 .docker/
 .claude/
 CLAUDE.md
+OPENCODE.md
+AGENTS.md
 .vscode/
 tsconfig.tsbuildinfo
 

@@ -31,7 +31,7 @@
 // and torn down at done/error/abort.
 // ---------------------------------------------------------------------------
 
-export type BoundaryKind = 'tool_call' | 'tool_result' | 'confirm_required' | 'done';
+export type BoundaryKind = 'tool_call' | 'tool_executing' | 'tool_result' | 'confirm_required' | 'done';
 
 export type StreamQueueDeps = {
   /**

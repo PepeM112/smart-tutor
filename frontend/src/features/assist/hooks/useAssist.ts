@@ -263,11 +263,13 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
           case 'tool_executing': {
             const { id } = data as SSEToolExecuting;
-            setTurns(prev =>
-              updateSegment(prev, id, seg =>
-                seg.type === 'tool_indicator' ? { ...seg, status: 'running' as const } : seg
-              )
-            );
+            queue.enqueue('tool_executing', () => {
+              setTurns(prev =>
+                updateSegment(prev, id, seg =>
+                  seg.type === 'tool_indicator' ? { ...seg, status: 'running' as const } : seg
+                )
+              );
+            });
             break;
           }
 

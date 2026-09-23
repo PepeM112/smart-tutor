@@ -105,5 +105,31 @@ describe('useAssist — SSE integration seam (P0-1/P0-2 regression)', () => {
     expect(textSegments).toHaveLength(2);
     expect(textSegments.every(s => s.type === 'text' && !s.streaming)).toBe(true);
     expect(textSegments.map(s => (s.type === 'text' ? s.content : ''))).toEqual(['Hello ', 'World']);
+
+    // `tool_executing` must not append a second indicator for the same call.
+    const indicatorSegments = assistantTurn?.segments.filter(s => s.type === 'tool_indicator' && s.id === 'call-1') ?? [];
+    expect(indicatorSegments).toHaveLength(1);
+  });
+
+  it('applies tool_executing through the queue gate without dropping the indicator', async () => {
+    mockFetchWithSSE([
+      { event: 'text_delta', data: { content: 'Hello ' } },
+      { event: 'tool_call', data: { id: 'call-1', name: 'search', arguments: {} } },
+      { event: 'tool_executing', data: { id: 'call-1', name: 'search' } },
+      { event: 'done', data: { usage: { inputTokens: 1, outputTokens: 1 } } },
+    ]);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+
+    act(() => {
+      result.current.send('hi');
+    });
+
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+
+    const assistantTurn = result.current.turns.find(t => t.role === 'assistant');
+    const indicatorSegments = assistantTurn?.segments.filter(s => s.type === 'tool_indicator' && s.id === 'call-1') ?? [];
+    expect(indicatorSegments).toHaveLength(1);
+    expect(indicatorSegments[0]?.type === 'tool_indicator' && indicatorSegments[0].status).toBe('running');
   });
 });

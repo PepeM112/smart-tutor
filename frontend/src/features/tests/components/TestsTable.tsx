@@ -13,6 +13,7 @@ import { DataTable, type MobileAction } from '@/components/shared/DataTable';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
 import { sdk } from '@/lib/apiClient';
 import { formatShortDate } from '@/lib/format';
@@ -110,12 +111,6 @@ export function TestsTable({ data, sort, onSort }: Props) {
       }
     />
   );
-}
-
-function getAllQuestions(test: TestRead): QuestionRead[] {
-  const standalone = test.questions ?? [];
-  const grouped = (test.questionGroups ?? []).flatMap(g => g.questions ?? []);
-  return [...standalone, ...grouped];
 }
 
 function countByType(questions: QuestionRead[], type: QuestionType): number {
