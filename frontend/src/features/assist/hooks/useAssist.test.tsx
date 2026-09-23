@@ -107,7 +107,8 @@ describe('useAssist — SSE integration seam (P0-1/P0-2 regression)', () => {
     expect(textSegments.map(s => (s.type === 'text' ? s.content : ''))).toEqual(['Hello ', 'World']);
 
     // `tool_executing` must not append a second indicator for the same call.
-    const indicatorSegments = assistantTurn?.segments.filter(s => s.type === 'tool_indicator' && s.id === 'call-1') ?? [];
+    const indicatorSegments =
+      assistantTurn?.segments.filter(s => s.type === 'tool_indicator' && s.id === 'call-1') ?? [];
     expect(indicatorSegments).toHaveLength(1);
   });
 
@@ -128,7 +129,8 @@ describe('useAssist — SSE integration seam (P0-1/P0-2 regression)', () => {
     await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
 
     const assistantTurn = result.current.turns.find(t => t.role === 'assistant');
-    const indicatorSegments = assistantTurn?.segments.filter(s => s.type === 'tool_indicator' && s.id === 'call-1') ?? [];
+    const indicatorSegments =
+      assistantTurn?.segments.filter(s => s.type === 'tool_indicator' && s.id === 'call-1') ?? [];
 
     // End-state only; the ordering guarantee is covered in useStreamQueue.test.ts.
     expect(indicatorSegments).toHaveLength(1);

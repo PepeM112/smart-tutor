@@ -59,7 +59,12 @@ type Props = {
   initialItems?: EditorItem[];
 };
 
-export default function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: Props) {
+export default function TestEditorForm({
+  testId,
+  initialTitle = '',
+  initialDescription = '',
+  initialItems = [],
+}: Props) {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,7 +75,13 @@ export default function TestEditorForm({ testId, initialTitle = '', initialDescr
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [isEditing, setIsEditing] = useState(!isEdit);
-  const { items, setItems, addItem: appendItem, updateItem, removeItem } = useQuestionBlockList<EditorItem>(initialItems);
+  const {
+    items,
+    setItems,
+    addItem: appendItem,
+    updateItem,
+    removeItem,
+  } = useQuestionBlockList<EditorItem>(initialItems);
 
   const itemsJson = useMemo(() => JSON.stringify(items), [items]);
   // State, not a ref: `isDirty` reads it during render (react-hooks/refs).
@@ -84,8 +95,7 @@ export default function TestEditorForm({ testId, initialTitle = '', initialDescr
     latestRef.current = { title, description, itemsJson };
   }, [title, description, itemsJson]);
   const submittedRef = useRef({ title, description, itemsJson });
-  const isDirty =
-    title !== baseline.title || description !== baseline.description || itemsJson !== baseline.itemsJson;
+  const isDirty = title !== baseline.title || description !== baseline.description || itemsJson !== baseline.itemsJson;
 
   const pendingTestDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const clearPendingTestDiff = useAssistDiffStore(s => s.clearPendingTestDiff);
@@ -332,7 +342,16 @@ type EditorActionsProps = {
   onSave: () => void;
 };
 
-function TestEditorActions({ size, testId, isEdit, isEditing, isSaving, canSave, onToggleEditing, onSave }: EditorActionsProps) {
+function TestEditorActions({
+  size,
+  testId,
+  isEdit,
+  isEditing,
+  isSaving,
+  canSave,
+  onToggleEditing,
+  onSave,
+}: EditorActionsProps) {
   const t = useTranslations();
 
   return (
