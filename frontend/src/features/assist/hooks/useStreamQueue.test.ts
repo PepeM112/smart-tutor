@@ -99,6 +99,25 @@ describe('use-stream-queue', () => {
     expect(seg1Updates.every(e => e.type === 'update' && !e.content.includes('World'))).toBe(true);
   });
 
+  // Ordering matters, not end state: the indicator starts as `running`, so a
+  // dropped update is invisible unless we assert that `tool_executing` ran
+  // after the `tool_call` that creates the segment.
+  it('applies tool_executing after the tool_call that creates its indicator', () => {
+    const { queue, events } = setup();
+
+    queue.extendTarget('seg-1', 'Hello');
+    queue.enqueue('tool_call', () => events.push({ type: 'run', kind: 'tool_call', at: performance.now() }));
+    queue.enqueue('tool_executing', () => events.push({ type: 'run', kind: 'tool_executing', at: performance.now() }));
+
+    runToCompletion();
+
+    const toolCallIdx = events.findIndex(e => e.type === 'run' && e.kind === 'tool_call');
+    const toolExecutingIdx = events.findIndex(e => e.type === 'run' && e.kind === 'tool_executing');
+
+    expect(toolCallIdx).toBeGreaterThanOrEqual(0);
+    expect(toolExecutingIdx).toBeGreaterThan(toolCallIdx);
+  });
+
   it('holds the tool indicator for at least the minimum visible duration', () => {
     const { queue, events } = setup();
 

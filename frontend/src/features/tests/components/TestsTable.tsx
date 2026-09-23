@@ -25,7 +25,7 @@ type Props = {
   onSort?: (column: string | null, order: SortDirection) => void;
 };
 
-export function TestsTable({ data, sort, onSort }: Props) {
+export default function TestsTable({ data, sort, onSort }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();

@@ -59,7 +59,7 @@ type Props = {
   initialItems?: EditorItem[];
 };
 
-export function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: Props) {
+export default function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,8 +73,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const { items, setItems, addItem: appendItem, updateItem, removeItem } = useQuestionBlockList<EditorItem>(initialItems);
 
   const itemsJson = useMemo(() => JSON.stringify(items), [items]);
-  // Baseline is state (not a ref) because `isDirty` reads it during render,
-  // which the react-hooks/refs rule forbids for refs.
+  // State, not a ref: `isDirty` reads it during render (react-hooks/refs).
   const [baseline, setBaseline] = useState(() => ({
     title: initialTitle,
     description: initialDescription,
@@ -84,6 +83,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   useEffect(() => {
     latestRef.current = { title, description, itemsJson };
   }, [title, description, itemsJson]);
+  const submittedRef = useRef({ title, description, itemsJson });
   const isDirty =
     title !== baseline.title || description !== baseline.description || itemsJson !== baseline.itemsJson;
 
@@ -106,6 +106,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   const { mutate: saveTest, isPending: isSaving } = useMutation({
     mutationFn: () => {
+      submittedRef.current = { title, description, itemsJson };
+
       const standaloneQuestions: QuestionCreate[] = [];
       const questionGroups: TestQuestionGroupCreate[] = [];
 
@@ -139,7 +141,17 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
       toast.success(isEdit ? t('tests.test_updated') : t('tests.test_created'));
-      setBaseline(latestRef.current);
+      // Only advance if the form still matches what was submitted — edits made
+      // during the request were not saved, so they must stay dirty.
+      setBaseline(prev => {
+        const submitted = submittedRef.current;
+        const current = latestRef.current;
+        const unchangedSinceSubmit =
+          current.title === submitted.title &&
+          current.description === submitted.description &&
+          current.itemsJson === submitted.itemsJson;
+        return unchangedSinceSubmit ? submitted : prev;
+      });
       if (!isEdit && res.data?.id) {
         router.replace(Routes.TEST_EDIT(res.data.id));
       }

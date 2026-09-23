@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { formatTestsList } from '@/features/assist/utils/formatPageData';
 import { QuickTestDialog } from '@/features/tests/components/QuickTestDialog';
-import { TestsTable } from '@/features/tests/components/TestsTable';
+import TestsTable from '@/features/tests/components/TestsTable';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
 import { useUrlSort } from '@/hooks/useUrlSort';
