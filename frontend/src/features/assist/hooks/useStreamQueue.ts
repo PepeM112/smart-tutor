@@ -6,12 +6,13 @@
 //
 //   1. Character-by-character reveal of the open text segment(s), at a pace
 //      that speeds up as unrevealed backlog grows (see `computePace`).
-//   2. A strict FIFO gate for "boundary" SSE events (tool_call, tool_result,
-//      confirm_required, done) — a boundary event is not applied to `turns`
-//      state until the text segment that preceded it (in wire order) has
-//      fully caught up its reveal. This is what stops the old bug where a
-//      tool indicator popped in the same paint as the remaining characters
-//      of the preceding text snapping instantly into view.
+//   2. A strict FIFO gate for "boundary" SSE events (tool_call,
+//      tool_executing, tool_result, confirm_required, done) — a boundary event
+//      is not applied to `turns` state until the text segment that preceded
+//      it (in wire order) has fully caught up its reveal. This is what stops
+//      the old bug where a tool indicator popped in the same paint as the
+//      remaining characters of the preceding text snapping instantly into
+//      view.
 //
 // Text segments and boundary events share a single ordered `items` FIFO
 // (not just one "open segment" slot). This matters because the producer
@@ -31,7 +32,7 @@
 // and torn down at done/error/abort.
 // ---------------------------------------------------------------------------
 
-export type BoundaryKind = 'tool_call' | 'tool_result' | 'confirm_required' | 'done';
+export type BoundaryKind = 'tool_call' | 'tool_executing' | 'tool_result' | 'confirm_required' | 'done';
 
 export type StreamQueueDeps = {
   /**

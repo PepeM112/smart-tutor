@@ -9,7 +9,7 @@ import { buildTestMentionCandidates, formatTestDetail } from '@/features/assist/
 import { sdk } from '@/lib/apiClient';
 
 import { fromApiToEditorItems } from './converters';
-import { TestEditorForm } from './TestEditorForm';
+import TestEditorForm from './TestEditorForm';
 
 type Props = {
   testId?: string;

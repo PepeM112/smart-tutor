@@ -5,7 +5,7 @@ import { Dumbbell, Pencil, SquareCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -59,7 +59,12 @@ type Props = {
   initialItems?: EditorItem[];
 };
 
-export function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: Props) {
+export default function TestEditorForm({
+  testId,
+  initialTitle = '',
+  initialDescription = '',
+  initialItems = [],
+}: Props) {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,30 +75,27 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [isEditing, setIsEditing] = useState(!isEdit);
-  const [isDirty, setIsDirty] = useState(false);
   const {
     items,
     setItems,
     addItem: appendItem,
-    updateItem: rawUpdateItem,
-    removeItem: rawRemoveItem,
+    updateItem,
+    removeItem,
   } = useQuestionBlockList<EditorItem>(initialItems);
 
-  const updateItem = useCallback(
-    (i: number, data: EditorItem) => {
-      rawUpdateItem(i, data);
-      setIsDirty(true);
-    },
-    [rawUpdateItem]
-  );
-
-  const removeItem = useCallback(
-    (i: number) => {
-      rawRemoveItem(i);
-      setIsDirty(true);
-    },
-    [rawRemoveItem]
-  );
+  const itemsJson = useMemo(() => JSON.stringify(items), [items]);
+  // State, not a ref: `isDirty` reads it during render (react-hooks/refs).
+  const [baseline, setBaseline] = useState(() => ({
+    title: initialTitle,
+    description: initialDescription,
+    itemsJson: JSON.stringify(initialItems),
+  }));
+  const latestRef = useRef({ title, description, itemsJson });
+  useEffect(() => {
+    latestRef.current = { title, description, itemsJson };
+  }, [title, description, itemsJson]);
+  const submittedRef = useRef({ title, description, itemsJson });
+  const isDirty = title !== baseline.title || description !== baseline.description || itemsJson !== baseline.itemsJson;
 
   const pendingTestDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const clearPendingTestDiff = useAssistDiffStore(s => s.clearPendingTestDiff);
@@ -110,11 +112,12 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     if (!pendingTestDiff) return;
     setItems(mergeAiEditResult(items, pendingTestDiff.questions, pendingTestDiff.selectedIndices));
     clearPendingTestDiff();
-    setIsDirty(true);
   }, [pendingTestDiff, items, setItems, clearPendingTestDiff]);
 
   const { mutate: saveTest, isPending: isSaving } = useMutation({
     mutationFn: () => {
+      submittedRef.current = { title, description, itemsJson };
+
       const standaloneQuestions: QuestionCreate[] = [];
       const questionGroups: TestQuestionGroupCreate[] = [];
 
@@ -148,7 +151,17 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
       toast.success(isEdit ? t('tests.test_updated') : t('tests.test_created'));
-      setIsDirty(false);
+      // Only advance if the form still matches what was submitted — edits made
+      // during the request were not saved, so they must stay dirty.
+      setBaseline(prev => {
+        const submitted = submittedRef.current;
+        const current = latestRef.current;
+        const unchangedSinceSubmit =
+          current.title === submitted.title &&
+          current.description === submitted.description &&
+          current.itemsJson === submitted.itemsJson;
+        return unchangedSinceSubmit ? submitted : prev;
+      });
       if (!isEdit && res.data?.id) {
         router.replace(Routes.TEST_EDIT(res.data.id));
       }
@@ -164,7 +177,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       const newItem = factories[type]();
       appendItem(newItem);
       setIsEditing(true);
-      setIsDirty(true);
     },
     [appendItem]
   );
@@ -197,7 +209,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                   value={title}
                   onChange={e => {
                     setTitle(e.target.value);
-                    setIsDirty(true);
                   }}
                 />
                 <AutoTextarea
@@ -206,7 +217,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
                   value={description}
                   onChange={e => {
                     setDescription(e.target.value);
-                    setIsDirty(true);
                   }}
                 />
               </>
@@ -332,7 +342,16 @@ type EditorActionsProps = {
   onSave: () => void;
 };
 
-function TestEditorActions({ size, testId, isEdit, isEditing, isSaving, canSave, onToggleEditing, onSave }: EditorActionsProps) {
+function TestEditorActions({
+  size,
+  testId,
+  isEdit,
+  isEditing,
+  isSaving,
+  canSave,
+  onToggleEditing,
+  onSave,
+}: EditorActionsProps) {
   const t = useTranslations();
 
   return (

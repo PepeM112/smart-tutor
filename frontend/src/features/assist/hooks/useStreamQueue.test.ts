@@ -4,9 +4,9 @@ import { createStreamQueue, type StreamQueueHandle } from './useStreamQueue';
 
 // jsdom-less unit test: requestAnimationFrame isn't a Node global. Route it
 // through setTimeout so vi.useFakeTimers() drives it deterministically.
-globalThis.requestAnimationFrame = ((cb: FrameRequestCallback): number =>
-  setTimeout(() => cb(performance.now()), 16) as unknown as number);
-globalThis.cancelAnimationFrame = ((id: number): void => clearTimeout(id));
+globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number =>
+  setTimeout(() => cb(performance.now()), 16) as unknown as number;
+globalThis.cancelAnimationFrame = (id: number): void => clearTimeout(id);
 
 type Event =
   | { type: 'update'; id: string; content: string; streaming: boolean; at: number }
@@ -97,6 +97,25 @@ describe('use-stream-queue', () => {
     // seg-2 must never have been merged into seg-1's content.
     const seg1Updates = events.filter(e => e.type === 'update' && e.id === 'seg-1');
     expect(seg1Updates.every(e => e.type === 'update' && !e.content.includes('World'))).toBe(true);
+  });
+
+  // Ordering matters, not end state: the indicator starts as `running`, so a
+  // dropped update is invisible unless we assert that `tool_executing` ran
+  // after the `tool_call` that creates the segment.
+  it('applies tool_executing after the tool_call that creates its indicator', () => {
+    const { queue, events } = setup();
+
+    queue.extendTarget('seg-1', 'Hello');
+    queue.enqueue('tool_call', () => events.push({ type: 'run', kind: 'tool_call', at: performance.now() }));
+    queue.enqueue('tool_executing', () => events.push({ type: 'run', kind: 'tool_executing', at: performance.now() }));
+
+    runToCompletion();
+
+    const toolCallIdx = events.findIndex(e => e.type === 'run' && e.kind === 'tool_call');
+    const toolExecutingIdx = events.findIndex(e => e.type === 'run' && e.kind === 'tool_executing');
+
+    expect(toolCallIdx).toBeGreaterThanOrEqual(0);
+    expect(toolExecutingIdx).toBeGreaterThan(toolCallIdx);
   });
 
   it('holds the tool indicator for at least the minimum visible duration', () => {
