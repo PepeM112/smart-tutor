@@ -6,6 +6,7 @@ import {
   type TestRead,
   type TestReadStripped,
 } from '@/client';
+import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 
 import type { MentionCandidate } from '../context/PageDataContext';
 
@@ -48,7 +49,7 @@ export function formatTestDetail(test: TestRead | TestReadStripped): string {
     '',
   ].filter(Boolean) as string[];
 
-  const allQuestions = [...(test.questions ?? []), ...(test.questionGroups ?? []).flatMap(g => g.questions ?? [])];
+  const allQuestions = getAllQuestions(test);
 
   if (allQuestions.length === 0) {
     lines.push('(no questions)');
@@ -97,7 +98,7 @@ export function formatResultDetail(result: {
 }
 
 export function buildTestMentionCandidates(test: TestRead | TestReadStripped): MentionCandidate[] {
-  const allQuestions = [...(test.questions ?? []), ...(test.questionGroups ?? []).flatMap(g => g.questions ?? [])];
+  const allQuestions = getAllQuestions(test);
   return allQuestions.map((q, i) => ({
     id: q.id,
     label: `Question ${i + 1}`,
