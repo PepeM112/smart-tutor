@@ -134,12 +134,12 @@ Chunks and their embeddings are stored in a `NoteChunk` model with a `Vector(153
 
 Embedding generation is deferred to avoid an embedding call on every autosave keystroke:
 
-1. A note is created or first generated — `index_note()` fires as a `BackgroundTask` immediately.
+1. A note is created or generated through the API — `index_note()` fires as a `BackgroundTask` immediately. A note made by the Assistant's `create_note` tool is not indexed at once (the embedding call would hold the chat stream); step 4 indexes it.
 2. An autosave (`PATCH /notes/{id}` with content/title/tags) sets `note.is_indexed = False` but does **not** schedule indexing.
 3. When the user leaves the note, the frontend sends a final `PATCH` with `reindex: true`. The endpoint then schedules `index_note()` as a `BackgroundTask`.
-4. Before any semantic search, `search_notes()` finds all notes with `is_indexed = False` for that user and indexes them in-process before running the query. A failure on one note is logged and skipped.
+4. Before any semantic search, `search_notes()` finds all notes with `is_indexed = False` for that user and indexes them before running the query, each through `note_service.schedule_indexing` (its own session, so the request session is never committed or rolled back by the indexing). A failure on one note is logged and skipped.
 
-`index_note()` itself: deletes existing chunks → prepends a title/tags header → splits text into ~500-token chunks → batch-embeds via OpenAI → `bulk_create` chunks → sets `note.is_indexed = True` → records token usage under `AIFeature.EMBEDDING`.
+`index_note()` itself: takes a per-note advisory lock (`pg_try_advisory_xact_lock`; if another run holds it, this run is skipped, so two runs never store two chunk sets) → deletes existing chunks → prepends a title/tags header → splits text into ~500-token chunks → batch-embeds via OpenAI → `bulk_create` chunks → sets `note.is_indexed = True` only if the note is still at the version read at the start (an autosave during the embedding call leaves it stale for the next run) → records token usage under `AIFeature.EMBEDDING`.
 
 ### Semantic search
 

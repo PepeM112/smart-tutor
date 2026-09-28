@@ -51,6 +51,16 @@ class NoteUpdate(BaseSchema):
     # Excluded from column updates by the CRUD layer.
     reindex: bool = False
 
+    # `None` means "not sent" (the default). An explicit JSON `null` must not get through:
+    # it would write NULL to a NOT NULL column (500), or JSON null to `tags`, which breaks
+    # every later read of the note. It would also skip the version check.
+    @field_validator("title", "content", "tags", mode="before")
+    @classmethod
+    def _reject_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("Field cannot be null; omit it to leave it unchanged")
+        return value
+
     @field_validator("tags")
     @classmethod
     def _validate_tags(cls, tags: list[str] | None) -> list[str] | None:

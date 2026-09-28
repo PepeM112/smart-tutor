@@ -12,6 +12,7 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
 
+import { ChunkHighlight } from './chunkHighlight';
 import { CodeBlockView } from './CodeBlockView';
 import { NoteColorMark } from './noteColor';
 import { DEFAULT_SLASH_HINT, SlashMenuExtension } from './SlashMenu';
@@ -72,5 +73,8 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
       translations: options.slashLabels ?? {},
       hint: options.slashHint ?? DEFAULT_SLASH_HINT,
     }),
+
+    // Highlight on the text of an AI chunk edit (decoration only, not saved).
+    ChunkHighlight,
   ];
 }

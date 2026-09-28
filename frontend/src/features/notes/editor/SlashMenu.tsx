@@ -17,7 +17,7 @@
 import { Extension } from '@tiptap/core';
 import { ReactRenderer } from '@tiptap/react';
 import { Suggestion } from '@tiptap/suggestion';
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -118,6 +118,7 @@ type SlashMenuPopupProps = SuggestionProps<SlashItem> & { hint: string };
 export const SlashMenuPopup = forwardRef<SlashMenuPopupHandle, SlashMenuPopupProps>(
   function SlashMenuPopup(props, ref) {
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const listRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
       setSelectedIndex(0);
@@ -146,10 +147,19 @@ export const SlashMenuPopup = forwardRef<SlashMenuPopupHandle, SlashMenuPopupPro
       },
     }));
 
+    // The list scrolls on short screens: keep the item chosen with the arrow keys visible.
+    useEffect(() => {
+      listRef.current?.children[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+    }, [selectedIndex]);
+
     if (props.items.length === 0) return null;
 
     return (
-      <div data-slot="slash-menu" className="min-w-48 rounded-lg border border-border bg-background p-1 shadow-md">
+      <div
+        ref={listRef}
+        data-slot="slash-menu"
+        className="max-h-[min(20rem,50dvh)] min-w-48 overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground ring-1 ring-foreground/10"
+      >
         {props.items.map((item, index) => (
           <button
             key={item.labelKey}
@@ -165,7 +175,7 @@ export const SlashMenuPopup = forwardRef<SlashMenuPopupHandle, SlashMenuPopupPro
             <span className="font-medium">{item.displayLabel}</span>
           </button>
         ))}
-        <div className="mt-0.5 border-t border-border px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
+        <div className="mt-0.5 border-t border-foreground/10 px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
           {props.hint}
         </div>
       </div>
@@ -240,6 +250,7 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
             // The visual viewport excludes the on-screen keyboard; `innerHeight` does not,
             // so on a phone the menu could open under the keyboard.
             const vv = window.visualViewport;
+            const viewportTop = vv ? vv.offsetTop : 0;
             const viewportBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
             const viewportRight = vv ? vv.offsetLeft + vv.width : window.innerWidth;
             const spaceBelow = viewportBottom - rect.bottom;
@@ -247,7 +258,10 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
             popup.style.position = 'fixed';
             // Keep the menu inside narrow screens.
             popup.style.left = `${Math.max(8, Math.min(rect.left, viewportRight - popup.offsetWidth - 8))}px`;
-            popup.style.top = above ? `${rect.top - menuHeight - 4}px` : `${rect.bottom + 4}px`;
+            // Above the caret, keep the top edge on screen (a caret near the top of a short screen).
+            popup.style.top = above
+              ? `${Math.max(viewportTop + 8, rect.top - menuHeight - 4)}px`
+              : `${rect.bottom + 4}px`;
             popup.style.zIndex = '9999';
           };
 
@@ -272,16 +286,8 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
               popup = null;
             },
 
-            onKeyDown: (props: SuggestionKeyDownProps): boolean => {
-              if (props.event.key === 'Escape') {
-                renderer?.destroy();
-                popup?.remove();
-                renderer = null;
-                popup = null;
-                return true;
-              }
-              return renderer?.ref?.onKeyDown(props) ?? false;
-            },
+            // Escape is handled by the suggestion plugin: it exits, and `onExit` cleans up.
+            onKeyDown: (props: SuggestionKeyDownProps): boolean => renderer?.ref?.onKeyDown(props) ?? false,
           };
         },
       }),

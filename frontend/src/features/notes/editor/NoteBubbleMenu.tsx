@@ -56,23 +56,6 @@ type ColorAttrs = { color?: NoteColor | null; bg?: NoteColor | null };
 
 // ─── component ───────────────────────────────────────────────────────────────
 
-/**
- * Build a `SelectionContext` from the current editor selection.
- * Returns `null` when the selection is empty.
- */
-function buildSelectionContext(editor: Editor): SelectionContext | null {
-  const { from, to, empty } = editor.state.selection;
-  if (empty) return null;
-
-  const markdown = selectionToMarkdown(editor);
-  const plainText = editor.state.doc.textBetween(from, to, ' ');
-
-  const domSelection = window.getSelection();
-  const rect = domSelection?.rangeCount ? domSelection.getRangeAt(0).getBoundingClientRect() : new DOMRect();
-
-  return { markdown, plainText, from, to, rect };
-}
-
 /* On touch devices the native selection toolbar (copy, paste…) shows above the selection,
 so our menu goes below it. Constants: a new options object on each render would re-apply them. */
 const TOP_OPTIONS = { placement: 'top' } as const;
@@ -155,7 +138,7 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
     >
       <div
         data-slot="bubble-menu"
-        className="relative flex items-center gap-0.5 rounded-lg border border-border bg-background p-1 shadow-md"
+        className="relative flex items-center gap-0.5 rounded-lg bg-popover p-1 text-popover-foreground ring-1 ring-foreground/10"
       >
         {/* Color — first, as in Notion */}
         <HoverHint label={t('bubble_color')}>
@@ -256,6 +239,25 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
   );
 }
 
+// ─── selection ───────────────────────────────────────────────────────────────
+
+/**
+ * Build a `SelectionContext` from the current editor selection.
+ * Returns `null` when the selection is empty.
+ */
+function buildSelectionContext(editor: Editor): SelectionContext | null {
+  const { from, to, empty } = editor.state.selection;
+  if (empty) return null;
+
+  const markdown = selectionToMarkdown(editor);
+  const plainText = editor.state.doc.textBetween(from, to, ' ');
+
+  const domSelection = window.getSelection();
+  const rect = domSelection?.rangeCount ? domSelection.getRangeAt(0).getBoundingClientRect() : new DOMRect();
+
+  return { markdown, plainText, from, to, rect };
+}
+
 // ─── link panel ──────────────────────────────────────────────────────────────
 
 type LinkPanelProps = {
@@ -273,7 +275,7 @@ function LinkPanel({ href, onHrefChange, onConfirm, onClose, addLabel }: LinkPan
   };
 
   return (
-    <div className="absolute left-0 top-full mt-1 flex items-center gap-1 rounded-lg border border-border bg-background p-1.5 shadow-md">
+    <div className="absolute left-0 top-full mt-1 flex items-center gap-1 rounded-lg bg-popover p-1.5 text-popover-foreground ring-1 ring-foreground/10">
       <input
         autoFocus
         type="url"
@@ -351,7 +353,7 @@ function ColorPanel({ current, onText, onBackground }: ColorPanelProps) {
   return (
     <div
       data-slot="bubble-color-panel"
-      className="absolute left-0 top-full mt-1 flex flex-col gap-2 rounded-lg border border-border bg-background p-2 shadow-md"
+      className="absolute left-0 top-full mt-1 flex flex-col gap-2 rounded-lg bg-popover p-2 text-popover-foreground ring-1 ring-foreground/10"
     >
       {renderSection(t('color_text'), 'text')}
       {renderSection(t('color_background'), 'bg')}

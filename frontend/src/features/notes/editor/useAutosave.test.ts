@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-// Tests for AutosaveController (pure class, no React renderer needed).
+// Tests for AutosaveController (pure class, no React renderer needed), plus one hook test.
 // Uses vitest fake timers to control debounce and retry delays.
 
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AutosaveController } from './useAutosave';
+import { AutosaveController, useAutosave } from './useAutosave';
 
 import type { SavePayload } from './useAutosave';
 
@@ -383,6 +384,17 @@ describe('reindex on leave', () => {
 
     expect(saveFn).toHaveBeenCalledWith(NOTE_ID, payload, 1, true, true);
   });
+
+  it('a flush after flushSync sends nothing (no second reindex PATCH)', async () => {
+    const saveFn = makeSaveFn();
+    const { controller } = makeController(saveFn);
+
+    controller.onChange(payload);
+    controller.flushSync();
+    await controller.flush(true);
+
+    expect(saveFn).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ─── conflict resolution ─────────────────────────────────────────────────────
@@ -409,5 +421,21 @@ describe('reset after conflict', () => {
 
     expect(saveFn).toHaveBeenLastCalledWith(NOTE_ID, payload2, 7, false);
     expect(statuses[statuses.length - 1]).toBe('saved');
+  });
+});
+
+// ─── hook ────────────────────────────────────────────────────────────────────
+
+describe('useAutosave hook', () => {
+  it('keeps the same callbacks when the status changes', () => {
+    const { result } = renderHook(() => useAutosave(NOTE_ID, INITIAL_VERSION, undefined, makeSaveFn()));
+    const first = result.current;
+
+    act(() => first.onChange(payload));
+
+    expect(result.current.status).toBe('dirty');
+    expect(result.current.onChange).toBe(first.onChange);
+    expect(result.current.flush).toBe(first.flush);
+    expect(result.current.reset).toBe(first.reset);
   });
 });

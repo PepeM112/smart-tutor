@@ -367,6 +367,7 @@
     "failed_to_refine": "Error al refinar la nota. Inténtalo de nuevo.",
     "failed_to_edit": "Error al editar la selección. Inténtalo de nuevo.",
     "could_not_locate": "No se pudo localizar el texto original — puede haber cambiado.",
+    "chunk_overlaps": "Este texto ya tiene una edición de IA. Acéptala o recházala primero.",
     "changes": "Cambios",
     "old": "Anterior",
     "new": "Nuevo",

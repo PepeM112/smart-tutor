@@ -24,13 +24,14 @@ export function usePageContext(): PageContext {
   return useMemo(() => {
     const ctx: PageContext = { route: pathname };
 
-    for (const { pattern, type, parseId } of RESOURCE_PATTERNS) {
-      const match = pathname.match(pattern);
-      if (match?.[1] && match[1] !== 'new' && match[1] !== 'generate') {
-        ctx.resourceType = type;
-        ctx.resourceId = parseId ? parseId(match[1]) : match[1];
-        break;
-      }
+    const resource = RESOURCE_PATTERNS.map(({ pattern, type, parseId }) => ({
+      type,
+      parseId,
+      id: pathname.match(pattern)?.[1],
+    })).find(({ id }) => id && id !== 'new' && id !== 'generate');
+    if (resource?.id) {
+      ctx.resourceType = resource.type;
+      ctx.resourceId = resource.parseId ? resource.parseId(resource.id) : resource.id;
     }
 
     if (contextData) {

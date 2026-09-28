@@ -3,7 +3,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { posToDOMRect } from '@tiptap/core';
 import { AlertCircle, BookOpen, Loader2, RefreshCw } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -13,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { FloatingCard, FloatingCardAnchor, FloatingCardContent } from '@/components/ui/floating-card';
 import { DiffNoteContent, DiffPanel } from '@/features/assist/components/diff';
+import { useAssistCoversPage } from '@/features/assist/hooks/useAssistCoversPage';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { useAssistAttachmentsStore } from '@/features/assist/store/useAssistAttachmentsStore';
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
@@ -67,6 +67,7 @@ export function NotePage({ noteId }: Props) {
 }
 
 const ASSIST_DIFF_SPLIT_KEY = 'assist-diff-split-ratio';
+const CANONICAL_URL_DEBOUNCE_MS = 500;
 
 function NoteForm({ note }: { note: NoteRead }) {
   const t = useTranslations();
@@ -74,7 +75,6 @@ function NoteForm({ note }: { note: NoteRead }) {
   const { width, toggleWidth } = useNoteWidth();
   // Only desktop has room for a full-width column; smaller screens always fill the page.
   const isFullWidth = isDesktop && width === 'full';
-  const searchParams = useSearchParams();
 
   const editorRef = useRef<RichNoteEditorRef>(null);
   const { title, tags, initialContent, status, setTitle, setTags, setContent, flush, reload, keepMine } = useNoteDraft({
@@ -98,6 +98,7 @@ function NoteForm({ note }: { note: NoteRead }) {
     cancelInstructions,
     handleAcceptDiff: acceptChunkDiff,
     handleRejectDiff: rejectChunkDiff,
+    handleHideDiff: hideChunkDiff,
   } = useChunkAiEdit({ editorRef, noteId: note.id });
 
   const handleSendToAssistant = useCallback(
@@ -121,17 +122,25 @@ function NoteForm({ note }: { note: NoteRead }) {
 
   // Canonical URL: history.replaceState changes only the address bar. A router
   // navigation to a new [id] param value could remount the page and the editor.
+  // Debounced: Safari throws after 100 history calls in 10 s (e.g. Backspace held in the title).
+  // State `null`: Next syncs `usePathname` only for a state that is not its own (`__NA`).
   useEffect(() => {
-    const canonical = noteHref({ id: note.id, title });
-    if (window.location.pathname !== canonical) {
-      window.history.replaceState(window.history.state, '', canonical + window.location.search);
-    }
+    const timer = window.setTimeout(() => {
+      const canonical = noteHref({ id: note.id, title });
+      if (window.location.pathname !== canonical) {
+        window.history.replaceState(null, '', canonical + window.location.search);
+      }
+    }, CANONICAL_URL_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
   }, [note.id, title]);
 
   // Assist diff integration.
   const pendingNoteDiff = useAssistDiffStore(s => s.pendingNoteDiff);
   const clearPendingNoteDiff = useAssistDiffStore(s => s.clearPendingNoteDiff);
-  const showAssistDiff = searchParams.get('diff') === 'assist' && pendingNoteDiff?.noteId === note.id;
+  // No URL gate: the diff shows whenever this note has a pending Assistant diff, so
+  // "View changes" never has to navigate (a navigation would remount the editor).
+  const assistCoversPage = useAssistCoversPage();
+  const showAssistDiff = pendingNoteDiff?.noteId === note.id && !assistCoversPage;
   const assistDiff = showAssistDiff ? pendingNoteDiff : null;
 
   const {
@@ -160,8 +169,10 @@ function NoteForm({ note }: { note: NoteRead }) {
             size="icon-xs"
             icon={BookOpen}
             onClick={toggleWidth}
+            // Fixed label: `aria-pressed` already tells the state. A label that changes too
+            // makes a screen reader say the state two times.
             aria-pressed={!isFullWidth}
-            aria-label={t(isFullWidth ? 'notes.width_reading' : 'notes.width_full')}
+            aria-label={t('notes.width_reading')}
             tooltip={t(isFullWidth ? 'notes.width_reading' : 'notes.width_full')}
             className={cn(!isFullWidth && 'text-primary')}
           />
@@ -219,7 +230,12 @@ function NoteForm({ note }: { note: NoteRead }) {
               style={{ flex: 1 - assistDiffRatio }}
             >
               {chunkDiff ? (
-                <DiffPanel title={t('notes_ai.changes')} onAccept={acceptChunkDiff} onReject={rejectChunkDiff}>
+                <DiffPanel
+                  title={t('notes_ai.changes')}
+                  onAccept={acceptChunkDiff}
+                  onReject={rejectChunkDiff}
+                  onClose={hideChunkDiff}
+                >
                   <DiffNoteContent oldContent={chunkDiff.originalMarkdown} newContent={chunkDiff.editedText} />
                 </DiffPanel>
               ) : assistDiff ? (
@@ -232,20 +248,25 @@ function NoteForm({ note }: { note: NoteRead }) {
         )}
       </div>
 
-      {/* Mobile: the same two diffs in a drawer. Closing it rejects the diff. */}
+      {/* Mobile: the same two diffs in a drawer. Closing it hides a chunk diff (tap its highlight to reopen) and rejects the assistant diff. */}
       {!isDesktop && (
         <Drawer
           open={!!(chunkDiff || assistDiff)}
           onOpenChange={open => {
             if (open) return;
-            if (chunkDiff) rejectChunkDiff();
+            if (chunkDiff) hideChunkDiff();
             else clearPendingNoteDiff();
           }}
         >
           <DrawerContent className="max-h-[75dvh]">
             <div className="overflow-y-auto px-4 pb-8">
               {chunkDiff ? (
-                <DiffPanel title={t('notes_ai.changes')} onAccept={acceptChunkDiff} onReject={rejectChunkDiff}>
+                <DiffPanel
+                  title={t('notes_ai.changes')}
+                  onAccept={acceptChunkDiff}
+                  onReject={rejectChunkDiff}
+                  onClose={hideChunkDiff}
+                >
                   <DiffNoteContent oldContent={chunkDiff.originalMarkdown} newContent={chunkDiff.editedText} />
                 </DiffPanel>
               ) : assistDiff ? (
@@ -351,6 +372,9 @@ function InstructionPopover({ selection, getView, isPending, onSubmit, onCancel,
   const t = useTranslations('notes_ai');
   const [instructions, setInstructions] = useState('');
   const [virtualRef] = useState(() => ({ current: createSelectionAnchor(getView, selection) }));
+  // An outside click already put the focus where the user clicked (e.g. the title).
+  // A refocus of the editor would then send the typed keys into the body.
+  const closedByOutside = useRef(false);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && instructions.trim()) onSubmit(instructions.trim());
@@ -365,12 +389,16 @@ function InstructionPopover({ selection, getView, isPending, onSubmit, onCancel,
         collisionPadding={8}
         hideWhenDetached
         // Not while the request runs: the result would then arrive with no visible sign that it was loading.
-        onInteractOutside={e => isPending && e.preventDefault()}
+        onInteractOutside={e => {
+          if (isPending) e.preventDefault();
+          else closedByOutside.current = true;
+        }}
+        onEscapeKeyDown={e => isPending && e.preventDefault()}
         onCloseAutoFocus={e => {
           e.preventDefault();
-          onClosed();
+          if (!closedByOutside.current) onClosed();
         }}
-        className="z-[60] flex items-center gap-1.5 p-1.5"
+        className="z-60 flex items-center gap-1.5 p-1.5"
       >
         <input
           type="text"

@@ -21,6 +21,7 @@ from app.crud import note as note_crud
 from app.crud import note_chunk as note_chunk_crud
 from app.crud import token_usage as token_usage_crud
 from app.models.note_chunk import NoteChunk
+from app.services import note_service
 from app.services.pricing_service import calculate_cost
 
 logger = logging.getLogger("smarttutor.embedding")
@@ -108,11 +109,20 @@ def _generate_embeddings(texts: list[str]) -> tuple[list[list[float]], int]:
 def index_note(db: Session, *, note_id: str) -> None:
     """Chunk a note's content, generate embeddings, and store in note_chunks.
 
-    Called as a BackgroundTask after note creation or update.
+    Commits or rolls back `db`, so it must own the session: always run it through
+    `note_service.schedule_indexing` (a fresh session), never on a request's session.
     """
+    # Two runs on one note at the same time would each delete the old chunks and then
+    # insert a full set (READ COMMITTED: run 2's DELETE cannot see run 1's new rows).
+    # The lock is held until the commit/rollback below, across the slow embedding call.
+    if not note_chunk_crud.try_lock_note_indexing(db, note_id=note_id):
+        logger.info("index_note: note %s is already being indexed, skipping", note_id)
+        return
+
     note = note_crud.get_by_id(db, id=note_id)
     if note is None:
         logger.warning("index_note: note %s not found, skipping", note_id)
+        db.rollback()
         return
 
     # The embedding call is slow. If an autosave lands meanwhile, the chunks below are
@@ -196,13 +206,13 @@ def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> li
     results reflect the latest saved content. A failure on any individual note is
     logged and skipped — it must not abort the search.
     """
+    # Each stale note is indexed in its own session. `index_note` commits and rolls back,
+    # which must not touch the caller's (the Assistant request's) session.
     unindexed_ids = note_crud.list_unindexed_ids_by_user(db, user_id=user_id)
     for stale_id in unindexed_ids:
         try:
-            index_note(db, note_id=stale_id)
+            note_service.schedule_indexing(stale_id)
         except Exception:
-            # Drop the failed note's pending rows, or the next note's commit would save them.
-            db.rollback()
             logger.exception("search_notes: failed to index stale note %s, skipping", stale_id)
 
     if note_chunk_crud.count_by_user(db, user_id=user_id) == 0:
@@ -222,7 +232,7 @@ def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> li
         output_tokens=0,
         estimated_cost=cost,
     )
-    db.flush()
+    db.commit()
 
     rows = note_chunk_crud.search_by_similarity(db, user_id=user_id, query_embedding=query_embedding, limit=limit)
     return [

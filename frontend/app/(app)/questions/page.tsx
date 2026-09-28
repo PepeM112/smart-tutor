@@ -190,7 +190,7 @@ export default function QuestionsPage() {
               title={t('questions.bulk_delete')}
               description={t('questions.bulk_delete_confirm', { count: selectedIds.size })}
               confirmLabel={t('common.delete')}
-              confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+              confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onConfirm={() => bulkDelete([...selectedIds])}
             />
           </div>

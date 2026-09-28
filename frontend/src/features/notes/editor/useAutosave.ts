@@ -23,7 +23,7 @@
 // The core logic lives in AutosaveController (pure class, no React) so it
 // can be tested with vitest fake timers without a DOM or React renderer.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { NoteRead } from '@/client';
 import { sdk } from '@/lib/apiClient';
@@ -130,6 +130,10 @@ export class AutosaveController {
     this.clearTimer();
     if (!this.latestPayload && !this.needsReindex) return;
     void this.saveFn(this.noteId, this.latestPayload, this.version, true, true).catch(() => undefined);
+    // The request is sent. The `visibilitychange → hidden` flush that follows must find
+    // nothing to do, or it sends a second reindex PATCH for the same content.
+    this.latestPayload = null;
+    this.needsReindex = false;
   }
 
   /**
@@ -309,13 +313,11 @@ export function useAutosave(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
 
-  return useMemo(
-    () => ({
-      status,
-      onChange: (payload: SavePayload) => controllerRef.current?.onChange(payload),
-      flush: (reindex = false) => controllerRef.current?.flush(reindex) ?? Promise.resolve(),
-      reset: (version: number) => controllerRef.current?.reset(version),
-    }),
-    [status]
-  );
+  // Stable callbacks: they read the controller from the ref, so a status change must not
+  // make new ones (callers put them in effect and useCallback dependencies).
+  const onChange = useCallback((payload: SavePayload) => controllerRef.current?.onChange(payload), []);
+  const flush = useCallback((reindex = false) => controllerRef.current?.flush(reindex) ?? Promise.resolve(), []);
+  const reset = useCallback((version: number) => controllerRef.current?.reset(version), []);
+
+  return useMemo(() => ({ status, onChange, flush, reset }), [status, onChange, flush, reset]);
 }

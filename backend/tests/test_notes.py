@@ -88,6 +88,11 @@ class TestNoteInputLimits:
     def test_update_without_tags_stays_none(self) -> None:
         assert NoteUpdate(version=1).tags is None
 
+    @pytest.mark.parametrize("field", ["title", "content", "tags"])
+    def test_update_explicit_null_rejected(self, field: str) -> None:
+        with pytest.raises(ValidationError, match="cannot be null"):
+            NoteUpdate.model_validate({field: None, "version": 1})
+
     def test_too_many_tags_rejected(self) -> None:
         with pytest.raises(ValidationError, match="at most 10 tags"):
             NoteCreate(title="T", tags=[f"tag{i}" for i in range(11)])
@@ -343,6 +348,24 @@ class TestIndexNoteVersionGuard:
         mock_note_crud.mark_indexed.assert_called_once()
         mock_note_crud.update.assert_not_called()
 
+    def test_skips_when_another_run_holds_the_lock(self) -> None:
+        """A second run on the same note must not delete and insert chunks while the first runs."""
+        from app.services import embedding_service
+
+        db = MagicMock()
+
+        with (
+            patch("app.services.embedding_service.note_crud") as mock_note_crud,
+            patch("app.services.embedding_service.note_chunk_crud") as mock_chunk_crud,
+            patch("app.services.embedding_service._generate_embeddings") as mock_embed,
+        ):
+            mock_chunk_crud.try_lock_note_indexing.return_value = False
+            embedding_service.index_note(db, note_id="note-abc")
+
+        mock_note_crud.get_by_id.assert_not_called()
+        mock_chunk_crud.delete_by_note_id.assert_not_called()
+        mock_embed.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Search — lazy stale-note indexing
@@ -351,7 +374,7 @@ class TestIndexNoteVersionGuard:
 
 class TestSearchNotesLazyIndexing:
     def test_stale_notes_indexed_before_search(self) -> None:
-        """search_notes must index unindexed notes before running the vector query."""
+        """search_notes must index unindexed notes, each in its own session, before the vector query."""
         from app.services import embedding_service
 
         db = MagicMock()
@@ -359,7 +382,7 @@ class TestSearchNotesLazyIndexing:
         with (
             patch("app.services.embedding_service.note_crud") as mock_note_crud,
             patch("app.services.embedding_service.note_chunk_crud") as mock_chunk_crud,
-            patch("app.services.embedding_service.index_note") as mock_index,
+            patch("app.services.embedding_service.note_service.schedule_indexing") as mock_schedule,
             patch("app.services.embedding_service._generate_embeddings", return_value=([[0.1] * 1536], 5)),
         ):
             mock_note_crud.list_unindexed_ids_by_user.return_value = ["stale-1", "stale-2"]
@@ -367,9 +390,9 @@ class TestSearchNotesLazyIndexing:
 
             embedding_service.search_notes(db, user_id="user-123", query="test")
 
-        assert mock_index.call_count == 2
-        mock_index.assert_any_call(db, note_id="stale-1")
-        mock_index.assert_any_call(db, note_id="stale-2")
+        assert mock_schedule.call_count == 2
+        mock_schedule.assert_any_call("stale-1")
+        mock_schedule.assert_any_call("stale-2")
 
     def test_stale_index_failure_does_not_abort_search(self) -> None:
         """A failure indexing one stale note must not prevent the search from continuing."""
@@ -380,8 +403,10 @@ class TestSearchNotesLazyIndexing:
         with (
             patch("app.services.embedding_service.note_crud") as mock_note_crud,
             patch("app.services.embedding_service.note_chunk_crud") as mock_chunk_crud,
-            patch("app.services.embedding_service.index_note", side_effect=Exception("embed fail")),
-            patch("app.services.embedding_service._generate_embeddings", return_value=([[0.1] * 1536], 5)),
+            patch(
+                "app.services.embedding_service.note_service.schedule_indexing",
+                side_effect=Exception("embed fail"),
+            ),
         ):
             mock_note_crud.list_unindexed_ids_by_user.return_value = ["stale-1"]
             mock_chunk_crud.count_by_user.return_value = 0
@@ -391,8 +416,8 @@ class TestSearchNotesLazyIndexing:
 
         assert result == []
 
-    def test_stale_index_failure_rolls_back(self) -> None:
-        """A failed index must roll back, or its pending chunk rows get committed with the next note."""
+    def test_lazy_indexing_does_not_touch_caller_session(self) -> None:
+        """The caller's session must not be committed or rolled back by the stale-note indexing."""
         from app.services import embedding_service
 
         db = MagicMock()
@@ -400,14 +425,40 @@ class TestSearchNotesLazyIndexing:
         with (
             patch("app.services.embedding_service.note_crud") as mock_note_crud,
             patch("app.services.embedding_service.note_chunk_crud") as mock_chunk_crud,
-            patch("app.services.embedding_service.index_note", side_effect=Exception("cost fail")),
+            patch(
+                "app.services.embedding_service.note_service.schedule_indexing",
+                side_effect=Exception("cost fail"),
+            ),
         ):
             mock_note_crud.list_unindexed_ids_by_user.return_value = ["stale-1"]
             mock_chunk_crud.count_by_user.return_value = 0
 
             embedding_service.search_notes(db, user_id="user-123", query="test")
 
-        db.rollback.assert_called_once()
+        db.rollback.assert_not_called()
+        db.commit.assert_not_called()
+
+    def test_query_usage_is_committed(self) -> None:
+        """The query-embedding usage row must be committed, not only flushed."""
+        from app.services import embedding_service
+
+        db = MagicMock()
+
+        with (
+            patch("app.services.embedding_service.note_crud") as mock_note_crud,
+            patch("app.services.embedding_service.note_chunk_crud") as mock_chunk_crud,
+            patch("app.services.embedding_service.token_usage_crud") as mock_usage_crud,
+            patch("app.services.embedding_service.calculate_cost", return_value=0),
+            patch("app.services.embedding_service._generate_embeddings", return_value=([[0.1] * 1536], 5)),
+        ):
+            mock_note_crud.list_unindexed_ids_by_user.return_value = []
+            mock_chunk_crud.count_by_user.return_value = 3
+            mock_chunk_crud.search_by_similarity.return_value = []
+
+            embedding_service.search_notes(db, user_id="user-123", query="test")
+
+        mock_usage_crud.create.assert_called_once()
+        db.commit.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -657,6 +708,88 @@ class TestNoteServiceErrorHandling:
             db.commit.assert_called_once()
             db.refresh.assert_called_once_with(mock_note)
             assert result == mock_note
+
+
+class TestEditTruncation:
+    def _completion(self, *, truncated: bool) -> CompletionResult:
+        return CompletionResult(
+            text="partial", input_tokens=10, output_tokens=20, provider="anthropic", model="test", truncated=truncated
+        )
+
+    def test_max_tokens_grows_with_input_and_is_capped(self) -> None:
+        from app.services.note_service import _edit_max_tokens
+
+        assert _edit_max_tokens("short") == 4096
+        assert 4096 < _edit_max_tokens("x" * 30_000) < 16_384
+        assert _edit_max_tokens("x" * 50_000) == 16_384
+
+    def test_truncated_chunk_edit_returns_422_and_keeps_usage(self) -> None:
+        from app.services.note_service import edit_note_chunk
+
+        db = MagicMock()
+        data = NoteChunkEdit(full_text="full", selected_text="sel", instructions="fix")
+
+        with (
+            patch("app.services.note_service.get_note"),
+            patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=True)),
+            patch("app.services.note_service.token_usage_service") as mock_usage,
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            edit_note_chunk(db, note_id="n1", current_user=_make_user(), data=data)
+
+        assert exc_info.value.status_code == 422
+        mock_usage.record_usage.assert_called_once()
+        db.commit.assert_called_once()
+
+    def test_chunk_edit_commits_usage(self) -> None:
+        from app.services.note_service import edit_note_chunk
+
+        db = MagicMock()
+        data = NoteChunkEdit(full_text="full", selected_text="sel", instructions="fix")
+
+        with (
+            patch("app.services.note_service.get_note"),
+            patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=False)),
+            patch("app.services.note_service.token_usage_service"),
+        ):
+            result = edit_note_chunk(db, note_id="n1", current_user=_make_user(), data=data)
+
+        assert result.edited_text == "partial"
+        db.commit.assert_called_once()
+
+    def test_refine_returns_old_and_new_content_and_commits(self) -> None:
+        from app.services.note_service import preview_refine_note
+
+        db = MagicMock()
+        note = _make_note(version=1)
+        note.content = "Some content"
+
+        with (
+            patch("app.services.note_service.get_note", return_value=note),
+            patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=False)),
+            patch("app.services.note_service.token_usage_service"),
+        ):
+            result = preview_refine_note(db, note_id="n1", current_user=_make_user(), instructions="fix")
+
+        assert result == ("Some content", "partial")
+        db.commit.assert_called_once()
+
+    def test_truncated_refine_returns_422(self) -> None:
+        from app.services.note_service import preview_refine_note
+
+        db = MagicMock()
+        note = _make_note(version=1)
+        note.content = "Some content"
+
+        with (
+            patch("app.services.note_service.get_note", return_value=note),
+            patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=True)),
+            patch("app.services.note_service.token_usage_service"),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            preview_refine_note(db, note_id="n1", current_user=_make_user(), instructions="fix")
+
+        assert exc_info.value.status_code == 422
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@
 import { NodeViewContent, NodeViewWrapper, useEditorState, type NodeViewProps } from '@tiptap/react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,9 @@ type Lowlight = ReturnType<typeof createLowlight>;
 export function CodeBlockView({ node, editor, extension, getPos, updateAttributes }: NodeViewProps) {
   const t = useTranslations('notes');
   const [open, setOpen] = useState(false);
+  // Set by an outside click: the user already put the cursor where they clicked, so the
+  // close must not move it back into this block.
+  const closedByOutside = useRef(false);
   const language = (node.attrs.language as string | null) ?? null;
 
   // True while the selection is inside this block. The editor does not re-render the
@@ -68,8 +71,15 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
               align="end"
               sideOffset={4}
               className="w-48 p-1"
+              onInteractOutside={() => {
+                closedByOutside.current = true;
+              }}
               onCloseAutoFocus={e => {
                 e.preventDefault();
+                if (closedByOutside.current) {
+                  closedByOutside.current = false;
+                  return;
+                }
                 // A plain `focus()` scrolls to the old selection, which can be far from this
                 // block (opened on hover), so the page jumped. Put the cursor at the end of
                 // this block instead, and do not scroll: the block is already on screen.

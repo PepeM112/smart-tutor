@@ -18,6 +18,14 @@ def count_by_user(db: Session, *, user_id: str) -> int:
     return db.scalar(stmt) or 0
 
 
+def try_lock_note_indexing(db: Session, *, note_id: str) -> bool:
+    """Take a transaction-level advisory lock for one note's indexing.
+
+    Returns False when another transaction holds it. The lock is released on commit/rollback.
+    """
+    return bool(db.scalar(select(func.pg_try_advisory_xact_lock(func.hashtext(note_id)))))
+
+
 def delete_by_note_id(db: Session, *, note_id: str) -> None:
     db.execute(delete(NoteChunk).where(NoteChunk.note_id == note_id))
     db.flush()

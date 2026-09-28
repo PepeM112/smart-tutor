@@ -162,17 +162,17 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
     />
   );
 
-  const headerLeft = (variant: 'mobile' | 'desktop') =>
-    variant === 'desktop' && isXl ? (
-      <Button
-        variant="ghost"
-        size="icon"
-        icon={PanelRight}
-        onClick={toggleMode}
-        aria-label="Dock to side"
-        tooltip="Dock to side"
-      />
-    ) : null;
+  // Desktop only: the mobile sheet cannot dock.
+  const dockButton = isXl ? (
+    <Button
+      variant="ghost"
+      size="icon"
+      icon={PanelRight}
+      onClick={toggleMode}
+      aria-label="Dock to side"
+      tooltip="Dock to side"
+    />
+  ) : null;
 
   const headerRight = (variant: 'mobile' | 'desktop') => (
     <div className={`flex items-center ${variant === 'desktop' ? '' : 'gap-1'}`}>
@@ -285,7 +285,7 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-1.5 py-2">
               <div className="flex flex-1 items-center">
-                {headerLeft('desktop')}
+                {dockButton}
                 <div
                   onMouseDown={card.handleMouseDown}
                   onDoubleClick={handleResetPositionAndSize}

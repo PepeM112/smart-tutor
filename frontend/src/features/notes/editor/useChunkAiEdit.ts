@@ -6,8 +6,11 @@
  * Flow:
  *   1. Bubble menu fires onAskAi(ctx) → instruction popover opens (pendingSelection).
  *   2. User types instructions → submitInstructions() → sdk.notesEditChunk.
- *   3. Result stored in activeDiff → shown in DiffPanel / Drawer.
- *   4. Accept: replaceSelectionWithMarkdown with a stale-doc guard.
+ *      The selection gets a chunk highlight (useChunkHighlights) at submit time.
+ *   3. Result stored in diffs and opened → shown in DiffPanel / Drawer.
+ *      Close keeps the diff; a click on its highlight opens it again.
+ *   4. Accept: replaceSelectionWithMarkdown at the highlight's current range,
+ *      with a stale-doc guard. Accept / Reject remove the highlight.
  *
  * Also registers in useAssistCommandBridgeStore so the assistant's /edit-note
  * command (a different subtree) can trigger the same diff flow.
@@ -23,18 +26,18 @@ import { sdk } from '@/lib/apiClient';
 import { getErrorDetail } from '@/lib/utils';
 
 import { replaceSelectionWithMarkdown, serializeMarkdown } from './markdown';
+import { useChunkHighlights } from './useChunkHighlights';
 
 import type { SelectionContext } from './NoteBubbleMenu';
 import type { RichNoteEditorRef } from './RichNoteEditor';
 
 export type ChunkDiff = {
-  /** Used to guard the accept step — must still match the doc at [from, to]. */
+  /** Also the id of the chunk highlight, which holds the current range of the text. */
+  id: string;
+  /** Used to guard the accept step — must still match the highlighted text. */
   originalPlainText: string;
   originalMarkdown: string;
   editedText: string;
-  /** ProseMirror positions of the original selection. */
-  from: number;
-  to: number;
 };
 
 type UseChunkAiEditParams = {
@@ -48,11 +51,14 @@ export function useChunkAiEdit({ editorRef, noteId }: UseChunkAiEditParams) {
 
   // Selection awaiting instructions — renders the instruction popover.
   const [pendingSelection, setPendingSelection] = useState<SelectionContext | null>(null);
-  // Diff ready for review.
-  const [activeDiff, setActiveDiff] = useState<ChunkDiff | null>(null);
+  // Diffs ready for review. Each one has a highlight in the editor; a click on it opens the diff.
+  const [diffs, setDiffs] = useState<ChunkDiff[]>([]);
+  const [activeDiffId, setActiveDiffId] = useState<string | null>(null);
+  const activeDiff = diffs.find(d => d.id === activeDiffId) ?? null;
+  const highlights = useChunkHighlights({ editorRef, activeId: activeDiffId, onClick: setActiveDiffId });
 
   const { mutate: runEdit, isPending } = useMutation({
-    mutationFn: async ({ ctx, instructions }: { ctx: SelectionContext; instructions: string }) => {
+    mutationFn: async ({ ctx, instructions }: { id: string; ctx: SelectionContext; instructions: string }) => {
       const ed = editorRef.current?.editor;
       if (!noteId || !ed) throw new Error('editor not ready');
       const fullText = serializeMarkdown(ed);
@@ -61,20 +67,33 @@ export function useChunkAiEdit({ editorRef, noteId }: UseChunkAiEditParams) {
         body: { fullText, selectedText: ctx.markdown, instructions },
       });
       if (!res.data) throw new Error('empty response');
-      return { editedText: res.data.editedText, ctx };
+      return res.data.editedText;
     },
-    onSuccess: ({ editedText, ctx }) => {
-      setActiveDiff({
-        originalPlainText: ctx.plainText,
-        originalMarkdown: ctx.markdown,
-        editedText,
-        from: ctx.from,
-        to: ctx.to,
-      });
+    onSuccess: (editedText, { id, ctx }) => {
+      highlights.markReady(id);
+      setDiffs(prev => [...prev, { id, originalPlainText: ctx.plainText, originalMarkdown: ctx.markdown, editedText }]);
+      setActiveDiffId(id);
     },
-    onError: (err: unknown) => toast.error(getErrorDetail(err, t('notes_ai.failed_to_edit'))),
+    onError: (err: unknown, { id }) => {
+      highlights.remove(id);
+      toast.error(getErrorDetail(err, t('notes_ai.failed_to_edit')));
+    },
     onSettled: () => setPendingSelection(null),
   });
+
+  /** Highlight the selection, then send it. The highlight keeps the range correct while the user types. */
+  const startEdit = useCallback(
+    (ctx: SelectionContext, instructions: string): boolean => {
+      const id = crypto.randomUUID();
+      if (!highlights.add(id, ctx.from, ctx.to)) {
+        toast.error(t(ctx.to > ctx.from ? 'notes_ai.chunk_overlaps' : 'notes_ai.could_not_locate'));
+        return false;
+      }
+      runEdit({ id, ctx, instructions });
+      return true;
+    },
+    [highlights, runEdit, t]
+  );
 
   const handleAskAi = useCallback((ctx: SelectionContext) => {
     setPendingSelection(ctx);
@@ -83,39 +102,53 @@ export function useChunkAiEdit({ editorRef, noteId }: UseChunkAiEditParams) {
   const submitInstructions = useCallback(
     (instructions: string) => {
       if (!pendingSelection) return;
-      runEdit({ ctx: pendingSelection, instructions });
+      if (!startEdit(pendingSelection, instructions)) setPendingSelection(null);
     },
-    [pendingSelection, runEdit]
+    [pendingSelection, startEdit]
   );
 
   const cancelInstructions = useCallback(() => setPendingSelection(null), []);
+
+  const discardDiff = useCallback(
+    (id: string) => {
+      highlights.remove(id);
+      setDiffs(prev => prev.filter(d => d.id !== id));
+      setActiveDiffId(null);
+    },
+    [highlights]
+  );
 
   const handleAcceptDiff = useCallback(() => {
     const diff = activeDiff;
     const ed = editorRef.current?.editor;
     if (!diff || !ed) return;
 
-    // Stale-doc guard: the text at [from, to] must still equal what was selected.
-    // This catches cases where the user typed while waiting for the AI response.
-    const currentText = ed.state.doc.textBetween(diff.from, diff.to, ' ');
-    if (currentText !== diff.originalPlainText) {
+    // Stale-doc guard: the highlight gives the current range. The text in it must still
+    // equal what was selected (the user can edit inside the highlight, or delete it).
+    const range = highlights.getRange(diff.id);
+    if (!range || ed.state.doc.textBetween(range.from, range.to, ' ') !== diff.originalPlainText) {
       toast.error(t('notes_ai.could_not_locate'));
-      setActiveDiff(null);
+      discardDiff(diff.id);
       return;
     }
 
-    replaceSelectionWithMarkdown(ed, diff.from, diff.to, diff.editedText);
-    setActiveDiff(null);
-  }, [activeDiff, editorRef, t]);
+    replaceSelectionWithMarkdown(ed, range.from, range.to, diff.editedText);
+    discardDiff(diff.id);
+  }, [activeDiff, discardDiff, editorRef, highlights, t]);
 
-  const handleRejectDiff = useCallback(() => setActiveDiff(null), []);
+  const handleRejectDiff = useCallback(() => {
+    if (activeDiffId) discardDiff(activeDiffId);
+  }, [activeDiffId, discardDiff]);
+
+  /** Close the diff but keep it pending: a click on the highlight opens it again. */
+  const handleHideDiff = useCallback(() => setActiveDiffId(null), []);
 
   // ── Bridge: lets the assistant /edit-note command drive the same diff flow ──
 
-  const runEditRef = useRef(runEdit);
+  const startEditRef = useRef(startEdit);
   useEffect(() => {
-    runEditRef.current = runEdit;
-  }, [runEdit]);
+    startEditRef.current = startEdit;
+  }, [startEdit]);
 
   useEffect(() => {
     if (!noteId) return undefined;
@@ -128,7 +161,7 @@ export function useChunkAiEdit({ editorRef, noteId }: UseChunkAiEditParams) {
         to: params.pmTo ?? 0,
         rect: new DOMRect(),
       };
-      runEditRef.current({ ctx, instructions: params.instructions });
+      startEditRef.current(ctx, params.instructions);
       params.onSettled?.();
     });
     return () => {
@@ -145,5 +178,6 @@ export function useChunkAiEdit({ editorRef, noteId }: UseChunkAiEditParams) {
     cancelInstructions,
     handleAcceptDiff,
     handleRejectDiff,
+    handleHideDiff,
   };
 }

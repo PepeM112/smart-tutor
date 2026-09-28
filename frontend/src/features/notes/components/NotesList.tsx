@@ -203,7 +203,7 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
             title={t('notes.delete_note')}
             description={t('notes.delete_note_confirm', { title: noteTitle(row.original) })}
             confirmLabel={t('common.delete')}
-            confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+            confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onConfirm={() => deleteNote(row.original.id)}
           />
         </div>

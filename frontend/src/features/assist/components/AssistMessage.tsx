@@ -2,6 +2,7 @@
 
 import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, Square, X } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -152,6 +153,8 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
   const pendingDiff = useAssistDiffStore(s => s.pendingNoteDiff);
   const hasDiff = pendingDiff?.noteId === noteId;
   const closeOnMobile = useCloseAssistOnMobile();
+  // Note URLs are `/notes/<slug>-<id>`. On that note the diff already shows, so no link.
+  const isOnNote = usePathname().endsWith(noteId);
 
   return (
     <div className="flex items-center gap-2 py-0.5">
@@ -159,9 +162,9 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
       <span className="text-[12px] text-muted-foreground">
         {hasDiff ? 'Refinement ready — review the changes before applying.' : 'Refinement applied.'}
       </span>
-      {hasDiff && (
+      {hasDiff && !isOnNote && (
         <Link
-          href={`${Routes.NOTE_DETAIL(noteId)}?diff=assist`}
+          href={Routes.NOTE_DETAIL(noteId)}
           onClick={closeOnMobile}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
@@ -176,6 +179,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
   const pendingDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const hasDiff = pendingDiff?.testId === testId;
   const closeOnMobile = useCloseAssistOnMobile();
+  const isOnTest = usePathname() === Routes.TEST_EDIT(testId);
 
   return (
     <div className="flex items-center gap-2 py-0.5">
@@ -183,9 +187,9 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
       <span className="text-[12px] text-muted-foreground">
         {hasDiff ? 'Question refinement ready — review the changes before applying.' : 'Refinement applied.'}
       </span>
-      {hasDiff && (
+      {hasDiff && !isOnTest && (
         <Link
-          href={`${Routes.TEST_EDIT(testId)}?diff=assist`}
+          href={Routes.TEST_EDIT(testId)}
           onClick={closeOnMobile}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >

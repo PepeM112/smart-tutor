@@ -8,7 +8,7 @@
 
 import { EditorContent, useEditor } from '@tiptap/react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useImperativeHandle, useRef } from 'react';
+import { useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -47,6 +47,13 @@ export type RichNoteEditorProps = {
 
 // ─── component ────────────────────────────────────────────────────────────────
 
+// Module constant: a new object on each render also counts as changed options.
+const EDITOR_PROPS = {
+  attributes: {
+    class: 'note-editor-content outline-none min-h-[120px]',
+  },
+};
+
 export function RichNoteEditor({
   initialContent,
   onChange,
@@ -65,34 +72,40 @@ export function RichNoteEditor({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // Memoized: `useEditor` compares extensions by identity, so a new list on each render
+  // made it call `setOptions` on every render (and every keystroke re-renders the page).
+  const extensions = useMemo(
+    () =>
+      createNoteExtensions({
+        placeholder: t('slash_menu_placeholder'),
+        slashHint: t('slash_menu_hint'),
+        slashLabels: {
+          slash_text: t('slash_text'),
+          slash_h1: t('slash_h1'),
+          slash_h2: t('slash_h2'),
+          slash_h3: t('slash_h3'),
+          slash_bullet: t('slash_bullet'),
+          slash_ordered: t('slash_ordered'),
+          slash_todo: t('slash_todo'),
+          slash_quote: t('slash_quote'),
+          slash_code: t('slash_code'),
+          slash_divider: t('slash_divider'),
+          slash_table: t('slash_table'),
+        },
+      }),
+    [t]
+  );
+
   const editor = useEditor({
-    extensions: createNoteExtensions({
-      placeholder: t('slash_menu_placeholder'),
-      slashHint: t('slash_menu_hint'),
-      slashLabels: {
-        slash_text: t('slash_text'),
-        slash_h1: t('slash_h1'),
-        slash_h2: t('slash_h2'),
-        slash_h3: t('slash_h3'),
-        slash_bullet: t('slash_bullet'),
-        slash_ordered: t('slash_ordered'),
-        slash_todo: t('slash_todo'),
-        slash_quote: t('slash_quote'),
-        slash_code: t('slash_code'),
-        slash_divider: t('slash_divider'),
-        slash_table: t('slash_table'),
-      },
-    }),
+    extensions,
+    // Next renders on the server first; the editor is created on the client only.
+    immediatelyRender: false,
 
     // Start empty; onCreate parses the initial markdown after extensions are ready.
     content: '',
     editable,
 
-    editorProps: {
-      attributes: {
-        class: 'note-editor-content outline-none min-h-[120px]',
-      },
-    },
+    editorProps: EDITOR_PROPS,
 
     onCreate: ({ editor: ed }) => {
       if (!initialContent) return;

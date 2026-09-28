@@ -70,7 +70,7 @@ Note URLs are Notion-style: `/notes/<title-slug>-<ulid>` (`noteHref()` in `src/l
 
 The editor saves automatically after 1 second of no typing. It also flushes immediately on blur, tab close, and page navigation.
 
-Every `PATCH /notes/{id}` request sends the `version` the client last received. If the server version is higher — another tab or a server-side refinement changed the note — the server returns `409 Conflict`. The client shows a banner with two options: reload the server copy or keep the local edits. A `422` (the note is over a backend limit, see Limits) shows "Note too long" in the save status. Autosave does not retry it; the next edit saves again. The draft state, autosave wiring and conflict handling live in `useNoteDraft` (`features/notes/hooks/useNoteDraft.ts`). `NoteForm` only does the layout and the AI diff panels.
+Every `PATCH /notes/{id}` request sends the `version` the client last received. If the server version is higher — another tab or device changed the note — the server returns `409 Conflict`. AI refinement and chunk edits never write the note on the server: the user accepts the diff in the editor, and autosave saves it. The client shows a banner with two options: reload the server copy or keep the local edits. A `422` (the note is over a backend limit, see Limits) shows "Note too long" in the save status. Autosave does not retry it; the next edit saves again. The draft state, autosave wiring and conflict handling live in `useNoteDraft` (`features/notes/hooks/useNoteDraft.ts`). `NoteForm` only does the layout and the AI diff panels.
 
 Embedding reindex is deferred: autosaves only set `is_indexed = false`. The index is rebuilt (a) when the user leaves the note (`PATCH` with `reindex: true`) and (b) lazily at the start of a semantic search for any stale notes of that user.
 
@@ -102,9 +102,13 @@ Refinement changes the whole note. Chunk editing changes one part.
 
 Select any text in the editor. The bubble menu shows an "Ask AI" button. Click it to open a small instruction input. Esc or a click outside closes it (not while the request runs). Describe the change (e.g. "make this sentence clearer"). The AI receives the full note content, the selected chunk, and the instructions. It returns an edited version of the chunk only.
 
-A side diff panel (desktop) or bottom drawer (mobile) shows the old and new text. Accept replaces the selected range in the editor. Reject discards the diff without changing the note.
+When the request starts, the selected text gets a highlight (`editor/chunkHighlight.ts`). The highlight is a ProseMirror decoration: it is not saved in the markdown and it is not in the undo history. It follows the text while the user types in other parts of the note. A new chunk edit cannot overlap a highlight that is already there.
 
-If the note content changed while the AI was processing (for example, the user typed elsewhere), the accept step checks that the selected range still matches the original text. If not, it shows an error and drops the diff.
+When the result is ready, a side diff panel (desktop) or bottom drawer (mobile) shows the old and new text. Accept replaces the highlighted text. Reject discards the diff without changing the note. Both remove the highlight. Close (X, or closing the drawer) keeps the diff and the highlight: click the highlight to open the diff again. Many chunk diffs can wait at the same time.
+
+At accept, the text in the highlight must still match the original text (the user can edit inside the highlight, or delete it). If not, it shows an error and drops the diff.
+
+If the AI output is cut off at the token limit, the endpoint returns 422 and the UI shows "select a smaller part". The output limit is sized from the input length (`_edit_max_tokens` in `note_service.py`, max 16,384). Refinement uses the same check.
 
 - Endpoint: `POST /notes/{note_id}/edit-chunk`
 

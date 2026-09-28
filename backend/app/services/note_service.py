@@ -17,7 +17,7 @@ from app.schemas.note import (
     SortOrder,
 )
 from app.services import token_usage_service
-from app.services.llm import complete_for_user
+from app.services.llm import CompletionResult, complete_for_user
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
     NOTE_GENERATION_SYSTEM_PROMPT,
@@ -34,6 +34,34 @@ _NOTE_MAX_TOKENS: dict[int, int] = {
     NoteLength.LONG: 8192,
 }
 _DEFAULT_MAX_TOKENS = 4096
+
+# Refine and chunk edit return a rewrite of their input, so the output is about as long as
+# the input. A fixed limit cut long notes off, and the diff then showed the end as deleted.
+_EDIT_MAX_TOKENS_CAP = 16_384  # gpt-4o-mini's output limit (Haiku 4.5 allows more)
+_EDIT_OUTPUT_HEADROOM = 1.3  # the rewrite can be longer than the input
+_EDIT_EXTRA_TOKENS = 1024
+_CHARS_PER_TOKEN = 3  # a low estimate (more tokens), so the limit errs on the large side
+
+
+def _edit_max_tokens(text: str) -> int:
+    """Output token limit for an AI rewrite of `text`."""
+    estimated = len(text) // _CHARS_PER_TOKEN
+    wanted = int(estimated * _EDIT_OUTPUT_HEADROOM) + _EDIT_EXTRA_TOKENS
+    return min(max(wanted, _DEFAULT_MAX_TOKENS), _EDIT_MAX_TOKENS_CAP)
+
+
+def _reject_truncated(db: Session, result: CompletionResult) -> None:
+    """Raise 422 when the AI output is cut off: a partial rewrite would delete the rest of the text.
+
+    The usage is committed first: the tokens were spent even though the result is not used.
+    """
+    if not result.truncated:
+        return
+    db.commit()
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail="The text is too long for the AI to rewrite in one go. Select a smaller part and try again.",
+    )
 
 
 def schedule_indexing(note_id: str) -> None:
@@ -154,8 +182,12 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
     return note
 
 
-def _run_refinement(db: Session, *, note: Note, instructions: str, current_user: User) -> str:
-    """AI refinement call — validates, calls AI, records usage. Does NOT persist."""
+def preview_refine_note(db: Session, *, note_id: str, current_user: User, instructions: str) -> tuple[str, str]:
+    """Run the AI refinement and return `(old_content, refined_content)`. Does NOT save the note.
+
+    Only the usage row is committed. The user accepts the diff in the editor, and autosave saves it.
+    """
+    note = get_note(db, note_id=note_id, current_user=current_user)
     if not note.content or not note.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -171,18 +203,12 @@ def _run_refinement(db: Session, *, note: Note, instructions: str, current_user:
         user=current_user,
         system=NOTE_REFINEMENT_SYSTEM_PROMPT,
         user_prompt=user_prompt,
-        max_tokens=_DEFAULT_MAX_TOKENS,
+        max_tokens=_edit_max_tokens(note.content),
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_REFINEMENT)
-    return result.text
-
-
-def preview_refine_note(db: Session, *, note_id: str, current_user: User, instructions: str) -> str:
-    """Run the AI refinement but return the result WITHOUT saving to DB."""
-    note = get_note(db, note_id=note_id, current_user=current_user)
-    refined_text = _run_refinement(db, note=note, instructions=instructions, current_user=current_user)
+    _reject_truncated(db, result)
     db.commit()
-    return refined_text
+    return note.content, result.text
 
 
 def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: NoteChunkEdit) -> NoteChunkEditResponse:
@@ -198,8 +224,11 @@ def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: Note
         user=current_user,
         system=NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
         user_prompt=user_prompt,
-        max_tokens=_DEFAULT_MAX_TOKENS,
+        max_tokens=_edit_max_tokens(data.selected_text),
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_CHUNK_EDIT)
+    _reject_truncated(db, result)
+    # Nothing else commits this request's session, so the usage row would be lost.
+    db.commit()
 
     return NoteChunkEditResponse(edited_text=result.text)

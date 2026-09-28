@@ -466,3 +466,26 @@
 .note-editor-content [data-bg='red'] {
   background: var(--note-red-bg);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   AI chunk edit highlight (decoration from chunkHighlight.ts)
+   ═══════════════════════════════════════════════════════════════ */
+
+.note-editor-content .chunk-highlight {
+  padding: 2px 0;
+  background-color: var(--highlight-ai);
+  box-decoration-break: clone;
+}
+
+.note-editor-content .chunk-highlight[data-state='pending'] {
+  cursor: progress;
+}
+
+.note-editor-content .chunk-highlight[data-state='ready'] {
+  cursor: pointer;
+}
+
+.note-editor-content .chunk-highlight[data-state='ready']:hover,
+.note-editor-content .chunk-highlight[data-state='active'] {
+  background-color: var(--highlight-ai-active);
+}

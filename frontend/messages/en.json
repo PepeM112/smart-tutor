@@ -367,6 +367,7 @@
     "failed_to_refine": "Failed to refine note. Please try again.",
     "failed_to_edit": "Failed to edit selection. Please try again.",
     "could_not_locate": "Could not locate the original text — it may have changed.",
+    "chunk_overlaps": "This text already has an AI edit. Accept or reject it first.",
     "changes": "Changes",
     "old": "Old",
     "new": "New",

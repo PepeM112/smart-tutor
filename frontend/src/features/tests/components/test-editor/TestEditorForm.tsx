@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dumbbell, Pencil, SquareCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -26,6 +26,7 @@ import {
   DiffQuestionMultipleChoice,
   DiffQuestionSimple,
 } from '@/features/assist/components/diff';
+import { useAssistCoversPage } from '@/features/assist/hooks/useAssistCoversPage';
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/useMobileBreadcrumbActions';
@@ -62,7 +63,6 @@ type Props = {
 export function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: Props) {
   const t = useTranslations();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
   const isEdit = !!testId;
@@ -94,7 +94,9 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   const pendingTestDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const clearPendingTestDiff = useAssistDiffStore(s => s.clearPendingTestDiff);
-  const showTestDiff = searchParams.get('diff') === 'assist' && pendingTestDiff?.testId === testId;
+  // No URL gate, as in NotePage: the diff shows whenever this test has a pending Assistant diff.
+  const assistCoversPage = useAssistCoversPage();
+  const showTestDiff = pendingTestDiff?.testId === testId && !assistCoversPage;
 
   const {
     containerRef: testDiffContainerRef,

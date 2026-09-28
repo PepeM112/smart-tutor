@@ -37,8 +37,7 @@ const MAX_SLUG_LENGTH = 60;
  * The slug is decorative (stripped of diacritics, lowercased, max 60 chars).
  */
 export function noteHref(note: { id: string; title: string }): string {
-  const slug = buildSlug(note.title);
-  return `/notes/${slug ? `${slug}-` : ''}${note.id}`;
+  return `/notes/${buildSlug(note.title)}-${note.id}`;
 }
 
 /**
@@ -59,7 +58,7 @@ function buildSlug(title: string): string {
     title
       // Decompose characters and strip combining marks (diacritics).
       .normalize('NFKD')
-      .replace(/[̀-ͯ]/g, '')
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       // Replace non-alphanumeric runs with a single dash.
       .replace(/[^a-z0-9]+/g, '-')

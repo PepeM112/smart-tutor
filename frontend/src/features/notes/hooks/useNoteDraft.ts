@@ -120,9 +120,14 @@ export function useNoteDraft({ note, editorRef }: UseNoteDraftArgs): UseNoteDraf
     applyServerNote(note);
   }, [note, applyServerNote]);
 
+  // Through the query cache, so `['notes', id]` also holds the server copy afterwards.
   const fetchServerNote = async (): Promise<NoteRead | null> => {
     try {
-      const res = await sdk.notesGet({ path: { note_id: note.id } });
+      const res = await queryClient.fetchQuery({
+        queryKey: ['notes', note.id],
+        queryFn: () => sdk.notesGet({ path: { note_id: note.id } }),
+        staleTime: 0,
+      });
       return res.data ?? null;
     } catch {
       toast.error(t('failed_to_load_note'));
