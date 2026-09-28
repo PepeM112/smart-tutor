@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 
-import { parseNoteId } from '@/lib/routes';
+import { parseNoteId, parseFolderId } from '@/lib/routes';
 
 import { usePageData } from '../context/PageDataContext';
 
@@ -15,6 +15,9 @@ const RESOURCE_PATTERNS: { pattern: RegExp; type: string; parseId?: (raw: string
   { pattern: /^\/tests\/([^/]+)/, type: 'test' },
   { pattern: /^\/questions\/([^/]+)/, type: 'question' },
   { pattern: /^\/history\/([^/]+)/, type: 'result' },
+  // Folder URLs may be slug-prefixed: /files/<slug>-<ulid>
+  { pattern: /^\/files\/([^/]+)/, type: 'folder', parseId: parseFolderId },
+  { pattern: /^\/trash$/, type: 'trash' },
 ];
 
 export function usePageContext(): PageContext {

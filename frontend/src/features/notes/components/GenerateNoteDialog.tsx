@@ -34,7 +34,12 @@ const LENGTH_OPTIONS = [
   { value: NoteLength.LONG, labelKey: 'notes_ai.length_long' },
 ] as const;
 
-export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
+type GenerateNoteDialogProps = {
+  compact?: boolean;
+  folderId?: string | null;
+};
+
+export function GenerateNoteDialog({ compact = false, folderId }: GenerateNoteDialogProps) {
   const t = useTranslations();
   const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
@@ -52,6 +57,7 @@ export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
           topic,
           guidance: guidance || undefined,
           length: length ?? undefined,
+          folderId: folderId ?? undefined,
         },
       }),
     onSuccess: res => {

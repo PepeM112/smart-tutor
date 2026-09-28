@@ -37,7 +37,8 @@
     "to": "Hasta",
     "min": "Mín",
     "max": "Máx",
-    "points_abbr": "{count, plural, =1 {1pt} other {#pts}}"
+    "points_abbr": "{count, plural, =1 {1pt} other {#pts}}",
+    "undo": "Deshacer"
   },
   "app": {
     "title": "SmartTutor",
@@ -53,7 +54,7 @@
     "review_now": "Repasar Ahora",
     "library": "Biblioteca",
     "tests": "Tests",
-    "notes": "Notas",
+    "notes": "Todas las notas",
     "questions": "Preguntas",
     "analytics": "Analíticas",
     "test_history": "Historial de Tests",
@@ -61,7 +62,9 @@
     "dev": "Dev",
     "sandbox": "Sandbox",
     "profile_and_settings": "Perfil y Ajustes",
-    "soon": "Pronto"
+    "soon": "Pronto",
+    "files": "Archivos",
+    "trash": "Papelera"
   },
   "auth": {
     "log_in": "Iniciar sesión",
@@ -339,7 +342,13 @@
     "color_purple": "Morado",
     "color_pink": "Rosa",
     "color_red": "Rojo",
-    "add_tag": "Añadir etiqueta"
+    "add_tag": "Añadir etiqueta",
+    "move_to_trash_title": "Mover a la papelera",
+    "move_to_trash_confirm": "¿Mover \"{title}\" a la papelera? Puedes restaurarlo después.",
+    "note_moved_to_trash": "Nota movida a la papelera.",
+    "in_trash_banner": "Esta nota está en la papelera.",
+    "restore": "Restaurar",
+    "delete_forever": "Eliminar definitivamente"
   },
   "notes_ai": {
     "generate_with_ai": "Generar con IA",
@@ -576,5 +585,63 @@
     "font_size_description": "Ajusta el tamaño del texto de la interfaz.",
     "show_key": "Mostrar clave API",
     "hide_key": "Ocultar clave API"
+  },
+  "files": {
+    "title": "Archivos",
+    "subtitle": "Navega tus notas y carpetas.",
+    "new_folder": "Nueva carpeta",
+    "new_note": "Nueva nota",
+    "empty_root": "No hay archivos. Crea una carpeta o una nota para empezar.",
+    "empty_folder": "Esta carpeta está vacía.",
+    "folder_name": "Nombre de la carpeta",
+    "folder_name_placeholder": "ej. Vocabulario de español",
+    "create_folder": "Crear carpeta",
+    "rename_folder": "Renombrar carpeta",
+    "rename": "Renombrar",
+    "move": "Mover",
+    "move_to": "Mover a",
+    "root": "Raíz",
+    "delete_folder": "Eliminar carpeta",
+    "failed_to_create_folder": "No se pudo crear la carpeta.",
+    "failed_to_rename_folder": "No se pudo renombrar la carpeta.",
+    "failed_to_move": "No se pudo mover el elemento.",
+    "failed_to_delete_folder": "No se pudo eliminar la carpeta.",
+    "folder_created": "Carpeta creada.",
+    "folder_renamed": "Carpeta renombrada.",
+    "moved": "Elemento movido.",
+    "folder_deleted": "Carpeta eliminada.",
+    "note_moved": "Nota movida.",
+    "failed_to_move_note": "No se pudo mover la nota.",
+    "folder_column": "Carpeta",
+    "no_folder": "—",
+    "select_destination": "Seleccionar destino",
+    "duplicate_name": "Ya existe una carpeta con ese nombre aquí.",
+    "folder_not_found": "Carpeta no encontrada o eliminada.",
+    "back_to_files": "Volver a Archivos",
+    "move_to_trash": "Mover a la papelera",
+    "move_folder_to_trash": "Mover carpeta a la papelera",
+    "move_folder_to_trash_confirm": "{noteCount} nota(s) y {folderCount} carpeta(s) se moverán a la papelera.",
+    "folder_moved_to_trash": "Carpeta movida a la papelera.",
+    "note_moved_to_trash": "Nota movida a la papelera."
+  },
+  "trash": {
+    "title": "Papelera",
+    "subtitle": "Los elementos en la papelera se eliminan definitivamente tras 30 días.",
+    "empty_state": "La papelera está vacía.",
+    "empty_trash": "Vaciar papelera",
+    "empty_trash_title": "Vaciar papelera",
+    "empty_trash_confirm": "Todos los elementos se eliminarán definitivamente. Esta acción no se puede deshacer.",
+    "restore": "Restaurar",
+    "delete_forever": "Eliminar definitivamente",
+    "delete_forever_title": "Eliminar definitivamente",
+    "delete_forever_confirm": "¿Eliminar \"{name}\" definitivamente? Esta acción no se puede deshacer.",
+    "restored": "Elemento restaurado.",
+    "emptied": "Papelera vaciada.",
+    "deleted_forever": "Elemento eliminado definitivamente.",
+    "failed_to_restore": "No se pudo restaurar el elemento.",
+    "failed_to_empty": "No se pudo vaciar la papelera.",
+    "failed_to_delete": "No se pudo eliminar el elemento definitivamente.",
+    "deleted_ago": "Eliminado {time}",
+    "folder_contents": "{notes} nota(s), {folders} carpeta(s)"
   }
 }

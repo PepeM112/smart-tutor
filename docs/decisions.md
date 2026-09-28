@@ -299,3 +299,65 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** `create_note`, `create_test`, and `edit_test` pause server-side and require an explicit approve/reject before running (`confirm_required`). `refine_note` and `refine_questions` run immediately and instead surface an old/new diff for the user to accept or reject afterward.
 
 **Why:** The first group either creates something from nothing or removes content outright — there's no natural "before" to show, so an upfront yes/no gate is the only sensible review. The second group revises something that already exists, which produces a natural diff — showing the actual before/after is a clearer review than a plain description of the pending change would be, and both are reversible (the diff panel can reject; `edit_test`'s question removals separately get an undo toast since they're a soft delete). The cost is an extra tool-name distinction to remember (`WRITE_TOOLS` vs. everything else) rather than one uniform rule for all write tools.
+
+---
+
+## Adjacency List for Folders (Not Materialized Path or Closure Table)
+
+**Decision:** Folders use a self-referencing `parent_id` FK (adjacency list).
+
+**Alternatives considered:** Materialized path (store the full path string), closure table, `ltree` extension.
+
+**Why adjacency list:** A materialized path requires rewriting all descendants on every move or rename. Closure tables double the write cost and add extra storage. `ltree` is a PostgreSQL extension that adds operational complexity. For a personal app with no shared folders and no expected depth beyond a few levels, an adjacency list is the simplest correct model. Recursive CTEs handle the depth queries where needed.
+
+---
+
+## Folders, Not Nested Pages
+
+**Decision:** A folder is a pure container (no content of its own). Notes are the content.
+
+**Alternative considered:** Notion-style nested pages where any page can have children.
+
+**Why:** Delete, move, and display are simpler when a folder has no content. Versioning (ST-61) applies only to note content — a folder has no content to version. Tests can be assigned to folders in a later migration without changing this model.
+
+---
+
+## Trash Over Hard Cascade Delete
+
+**Decision:** Deleting a note or folder sets `deleted_at` instead of removing the row.
+
+**Why:** Notes autosave continuously. There is no version history for notes in Phase 1. An accidental delete cannot be undone without a Trash. Hard-cascading a folder would destroy all its notes and their embeddings silently. Soft delete with a 30-day retention window matches the Notion / Google Drive pattern that users expect.
+
+---
+
+## Same `deleted_at` Timestamp for One Delete Batch
+
+**Decision:** All items in one delete operation (a folder and all its descendants) share the same `deleted_at` timestamp.
+
+**Alternative considered:** A separate `batch_id` column.
+
+**Why:** The shared timestamp lets the restore logic find all items of a batch with `WHERE deleted_at = root.deleted_at AND user_id = ?` — no extra column, no join. The timestamp is set by the service with `datetime.utcnow()`, called once per request, so all rows in the batch get the exact same value.
+
+---
+
+## Lazy Purge, Not a Cron Job
+
+**Decision:** The 30-day purge runs at the start of `GET /trash`, not on a schedule.
+
+**Why:** The current hosting (Render free/hobby tier) has no scheduler. A cron job would require an additional service or Render's paid cron feature. Lazy purge is simpler and sufficient for a personal app — items over 30 days old are cleaned up the next time the user opens Trash, which is the only page that shows them anyway.
+
+---
+
+## Separate Move Endpoint for Notes (`POST /notes/{id}/move`)
+
+**Decision:** Moving a note to a different folder uses a dedicated endpoint rather than `PATCH /notes/{id}`.
+
+**Why:** `PATCH /notes/{id}` increments `note.version` and triggers a `409 Conflict` if the editor holds a stale version. A folder change is not a content change — it must not bump the version. A separate endpoint (`POST /notes/{id}/move`) changes only `folder_id` and does not touch `version`, so an open editor can continue autosaving without conflict.
+
+---
+
+## No Folder Path in Embedding Header
+
+**Decision:** The folder path is not stored in the embedding chunk metadata or the RAG chunk header.
+
+**Why:** Embedding is expensive. Adding the folder path to the chunk header would make every note stale when its folder is renamed or moved, forcing a re-embed of all chunks in that subtree. The folder path is not needed for ranking chunks by relevance — that is purely content-based. The AI Assistant reads the live folder path from the database at tool-call time (`list_notes`, `get_note_content`, `search_user_notes`), so the model always sees the current location without stale embeddings.

@@ -95,6 +95,8 @@ which is Multiple Choice?"
 ## Available pages
 
 - /dashboard — main dashboard
+- /files — Files page root (all folders and notes at the root level)
+- /files/{slug}-{ulid} — a specific folder's contents
 - /notes — list of all notes
 - /notes/{id} — view/edit a specific note (use the create_note tool to create a new note, not a URL)
 - /tests — list of all tests

@@ -1,10 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { posToDOMRect } from '@tiptap/core';
-import { AlertCircle, BookOpen, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, BookOpen, FolderInput, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
@@ -18,12 +19,14 @@ import { useAssistAttachmentsStore } from '@/features/assist/store/useAssistAtta
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
 import { useAssistPanelStore } from '@/features/assist/store/useAssistPanelStore';
 import { formatNoteDetail } from '@/features/assist/utils/formatPageData';
+import { MoveDialog } from '@/features/files/components/MoveDialog';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useResizableSplit } from '@/hooks/useResizableSplit';
 import { sdk } from '@/lib/apiClient';
-import { noteHref } from '@/lib/routes';
-import { cn } from '@/lib/utils';
+import { folderHref, noteHref, Routes } from '@/lib/routes';
+import { cn, getErrorDetail } from '@/lib/utils';
 
 import { RichNoteEditor, type RichNoteEditorRef } from '../editor/RichNoteEditor';
 import { type AutosaveStatus } from '../editor/useAutosave';
@@ -58,13 +61,149 @@ export function NotePage({ noteId }: Props) {
   return (
     <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
       {noteData ? (
-        <NoteForm key={noteData.id} note={noteData} />
+        noteData.deletedAt ? (
+          <TrashedNoteView key={noteData.id} note={noteData} />
+        ) : (
+          <NoteForm key={noteData.id} note={noteData} />
+        )
       ) : (
         <p className="text-muted-foreground">{t('notes.note_not_found')}</p>
       )}
     </QueryState>
   );
 }
+
+// ─── TrashedNoteView ──────────────────────────────────────────────────────────
+// Rendered instead of NoteForm when note.deletedAt is set.
+// No autosave, no AI actions, no move — just a read-only editor + trash banner.
+
+function TrashedNoteView({ note }: { note: NoteRead }) {
+  const t = useTranslations();
+  const queryClient = useQueryClient();
+
+  // Breadcrumbs
+  const { data: foldersRes } = useQuery({
+    queryKey: ['folders'],
+    queryFn: () => sdk.foldersList(),
+  });
+  const allFolders = useMemo(() => foldersRes?.data ?? [], [foldersRes]);
+  const folderBreadcrumbs = useMemo(() => {
+    if (!note.folderId) return undefined;
+    const crumbs: { label: string; href?: string }[] = [{ label: t('files.title'), href: Routes.FILES }];
+    const visited = new Set<string>();
+    let currentId: string | null = note.folderId;
+    const segments: { label: string; href: string }[] = [];
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId);
+      const folder = allFolders.find(f => f.id === currentId);
+      if (!folder) break;
+      segments.unshift({ label: folder.name, href: folderHref(folder) });
+      currentId = folder.parentId;
+    }
+    return [...crumbs, ...segments];
+  }, [note.folderId, allFolders, t]);
+
+  const title = note.title.trim() || t('notes.untitled');
+  useBreadcrumb(title, folderBreadcrumbs);
+
+  const { mutate: restore, isPending: isRestoring } = useMutation({
+    mutationFn: () => sdk.trashRestore({ path: { kind: 'note', item_id: note.id } }),
+    onSuccess: () => {
+      // Refetch the note so the page switches from read-only to editable.
+      void queryClient.invalidateQueries({ queryKey: ['notes', note.id] });
+      void queryClient.invalidateQueries({ queryKey: ['trash'] });
+      toast.success(t('trash.restored'));
+    },
+    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
+  });
+
+  const { mutate: hardDelete, isPending: isDeleting } = useMutation({
+    mutationFn: () => sdk.trashHardDelete({ path: { kind: 'note', item_id: note.id } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['trash'] });
+      // No need to refetch the note — it no longer exists after hard delete.
+      toast.success(t('trash.deleted_forever'));
+    },
+    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_delete'))),
+  });
+
+  const { width, toggleWidth } = useNoteWidth();
+  const { isDesktop } = useBreakpoint();
+  const isFullWidth = isDesktop && width === 'full';
+
+  return (
+    <div className="flex flex-col h-[calc(100dvh-6rem)]">
+      {/* Toolbar row — only width toggle, no save status / move / AI */}
+      <div className="flex h-6 shrink-0 items-center justify-end gap-1">
+        {isDesktop && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            icon={BookOpen}
+            onClick={toggleWidth}
+            aria-pressed={!isFullWidth}
+            aria-label={t('notes.width_reading')}
+            tooltip={t(isFullWidth ? 'notes.width_reading' : 'notes.width_full')}
+            className={cn(!isFullWidth && 'text-primary')}
+          />
+        )}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className={cn('mx-auto w-full px-4 pb-24 md:px-6', isFullWidth ? 'max-w-none md:px-12' : 'max-w-[720px]')}>
+          <p className="note-title w-full text-foreground/60 p-0">{title}</p>
+
+          <div className="mt-4 mb-6">
+            <TrashBanner
+              onRestore={() => restore()}
+              onDelete={() => hardDelete()}
+              isRestoring={isRestoring}
+              isDeleting={isDeleting}
+            />
+          </div>
+
+          <RichNoteEditor editable={false} initialContent={note.content ?? ''} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrashBanner({
+  onRestore,
+  onDelete,
+  isRestoring,
+  isDeleting,
+}: {
+  onRestore: () => void;
+  onDelete: () => void;
+  isRestoring: boolean;
+  isDeleting: boolean;
+}) {
+  const t = useTranslations('notes');
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-muted px-4 py-2.5 text-sm">
+      <Trash2 className="size-4 shrink-0 text-muted-foreground" />
+      <span className="min-w-48 flex-1 text-foreground">{t('in_trash_banner')}</span>
+      <div className="ml-auto flex gap-2">
+        <Button size="sm" variant="outline" onClick={onRestore} disabled={isRestoring || isDeleting}>
+          {t('restore')}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-destructive hover:text-destructive"
+          onClick={onDelete}
+          disabled={isRestoring || isDeleting}
+        >
+          {t('delete_forever')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const ASSIST_DIFF_SPLIT_KEY = 'assist-diff-split-ratio';
 const CANONICAL_URL_DEBOUNCE_MS = 500;
@@ -80,6 +219,51 @@ function NoteForm({ note }: { note: NoteRead }) {
   const { title, tags, initialContent, status, setTitle, setTags, setContent, flush, reload, keepMine } = useNoteDraft({
     note,
     editorRef,
+  });
+
+  // ── Folder breadcrumbs + move ─────────────────────────────────────────────────
+
+  const queryClient = useQueryClient();
+  const [moveOpen, setMoveOpen] = useState(false);
+
+  const { data: foldersRes } = useQuery({
+    queryKey: ['folders'],
+    queryFn: () => sdk.foldersList(),
+  });
+  const allFolders = useMemo(() => foldersRes?.data ?? [], [foldersRes]);
+
+  const folderBreadcrumbs = useMemo(() => {
+    if (!note.folderId) return undefined;
+    const crumbs: { label: string; href?: string }[] = [{ label: t('files.title'), href: Routes.FILES }];
+    const visited = new Set<string>();
+    let currentId: string | null = note.folderId;
+    const segments: { label: string; href: string }[] = [];
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId);
+      const folder = allFolders.find(f => f.id === currentId);
+      if (!folder) break;
+      segments.unshift({ label: folder.name, href: folderHref(folder) });
+      currentId = folder.parentId;
+    }
+    return [...crumbs, ...segments];
+  }, [note.folderId, allFolders, t]);
+
+  useBreadcrumb(title.trim() || t('notes.untitled'), folderBreadcrumbs);
+
+  const { mutate: moveNote, isPending: isMoving } = useMutation({
+    mutationFn: (folderId: string | null) => sdk.notesMove({ path: { note_id: note.id }, body: { folderId } }),
+    onSuccess: res => {
+      // Merge only folderId: the draft owns content and version, so a move must not reset them.
+      queryClient.setQueryData<{ data: NoteRead }>(['notes', note.id], old =>
+        old && res.data ? { ...old, data: { ...old.data, folderId: res.data.folderId } } : old
+      );
+      void queryClient.invalidateQueries({ queryKey: ['folders', 'contents'] });
+      // refetchType 'none': same as useNoteDraft — do not refetch the open note while the user edits.
+      void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
+      toast.success(t('files.note_moved'));
+      setMoveOpen(false);
+    },
+    onError: err => toast.error(getErrorDetail(err, t('files.failed_to_move_note'))),
   });
 
   // ── AI chunk edit ────────────────────────────────────────────────────────────
@@ -160,9 +344,17 @@ function NoteForm({ note }: { note: NoteRead }) {
 
   return (
     <div className="flex flex-col h-[calc(100dvh-6rem)]">
-      {/* Top row: save status only (Notion keeps page chrome out of the text column) */}
+      {/* Top row: save status + toolbar actions */}
       <div className="flex h-6 shrink-0 items-center justify-end gap-1">
         <SaveStatus status={status} onRetry={() => void flush()} />
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          icon={FolderInput}
+          onClick={() => setMoveOpen(true)}
+          tooltip={t('files.move')}
+          aria-label={t('files.move')}
+        />
         {isDesktop && (
           <Button
             variant="ghost"
@@ -178,6 +370,14 @@ function NoteForm({ note }: { note: NoteRead }) {
           />
         )}
       </div>
+
+      <MoveDialog
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        currentParentId={note.folderId}
+        isPending={isMoving}
+        onConfirm={moveNote}
+      />
 
       <div ref={assistDiffContainerRef} className="flex flex-1 min-h-0 overflow-hidden gap-0">
         <div

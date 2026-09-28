@@ -11,7 +11,12 @@ import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
 
-export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
+type ImportNoteButtonProps = {
+  compact?: boolean;
+  folderId?: string | null;
+};
+
+export function ImportNoteButton({ compact = false, folderId }: ImportNoteButtonProps) {
   const t = useTranslations();
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -19,7 +24,7 @@ export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
 
   const { mutate: createNote, isPending: isImporting } = useMutation({
     mutationFn: (vars: { title: string; content: string }) =>
-      sdk.notesCreate({ body: { title: vars.title, content: vars.content } }),
+      sdk.notesCreate({ body: { title: vars.title, content: vars.content, folderId: folderId ?? undefined } }),
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
       toast.success(t('notes.note_imported'));

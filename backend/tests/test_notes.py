@@ -142,6 +142,7 @@ def _make_note(version: int = 1) -> MagicMock:
     note.version = version
     note.content = "existing content"
     note.is_indexed = True
+    note.deleted_at = None  # live by default
     return note
 
 
@@ -730,7 +731,7 @@ class TestEditTruncation:
         data = NoteChunkEdit(full_text="full", selected_text="sel", instructions="fix")
 
         with (
-            patch("app.services.note_service.get_note"),
+            patch("app.services.note_service.get_note", return_value=_make_note()),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=True)),
             patch("app.services.note_service.token_usage_service") as mock_usage,
             pytest.raises(HTTPException) as exc_info,
@@ -748,7 +749,7 @@ class TestEditTruncation:
         data = NoteChunkEdit(full_text="full", selected_text="sel", instructions="fix")
 
         with (
-            patch("app.services.note_service.get_note"),
+            patch("app.services.note_service.get_note", return_value=_make_note()),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=False)),
             patch("app.services.note_service.token_usage_service"),
         ):

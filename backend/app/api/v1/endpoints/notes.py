@@ -12,6 +12,7 @@ from app.schemas.note import (
     NoteChunkEditResponse,
     NoteCreate,
     NoteGenerate,
+    NoteMove,
     NoteRead,
     NoteSortBy,
     NoteUpdate,
@@ -88,6 +89,11 @@ def update(note_id: str, data: NoteUpdate, db: DbSession, current_user: CurrentU
     if data.reindex and not note.is_indexed:
         bg.add_task(note_service.schedule_indexing, note.id)
     return note
+
+
+@router.post("/{note_id}/move", response_model=NoteRead)
+def move(note_id: str, data: NoteMove, db: DbSession, current_user: CurrentUser) -> Note:
+    return note_service.move_note(db, note_id=note_id, current_user=current_user, folder_id=data.folder_id)
 
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)

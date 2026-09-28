@@ -57,20 +57,23 @@ Defined in `assist_tools.py` (`TOOL_DEFINITIONS`), mirrored on the frontend in `
 
 | Tool                  | Kind  | Confirmation | Purpose                                                        |
 | ---------------------- | ----- | ------------ | ----------------------------------------------------------------- |
-| `list_notes`           | read  | no           | List the user's notes (optional search)                          |
+| `list_notes`           | read  | no           | List the user's live notes; each result includes the folder path  |
+| `list_folders`         | read  | no           | List the user's live folders (flat; client builds the tree)       |
 | `list_tests`           | read  | no           | List the user's tests                                             |
-| `get_note_content`     | read  | no           | Full content of one note                                          |
+| `get_note_content`     | read  | no           | Full content of one live note, including its folder path          |
 | `get_test_details`     | read  | no           | A test plus its questions, with IDs                               |
 | `search_questions`     | read  | no           | Search the question bank                                          |
-| `search_user_notes`    | read  | no           | Semantic search across user's notes via RAG embeddings            |
+| `search_user_notes`    | read  | no           | Semantic search across user's live notes via RAG embeddings       |
 | `navigate_to`          | read* | no           | Route the user's browser to an allowed page                       |
-| `create_note`          | write | no***        | AI-generate a new note from a topic                                |
+| `create_note`          | write | no***        | AI-generate a new note from a topic; accepts an optional folder   |
 | `create_test`          | write | no***        | AI-generate a test from a note                                     |
 | `edit_test`            | write | **yes**      | Rename/describe a test, or remove questions from it                |
 | `refine_note`          | write | no**         | AI-revise an existing note (produces a reviewable diff)             |
 | `refine_questions`     | write | no**         | AI-edit specific questions in a test (produces a reviewable diff)   |
 
-\* `navigate_to` is auto-executed like a read tool (no server-side pause), but it has a client-side side effect: it tells the frontend to route the user somewhere. It's restricted to an allowlist of route prefixes (`_ALLOWED_ROUTE_PREFIXES` in `assist_tools_service.py`: `/dashboard /notes /tests /questions /review /history /settings /stats`); anything else falls back to `/dashboard`.
+**Trashed notes** are excluded from all tools. `search_user_notes` filters the RAG chunk search to live notes only. `get_note_content` refuses to return a trashed note. `list_notes` and `list_folders` only show live items.
+
+\* `navigate_to` is auto-executed like a read tool (no server-side pause), but it has a client-side side effect: it tells the frontend to route the user somewhere. It's restricted to an allowlist of route prefixes (`_ALLOWED_ROUTE_PREFIXES` in `assist_tools_service.py`: `/dashboard /notes /tests /questions /review /history /settings /stats /files /trash`); anything else falls back to `/dashboard`.
 
 \*\* `refine_note` and `refine_questions` are **not** in the backend's `WRITE_TOOLS` set, so they execute immediately without a `confirm_required` pause. This is intentional: their output is naturally reviewable as an old/new diff, so the frontend shows a lightweight "view changes → accept/reject" flow instead of an upfront yes/no gate (see [Diff Review Flow](#diff-review-flow-refine_note--refine_questions) below). The tradeoff is that the AI writes before the user has seen anything — acceptable here because both are reversible (the diff panel can reject, and `edit_test`'s question removals get their own undo toast — see below).
 

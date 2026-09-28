@@ -119,3 +119,46 @@ Tags are free-form strings attached to a note for organization — there is no f
 Tags show as plain pills below the title, with no outlined field. The "+ Add tag" button opens a borderless input: Enter or `,` adds a tag, Esc cancels, Backspace on an empty input removes the last tag. Hover a pill to see its remove button.
 
 **Limits**: at most 10 tags per note, 25 characters per tag. The backend (`NoteCreate` / `NoteUpdate` in `schemas/note.py`) trims, lowercases and removes empty and duplicate tags, then rejects a list over the limits with a 422. The UI enforces the same limits: the input stops at 25 characters, and "+ Add tag" is hidden when the note has 10 tags. The limits are only on input schemas, so `NoteRead` can still return an older note that is over them. The content limit (50,000 characters) also applies to `fullText` and `selectedText` of the AI chunk edit.
+
+## Folders
+
+A note can belong to one folder, or sit at the root (`folder_id = NULL`). Folders form an adjacency list: each folder has an optional `parent_id` pointing to another folder of the same user. There is no depth limit.
+
+Folder names are unique among live siblings (case-insensitive). The same name is allowed when the only conflict is a trashed folder. The server checks uniqueness with a partial unique index (`WHERE deleted_at IS NULL`).
+
+The note page shows the folder path as breadcrumbs. The user can move the note to a different folder from the note page without affecting autosave — the move endpoint (`POST /notes/{id}/move`) changes `folder_id` only and does not increment `note.version`, so the open editor does not receive a `409 Conflict`.
+
+New notes created via "New note", import, and AI generation from inside a folder are saved in that folder.
+
+## Files Page
+
+The `/files` page is the primary folder view. It shows the subfolders and notes of the current folder with breadcrumbs to the root. Folders are listed first, then notes, both in alphabetical order.
+
+From this page the user can:
+- Create a subfolder.
+- Create a new note, import a `.md` file, or generate a note with AI — all saved in the current folder.
+- Rename, move (a folder-picker dialog), or delete (to Trash) any item.
+
+The flat note list at `/notes` ("All Notes") remains as a secondary view with sort and filters. It shows the folder of each note as a link.
+
+Folder URLs follow the same slug pattern as notes: `/files/<name-slug>-<ulid>` (`folderHref()` in `src/lib/routes.ts`). The ULID is the canonical identifier; the slug part is cosmetic and updated with `history.replaceState` when the folder is renamed.
+
+## Trash
+
+Deleting a note or a folder moves it to Trash (soft delete). Deleting a folder also trashes all its subfolders and notes in one operation. The confirmation dialog shows the count of items that will be affected.
+
+The `/trash` page lists only the top item of each delete batch — not each descendant individually. Each item shows the delete date, a "Restore" button, and a "Delete forever" button. The page also has an "Empty Trash" action.
+
+### Restore
+
+Restore places the item back in its original parent folder. If that parent no longer exists or is itself in Trash, the item goes to the root. A restored folder brings back only the items that were trashed in the same delete batch — items the user trashed separately before that delete are not restored.
+
+### Purge (30 days)
+
+Items stay in Trash for 30 days. They are then deleted permanently. Purge is lazy: `GET /trash` hard-deletes all items where `deleted_at < now() - 30 days` before returning the list. No scheduler is needed.
+
+### Trashed note URL
+
+Opening the URL of a trashed note shows the note in read-only mode with a banner "This note is in Trash" and a Restore button. Autosave is disabled. Any `PATCH` to a trashed note returns `409 Conflict` ("Note is in Trash") so the UI can distinguish the reason from a version conflict.
+
+Trashed notes are hidden everywhere: Files page, All Notes list, dashboard, stats, semantic search, AI Assistant tools, and test generation.

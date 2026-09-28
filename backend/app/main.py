@@ -6,7 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 from uvicorn.logging import DefaultFormatter
 
-from app.api.v1.endpoints import answers, assist, notes, questions, results, review, tests, token_usage, users
+from app.api.v1.endpoints import (
+    answers,
+    assist,
+    folders,
+    notes,
+    questions,
+    results,
+    review,
+    tests,
+    token_usage,
+    trash,
+    users,
+)
 
 from .config import settings
 
@@ -30,7 +42,9 @@ app.include_router(results.router, prefix="/api/v1/results", tags=["results"])
 app.include_router(questions.router, prefix="/api/v1/questions", tags=["questions"])
 app.include_router(answers.router, prefix="/api/v1/answers", tags=["answers"])
 app.include_router(review.router, prefix="/api/v1/review", tags=["review"])
+app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
 app.include_router(notes.router, prefix="/api/v1/notes", tags=["notes"])
+app.include_router(trash.router, prefix="/api/v1/trash", tags=["trash"])
 app.include_router(token_usage.router, prefix="/api/v1/token-usage", tags=["token-usage"])
 app.include_router(assist.router, prefix="/api/v1/assist", tags=["assist"])
 

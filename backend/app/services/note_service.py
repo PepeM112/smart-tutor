@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -102,10 +104,30 @@ def list_notes(
 
 
 def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
+    """Fetch any owned note, including trashed ones (for GET /notes/{id})."""
     return get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
 
 
+def _assert_note_live(note: Note) -> None:
+    """Raise 409 when a write operation is attempted on a trashed note."""
+    if note.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Note is in Trash. Restore it before making changes.",
+        )
+
+
+def _validate_folder_ownership(db: Session, *, folder_id: str | None, current_user: User) -> None:
+    """Raise 404/403 if folder_id is given but not owned by current_user."""
+    if folder_id is None:
+        return
+    from app.services import folder_service  # avoid circular import at module level
+
+    folder_service._get_owned_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+
+
 def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
     note = note_crud.create(
         db,
         user_id=current_user.id,
@@ -113,7 +135,19 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
         content=data.content,
         source=NoteSource.USER_CREATED,
         tags=data.tags,
+        folder_id=data.folder_id,
     )
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+def move_note(db: Session, *, note_id: str, current_user: User, folder_id: str | None) -> Note:
+    """Change note.folder_id only. Does not touch version or is_indexed."""
+    note = get_note(db, note_id=note_id, current_user=current_user)
+    _assert_note_live(note)
+    _validate_folder_ownership(db, folder_id=folder_id, current_user=current_user)
+    note.folder_id = folder_id
     db.commit()
     db.refresh(note)
     return note
@@ -125,6 +159,7 @@ def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpda
     note = get_owned_or_404(
         db, fetch=note_crud.get_by_id_for_update, id=note_id, current_user=current_user, entity_name="Note"
     )
+    _assert_note_live(note)
 
     content_fields_changing = data.content is not None or data.title is not None or data.tags is not None
 
@@ -148,9 +183,11 @@ def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpda
 
 
 def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
+    """Soft-delete a note (move to Trash). Already-trashed notes are a no-op."""
     note = get_note(db, note_id=note_id, current_user=current_user)
-    note_crud.delete(db, note=note)
-    db.commit()
+    if note.deleted_at is None:
+        note.deleted_at = datetime.now(timezone.utc)
+        db.commit()
 
 
 def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Note:
@@ -170,12 +207,14 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_GENERATION)
 
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
     note = note_crud.create(
         db,
         user_id=current_user.id,
         title=data.topic,
         content=result.text,
         source=NoteSource.AI_GENERATED,
+        folder_id=data.folder_id,
     )
     db.commit()
     db.refresh(note)
@@ -188,6 +227,7 @@ def preview_refine_note(db: Session, *, note_id: str, current_user: User, instru
     Only the usage row is committed. The user accepts the diff in the editor, and autosave saves it.
     """
     note = get_note(db, note_id=note_id, current_user=current_user)
+    _assert_note_live(note)
     if not note.content or not note.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -212,7 +252,8 @@ def preview_refine_note(db: Session, *, note_id: str, current_user: User, instru
 
 
 def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: NoteChunkEdit) -> NoteChunkEditResponse:
-    get_note(db, note_id=note_id, current_user=current_user)
+    note = get_note(db, note_id=note_id, current_user=current_user)
+    _assert_note_live(note)
 
     user_prompt = build_chunk_edit_user_prompt(
         full_text=data.full_text,

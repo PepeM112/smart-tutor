@@ -151,6 +151,30 @@ Notes are a separate content type — standalone Markdown documents for study ma
 
 For full details, see [Study Notes](study-notes.md).
 
+### Folders
+
+Folders are containers for notes. They form an adjacency list: each folder has an optional `parent_id` FK pointing to another folder owned by the same user. There is no depth limit.
+
+| Field        | Type            | Description                                           |
+| ------------ | --------------- | ----------------------------------------------------- |
+| `id`         | String(26) ULID | Primary key                                           |
+| `user_id`    | FK → `user`     | Owner                                                 |
+| `name`       | String(100)     | Display name                                          |
+| `parent_id`  | FK → `folder`   | Parent folder, `NULL` = root                          |
+| `deleted_at` | DateTime, NULL  | Set when moved to Trash; `NULL` = live                |
+
+**Sibling uniqueness:** A partial unique index enforces case-insensitive uniqueness among live siblings:
+```sql
+UNIQUE (user_id, parent_id, lower(name)) WHERE deleted_at IS NULL NULLS NOT DISTINCT
+```
+`NULLS NOT DISTINCT` means two root folders (`parent_id IS NULL`) with the same name are still rejected.
+
+**FK cascade:** `folder.parent_id` uses `ON DELETE CASCADE`. This runs only for hard deletes (purge / "Delete forever"). Soft delete is done by the service layer, which sets `deleted_at` on the root and all descendants in one recursive CTE.
+
+**Note.folder_id:** `note.folder_id` is a nullable FK → `folder.id` with `ON DELETE CASCADE` (same behaviour as above — cascade for hard delete, service handles soft delete). An index on `(user_id, folder_id)` supports the folder-contents query.
+
+**Soft delete on notes:** `note.deleted_at` follows the same pattern as `folder.deleted_at`. Every list query adds `deleted_at IS NULL`. The `GET /notes/{id}` endpoint still returns a trashed note (with `deletedAt` set) so the read-only Trash banner page works, but any write returns `409`.
+
 ## Answer Stripping
 
 When questions are served to the user (for exams or reviews), the answer data is stripped from the `content` field before sending. Simple questions have `answers` removed; MC questions have `correct_indices` removed; Long Text questions have `rubric` removed (but `length_limit` is kept so the frontend knows how to size the textarea). The user only sees the prompt and input constraints. Correct answers are revealed only after the user submits their answer via the check/correction endpoints.

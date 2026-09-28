@@ -33,6 +33,7 @@ class NoteBase(BaseSchema):
 
 class NoteCreate(NoteBase):
     content: str = Field(default="", max_length=NOTE_CONTENT_MAX_CHARS)
+    folder_id: str | None = None
 
     @field_validator("tags")
     @classmethod
@@ -70,9 +71,11 @@ class NoteUpdate(BaseSchema):
 class NoteRead(NoteBase):
     id: str
     user_id: str
+    folder_id: str | None
     source: NoteSource
     is_indexed: bool
     version: int
+    deleted_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -81,6 +84,7 @@ class NoteGenerate(BaseSchema):
     topic: str = Field(max_length=200)
     guidance: str | None = None
     length: NoteLength | None = None
+    folder_id: str | None = None
 
 
 class NoteChunkEdit(BaseSchema):
@@ -97,3 +101,9 @@ NoteSortBy = Literal["title", "updated_at", "created_at"]
 SortOrder = Literal["asc", "desc"]
 
 PaginatedNoteRead = PaginatedResponse[NoteRead]
+
+
+class NoteMove(BaseSchema):
+    """Move a note to a different folder. Pass null to move to root."""
+
+    folder_id: str | None = None

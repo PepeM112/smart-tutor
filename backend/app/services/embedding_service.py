@@ -124,6 +124,11 @@ def index_note(db: Session, *, note_id: str) -> None:
         logger.warning("index_note: note %s not found, skipping", note_id)
         db.rollback()
         return
+    if note.deleted_at is not None:
+        # Trashed while the task was queued. Search ignores trashed notes, so do not pay for embeddings.
+        logger.info("index_note: note %s is in Trash, skipping", note_id)
+        db.rollback()
+        return
 
     # The embedding call is slow. If an autosave lands meanwhile, the chunks below are
     # already stale, so `mark_indexed` only succeeds while the note is still at this version.

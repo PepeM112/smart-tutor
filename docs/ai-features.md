@@ -143,7 +143,7 @@ Embedding generation is deferred to avoid an embedding call on every autosave ke
 
 ### Semantic search
 
-The `search_user_notes` tool (available to the AI Assistant) embeds the query string, then finds the top-k chunks (default 5, max 10) by cosine similarity, filtered to the current user's notes. The Assistant receives the matched note titles and chunk text as context, which it uses to answer questions grounded in the user's own material.
+The `search_user_notes` tool (available to the AI Assistant) embeds the query string, then finds the top-k chunks (default 5, max 10) by cosine similarity, filtered to the current user's live notes (`deleted_at IS NULL`). The Assistant receives the matched note titles and chunk text as context, which it uses to answer questions grounded in the user's own material. Trashed notes are excluded from both indexing and search — `index_note()` skips a note that is in Trash, and the chunk similarity query joins on `note` to filter trashed notes out.
 
 The frontend notes list page also exposes a semantic search toggle alongside the traditional keyword filter.
 

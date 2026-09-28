@@ -14,6 +14,9 @@ export const Routes = {
   NOTES: '/notes',
   NOTE_DETAIL: (id: string) => `/notes/${id}`,
 
+  FILES: '/files',
+  FOLDER_DETAIL: (id: string) => `/files/${id}`,
+
   QUESTIONS: '/questions',
   QUESTION_NEW: '/questions/new',
   QUESTION_EDIT: (id: string) => `/questions/${id}/edit`,
@@ -21,6 +24,8 @@ export const Routes = {
   HISTORY: '/history',
   RESULT_DETAIL: (id: string) => `/history/${id}`,
   STATS: '/stats',
+
+  TRASH: '/trash',
 
   SETTINGS: '/settings',
 
@@ -41,6 +46,13 @@ export function noteHref(note: { id: string; title: string }): string {
 }
 
 /**
+ * Build a canonical folder URL: `/files/<slug>-<id>`.
+ */
+export function folderHref(folder: { id: string; name: string }): string {
+  return `/files/${buildSlug(folder.name)}-${folder.id}`;
+}
+
+/**
  * Extract the note ID from a URL segment that may be:
  *   - A bare ULID: `01J9XYZ…`
  *   - A slug-prefixed ULID: `my-note-title-01J9XYZ…`
@@ -49,6 +61,18 @@ export function noteHref(note: { id: string; title: string }): string {
  * returns the param unchanged (handles legacy numeric IDs, if any).
  */
 export function parseNoteId(param: string): string {
+  const candidate = param.slice(-26);
+  return ULID_RE.test(candidate) ? candidate : param;
+}
+
+/**
+ * Extract the folder ID from a URL segment that may be:
+ *   - A bare ULID: `01J9XYZ…`
+ *   - A slug-prefixed ULID: `my-folder-name-01J9XYZ…`
+ *
+ * Same logic as parseNoteId — the last 26 chars are the ULID.
+ */
+export function parseFolderId(param: string): string {
   const candidate = param.slice(-26);
   return ULID_RE.test(candidate) ? candidate : param;
 }

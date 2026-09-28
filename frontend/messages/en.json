@@ -37,7 +37,8 @@
     "to": "To",
     "min": "Min",
     "max": "Max",
-    "points_abbr": "{count, plural, =1 {1pt} other {#pts}}"
+    "points_abbr": "{count, plural, =1 {1pt} other {#pts}}",
+    "undo": "Undo"
   },
   "app": {
     "title": "SmartTutor",
@@ -53,7 +54,7 @@
     "review_now": "Review Now",
     "library": "Library",
     "tests": "Tests",
-    "notes": "Notes",
+    "notes": "All Notes",
     "questions": "Questions",
     "analytics": "Analytics",
     "test_history": "Test History",
@@ -61,7 +62,9 @@
     "dev": "Dev",
     "sandbox": "Sandbox",
     "profile_and_settings": "Profile & Settings",
-    "soon": "Soon"
+    "soon": "Soon",
+    "files": "Files",
+    "trash": "Trash"
   },
   "auth": {
     "log_in": "Log in",
@@ -339,7 +342,13 @@
     "color_purple": "Purple",
     "color_pink": "Pink",
     "color_red": "Red",
-    "add_tag": "Add tag"
+    "add_tag": "Add tag",
+    "move_to_trash_title": "Move to Trash",
+    "move_to_trash_confirm": "Move \"{title}\" to Trash? You can restore it later.",
+    "note_moved_to_trash": "Note moved to Trash.",
+    "in_trash_banner": "This note is in Trash.",
+    "restore": "Restore",
+    "delete_forever": "Delete forever"
   },
   "notes_ai": {
     "generate_with_ai": "Generate with AI",
@@ -576,5 +585,63 @@
     "font_size_description": "Adjust the interface text size.",
     "show_key": "Show API key",
     "hide_key": "Hide API key"
+  },
+  "files": {
+    "title": "Files",
+    "subtitle": "Browse your notes and folders.",
+    "new_folder": "New Folder",
+    "new_note": "New Note",
+    "empty_root": "No files yet. Create a folder or a note to get started.",
+    "empty_folder": "This folder is empty.",
+    "folder_name": "Folder name",
+    "folder_name_placeholder": "e.g. Spanish vocabulary",
+    "create_folder": "Create Folder",
+    "rename_folder": "Rename Folder",
+    "rename": "Rename",
+    "move": "Move",
+    "move_to": "Move to",
+    "root": "Root",
+    "delete_folder": "Delete Folder",
+    "failed_to_create_folder": "Failed to create folder.",
+    "failed_to_rename_folder": "Failed to rename folder.",
+    "failed_to_move": "Failed to move item.",
+    "failed_to_delete_folder": "Failed to delete folder.",
+    "folder_created": "Folder created.",
+    "folder_renamed": "Folder renamed.",
+    "moved": "Item moved.",
+    "folder_deleted": "Folder deleted.",
+    "note_moved": "Note moved.",
+    "failed_to_move_note": "Failed to move note.",
+    "folder_column": "Folder",
+    "no_folder": "—",
+    "select_destination": "Select destination",
+    "duplicate_name": "A folder with that name already exists here.",
+    "folder_not_found": "Folder not found or has been deleted.",
+    "back_to_files": "Back to Files",
+    "move_to_trash": "Move to Trash",
+    "move_folder_to_trash": "Move Folder to Trash",
+    "move_folder_to_trash_confirm": "{noteCount} note(s) and {folderCount} folder(s) will be moved to Trash.",
+    "folder_moved_to_trash": "Folder moved to Trash.",
+    "note_moved_to_trash": "Note moved to Trash."
+  },
+  "trash": {
+    "title": "Trash",
+    "subtitle": "Items in Trash are deleted forever after 30 days.",
+    "empty_state": "Trash is empty.",
+    "empty_trash": "Empty Trash",
+    "empty_trash_title": "Empty Trash",
+    "empty_trash_confirm": "All items will be permanently deleted. This cannot be undone.",
+    "restore": "Restore",
+    "delete_forever": "Delete forever",
+    "delete_forever_title": "Delete forever",
+    "delete_forever_confirm": "Delete \"{name}\" forever? This cannot be undone.",
+    "restored": "Item restored.",
+    "emptied": "Trash emptied.",
+    "deleted_forever": "Item permanently deleted.",
+    "failed_to_restore": "Failed to restore item.",
+    "failed_to_empty": "Failed to empty Trash.",
+    "failed_to_delete": "Failed to delete item permanently.",
+    "deleted_ago": "Deleted {time}",
+    "folder_contents": "{notes} note(s), {folders} folder(s)"
   }
 }

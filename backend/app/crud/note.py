@@ -47,7 +47,8 @@ def list_by_user(
     page: int = 1,
     per_page: int = 20,
 ) -> tuple[Sequence[Note], int]:
-    stmt = select(Note).where(Note.user_id == user_id)
+    # Only live (non-trashed) notes appear in list views.
+    stmt = select(Note).where(Note.user_id == user_id, Note.deleted_at.is_(None))
 
     if title:
         stmt = stmt.where(ilike_search(Note.title, value=title))
@@ -72,9 +73,11 @@ def create(
     content: str = "",
     source: NoteSource,
     tags: list[str] | None = None,
+    folder_id: str | None = None,
 ) -> Note:
     note = Note(
         user_id=user_id,
+        folder_id=folder_id,
         title=title,
         content=content,
         source=int(source),
@@ -94,8 +97,8 @@ def update(db: Session, *, note: Note, data: NoteUpdate) -> Note:
 
 
 def list_unindexed_ids_by_user(db: Session, *, user_id: str) -> list[str]:
-    """Return IDs of notes owned by user that have not yet been embedded."""
-    stmt = select(Note.id).where(Note.user_id == user_id, Note.is_indexed.is_(False))
+    """Return IDs of LIVE notes owned by user that have not yet been embedded."""
+    stmt = select(Note.id).where(Note.user_id == user_id, Note.is_indexed.is_(False), Note.deleted_at.is_(None))
     return list(db.scalars(stmt).all())
 
 

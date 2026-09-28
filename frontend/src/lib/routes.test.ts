@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { noteHref, parseNoteId } from './routes';
+import { folderHref, noteHref, parseFolderId, parseNoteId } from './routes';
 
 // 26-char Crockford base32 ULID (valid alphabet: 0-9, A-Z minus I, L, O, U)
 const ULID = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
@@ -51,5 +51,33 @@ describe('parseNoteId', () => {
   it('returns param unchanged when last 26 chars are not a ULID', () => {
     const legacyId = 'abc123';
     expect(parseNoteId(legacyId)).toBe(legacyId);
+  });
+});
+
+describe('folderHref', () => {
+  it('produces slug-id URL under /files', () => {
+    expect(folderHref({ id: ULID, name: 'My Folder' })).toBe(`/files/my-folder-${ULID}`);
+  });
+
+  it('strips diacritics', () => {
+    expect(folderHref({ id: ULID, name: 'Ação' })).toBe(`/files/acao-${ULID}`);
+  });
+
+  it('falls back to "untitled" for empty name', () => {
+    expect(folderHref({ id: ULID, name: '' })).toBe(`/files/untitled-${ULID}`);
+  });
+});
+
+describe('parseFolderId', () => {
+  it('returns bare ULID unchanged', () => {
+    expect(parseFolderId(ULID)).toBe(ULID);
+  });
+
+  it('extracts ULID from slug-prefixed param', () => {
+    expect(parseFolderId(`my-folder-${ULID}`)).toBe(ULID);
+  });
+
+  it('returns param unchanged when last 26 chars are not a ULID', () => {
+    expect(parseFolderId('notaulid')).toBe('notaulid');
   });
 });
