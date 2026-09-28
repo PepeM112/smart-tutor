@@ -32,12 +32,21 @@ def build_note_generation_user_prompt(
     return "\n\n".join(parts)
 
 
+# The note editor stores text colors as inline HTML spans. Edit prompts must keep them,
+# or an AI edit would silently remove the user's highlights.
+_KEEP_COLOR_SPANS = (
+    " The notes can contain inline color tags such as "
+    '<span data-color="red">text</span> or <span data-bg="yellow">text</span>. '
+    "Keep these tags exactly as they are around the text you keep, unless the user "
+    "asks to change colors. Do not add new color tags unless the user asks for them."
+)
+
 NOTE_REFINEMENT_SYSTEM_PROMPT = (
     "You are a study-notes editor. You receive existing Markdown study notes and "
     "user instructions for how to improve them. Return the COMPLETE updated Markdown — "
     "keep unchanged sections as-is, modify what the user asks, and add new content "
     "if requested. Output ONLY the Markdown content — no preamble, no closing remarks, "
-    "no code fences wrapping the entire output."
+    "no code fences wrapping the entire output." + _KEEP_COLOR_SPANS
 )
 
 
@@ -58,7 +67,7 @@ NOTE_CHUNK_EDIT_SYSTEM_PROMPT = (
     "instructions to the selected section ONLY. Return ONLY the replacement text for the "
     "selected portion — no preamble, no explanation, no code fences wrapping the output. "
     "Preserve the original Markdown formatting style (headings, lists, bold, etc.) unless "
-    "the user explicitly asks to change it."
+    "the user explicitly asks to change it." + _KEEP_COLOR_SPANS
 )
 
 

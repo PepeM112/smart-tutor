@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/apiClient';
 import { formatShortDate } from '@/lib/format';
-import { Routes } from '@/lib/routes';
+import { noteHref } from '@/lib/routes';
 
 type Props = {
   data: NoteRead[];
@@ -38,23 +38,21 @@ export function NotesList({ data, sort, onSort }: Props) {
 
   const columns = useNotesColumns({ deleteNote, isDeleting });
 
-  const renderPreview = useCallback((note: NoteRead) => {
-    const preview =
-      note.description && note.description.length > 80 ? `${note.description.slice(0, 80)}...` : note.description;
-    return (
+  const renderPreview = useCallback(
+    (note: NoteRead) => (
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{note.title}</p>
-        {preview && <p className="mt-0.5 text-xs text-muted-foreground truncate">{preview}</p>}
       </div>
-    );
-  }, []);
+    ),
+    []
+  );
 
   const renderActions = useCallback(
     (note: NoteRead): MobileAction[] => [
       {
         label: t('common.edit'),
         icon: Pencil,
-        onClick: () => router.push(Routes.NOTE_DETAIL(note.id)),
+        onClick: () => router.push(noteHref(note)),
       },
       {
         label: t('common.export'),
@@ -85,7 +83,7 @@ export function NotesList({ data, sort, onSort }: Props) {
       sort={sort}
       onSort={onSort}
       emptyMessage={t('notes.no_notes_yet')}
-      onRowClick={row => router.push(Routes.NOTE_DETAIL(row.id))}
+      onRowClick={row => router.push(noteHref(row))}
       renderPreview={renderPreview}
       expandable={false}
       renderActions={renderActions}
@@ -131,16 +129,11 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
       accessorKey: 'title',
       header: t('notes.column_title'),
       meta: { sortKey: 'title' },
-      cell: ({ row }) => {
-        const { title, description } = row.original;
-        const preview = description && description.length > 80 ? `${description.slice(0, 80)}...` : description;
-        return (
-          <div className="min-w-0">
-            <p className="font-medium text-foreground truncate">{title}</p>
-            {preview && <p className="mt-0.5 text-xs text-muted-foreground max-w-xs">{preview}</p>}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <p className="font-medium text-foreground truncate">{row.original.title}</p>
+        </div>
+      ),
     },
     {
       id: 'source',
@@ -166,7 +159,7 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
             tooltip={t('common.edit')}
             onClick={e => {
               e.stopPropagation();
-              router.push(Routes.NOTE_DETAIL(row.original.id));
+              router.push(noteHref(row.original));
             }}
             aria-label={t('common.edit')}
           >

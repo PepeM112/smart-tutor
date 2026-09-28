@@ -198,9 +198,14 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const mentionMenuOpen = filteredMentions.length > 0 && !!mentionTrigger;
   const clampedMentionIndex = Math.min(mentionIndex, Math.max(0, filteredMentions.length - 1));
 
-  useEffect(() => {
+  // Reset the highlight when the query changes. Adjusting state during render
+  // (instead of in an effect) avoids an extra render pass.
+  const mentionQuery = mentionTrigger?.query;
+  const [prevMentionQuery, setPrevMentionQuery] = useState(mentionQuery);
+  if (prevMentionQuery !== mentionQuery) {
+    setPrevMentionQuery(mentionQuery);
     setMentionIndex(0);
-  }, [mentionTrigger?.query]);
+  }
 
   const insertMention = useCallback(
     (candidate: MentionCandidate) => {
@@ -244,9 +249,11 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     [activeCommand, draft, availableCommands, query]
   );
 
-  useEffect(() => {
+  const [prevCommandCount, setPrevCommandCount] = useState(filteredCommands.length);
+  if (prevCommandCount !== filteredCommands.length) {
+    setPrevCommandCount(filteredCommands.length);
     setActiveIndex(0);
-  }, [filteredCommands.length]);
+  }
 
   const commandMenuOpen = !dismissed && !activeCommand && draft.startsWith('/') && filteredCommands.length > 0;
   const clampedIndex = Math.min(activeIndex, Math.max(0, filteredCommands.length - 1));
@@ -324,8 +331,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
         noteEdit({
           markdown: chip.content,
           plainText: chip.metadata.plainText ?? chip.label,
-          markdownStart: chip.metadata.markdownStart ?? 0,
-          markdownEnd: chip.metadata.markdownEnd ?? 0,
+          pmFrom: chip.metadata.pmFrom ?? 0,
+          pmTo: chip.metadata.pmTo ?? 0,
           instructions,
           onSettled: () => {
             if (processingId) useAssistAttachmentsStore.getState().updateToolCallStatus?.(processingId, 'done');

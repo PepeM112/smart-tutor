@@ -445,10 +445,6 @@ export type NoteCreate = {
      */
     title: string;
     /**
-     * Description
-     */
-    description?: string | null;
-    /**
      * Content
      */
     content?: string;
@@ -500,10 +496,6 @@ export type NoteRead = {
      */
     title: string;
     /**
-     * Description
-     */
-    description?: string | null;
-    /**
      * Content
      */
     content?: string;
@@ -524,6 +516,10 @@ export type NoteRead = {
      * Isindexed
      */
     isIndexed: boolean;
+    /**
+     * Version
+     */
+    version: number;
     /**
      * Createdat
      */
@@ -567,10 +563,6 @@ export type NoteUpdate = {
      */
     title?: string | null;
     /**
-     * Description
-     */
-    description?: string | null;
-    /**
      * Content
      */
     content?: string | null;
@@ -578,6 +570,14 @@ export type NoteUpdate = {
      * Tags
      */
     tags?: Array<string> | null;
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Reindex
+     */
+    reindex?: boolean;
 };
 
 /**

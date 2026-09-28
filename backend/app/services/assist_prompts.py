@@ -96,8 +96,7 @@ which is Multiple Choice?"
 
 - /dashboard — main dashboard
 - /notes — list of all notes
-- /notes/{id} — view/edit a specific note
-- /notes/new — create a new note
+- /notes/{id} — view/edit a specific note (use the create_note tool to create a new note, not a URL)
 - /tests — list of all tests
 - /tests/{id} — view a specific test
 - /tests/{id}/edit — edit a test

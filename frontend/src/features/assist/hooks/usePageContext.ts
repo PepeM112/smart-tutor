@@ -3,12 +3,15 @@
 import { usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 
+import { parseNoteId } from '@/lib/routes';
+
 import { usePageData } from '../context/PageDataContext';
 
 import type { PageContext } from '../types';
 
-const RESOURCE_PATTERNS: { pattern: RegExp; type: string }[] = [
-  { pattern: /^\/notes\/([^/]+)/, type: 'note' },
+const RESOURCE_PATTERNS: { pattern: RegExp; type: string; parseId?: (raw: string) => string }[] = [
+  // Note URLs may be slug-prefixed: /notes/<slug>-<ulid>
+  { pattern: /^\/notes\/([^/]+)/, type: 'note', parseId: parseNoteId },
   { pattern: /^\/tests\/([^/]+)/, type: 'test' },
   { pattern: /^\/questions\/([^/]+)/, type: 'question' },
   { pattern: /^\/history\/([^/]+)/, type: 'result' },
@@ -21,11 +24,11 @@ export function usePageContext(): PageContext {
   return useMemo(() => {
     const ctx: PageContext = { route: pathname };
 
-    for (const { pattern, type } of RESOURCE_PATTERNS) {
+    for (const { pattern, type, parseId } of RESOURCE_PATTERNS) {
       const match = pathname.match(pattern);
       if (match?.[1] && match[1] !== 'new' && match[1] !== 'generate') {
         ctx.resourceType = type;
-        ctx.resourceId = match[1];
+        ctx.resourceId = parseId ? parseId(match[1]) : match[1];
         break;
       }
     }

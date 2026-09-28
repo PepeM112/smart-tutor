@@ -8,6 +8,7 @@ of the user's chat LLM provider choice.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 
 import tiktoken
@@ -47,6 +48,17 @@ def _get_client() -> OpenAI:
 class TextChunk:
     text: str
     index: int
+
+
+# The note editor stores text colors as inline HTML: <span data-color="red" data-bg="yellow">.
+# Only the tags are removed; the text inside them stays. Tags carry no meaning for
+# search and would only add noise tokens to the embeddings.
+_COLOR_SPAN_TAG = re.compile(r"</?span(?:\s+data-(?:color|bg)=\"[a-z]+\")*\s*>")
+
+
+def strip_color_spans(text_content: str) -> str:
+    """Remove the note editor's color <span> tags and keep their inner text."""
+    return _COLOR_SPAN_TAG.sub("", text_content)
 
 
 def chunk_text(text_content: str) -> list[TextChunk]:
@@ -106,13 +118,11 @@ def index_note(db: Session, *, note_id: str) -> None:
     note_chunk_crud.delete_by_note_id(db, note_id=note_id)
 
     header_parts = [f"Title: {note.title}"]
-    if note.description:
-        header_parts.append(f"Description: {note.description}")
     if note.tags:
         header_parts.append(f"Tags: {', '.join(note.tags)}")
     header = "\n".join(header_parts) + "\n\n"
 
-    chunks = chunk_text(header + (note.content or ""))
+    chunks = chunk_text(header + strip_color_spans(note.content or ""))
     if not chunks:
         note.is_indexed = True
         db.commit()
@@ -176,7 +186,19 @@ class SearchResult:
 
 
 def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> list[SearchResult]:
-    """Search user's notes by semantic similarity. Returns top matching chunks."""
+    """Search user's notes by semantic similarity. Returns top matching chunks.
+
+    Stale notes (is_indexed=False) are indexed lazily before the search so the
+    results reflect the latest saved content. A failure on any individual note is
+    logged and skipped — it must not abort the search.
+    """
+    unindexed_ids = note_crud.list_unindexed_ids_by_user(db, user_id=user_id)
+    for stale_id in unindexed_ids:
+        try:
+            index_note(db, note_id=stale_id)
+        except Exception:
+            logger.exception("search_notes: failed to index stale note %s, skipping", stale_id)
+
     if note_chunk_crud.count_by_user(db, user_id=user_id) == 0:
         return []
 

@@ -62,7 +62,6 @@ def create(
     *,
     user_id: str,
     title: str,
-    description: str | None = None,
     content: str = "",
     source: NoteSource,
     tags: list[str] | None = None,
@@ -70,7 +69,6 @@ def create(
     note = Note(
         user_id=user_id,
         title=title,
-        description=description,
         content=content,
         source=int(source),
         tags=tags or [],
@@ -81,10 +79,17 @@ def create(
 
 
 def update(db: Session, *, note: Note, data: NoteUpdate) -> Note:
-    for field, value in data.model_dump(exclude_unset=True).items():
+    # Exclude metadata fields that the service manages directly (not DB columns to overwrite blindly).
+    for field, value in data.model_dump(exclude_unset=True, exclude={"version", "reindex"}).items():
         setattr(note, field, value)
     db.flush()
     return note
+
+
+def list_unindexed_ids_by_user(db: Session, *, user_id: str) -> list[str]:
+    """Return IDs of notes owned by user that have not yet been embedded."""
+    stmt = select(Note.id).where(Note.user_id == user_id, Note.is_indexed.is_(False))
+    return list(db.scalars(stmt).all())
 
 
 def delete(db: Session, *, note: Note) -> None:

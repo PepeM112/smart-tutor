@@ -83,7 +83,6 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
         db,
         user_id=current_user.id,
         title=data.title,
-        description=data.description,
         content=data.content,
         source=NoteSource.USER_CREATED,
         tags=data.tags,
@@ -95,9 +94,23 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
 
 def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpdate) -> Note:
     note = get_note(db, note_id=note_id, current_user=current_user)
-    if data.content is not None:
+
+    content_fields_changing = data.content is not None or data.title is not None or data.tags is not None
+
+    if content_fields_changing:
+        if data.version != note.version:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Note was modified elsewhere",
+            )
         note.is_indexed = False
+
     updated = note_crud.update(db, note=note, data=data)
+
+    if content_fields_changing:
+        updated.version += 1
+        db.flush()
+
     db.commit()
     db.refresh(updated)
     return updated
@@ -165,7 +178,10 @@ def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefi
     note = get_note(db, note_id=note_id, current_user=current_user)
     refined_text = _run_refinement(db, note=note, instructions=data.instructions, current_user=current_user)
 
-    updated = note_crud.update(db, note=note, data=NoteUpdate(content=refined_text))
+    # Server-side write: skip version check but increment version so clients know the note changed.
+    note.is_indexed = False
+    note.version += 1
+    updated = note_crud.update(db, note=note, data=NoteUpdate(content=refined_text, version=note.version))
     db.commit()
     db.refresh(updated)
     return updated

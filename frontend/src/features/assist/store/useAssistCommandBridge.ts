@@ -3,8 +3,9 @@ import { create } from 'zustand';
 export type RunNoteEditParams = {
   markdown: string;
   plainText: string;
-  markdownStart: number;
-  markdownEnd: number;
+  /** ProseMirror positions — set when the selection was attached via the bubble menu. */
+  pmFrom?: number;
+  pmTo?: number;
   instructions: string;
   onSettled?: () => void;
 };

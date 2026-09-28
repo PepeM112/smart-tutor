@@ -10,7 +10,6 @@ from app.schemas.pagination import PaginatedResponse
 
 class NoteBase(BaseSchema):
     title: str = Field(max_length=200)
-    description: str | None = Field(default=None, max_length=500)
     content: str = ""
     tags: list[str] = []
 
@@ -21,9 +20,13 @@ class NoteCreate(NoteBase):
 
 class NoteUpdate(BaseSchema):
     title: str | None = Field(default=None, max_length=200)
-    description: str | None = Field(default=None, max_length=500)
     content: str | None = None
     tags: list[str] | None = None
+    # Required when title/content/tags is sent; always required for concurrency safety.
+    version: int
+    # When true the endpoint schedules embedding reindex as a BackgroundTask.
+    # Excluded from column updates by the CRUD layer.
+    reindex: bool = False
 
 
 class NoteRead(NoteBase):
@@ -31,6 +34,7 @@ class NoteRead(NoteBase):
     user_id: str
     source: NoteSource
     is_indexed: bool
+    version: int
     created_at: datetime
     updated_at: datetime
 

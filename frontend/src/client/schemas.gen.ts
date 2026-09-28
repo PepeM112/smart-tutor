@@ -712,18 +712,6 @@ export const NoteCreateSchema = {
             maxLength: 200,
             title: 'Title'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 500
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         content: {
             type: 'string',
             title: 'Content',
@@ -803,18 +791,6 @@ export const NoteReadSchema = {
             maxLength: 200,
             title: 'Title'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 500
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         content: {
             type: 'string',
             title: 'Content',
@@ -843,6 +819,10 @@ export const NoteReadSchema = {
             type: 'boolean',
             title: 'Isindexed'
         },
+        version: {
+            type: 'integer',
+            title: 'Version'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -861,6 +841,7 @@ export const NoteReadSchema = {
         'userId',
         'source',
         'isIndexed',
+        'version',
         'createdAt',
         'updatedAt'
     ],
@@ -910,18 +891,6 @@ export const NoteUpdateSchema = {
             ],
             title: 'Title'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 500
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         content: {
             anyOf: [
                 {
@@ -946,9 +915,21 @@ export const NoteUpdateSchema = {
                 }
             ],
             title: 'Tags'
+        },
+        version: {
+            type: 'integer',
+            title: 'Version'
+        },
+        reindex: {
+            type: 'boolean',
+            title: 'Reindex',
+            default: false
         }
     },
     type: 'object',
+    required: [
+        'version'
+    ],
     title: 'NoteUpdate'
 } as const;
 

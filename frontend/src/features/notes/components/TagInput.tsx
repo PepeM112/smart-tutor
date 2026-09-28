@@ -1,10 +1,11 @@
 'use client';
 
-import { X } from 'lucide-react';
+// Notion-style tag row: plain pills (no outlined field) + a ghost "Add tag" button
+// that turns into a borderless inline input. Enter or "," adds; Esc or blur closes.
+
+import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState, type KeyboardEvent } from 'react';
-
-import { Input } from '@/components/ui/input';
 
 type Props = {
   tags: string[];
@@ -12,18 +13,23 @@ type Props = {
 };
 
 export function TagInput({ tags, onChange }: Props) {
-  const t = useTranslations();
+  const t = useTranslations('notes');
+  const [editing, setEditing] = useState(false);
   const [input, setInput] = useState('');
 
   function addTag(raw: string) {
     const tag = raw.trim().toLowerCase();
-    if (!tag || tags.includes(tag)) return;
-    onChange([...tags, tag]);
+    if (tag && !tags.includes(tag)) onChange([...tags, tag]);
     setInput('');
   }
 
   function removeTag(tag: string) {
-    onChange(tags.filter(t => t !== tag));
+    onChange(tags.filter(existing => existing !== tag));
+  }
+
+  function close() {
+    addTag(input);
+    setEditing(false);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -31,36 +37,54 @@ export function TagInput({ tags, onChange }: Props) {
       e.preventDefault();
       addTag(input);
     }
+    if (e.key === 'Escape') {
+      setInput('');
+      setEditing(false);
+    }
     if (e.key === 'Backspace' && !input && tags.length > 0) {
       onChange(tags.slice(0, -1));
     }
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 w-64 max-w-full rounded-md border border-input px-2 py-1 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+    <div data-slot="tag-input" className="flex flex-wrap items-center gap-1.5 min-h-7">
       {tags.map(tag => (
         <span
           key={tag}
-          className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+          className="group inline-flex h-6 items-center gap-0.5 rounded-md bg-muted pl-2 pr-1 text-xs font-medium text-foreground/80"
         >
           {tag}
           <button
             type="button"
             onClick={() => removeTag(tag)}
-            className="text-muted-foreground/60 hover:text-foreground"
-            aria-label={`Remove tag ${tag}`}
+            className="flex size-4 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+            aria-label={t('remove_tag', { tag })}
           >
             <X className="size-3" />
           </button>
         </span>
       ))}
-      <Input
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={tags.length === 0 ? t('notes.add_tags') : ''}
-        className="flex-1 min-w-16 border-0 px-0 py-0 h-6 text-xs shadow-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:border-transparent"
-      />
+
+      {editing ? (
+        <input
+          autoFocus
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={close}
+          placeholder={t('add_tag')}
+          className="h-6 w-28 bg-transparent px-1 text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Plus className="size-3" />
+          {t('add_tag')}
+        </button>
+      )}
     </div>
   );
 }

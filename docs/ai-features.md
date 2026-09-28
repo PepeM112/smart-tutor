@@ -67,7 +67,7 @@ If the user has no API key configured for their preferred provider, the call fai
 
 Each AI feature has its own prompt tailored to its task (grading a rubric, drafting a note, editing a chunk, generating or editing questions), but all of them are designed to return **structured, parseable output** rather than free-form prose. This lets the backend validate what the AI returns — checking that a rubric verdict is boolean, that a generated question has the right shape, that a note's length roughly matches what was requested, that an edited note chunk contains only replacement text — instead of trusting the AI's output blindly.
 
-- Note chunk editing uses `NOTE_CHUNK_EDIT_SYSTEM_PROMPT` (`services/note_prompts.py`). It instructs the AI to return only the replacement text for the selected section, preserving the surrounding document's Markdown style.
+- Note chunk editing uses `NOTE_CHUNK_EDIT_SYSTEM_PROMPT` (`services/note_prompts.py`). It instructs the AI to return only the replacement text for the selected section, preserving the surrounding document's Markdown style. The chunk edit and refinement prompts also tell the AI to keep the editor's color `<span>` tags.
 - Test question editing reuses `TEST_GENERATION_SYSTEM_PROMPT` with a dedicated user-prompt builder, `build_question_edit_user_prompt` (`services/test_generation_prompts.py`), which lists the full question set and marks which indices are selected for editing.
 
 ## Token Usage Tracking
@@ -124,7 +124,7 @@ Embeddings use OpenAI's `text-embedding-3-small` (1536 dimensions), called via a
 
 ### Chunking
 
-Notes are split into ~500-token chunks with 50-token overlap using `tiktoken` (`cl100k_base` encoding). Short notes (≤500 tokens) are stored as a single chunk. Chunking preserves context at boundaries while keeping each chunk small enough for precise retrieval.
+Notes are split into ~500-token chunks with 50-token overlap using `tiktoken` (`cl100k_base` encoding). Short notes (≤500 tokens) are stored as a single chunk. Before chunking, `strip_color_spans()` removes the editor's color tags (`<span data-color|data-bg>`) and keeps their text, so the tags do not add noise to the embeddings. Chunking preserves context at boundaries while keeping each chunk small enough for precise retrieval.
 
 ### Storage (pgvector)
 
@@ -132,10 +132,14 @@ Chunks and their embeddings are stored in a `NoteChunk` model with a `Vector(153
 
 ### Indexing pipeline
 
-Embedding generation is asynchronous via `BackgroundTask`:
+Embedding generation is deferred to avoid an embedding call on every autosave keystroke:
 
-1. A note is created or updated.
-2. `index_note()` fires as a background task: deletes existing chunks → splits text → batch-embeds via OpenAI → `bulk_create` chunks → sets `note.is_indexed = True` → records token usage under `AIFeature.EMBEDDING`.
+1. A note is created or first generated — `index_note()` fires as a `BackgroundTask` immediately.
+2. An autosave (`PATCH /notes/{id}` with content/title/tags) sets `note.is_indexed = False` but does **not** schedule indexing.
+3. When the user leaves the note, the frontend sends a final `PATCH` with `reindex: true`. The endpoint then schedules `index_note()` as a `BackgroundTask`.
+4. Before any semantic search, `search_notes()` finds all notes with `is_indexed = False` for that user and indexes them in-process before running the query. A failure on one note is logged and skipped.
+
+`index_note()` itself: deletes existing chunks → prepends a title/tags header → splits text into ~500-token chunks → batch-embeds via OpenAI → `bulk_create` chunks → sets `note.is_indexed = True` → records token usage under `AIFeature.EMBEDDING`.
 
 ### Semantic search
 
@@ -155,7 +159,7 @@ AI calls take anywhere from one to several seconds. Whether a feature waits for 
 | Test generation          | Synchronous  | Same — the user watches a preview populate                                            |
 | Note chunk editing       | Synchronous  | The user is watching the selected text and waits for the rewritten version            |
 | Test question editing    | Synchronous  | Same — the user watches the selected questions update in the editor or preview        |
-| Note embedding (RAG)     | Asynchronous | Happens after note save; the user continues editing while chunks are indexed          |
+| Note embedding (RAG)     | Deferred     | Only triggered on note leave or at search time; autosaves only mark `is_indexed = false` |
 
 **Asynchronous flow:** the record is created immediately in a pending state, and the AI call happens afterward. The user's screen polls periodically until the pending state clears and the real result appears.
 
