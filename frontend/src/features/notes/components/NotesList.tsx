@@ -23,8 +23,15 @@ type Props = {
   onSort?: (column: string | null, order: SortDirection) => void;
 };
 
+/** A new note has an empty title (the editor shows "Untitled" only as a placeholder). */
+function useNoteTitle(): (note: NoteRead) => string {
+  const t = useTranslations();
+  return note => note.title.trim() || t('notes.untitled');
+}
+
 export function NotesList({ data, sort, onSort }: Props) {
   const t = useTranslations();
+  const noteTitle = useNoteTitle();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { mutate: deleteNote, isPending: isDeleting } = useMutation({
@@ -41,10 +48,10 @@ export function NotesList({ data, sort, onSort }: Props) {
   const renderPreview = useCallback(
     (note: NoteRead) => (
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{note.title}</p>
+        <p className="text-sm font-medium text-foreground truncate">{noteTitle(note)}</p>
       </div>
     ),
-    []
+    [noteTitle]
   );
 
   const renderActions = useCallback(
@@ -58,7 +65,7 @@ export function NotesList({ data, sort, onSort }: Props) {
         label: t('common.export'),
         icon: Download,
         onClick: () => {
-          downloadMarkdown(note.title, note.content ?? '');
+          downloadMarkdown(noteTitle(note), note.content ?? '');
           toast.success(t('common.downloaded'));
         },
       },
@@ -69,11 +76,11 @@ export function NotesList({ data, sort, onSort }: Props) {
         onClick: () => deleteNote(note.id),
         confirm: {
           title: t('notes.delete_note'),
-          description: t('notes.delete_note_confirm', { title: note.title }),
+          description: t('notes.delete_note_confirm', { title: noteTitle(note) }),
         },
       },
     ],
-    [t, router, deleteNote]
+    [t, router, deleteNote, noteTitle]
   );
 
   return (
@@ -122,6 +129,7 @@ type ColumnDeps = {
 
 function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
   const t = useTranslations();
+  const noteTitle = useNoteTitle();
   const router = useRouter();
 
   return [
@@ -131,7 +139,7 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
       meta: { sortKey: 'title' },
       cell: ({ row }) => (
         <div className="min-w-0">
-          <p className="font-medium text-foreground truncate">{row.original.title}</p>
+          <p className="font-medium text-foreground truncate">{noteTitle(row.original)}</p>
         </div>
       ),
     },
@@ -171,7 +179,7 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
             tooltip={t('common.export')}
             onClick={e => {
               e.stopPropagation();
-              downloadMarkdown(row.original.title, row.original.content ?? '');
+              downloadMarkdown(noteTitle(row.original), row.original.content ?? '');
               toast.success(t('common.downloaded'));
             }}
             aria-label={t('common.export')}
@@ -193,7 +201,7 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
               </Button>
             }
             title={t('notes.delete_note')}
-            description={t('notes.delete_note_confirm', { title: row.original.title })}
+            description={t('notes.delete_note_confirm', { title: noteTitle(row.original) })}
             confirmLabel={t('common.delete')}
             confirmClassName="bg-destructive text-white hover:bg-destructive/90"
             onConfirm={() => deleteNote(row.original.id)}

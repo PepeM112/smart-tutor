@@ -12,7 +12,6 @@ from app.schemas.note import (
     NoteCreate,
     NoteGenerate,
     NoteRead,
-    NoteRefine,
     NoteSortBy,
     NoteUpdate,
     SortOrder,
@@ -93,7 +92,11 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
 
 
 def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpdate) -> Note:
-    note = get_note(db, note_id=note_id, current_user=current_user)
+    # Row lock: two concurrent PATCHes with the same version would otherwise both pass
+    # the check below. With the lock, the second one waits, sees the new version and gets 409.
+    note = get_owned_or_404(
+        db, fetch=note_crud.get_by_id_for_update, id=note_id, current_user=current_user, entity_name="Note"
+    )
 
     content_fields_changing = data.content is not None or data.title is not None or data.tags is not None
 
@@ -152,7 +155,7 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
 
 
 def _run_refinement(db: Session, *, note: Note, instructions: str, current_user: User) -> str:
-    """Shared AI refinement call — validates, calls AI, records usage. Does NOT persist."""
+    """AI refinement call — validates, calls AI, records usage. Does NOT persist."""
     if not note.content or not note.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -172,19 +175,6 @@ def _run_refinement(db: Session, *, note: Note, instructions: str, current_user:
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_REFINEMENT)
     return result.text
-
-
-def refine_note(db: Session, *, note_id: str, current_user: User, data: NoteRefine) -> Note:
-    note = get_note(db, note_id=note_id, current_user=current_user)
-    refined_text = _run_refinement(db, note=note, instructions=data.instructions, current_user=current_user)
-
-    # Server-side write: skip version check but increment version so clients know the note changed.
-    note.is_indexed = False
-    note.version += 1
-    updated = note_crud.update(db, note=note, data=NoteUpdate(content=refined_text, version=note.version))
-    db.commit()
-    db.refresh(updated)
-    return updated
 
 
 def preview_refine_note(db: Session, *, note_id: str, current_user: User, instructions: str) -> str:

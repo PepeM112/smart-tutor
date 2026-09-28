@@ -115,6 +115,10 @@ def index_note(db: Session, *, note_id: str) -> None:
         logger.warning("index_note: note %s not found, skipping", note_id)
         return
 
+    # The embedding call is slow. If an autosave lands meanwhile, the chunks below are
+    # already stale, so `mark_indexed` only succeeds while the note is still at this version.
+    indexed_version = note.version
+
     note_chunk_crud.delete_by_note_id(db, note_id=note_id)
 
     header_parts = [f"Title: {note.title}"]
@@ -124,7 +128,7 @@ def index_note(db: Session, *, note_id: str) -> None:
 
     chunks = chunk_text(header + strip_color_spans(note.content or ""))
     if not chunks:
-        note.is_indexed = True
+        note_crud.mark_indexed(db, note_id=note_id, version=indexed_version)
         db.commit()
         return
 
@@ -152,8 +156,8 @@ def index_note(db: Session, *, note_id: str) -> None:
         ],
     )
 
-    note.is_indexed = True
-    db.flush()
+    if not note_crud.mark_indexed(db, note_id=note_id, version=indexed_version):
+        logger.info("index_note: note %s changed during indexing, left stale", note_id)
 
     cost = calculate_cost(db, model=EMBEDDING_MODEL, input_tokens=total_tokens, output_tokens=0)
     token_usage_crud.create(
@@ -197,6 +201,8 @@ def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> li
         try:
             index_note(db, note_id=stale_id)
         except Exception:
+            # Drop the failed note's pending rows, or the next note's commit would save them.
+            db.rollback()
             logger.exception("search_notes: failed to index stale note %s, skipping", stale_id)
 
     if note_chunk_crud.count_by_user(db, user_id=user_id) == 0:

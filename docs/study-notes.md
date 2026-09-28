@@ -14,9 +14,9 @@ Notes serve two purposes:
 | Field        | Description                                                     |
 | ------------ | --------------------------------------------------------------- |
 | `title`      | Short name, up to 200 characters                                |
-| `content`    | The note body, in GFM Markdown                                  |
+| `content`    | The note body, in GFM Markdown, up to 50,000 characters         |
 | `source`     | `USER_CREATED` or `AI_GENERATED`                                |
-| `tags`       | Free-form labels for organization                               |
+| `tags`       | Free-form labels for organization (max 10, 25 characters each)  |
 | `version`    | Integer counter, starts at 1, incremented on every content save |
 | `is_indexed` | Whether the note has current embeddings in the chunk store      |
 
@@ -28,7 +28,7 @@ The note editor is a Notion-style WYSIWYG editor (Tiptap). There is no Edit/View
 
 **Markdown input rules**: type the marker and a space — the marker is replaced by rich formatting. For example: `#` + space creates a heading, `**text**` becomes bold, `- ` starts a bullet list.
 
-**Slash menu**: type `/` to open a block picker. Select Text, H1–H3, Bullet, Numbered, To-do, Quote, Code, Divider, or Table with the keyboard or mouse. Esc closes the menu and keeps the `/`.
+**Slash menu**: type `/` to open a block picker. Select Text, H1–H3, Bullet, Numbered, To-do, Quote, Code, Divider, or Table with the keyboard or mouse. Esc closes the menu and keeps the `/`. The filter matches the English name and the name in the current language. Code blocks highlight the `common` lowlight language set.
 
 **Bubble menu**: select any text to see inline format options. The order is: Color ("A"), Bold, Italic, Strikethrough, Inline code, Link. If AI is configured, two extra buttons appear: "Ask AI" for a chunk edit and "Send to Assistant" to attach the selection to the AI Assistant. Each button shows a hover hint with its name and shortcut (`HoverHint` in `components/ui/hover-hint.tsx`).
 
@@ -54,7 +54,7 @@ To check all sizes and colors at once, import `features/notes/editor/__fixtures_
 
 ## Creating Notes
 
-Click "New note" on the notes list. An empty `Untitled` note is created on the server immediately and opened. Edit the title inline. There is no `/notes/new` page.
+Click "New note" on the notes list. An empty note (empty title, "Untitled" shown only as a placeholder) is created on the server immediately and opened. The list, the export file name and the AI Assistant show "Untitled" for an empty title. Edit the title inline. There is no `/notes/new` page.
 
 ## Note URLs
 
@@ -64,7 +64,7 @@ Note URLs are Notion-style: `/notes/<title-slug>-<ulid>` (`noteHref()` in `src/l
 
 The editor saves automatically after 1 second of no typing. It also flushes immediately on blur, tab close, and page navigation.
 
-Every `PATCH /notes/{id}` request sends the `version` the client last received. If the server version is higher — another tab or a server-side refinement changed the note — the server returns `409 Conflict`. The client shows a banner with two options: reload the server copy or keep the local edits.
+Every `PATCH /notes/{id}` request sends the `version` the client last received. If the server version is higher — another tab or a server-side refinement changed the note — the server returns `409 Conflict`. The client shows a banner with two options: reload the server copy or keep the local edits. A `422` (the note is over a backend limit, see Limits) shows "Note too long" in the save status. Autosave does not retry it; the next edit saves again. The draft state, autosave wiring and conflict handling live in `useNoteDraft` (`features/notes/hooks/useNoteDraft.ts`). `NoteForm` only does the layout and the AI diff panels.
 
 Embedding reindex is deferred: autosaves only set `is_indexed = false`. The index is rebuilt (a) when the user leaves the note (`PATCH` with `reindex: true`) and (b) lazily at the start of a semantic search for any stale notes of that user.
 
@@ -107,3 +107,5 @@ If the note content changed while the AI was processing (for example, the user t
 Tags are free-form strings attached to a note for organization — there is no fixed taxonomy. A user might tag notes by subject ("spanish", "grammar") or by purpose ("exam-prep"). Tags can be added or removed at any time.
 
 Tags show as plain pills below the title, with no outlined field. The "+ Add tag" button opens a borderless input: Enter or `,` adds a tag, Esc cancels, Backspace on an empty input removes the last tag. Hover a pill to see its remove button.
+
+**Limits**: at most 10 tags per note, 25 characters per tag. The backend (`NoteCreate` / `NoteUpdate` in `schemas/note.py`) trims, lowercases and removes empty and duplicate tags, then rejects a list over the limits with a 422. The UI enforces the same limits: the input stops at 25 characters, and "+ Add tag" is hidden when the note has 10 tags. The limits are only on input schemas, so `NoteRead` can still return an older note that is over them. The content limit (50,000 characters) also applies to `fullText` and `selectedText` of the AI chunk edit.

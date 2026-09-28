@@ -9,14 +9,14 @@ Run:  pytest tests/test_notes.py
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app.core.enums import NoteLength, NoteSource
-from app.schemas.note import NoteBase, NoteCreate, NoteGenerate, NoteUpdate
+from app.schemas.note import NoteBase, NoteChunkEdit, NoteCreate, NoteGenerate, NoteUpdate
 from app.services.embedding_service import strip_color_spans
 from app.services.llm import AnthropicLLMClient, CompletionResult, OpenAILLMClient
 from app.services.note_prompts import (
@@ -75,6 +75,48 @@ class TestNoteSchemaValidation:
     def test_generate_topic_at_max_length_accepted(self) -> None:
         gen = NoteGenerate(topic="t" * 200)
         assert len(gen.topic) == 200
+
+
+class TestNoteInputLimits:
+    def test_tags_are_normalized(self) -> None:
+        note = NoteCreate(title="T", tags=["  Verbs ", "verbs", "", "   ", "Grammar"])
+        assert note.tags == ["verbs", "grammar"]
+
+    def test_update_tags_are_normalized(self) -> None:
+        assert NoteUpdate(version=1, tags=[" A ", "a"]).tags == ["a"]
+
+    def test_update_without_tags_stays_none(self) -> None:
+        assert NoteUpdate(version=1).tags is None
+
+    def test_too_many_tags_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="at most 10 tags"):
+            NoteCreate(title="T", tags=[f"tag{i}" for i in range(11)])
+
+    def test_ten_tags_accepted(self) -> None:
+        assert len(NoteCreate(title="T", tags=[f"tag{i}" for i in range(10)]).tags) == 10
+
+    def test_duplicates_do_not_count_toward_the_limit(self) -> None:
+        note = NoteCreate(title="T", tags=[f"tag{i}" for i in range(10)] + ["TAG0"])
+        assert len(note.tags) == 10
+
+    def test_long_tag_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="longer than 25"):
+            NoteUpdate(version=1, tags=["x" * 26])
+
+    def test_content_limit(self) -> None:
+        NoteCreate(title="T", content="x" * 50_000)
+        with pytest.raises(ValidationError):
+            NoteCreate(title="T", content="x" * 50_001)
+        with pytest.raises(ValidationError):
+            NoteUpdate(version=1, content="x" * 50_001)
+
+    def test_chunk_edit_full_text_limit(self) -> None:
+        with pytest.raises(ValidationError):
+            NoteChunkEdit(full_text="x" * 50_001, selected_text="x", instructions="shorter")
+
+    def test_read_schema_has_no_input_limits(self) -> None:
+        """NoteRead must serialize a note that is over the input limits (older or AI-generated notes)."""
+        NoteBase(title="T", content="x" * 60_000, tags=[f"t{i}" for i in range(15)])
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +282,68 @@ class TestReindexScheduling:
         assert note.is_indexed is False
 
 
+class TestUpdateNoteRowLock:
+    def test_update_loads_note_with_row_lock(self) -> None:
+        """update_note must fetch with SELECT … FOR UPDATE, so two PATCHes with the same version cannot both pass."""
+        from app.services.note_service import update_note
+
+        db = MagicMock()
+        note = _make_note(version=1)
+
+        with (
+            patch("app.services.note_service.get_owned_or_404", return_value=note) as mock_get,
+            patch("app.services.note_service.note_crud") as mock_crud,
+        ):
+            mock_crud.update.return_value = note
+            update_note(
+                db,
+                note_id="note-abc",
+                current_user=_make_user(),
+                data=NoteUpdate(title="new", version=1),
+            )
+
+        assert mock_get.call_args.kwargs["fetch"] is mock_crud.get_by_id_for_update
+
+
+# ---------------------------------------------------------------------------
+# Indexing — version guard
+# ---------------------------------------------------------------------------
+
+
+class TestIndexNoteVersionGuard:
+    def _run_index(self, *, mark_indexed_result: bool) -> MagicMock:
+        from app.services import embedding_service
+
+        db = MagicMock()
+        note = _make_note(version=3)
+        note.title = "Title"
+        note.tags = []
+
+        with (
+            patch("app.services.embedding_service.note_crud") as mock_note_crud,
+            patch("app.services.embedding_service.note_chunk_crud"),
+            patch("app.services.embedding_service.token_usage_crud"),
+            patch("app.services.embedding_service.calculate_cost", return_value=0),
+            patch("app.services.embedding_service._generate_embeddings", return_value=([[0.1] * 1536], 5)),
+        ):
+            mock_note_crud.get_by_id.return_value = note
+            mock_note_crud.mark_indexed.return_value = mark_indexed_result
+            embedding_service.index_note(db, note_id="note-abc")
+
+        return mock_note_crud
+
+    def test_marks_indexed_with_version_read_before_embedding(self) -> None:
+        """The conditional update must use the version read at the start, not a later one."""
+        mock_note_crud = self._run_index(mark_indexed_result=True)
+        mock_note_crud.mark_indexed.assert_called_once_with(ANY, note_id="note-abc", version=3)
+
+    def test_changed_note_is_not_forced_to_indexed(self) -> None:
+        """If the note changed during embedding, index_note must not set is_indexed itself."""
+        mock_note_crud = self._run_index(mark_indexed_result=False)
+        mock_note_crud.mark_indexed.assert_called_once()
+        mock_note_crud.update.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Search — lazy stale-note indexing
 # ---------------------------------------------------------------------------
@@ -286,6 +390,24 @@ class TestSearchNotesLazyIndexing:
             result = embedding_service.search_notes(db, user_id="user-123", query="test")
 
         assert result == []
+
+    def test_stale_index_failure_rolls_back(self) -> None:
+        """A failed index must roll back, or its pending chunk rows get committed with the next note."""
+        from app.services import embedding_service
+
+        db = MagicMock()
+
+        with (
+            patch("app.services.embedding_service.note_crud") as mock_note_crud,
+            patch("app.services.embedding_service.note_chunk_crud") as mock_chunk_crud,
+            patch("app.services.embedding_service.index_note", side_effect=Exception("cost fail")),
+        ):
+            mock_note_crud.list_unindexed_ids_by_user.return_value = ["stale-1"]
+            mock_chunk_crud.count_by_user.return_value = 0
+
+            embedding_service.search_notes(db, user_id="user-123", query="test")
+
+        db.rollback.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

@@ -66,6 +66,10 @@ ignore = [
     "E501",  # long lines in seed data (rubric text) are content, not code
 ]
 
+[tool.pytest.ini_options]
+# `app/models/test_*.py` are models (Test, TestResult), not tests.
+testpaths = ["tests"]
+
 [tool.pyright]
 pythonVersion = "3.10"
 typeCheckingMode = "standard"

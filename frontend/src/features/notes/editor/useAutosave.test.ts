@@ -206,6 +206,92 @@ describe('retry on network/5xx error', () => {
     expect(saveFn).toHaveBeenCalledTimes(2);
     expect(statuses[statuses.length - 1]).toBe('saved');
   });
+
+  it('retries a 5xx error', async () => {
+    const saveFn = vi.fn().mockRejectedValueOnce({ status: 503 }).mockResolvedValue({ version: 2 });
+    const { controller } = makeController(saveFn);
+
+    controller.onChange(payload);
+    await controller.flush();
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(saveFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ─── non-retryable 4xx ───────────────────────────────────────────────────────
+
+describe('non-retryable 4xx error', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    [404, 'error'],
+    [422, 'invalid'],
+  ])('does not retry a %i error (status %s)', async (status, expected) => {
+    const saveFn = vi.fn().mockRejectedValue({ status });
+    const { controller, statuses } = makeController(saveFn);
+
+    controller.onChange(payload);
+    await controller.flush();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(saveFn).toHaveBeenCalledTimes(1);
+    expect(statuses[statuses.length - 1]).toBe(expected);
+  });
+
+  it('keeps the edits, so a manual retry sends them again', async () => {
+    const saveFn = vi.fn().mockRejectedValueOnce({ status: 422 }).mockResolvedValue({ version: 2 });
+    const { controller, statuses } = makeController(saveFn);
+
+    controller.onChange(payload);
+    await controller.flush();
+    await controller.flush(); // Retry button
+
+    expect(saveFn).toHaveBeenCalledTimes(2);
+    expect(saveFn).toHaveBeenLastCalledWith(NOTE_ID, payload, INITIAL_VERSION, false);
+    expect(statuses[statuses.length - 1]).toBe('saved');
+  });
+});
+
+// ─── dispose ─────────────────────────────────────────────────────────────────
+
+describe('dispose', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('sends the final flush once but does not retry it', async () => {
+    const saveFn = vi.fn().mockRejectedValue(new Error('Network error'));
+    const { controller } = makeController(saveFn);
+
+    controller.onChange(payload);
+    const final = controller.flush(true);
+    controller.dispose();
+    await final;
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(saveFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels a retry that was already scheduled', async () => {
+    const saveFn = vi.fn().mockRejectedValue(new Error('Network error'));
+    const { controller } = makeController(saveFn);
+
+    controller.onChange(payload);
+    await controller.flush();
+    controller.dispose();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(saveFn).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ─── 409 → conflict ───────────────────────────────────────────────────────────

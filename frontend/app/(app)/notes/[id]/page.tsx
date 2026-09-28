@@ -17,5 +17,5 @@ export default function NoteDetailRoutePage({ params }: Props) {
   const t = useTranslations();
   useBreadcrumb(t('notes.note'), [{ label: t('notes.title'), href: Routes.NOTES }], Routes.NOTES);
 
-  return <NotePage noteId={noteId} rawParam={id} />;
+  return <NotePage noteId={noteId} />;
 }

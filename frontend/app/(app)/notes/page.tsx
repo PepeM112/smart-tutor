@@ -39,7 +39,7 @@ export default function NotesPage() {
   useBreadcrumb(t('notes.title'));
 
   const { mutate: createNote, isPending: isCreating } = useMutation({
-    mutationFn: () => sdk.notesCreate({ body: { title: t('notes.untitled'), content: '', tags: [] } }),
+    mutationFn: () => sdk.notesCreate({ body: { title: '', content: '', tags: [] } }),
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
       if (res.data) router.push(noteHref(res.data));

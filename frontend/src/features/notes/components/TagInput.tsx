@@ -7,6 +7,11 @@ import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState, type KeyboardEvent } from 'react';
 
+// Same limits as the backend (`NOTE_MAX_TAGS`, `NOTE_TAG_MAX_CHARS` in `schemas/note.py`).
+// Autosave does not retry a 422, so the UI must not let the user go over them.
+const MAX_TAGS = 10;
+const MAX_TAG_CHARS = 25;
+
 type Props = {
   tags: string[];
   onChange: (tags: string[]) => void;
@@ -16,11 +21,15 @@ export function TagInput({ tags, onChange }: Props) {
   const t = useTranslations('notes');
   const [editing, setEditing] = useState(false);
   const [input, setInput] = useState('');
+  const isFull = tags.length >= MAX_TAGS;
 
   function addTag(raw: string) {
     const tag = raw.trim().toLowerCase();
-    if (tag && !tags.includes(tag)) onChange([...tags, tag]);
     setInput('');
+    if (!tag || tags.includes(tag) || isFull) return;
+    onChange([...tags, tag]);
+    // The 10th tag closes the input: the "Add tag" button is hidden while the row is full.
+    if (tags.length + 1 >= MAX_TAGS) setEditing(false);
   }
 
   function removeTag(tag: string) {
@@ -68,6 +77,7 @@ export function TagInput({ tags, onChange }: Props) {
       {editing ? (
         <input
           autoFocus
+          maxLength={MAX_TAG_CHARS}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -75,7 +85,7 @@ export function TagInput({ tags, onChange }: Props) {
           placeholder={t('add_tag')}
           className="h-6 w-28 bg-transparent px-1 text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
         />
-      ) : (
+      ) : isFull ? null : (
         <button
           type="button"
           onClick={() => setEditing(true)}

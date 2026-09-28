@@ -1,16 +1,17 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { posToDOMRect } from '@tiptap/core';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
+import { FloatingCard, FloatingCardAnchor, FloatingCardContent } from '@/components/ui/floating-card';
 import { DiffNoteContent, DiffPanel } from '@/features/assist/components/diff';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { useAssistAttachmentsStore } from '@/features/assist/store/useAssistAttachmentsStore';
@@ -24,20 +25,20 @@ import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
 
 import { RichNoteEditor, type RichNoteEditorRef } from '../editor/RichNoteEditor';
-import { type AutosaveStatus, type SavePayload, useAutosave } from '../editor/useAutosave';
+import { type AutosaveStatus } from '../editor/useAutosave';
 import { useChunkAiEdit } from '../editor/useChunkAiEdit';
+import { useNoteDraft } from '../hooks/useNoteDraft';
 
 import { TagInput } from './TagInput';
 
 import type { SelectionContext } from '../editor/NoteBubbleMenu';
+import type { EditorView } from '@tiptap/pm/view';
 
 type Props = {
   noteId: string;
-  /** Full URL param (may include slug prefix). Used for canonical URL redirect. */
-  rawParam: string;
 };
 
-export function NotePage({ noteId, rawParam }: Props) {
+export function NotePage({ noteId }: Props) {
   const t = useTranslations();
   const {
     data: note,
@@ -55,7 +56,7 @@ export function NotePage({ noteId, rawParam }: Props) {
   return (
     <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
       {noteData ? (
-        <NoteForm note={noteData} rawParam={rawParam} />
+        <NoteForm key={noteData.id} note={noteData} />
       ) : (
         <p className="text-muted-foreground">{t('notes.note_not_found')}</p>
       )}
@@ -65,58 +66,16 @@ export function NotePage({ noteId, rawParam }: Props) {
 
 const ASSIST_DIFF_SPLIT_KEY = 'assist-diff-split-ratio';
 
-function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
+function NoteForm({ note }: { note: NoteRead }) {
   const t = useTranslations();
-  const queryClient = useQueryClient();
   const { isDesktop } = useBreakpoint();
   const searchParams = useSearchParams();
 
   const editorRef = useRef<RichNoteEditorRef>(null);
-  const [title, setTitle] = useState(note.title);
-  const [tags, setTags] = useState<string[]>(note.tags ?? []);
-  const [content, setContent] = useState(note.content ?? '');
-
-  // Keep current field values accessible in stable callbacks.
-  const titleRef = useRef(title);
-  const tagsRef = useRef(tags);
-  const contentRef = useRef(content);
-  useEffect(() => {
-    titleRef.current = title;
-  }, [title]);
-  useEffect(() => {
-    tagsRef.current = tags;
-  }, [tags]);
-  useEffect(() => {
-    contentRef.current = content;
-  }, [content]);
-
-  const buildPayload = useCallback(
-    (): SavePayload => ({
-      title: titleRef.current,
-      content: contentRef.current,
-      tags: tagsRef.current,
-    }),
-    []
-  );
-
-  // Highest version this page knows the server has — our own saves included.
-  const knownVersion = useRef(note.version);
-
-  const handleSaved = useCallback(
-    (saved: NoteRead) => {
-      knownVersion.current = saved.version;
-      // Patch the cache instead of refetching, so the editor never remounts.
-      queryClient.setQueryData<{ data: NoteRead }>(['notes', note.id], old => (old ? { ...old, data: saved } : old));
-      void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
-    },
-    [queryClient, note.id]
-  );
-
-  const { status, onChange, flush, reset } = useAutosave(note.id, note.version, handleSaved);
-  const statusRef = useRef(status);
-  useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
+  const { title, tags, initialContent, status, setTitle, setTags, setContent, flush, reload, keepMine } = useNoteDraft({
+    note,
+    editorRef,
+  });
 
   // ── AI chunk edit ────────────────────────────────────────────────────────────
 
@@ -155,55 +114,6 @@ function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
     [note.id, addAttachment, setActiveCommand, setAssistOpen, t]
   );
 
-  const notifyChange = useCallback(() => {
-    onChange(buildPayload());
-  }, [onChange, buildPayload]);
-
-  // Replace local state with the server copy. `reset` runs after `setMarkdown`
-  // so the change event that `setMarkdown` emits does not schedule a save.
-  const applyServerNote = useCallback(
-    (fresh: NoteRead) => {
-      setTitle(fresh.title);
-      setTags(fresh.tags ?? []);
-      setContent(fresh.content ?? '');
-      editorRef.current?.setMarkdown(fresh.content ?? '');
-      reset(fresh.version);
-      knownVersion.current = fresh.version;
-    },
-    [reset]
-  );
-
-  // A window-focus refetch brought a newer version from another tab/device.
-  // Apply it only when there are no local edits; otherwise the next save gets a 409.
-  useEffect(() => {
-    if (note.version <= knownVersion.current || statusRef.current !== 'saved') return;
-    applyServerNote(note);
-  }, [note, applyServerNote]);
-
-  const fetchServerNote = async (): Promise<NoteRead | null> => {
-    try {
-      const res = await sdk.notesGet({ path: { note_id: note.id } });
-      return res.data ?? null;
-    } catch {
-      toast.error(t('notes.failed_to_load_note'));
-      return null;
-    }
-  };
-
-  const handleReload = async () => {
-    const fresh = await fetchServerNote();
-    if (fresh) applyServerNote(fresh);
-  };
-
-  // Keep mine: continue from the server version and re-send the local content.
-  const handleKeepMine = async () => {
-    const fresh = await fetchServerNote();
-    if (!fresh) return;
-    reset(fresh.version);
-    knownVersion.current = fresh.version;
-    onChange(buildPayload());
-  };
-
   // Canonical URL: history.replaceState changes only the address bar. A router
   // navigation to a new [id] param value could remount the page and the editor.
   useEffect(() => {
@@ -211,12 +121,13 @@ function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
     if (window.location.pathname !== canonical) {
       window.history.replaceState(window.history.state, '', canonical + window.location.search);
     }
-  }, [note.id, title, rawParam]);
+  }, [note.id, title]);
 
   // Assist diff integration.
   const pendingNoteDiff = useAssistDiffStore(s => s.pendingNoteDiff);
   const clearPendingNoteDiff = useAssistDiffStore(s => s.clearPendingNoteDiff);
   const showAssistDiff = searchParams.get('diff') === 'assist' && pendingNoteDiff?.noteId === note.id;
+  const assistDiff = showAssistDiff ? pendingNoteDiff : null;
 
   const {
     containerRef: assistDiffContainerRef,
@@ -228,11 +139,9 @@ function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
   // Accept AI refinement — update editor in place, no remount.
   function acceptRefinement() {
     if (!pendingNoteDiff) return;
-    const newContent = pendingNoteDiff.newContent;
-    setContent(newContent);
-    editorRef.current?.setMarkdown(newContent);
+    // setMarkdown emits the editor onChange, so the draft and autosave get the new content.
+    editorRef.current?.setMarkdown(pendingNoteDiff.newContent);
     clearPendingNoteDiff();
-    // setMarkdown calls onChange internally, which triggers autosave.
   }
 
   return (
@@ -245,42 +154,29 @@ function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
       <div ref={assistDiffContainerRef} className="flex flex-1 min-h-0 overflow-hidden gap-0">
         <div
           className="min-w-0 flex-1 overflow-y-auto"
-          style={{ flex: isDesktop && (showAssistDiff || !!chunkDiff) ? assistDiffRatio : 1 }}
+          style={{ flex: isDesktop && (assistDiff || chunkDiff) ? assistDiffRatio : 1 }}
         >
           {/* Centered text column — title, tags and body scroll together */}
           <div className="mx-auto w-full max-w-[720px] px-4 pb-24 md:px-6">
             <input
               type="text"
+              // Same limit as the backend (`NoteBase.title`), so a long title cannot cause a 422.
+              maxLength={200}
               value={title}
-              onChange={e => {
-                setTitle(e.target.value);
-                titleRef.current = e.target.value;
-                notifyChange();
-              }}
+              onChange={e => setTitle(e.target.value)}
               placeholder={t('notes.untitled')}
               className="note-title w-full bg-transparent text-foreground placeholder:text-muted-foreground/50 outline-none border-none focus:ring-0 p-0"
             />
             <div className="mt-2 mb-6">
-              <TagInput
-                tags={tags}
-                onChange={next => {
-                  setTags(next);
-                  tagsRef.current = next;
-                  notifyChange();
-                }}
-              />
+              <TagInput tags={tags} onChange={setTags} />
             </div>
 
-            {status === 'conflict' && <ConflictBanner onReload={handleReload} onKeepMine={handleKeepMine} />}
+            {status === 'conflict' && <ConflictBanner onReload={reload} onKeepMine={keepMine} />}
 
             <RichNoteEditor
               editorRef={editorRef}
-              initialContent={content}
-              onChange={md => {
-                setContent(md);
-                contentRef.current = md;
-                notifyChange();
-              }}
+              initialContent={initialContent}
+              onChange={setContent}
               onBlur={() => void flush()}
               onAskAi={aiAvailable ? handleAskAi : undefined}
               onSendToAssistant={aiAvailable ? handleSendToAssistant : undefined}
@@ -289,7 +185,7 @@ function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
         </div>
 
         {/* Desktop: side diff panel (AI chunk edit or AI refine, mutually exclusive) */}
-        {isDesktop && (chunkDiff ?? (showAssistDiff && pendingNoteDiff ? pendingNoteDiff : null)) && (
+        {isDesktop && (chunkDiff || assistDiff) && (
           <>
             <div
               className="shrink-0 relative flex items-center justify-center w-5 mx-2 cursor-col-resize"
@@ -307,9 +203,9 @@ function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
                 <DiffPanel title={t('notes_ai.changes')} onAccept={acceptChunkDiff} onReject={rejectChunkDiff}>
                   <DiffNoteContent oldContent={chunkDiff.originalMarkdown} newContent={chunkDiff.editedText} />
                 </DiffPanel>
-              ) : pendingNoteDiff ? (
+              ) : assistDiff ? (
                 <DiffPanel title={t('notes_ai.changes')} onAccept={acceptRefinement} onReject={clearPendingNoteDiff}>
-                  <DiffNoteContent oldContent={pendingNoteDiff.oldContent} newContent={pendingNoteDiff.newContent} />
+                  <DiffNoteContent oldContent={assistDiff.oldContent} newContent={assistDiff.newContent} />
                 </DiffPanel>
               ) : null}
             </div>
@@ -317,16 +213,27 @@ function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
         )}
       </div>
 
-      {/* Mobile: chunk diff drawer */}
+      {/* Mobile: the same two diffs in a drawer. Closing it rejects the diff. */}
       {!isDesktop && (
-        <Drawer open={!!chunkDiff} onOpenChange={open => !open && rejectChunkDiff()}>
+        <Drawer
+          open={!!(chunkDiff || assistDiff)}
+          onOpenChange={open => {
+            if (open) return;
+            if (chunkDiff) rejectChunkDiff();
+            else clearPendingNoteDiff();
+          }}
+        >
           <DrawerContent className="max-h-[75dvh]">
             <div className="overflow-y-auto px-4 pb-8">
-              {chunkDiff && (
+              {chunkDiff ? (
                 <DiffPanel title={t('notes_ai.changes')} onAccept={acceptChunkDiff} onReject={rejectChunkDiff}>
                   <DiffNoteContent oldContent={chunkDiff.originalMarkdown} newContent={chunkDiff.editedText} />
                 </DiffPanel>
-              )}
+              ) : assistDiff ? (
+                <DiffPanel title={t('notes_ai.changes')} onAccept={acceptRefinement} onReject={clearPendingNoteDiff}>
+                  <DiffNoteContent oldContent={assistDiff.oldContent} newContent={assistDiff.newContent} />
+                </DiffPanel>
+              ) : null}
             </div>
           </DrawerContent>
         </Drawer>
@@ -335,10 +242,12 @@ function NoteForm({ note, rawParam }: { note: NoteRead; rawParam: string }) {
       {/* Instruction popover — anchored below the selection rect */}
       {pendingSelection && (
         <InstructionPopover
-          rect={pendingSelection.rect}
+          selection={pendingSelection}
+          getView={() => editorRef.current?.editor?.view ?? null}
           isPending={isChunkPending}
           onSubmit={submitInstructions}
           onCancel={cancelInstructions}
+          onClosed={() => editorRef.current?.editor?.commands.focus()}
         />
       )}
     </div>
@@ -370,71 +279,100 @@ function SaveStatus({ status, onRetry }: { status: AutosaveStatus; onRetry: () =
           </button>
         </>
       )}
+      {/* No Retry button: the same payload gets the same 422. The next edit saves again. */}
+      {status === 'invalid' && (
+        <>
+          <AlertCircle className="size-3 text-destructive" />
+          <span className="text-destructive">{t('note_too_long')}</span>
+        </>
+      )}
     </div>
   );
 }
 
 // ─── InstructionPopover ───────────────────────────────────────────────────────
 
+/** What Radix positions against. `contextElement` tells it which scroll containers to watch. */
+type SelectionAnchor = { getBoundingClientRect: () => DOMRect; contextElement?: Element };
+
+/**
+ * A virtual anchor on the selected text. The rect is read again on every scroll, so the
+ * popover follows the selection when the editor column scrolls.
+ */
+function createSelectionAnchor(getView: () => EditorView | null, selection: SelectionContext): SelectionAnchor {
+  return {
+    getBoundingClientRect: () => {
+      const view = getView();
+      if (!view) return selection.rect;
+      try {
+        return posToDOMRect(view, selection.from, selection.to);
+      } catch {
+        // The positions are no longer in the document. Keep the last known place.
+        return selection.rect;
+      }
+    },
+    get contextElement() {
+      return getView()?.dom;
+    },
+  };
+}
+
 type InstructionPopoverProps = {
-  rect: DOMRect;
+  selection: SelectionContext;
+  /** Read only after mount (by Radix), never during render. */
+  getView: () => EditorView | null;
   isPending: boolean;
   onSubmit: (instructions: string) => void;
   onCancel: () => void;
+  /** Focus goes back to the editor when the popover closes (there is no trigger button). */
+  onClosed: () => void;
 };
 
-function InstructionPopover({ rect, isPending, onSubmit, onCancel }: InstructionPopoverProps) {
+function InstructionPopover({ selection, getView, isPending, onSubmit, onCancel, onClosed }: InstructionPopoverProps) {
   const t = useTranslations('notes_ai');
   const [instructions, setInstructions] = useState('');
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Close on a click outside. Not while the request runs: the result would then
-  // arrive with no visible sign that it was still loading.
-  useEffect(() => {
-    if (isPending) return undefined;
-    const handlePointerDown = (e: PointerEvent) => {
-      if (!popoverRef.current?.contains(e.target as Node)) onCancel();
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [isPending, onCancel]);
+  const [virtualRef] = useState(() => ({ current: createSelectionAnchor(getView, selection) }));
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && instructions.trim()) onSubmit(instructions.trim());
-    if (e.key === 'Escape') onCancel();
   };
 
+  // Radix handles Esc, outside click, collisions and focus.
   return (
-    <div
-      ref={popoverRef}
-      style={{
-        position: 'fixed',
-        top: rect.bottom + 6,
-        left: Math.min(rect.left, window.innerWidth - 320),
-        zIndex: 60,
-      }}
-      className="flex items-center gap-1.5 rounded-lg border border-border bg-background p-1.5 shadow-md"
-    >
-      <input
-        autoFocus
-        type="text"
-        value={instructions}
-        onChange={e => setInstructions(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={t('instructions_placeholder')}
-        className="h-7 w-64 rounded border border-border bg-background px-2 text-xs outline-none focus:border-primary"
-        disabled={isPending}
-      />
-      <Button
-        size="sm"
-        variant="default"
-        className="h-7 px-2 text-xs"
-        disabled={!instructions.trim() || isPending}
-        onClick={() => onSubmit(instructions.trim())}
+    <FloatingCard open onOpenChange={open => !open && onCancel()}>
+      <FloatingCardAnchor virtualRef={virtualRef} />
+      <FloatingCardContent
+        sideOffset={6}
+        collisionPadding={8}
+        hideWhenDetached
+        // Not while the request runs: the result would then arrive with no visible sign that it was loading.
+        onInteractOutside={e => isPending && e.preventDefault()}
+        onCloseAutoFocus={e => {
+          e.preventDefault();
+          onClosed();
+        }}
+        className="z-[60] flex items-center gap-1.5 p-1.5"
       >
-        {isPending ? <Loader2 className="size-3 animate-spin" /> : t('edit')}
-      </Button>
-    </div>
+        <input
+          type="text"
+          value={instructions}
+          onChange={e => setInstructions(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={t('instructions_placeholder')}
+          className="h-7 w-64 rounded border border-border bg-background px-2 text-xs outline-none focus:border-primary"
+          disabled={isPending}
+        />
+        <Button
+          size="sm"
+          variant="default"
+          className="h-7 px-2 text-xs"
+          disabled={!instructions.trim() || isPending}
+          onClick={() => onSubmit(instructions.trim())}
+        >
+          {isPending ? <Loader2 className="size-3 animate-spin" /> : t('edit')}
+        </Button>
+      </FloatingCardContent>
+    </FloatingCard>
   );
 }
 

@@ -10,7 +10,12 @@
 //     beforeunload. Leaving the note (hidden / unmount / unload) also asks the
 //     server to reindex embeddings, but only if a save happened since the last
 //     reindex — autosave itself never re-embeds (see docs/ai-features.md).
-//   - Retries network/5xx errors with exponential backoff (max 30 s).
+//   - Retries network/5xx/408/429 errors with exponential backoff (max 30 s).
+//     Other 4xx errors cannot succeed on retry: no timer. A 422 sets status
+//     'invalid' (the payload is over a backend limit, in practice the content
+//     length), other codes set 'error'. The next edit or the Retry button sends
+//     the save again.
+//   - After `dispose()` (unmount), a failed save is not retried.
 //   - On 409 (optimistic concurrency mismatch), stops and sets status
 //     'conflict'. The caller must handle the banner.
 //   - Tracks the server version and updates it from each successful response.
@@ -25,7 +30,7 @@ import { sdk } from '@/lib/apiClient';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
-export type AutosaveStatus = 'saved' | 'saving' | 'dirty' | 'error' | 'conflict';
+export type AutosaveStatus = 'saved' | 'saving' | 'dirty' | 'error' | 'invalid' | 'conflict';
 
 export type SavePayload = {
   title: string;
@@ -58,6 +63,7 @@ export class AutosaveController {
   private retryCount = 0;
   private currentStatus: AutosaveStatus = 'saved';
   private version: number;
+  private disposed = false;
 
   constructor(
     private readonly noteId: string,
@@ -126,6 +132,16 @@ export class AutosaveController {
     void this.saveFn(this.noteId, this.latestPayload, this.version, true, true).catch(() => undefined);
   }
 
+  /**
+   * Stop scheduling retries. A save that is already running still completes.
+   * Call on unmount: nothing owns the controller after that, so a retry loop would
+   * run for the rest of the session.
+   */
+  dispose(): void {
+    this.disposed = true;
+    this.clearTimer();
+  }
+
   // ── private ────────────────────────────────────────────────────────────────
 
   private setStatus(s: AutosaveStatus) {
@@ -171,7 +187,11 @@ export class AutosaveController {
         this.setStatus('conflict');
         return;
       }
-      // Retry with exponential backoff; preserve local edits.
+      // Keep the local edits in all cases. Retry only errors that can go away by themselves.
+      if (this.disposed || !isRetryableError(err)) {
+        this.setStatus(errorStatus(err) === 422 ? 'invalid' : 'error');
+        return;
+      }
       this.retryCount++;
       const delay = Math.min(1000 * 2 ** this.retryCount, 30_000);
       this.setStatus('error');
@@ -198,11 +218,23 @@ export class AutosaveController {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function isConflictError(err: unknown): boolean {
-  if (err && typeof err === 'object' && 'status' in err) {
-    return (err as { status: number }).status === 409;
+/** HTTP status added by the error interceptor in `lib/apiClient.ts`. `null` = no response (network error). */
+function errorStatus(err: unknown): number | null {
+  if (err && typeof err === 'object' && 'status' in err && typeof err.status === 'number') {
+    return err.status;
   }
-  return false;
+  return null;
+}
+
+function isConflictError(err: unknown): boolean {
+  return errorStatus(err) === 409;
+}
+
+const RETRYABLE_4XX = new Set([408, 429]);
+
+function isRetryableError(err: unknown): boolean {
+  const status = errorStatus(err);
+  return status === null || status >= 500 || RETRYABLE_4XX.has(status);
 }
 
 /** Default save function using the generated SDK. */
@@ -270,7 +302,9 @@ export function useAutosave(
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // Client-side navigation: JS keeps running, so the async flush completes after unmount.
+      // `dispose` runs right after: the final save is sent once, but it is not retried.
       void controller.flush(true);
+      controller.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);

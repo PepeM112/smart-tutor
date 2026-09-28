@@ -667,11 +667,13 @@ export const NoteChunkEditSchema = {
     properties: {
         fullText: {
             type: 'string',
+            maxLength: 50000,
             minLength: 1,
             title: 'Fulltext'
         },
         selectedText: {
             type: 'string',
+            maxLength: 50000,
             minLength: 1,
             title: 'Selectedtext'
         },
@@ -714,6 +716,7 @@ export const NoteCreateSchema = {
         },
         content: {
             type: 'string',
+            maxLength: 50000,
             title: 'Content',
             default: ''
         },
@@ -848,22 +851,6 @@ export const NoteReadSchema = {
     title: 'NoteRead'
 } as const;
 
-export const NoteRefineSchema = {
-    properties: {
-        instructions: {
-            type: 'string',
-            maxLength: 2000,
-            minLength: 1,
-            title: 'Instructions'
-        }
-    },
-    type: 'object',
-    required: [
-        'instructions'
-    ],
-    title: 'NoteRefine'
-} as const;
-
 export const NoteSourceSchema = {
     type: 'integer',
     enum: [
@@ -894,7 +881,8 @@ export const NoteUpdateSchema = {
         content: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'string',
+                    maxLength: 50000
                 },
                 {
                     type: 'null'

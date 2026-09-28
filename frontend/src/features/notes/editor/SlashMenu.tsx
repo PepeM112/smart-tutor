@@ -113,7 +113,7 @@ export type SlashMenuPopupHandle = {
   onKeyDown: (props: SuggestionKeyDownProps) => boolean;
 };
 
-type SlashMenuPopupProps = SuggestionProps<SlashItem>;
+type SlashMenuPopupProps = SuggestionProps<SlashItem> & { hint: string };
 
 export const SlashMenuPopup = forwardRef<SlashMenuPopupHandle, SlashMenuPopupProps>(
   function SlashMenuPopup(props, ref) {
@@ -166,7 +166,7 @@ export const SlashMenuPopup = forwardRef<SlashMenuPopupHandle, SlashMenuPopupPro
           </button>
         ))}
         <div className="mt-0.5 border-t border-border px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
-          Type to filter · ↑↓ to navigate · Enter to insert · Esc to close
+          {props.hint}
         </div>
       </div>
     );
@@ -178,18 +178,22 @@ export const SlashMenuPopup = forwardRef<SlashMenuPopupHandle, SlashMenuPopupPro
 export type SlashMenuOptions = {
   /** Translated labels keyed by labelKey (e.g. slash_text → "Texto"). Falls back to English label. */
   translations: Record<string, string>;
+  /** Translated footer hint. */
+  hint: string;
 };
+
+export const DEFAULT_SLASH_HINT = 'Type to filter · ↑↓ to navigate · Enter to insert · Esc to close';
 
 // eslint-disable-next-line react-refresh/only-export-components -- intentional: extension + popup are co-located by design.
 export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
   name: 'slashMenu',
 
   addOptions() {
-    return { translations: {} };
+    return { translations: {}, hint: DEFAULT_SLASH_HINT };
   },
 
   addProseMirrorPlugins() {
-    const { translations } = this.options;
+    const { translations, hint } = this.options;
     const SLASH_ITEMS: SlashItem[] = BASE_ITEMS.map(item => ({
       ...item,
       displayLabel: translations[item.labelKey] ?? item.label,
@@ -204,8 +208,12 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
 
         items: ({ query }: { query: string }) => {
           const q = query.toLowerCase();
-          // Filter by English label for consistent behaviour regardless of locale.
-          return q ? SLASH_ITEMS.filter(item => item.label.toLowerCase().includes(q)) : SLASH_ITEMS;
+          // Match the English label too, so "/head" works in every locale.
+          return q
+            ? SLASH_ITEMS.filter(
+                item => item.label.toLowerCase().includes(q) || item.displayLabel.toLowerCase().includes(q)
+              )
+            : SLASH_ITEMS;
         },
 
         command: ({ editor, range, props: item }) => {
@@ -234,13 +242,13 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
             onStart: (props: SuggestionProps<SlashItem>) => {
               popup = document.createElement('div');
               document.body.appendChild(popup);
-              renderer = new ReactRenderer(SlashMenuPopup, { props, editor: props.editor });
+              renderer = new ReactRenderer(SlashMenuPopup, { props: { ...props, hint }, editor: props.editor });
               popup.appendChild(renderer.element);
               position(props.clientRect ?? null);
             },
 
             onUpdate: (props: SuggestionProps<SlashItem>) => {
-              renderer?.updateProps(props);
+              renderer?.updateProps({ ...props, hint });
               position(props.clientRect ?? null);
             },
 

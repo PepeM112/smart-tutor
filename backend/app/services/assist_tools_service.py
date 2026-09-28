@@ -106,7 +106,7 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
 
     lines = [f"Found {len(relevant)} relevant chunk(s):"]
     for r in relevant:
-        lines.append(f"\n**{r.note_title}** (ID: `{r.note_id}`, similarity: {r.similarity:.3f})")
+        lines.append(f"\n**{r.note_title or 'Untitled'}** (ID: `{r.note_id}`, similarity: {r.similarity:.3f})")
         lines.append(r.chunk_content)
     return ToolResult(output="\n".join(lines))
 
@@ -127,7 +127,7 @@ def get_note_content(db: Session, *, current_user: User, arguments: dict[str, ob
     note_id = str(arguments.get("note_id", ""))
     note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
     content = note.content or "(empty)"
-    return ToolResult(output=f"**{note.title}**\n\n{content}")
+    return ToolResult(output=f"**{note.title or 'Untitled'}**\n\n{content}")
 
 
 def get_test_details(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:

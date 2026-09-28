@@ -33,7 +33,7 @@ export function formatTestsList(tests: TestRead[]): string {
 
 export function formatNoteDetail(note: NoteRead): string {
   const lines = [
-    `Note: "${note.title}" (ID: ${note.id})`,
+    `Note: "${note.title || 'Untitled'}" (ID: ${note.id})`,
     `Source: ${note.source === NoteSource.USER_CREATED ? 'User-created' : 'AI-generated'}`,
     note.updatedAt ? `Updated: ${String(note.updatedAt)}` : '',
     '',

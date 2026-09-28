@@ -12,7 +12,6 @@ export const Routes = {
   TEST_DETAIL: (id: string) => `/tests/${id}`,
 
   NOTES: '/notes',
-  // NOTE_NEW is removed — create the note first, then navigate.
   NOTE_DETAIL: (id: string) => `/notes/${id}`,
 
   QUESTIONS: '/questions',

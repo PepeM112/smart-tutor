@@ -9,20 +9,23 @@ import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
-import { createLowlight, all as lowlightAllLangs } from 'lowlight';
+import { common, createLowlight } from 'lowlight';
 
 import { NoteColorMark } from './noteColor';
-import { SlashMenuExtension } from './SlashMenu';
+import { DEFAULT_SLASH_HINT, SlashMenuExtension } from './SlashMenu';
 
 import type { AnyExtension } from '@tiptap/core';
 
-const lowlight = createLowlight(lowlightAllLangs);
+// `common` (~37 languages) instead of `all` (~190): `all` adds a large amount to the notes bundle.
+const lowlight = createLowlight(common);
 
 export type NoteExtensionOptions = {
   /** Placeholder shown when the editor is empty. */
   placeholder?: string;
   /** Translated labels for slash menu items, keyed by labelKey. */
   slashLabels?: Record<string, string>;
+  /** Translated key hint in the slash menu footer. */
+  slashHint?: string;
 };
 
 export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExtension[] {
@@ -59,6 +62,7 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
 
     SlashMenuExtension.configure({
       translations: options.slashLabels ?? {},
+      hint: options.slashHint ?? DEFAULT_SLASH_HINT,
     }),
   ];
 }

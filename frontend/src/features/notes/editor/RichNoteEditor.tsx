@@ -68,6 +68,7 @@ export function RichNoteEditor({
   const editor = useEditor({
     extensions: createNoteExtensions({
       placeholder: t('slash_menu_placeholder'),
+      slashHint: t('slash_menu_hint'),
       slashLabels: {
         slash_text: t('slash_text'),
         slash_h1: t('slash_h1'),

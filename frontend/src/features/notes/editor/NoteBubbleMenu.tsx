@@ -13,6 +13,7 @@
  * and the assistant attachment flow to know what the user selected.
  */
 
+import { useEditorState } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import { Bold, ChevronDown, Code, Italic, Link2, MessageSquareQuote, Strikethrough, WandSparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -119,7 +120,22 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
     if (ctx) onSendToAssistant(ctx);
   }, [editor, onSendToAssistant]);
 
-  const colorAttrs = editor.getAttributes('noteColor') as ColorAttrs;
+  /* Tiptap 3 does not re-render on each transaction, so reading `editor.isActive()` during
+  render goes stale when only the selection moves. `useEditorState` subscribes to the
+  editor and re-renders only when one of these values changes. */
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: ed }) => ({
+      bold: ed.isActive('bold'),
+      italic: ed.isActive('italic'),
+      strike: ed.isActive('strike'),
+      code: ed.isActive('code'),
+      link: ed.isActive('link'),
+      color: (ed.getAttributes('noteColor') as ColorAttrs).color ?? null,
+      bg: (ed.getAttributes('noteColor') as ColorAttrs).bg ?? null,
+    }),
+  });
+  const colorAttrs: ColorAttrs = { color: active.color, bg: active.bg };
 
   return (
     <BubbleMenu
@@ -149,7 +165,7 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
                 : 'text-foreground/70 hover:bg-muted hover:text-foreground'
             )}
           >
-            <ColorSwatch color={colorAttrs.color ?? null} bg={colorAttrs.bg ?? null} />
+            <ColorSwatch color={active.color} bg={active.bg} />
             <ChevronDown className="size-3 opacity-60" />
           </button>
         </HoverHint>
@@ -158,37 +174,37 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
 
         {/* Inline formatting */}
         <BubbleMenuButton
-          active={editor.isActive('bold')}
+          active={active.bold}
           onClick={() => editor.chain().focus().toggleBold().run()}
           label={t('bubble_bold')}
           shortcut={`${mod}B`}
           icon={<Bold className="size-3.5" />}
         />
         <BubbleMenuButton
-          active={editor.isActive('italic')}
+          active={active.italic}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           label={t('bubble_italic')}
           shortcut={`${mod}I`}
           icon={<Italic className="size-3.5" />}
         />
         <BubbleMenuButton
-          active={editor.isActive('strike')}
+          active={active.strike}
           onClick={() => editor.chain().focus().toggleStrike().run()}
           label={t('bubble_strike')}
           shortcut={`${mod}⇧S`}
           icon={<Strikethrough className="size-3.5" />}
         />
         <BubbleMenuButton
-          active={editor.isActive('code')}
+          active={active.code}
           onClick={() => editor.chain().focus().toggleCode().run()}
           label={t('bubble_code')}
           shortcut={`${mod}E`}
           icon={<Code className="size-3.5" />}
         />
         <BubbleMenuButton
-          active={editor.isActive('link') || openPanel === 'link'}
+          active={active.link || openPanel === 'link'}
           onClick={handleLinkToggle}
-          label={editor.isActive('link') ? t('bubble_unlink') : t('bubble_link')}
+          label={active.link ? t('bubble_unlink') : t('bubble_link')}
           icon={<Link2 className="size-3.5" />}
         />
 

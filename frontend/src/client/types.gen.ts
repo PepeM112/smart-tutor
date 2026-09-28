@@ -531,16 +531,6 @@ export type NoteRead = {
 };
 
 /**
- * NoteRefine
- */
-export type NoteRefine = {
-    /**
-     * Instructions
-     */
-    instructions: string;
-};
-
-/**
  * NoteSource
  */
 export enum NoteSource {
@@ -2934,36 +2924,6 @@ export type NotesUpdateResponses = {
 };
 
 export type NotesUpdateResponse = NotesUpdateResponses[keyof NotesUpdateResponses];
-
-export type NotesRefineData = {
-    body: NoteRefine;
-    path: {
-        /**
-         * Note Id
-         */
-        note_id: string;
-    };
-    query?: never;
-    url: '/api/v1/notes/{note_id}/refine';
-};
-
-export type NotesRefineErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type NotesRefineError = NotesRefineErrors[keyof NotesRefineErrors];
-
-export type NotesRefineResponses = {
-    /**
-     * Successful Response
-     */
-    200: NoteRead;
-};
-
-export type NotesRefineResponse = NotesRefineResponses[keyof NotesRefineResponses];
 
 export type NotesEditChunkData = {
     body: NoteChunkEdit;
