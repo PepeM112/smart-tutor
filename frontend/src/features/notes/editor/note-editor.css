@@ -56,7 +56,7 @@
 
 /* Page title (the input above the editor, in NotePage). */
 .note-title {
-  --note-title-size: 2.25rem;
+  --note-title-size: clamp(1.5rem, 7vw, 2.25rem);
   --note-title-weight: 700;
 
   font-size: var(--note-title-size);

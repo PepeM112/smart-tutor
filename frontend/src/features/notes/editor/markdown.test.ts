@@ -25,7 +25,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
-import { createLowlight, all as lowlightAllLangs } from 'lowlight';
+import { common, createLowlight } from 'lowlight';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseMarkdown, serializeMarkdown, selectionToMarkdown, replaceSelectionWithMarkdown } from './markdown';
@@ -33,7 +33,8 @@ import { NoteColorMark } from './noteColor';
 
 // ─── test editor setup ───────────────────────────────────────────────────────
 
-const lowlight = createLowlight(lowlightAllLangs);
+// Same language set as `extensions.ts`.
+const lowlight = createLowlight(common);
 
 let editor: Editor;
 
@@ -394,6 +395,34 @@ Use \`hacer\` for both "to do" and "to make".
 });
 
 // ─── selection helpers ────────────────────────────────────────────────────────
+
+describe('code block language', () => {
+  // The language chip calls `updateAttributes({ language })`. The fence must carry it.
+  function setFirstCodeBlockLanguage(language: string | null): void {
+    editor.commands.command(({ tr, state }) => {
+      state.doc.descendants((node, pos) => {
+        if (node.type.name !== 'codeBlock') return true;
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, language });
+        return false;
+      });
+      return true;
+    });
+  }
+
+  it('stores a changed language as the fence info string', () => {
+    roundTrip('```python\nprint(1)\n```');
+    setFirstCodeBlockLanguage('typescript');
+    const out = serializeMarkdown(editor);
+    assertContains(out, '```typescript', 'print(1)');
+    expect(roundTrip(out)).toBe(out);
+  });
+
+  it('Auto (null) removes the fence language', () => {
+    roundTrip('```python\nprint(1)\n```');
+    setFirstCodeBlockLanguage(null);
+    expect(serializeMarkdown(editor)).toMatch(/^```\n/);
+  });
+});
 
 describe('selectionToMarkdown', () => {
   it('returns empty string for collapsed selection', () => {

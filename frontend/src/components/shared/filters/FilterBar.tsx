@@ -16,13 +16,7 @@ import type {
 import { FilterField } from './FilterField';
 
 type FilterChangeValue =
-  | Primitive
-  | Primitive[]
-  | FilterEntity
-  | FilterEntity[]
-  | DateFilterValue
-  | RangeFilterValue
-  | undefined;
+  Primitive | Primitive[] | FilterEntity | FilterEntity[] | DateFilterValue | RangeFilterValue | undefined;
 
 type Props = {
   filterConfig: FilterItem[];

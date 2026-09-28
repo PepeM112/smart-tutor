@@ -115,7 +115,7 @@ On the frontend, `AssistProvider` is mounted once (in the app layout) and owns a
 
 The panel has two layouts, tracked in a small persisted Zustand store (`store/use-assist-panel-store.ts`, localStorage key `assist-panel`):
 
-- **Floating** — a draggable, resizable card (or, below the `xl` breakpoint, a full-screen mobile overlay). Dragging is handled by `hooks/use-draggable.ts`, resizing by `hooks/use-resizable.ts`.
+- **Floating** — a draggable, resizable card. On a phone (< `md`) it is a bottom drawer (vaul, 85dvh, one snap point); drag down or tap the backdrop to close. "View changes" closes the drawer first, so the diff drawer is not under it. Dragging is handled by `hooks/use-draggable.ts`, resizing by `hooks/use-resizable.ts`.
 - **Docked** — a fixed-width column next to the sidebar, resizable by dragging its left edge, only available at `xl` and above.
 
 Only `mode` and `dockedWidth` are persisted; `isOpen` is not, so the panel always starts closed on page load regardless of how it was left. A header button (`toggleMode`) switches between the two.

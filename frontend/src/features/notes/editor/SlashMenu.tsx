@@ -205,6 +205,13 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
         char: '/',
         allowSpaces: false,
         startOfLine: false,
+        // "/" is normal text in code (paths, comments, division).
+        allow: ({ state, range }) => {
+          const $from = state.doc.resolve(range.from);
+          const inCodeBlock = $from.parent.type.spec.code === true;
+          const inInlineCode = $from.marks().some(mark => mark.type.spec.code === true);
+          return !inCodeBlock && !inInlineCode;
+        },
 
         items: ({ query }: { query: string }) => {
           const q = query.toLowerCase();
@@ -230,10 +237,16 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
             const rect = clientRect();
             if (!rect) return;
             const menuHeight = popup.offsetHeight || 280;
-            const spaceBelow = window.innerHeight - rect.bottom;
+            // The visual viewport excludes the on-screen keyboard; `innerHeight` does not,
+            // so on a phone the menu could open under the keyboard.
+            const vv = window.visualViewport;
+            const viewportBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+            const viewportRight = vv ? vv.offsetLeft + vv.width : window.innerWidth;
+            const spaceBelow = viewportBottom - rect.bottom;
             const above = spaceBelow < menuHeight + 16;
             popup.style.position = 'fixed';
-            popup.style.left = `${rect.left}px`;
+            // Keep the menu inside narrow screens.
+            popup.style.left = `${Math.max(8, Math.min(rect.left, viewportRight - popup.offsetWidth - 8))}px`;
             popup.style.top = above ? `${rect.top - menuHeight - 4}px` : `${rect.bottom + 4}px`;
             popup.style.zIndex = '9999';
           };

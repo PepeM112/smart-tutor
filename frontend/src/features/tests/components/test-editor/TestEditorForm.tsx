@@ -59,12 +59,7 @@ type Props = {
   initialItems?: EditorItem[];
 };
 
-export default function TestEditorForm({
-  testId,
-  initialTitle = '',
-  initialDescription = '',
-  initialItems = [],
-}: Props) {
+export function TestEditorForm({ testId, initialTitle = '', initialDescription = '', initialItems = [] }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();

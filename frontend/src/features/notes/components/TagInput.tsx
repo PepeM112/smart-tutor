@@ -66,7 +66,7 @@ export function TagInput({ tags, onChange }: Props) {
           <button
             type="button"
             onClick={() => removeTag(tag)}
-            className="flex size-4 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+            className="flex size-4 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
             aria-label={t('remove_tag', { tag })}
           >
             <X className="size-3" />

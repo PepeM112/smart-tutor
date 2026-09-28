@@ -6,10 +6,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { Button } from '@/components/ui/button';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 import { useAssistDiffStore } from '../store/useAssistDiffStore';
+import { useAssistPanelStore } from '../store/useAssistPanelStore';
 import { getToolIcon, getToolLabel, isWriteTool } from '../utils/toolRegistry';
 
 import type { ConfirmContext, ToolResultMetadata } from '../types';
@@ -149,6 +151,7 @@ export function ToolResultRow({
 function RefineNoteResult({ noteId }: { noteId: string }) {
   const pendingDiff = useAssistDiffStore(s => s.pendingNoteDiff);
   const hasDiff = pendingDiff?.noteId === noteId;
+  const closeOnMobile = useCloseAssistOnMobile();
 
   return (
     <div className="flex items-center gap-2 py-0.5">
@@ -159,6 +162,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
       {hasDiff && (
         <Link
           href={`${Routes.NOTE_DETAIL(noteId)}?diff=assist`}
+          onClick={closeOnMobile}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
           View changes <Eye className="size-3.5" />
@@ -171,6 +175,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
 function RefineQuestionsResult({ testId }: { testId: string }) {
   const pendingDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const hasDiff = pendingDiff?.testId === testId;
+  const closeOnMobile = useCloseAssistOnMobile();
 
   return (
     <div className="flex items-center gap-2 py-0.5">
@@ -181,6 +186,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
       {hasDiff && (
         <Link
           href={`${Routes.TEST_EDIT(testId)}?diff=assist`}
+          onClick={closeOnMobile}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
           View changes <Eye className="size-3.5" />
@@ -188,6 +194,18 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
       )}
     </div>
   );
+}
+
+/**
+ * On a phone the Assistant is a modal drawer, and the diff opens in a second drawer.
+ * Close the Assistant first, so the diff is not stacked under it.
+ */
+function useCloseAssistOnMobile(): () => void {
+  const { isMobile } = useBreakpoint();
+  const setOpen = useAssistPanelStore(s => s.setOpen);
+  return () => {
+    if (isMobile) setOpen(false);
+  };
 }
 
 // ---------------------------------------------------------------------------

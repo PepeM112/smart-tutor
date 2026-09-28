@@ -73,12 +73,18 @@ function buildSelectionContext(editor: Editor): SelectionContext | null {
   return { markdown, plainText, from, to, rect };
 }
 
+/* On touch devices the native selection toolbar (copy, paste…) shows above the selection,
+so our menu goes below it. Constants: a new options object on each render would re-apply them. */
+const TOP_OPTIONS = { placement: 'top' } as const;
+const BOTTOM_OPTIONS = { placement: 'bottom' } as const;
+
 export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbleMenuProps) {
   const t = useTranslations('notes');
   // Only one sub-panel at a time: the link input or the color palette.
   const [openPanel, setOpenPanel] = useState<'link' | 'color' | null>(null);
   const [linkHref, setLinkHref] = useState('');
   const mod = useModKey();
+  const [isTouch] = useState(() => typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches);
 
   // A new selection closes any open sub-panel.
   useEffect(() => {
@@ -140,6 +146,7 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
   return (
     <BubbleMenu
       editor={editor}
+      options={isTouch ? BOTTOM_OPTIONS : TOP_OPTIONS}
       // Only show the bubble menu on non-empty text selections.
       shouldShow={({ state }) => {
         const { from, to } = state.selection;
@@ -274,7 +281,7 @@ function LinkPanel({ href, onHrefChange, onConfirm, onClose, addLabel }: LinkPan
         onChange={e => onHrefChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="https://…"
-        className="h-6 w-48 rounded border border-border bg-background px-2 text-xs outline-none focus:border-primary"
+        className="h-6 w-[min(12rem,calc(100vw-9rem))] rounded border border-border bg-background px-2 text-xs outline-none focus:border-primary"
       />
       <Button size="sm" variant="default" className="h-6 px-2 text-xs" onClick={onConfirm}>
         {addLabel}

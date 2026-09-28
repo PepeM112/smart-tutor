@@ -28,7 +28,13 @@ The note editor is a Notion-style WYSIWYG editor (Tiptap). There is no Edit/View
 
 **Markdown input rules**: type the marker and a space — the marker is replaced by rich formatting. For example: `#` + space creates a heading, `**text**` becomes bold, `- ` starts a bullet list.
 
-**Slash menu**: type `/` to open a block picker. Select Text, H1–H3, Bullet, Numbered, To-do, Quote, Code, Divider, or Table with the keyboard or mouse. Esc closes the menu and keeps the `/`. The filter matches the English name and the name in the current language. Code blocks highlight the `common` lowlight language set.
+**Slash menu**: type `/` to open a block picker. Select Text, H1–H3, Bullet, Numbered, To-do, Quote, Code, Divider, or Table with the keyboard or mouse. Esc closes the menu and keeps the `/`. The filter matches the English name and the name in the current language. The slash menu does not open inside code blocks or inline code.
+
+**Code blocks**: highlighted with the `common` lowlight language set. A language chip in the top-right corner (on hover, or while the cursor is in the block) opens a filterable language list. "Auto" (no language) lets lowlight guess the highlight. The language is stored as the fence info string (```` ```python ````). Spell check is off in code (`CodeBlockView.tsx`).
+
+**Width**: on desktop, the BookOpen button next to the save status switches the text column between the 720px reading width and the full page width. One setting per viewer for all notes, in localStorage (`useNoteWidth`). Smaller screens always use the full width.
+
+**Mobile**: the slash menu is placed inside the visual viewport, so the on-screen keyboard does not cover it. On touch devices the bubble menu opens below the selection (the native selection toolbar is above it), and the tag remove buttons are always visible.
 
 **Bubble menu**: select any text to see inline format options. The order is: Color ("A"), Bold, Italic, Strikethrough, Inline code, Link. If AI is configured, two extra buttons appear: "Ask AI" for a chunk edit and "Send to Assistant" to attach the selection to the AI Assistant. Each button shows a hover hint with its name and shortcut (`HoverHint` in `components/ui/hover-hint.tsx`).
 

@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { posToDOMRect } from '@tiptap/core';
-import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, BookOpen, Loader2, RefreshCw } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -23,11 +23,13 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useResizableSplit } from '@/hooks/useResizableSplit';
 import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
+import { cn } from '@/lib/utils';
 
 import { RichNoteEditor, type RichNoteEditorRef } from '../editor/RichNoteEditor';
 import { type AutosaveStatus } from '../editor/useAutosave';
 import { useChunkAiEdit } from '../editor/useChunkAiEdit';
 import { useNoteDraft } from '../hooks/useNoteDraft';
+import { useNoteWidth } from '../hooks/useNoteWidth';
 
 import { TagInput } from './TagInput';
 
@@ -69,6 +71,9 @@ const ASSIST_DIFF_SPLIT_KEY = 'assist-diff-split-ratio';
 function NoteForm({ note }: { note: NoteRead }) {
   const t = useTranslations();
   const { isDesktop } = useBreakpoint();
+  const { width, toggleWidth } = useNoteWidth();
+  // Only desktop has room for a full-width column; smaller screens always fill the page.
+  const isFullWidth = isDesktop && width === 'full';
   const searchParams = useSearchParams();
 
   const editorRef = useRef<RichNoteEditorRef>(null);
@@ -145,10 +150,22 @@ function NoteForm({ note }: { note: NoteRead }) {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)]">
+    <div className="flex flex-col h-[calc(100dvh-6rem)]">
       {/* Top row: save status only (Notion keeps page chrome out of the text column) */}
-      <div className="flex h-6 shrink-0 items-center justify-end">
+      <div className="flex h-6 shrink-0 items-center justify-end gap-1">
         <SaveStatus status={status} onRetry={() => void flush()} />
+        {isDesktop && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            icon={BookOpen}
+            onClick={toggleWidth}
+            aria-pressed={!isFullWidth}
+            aria-label={t(isFullWidth ? 'notes.width_reading' : 'notes.width_full')}
+            tooltip={t(isFullWidth ? 'notes.width_reading' : 'notes.width_full')}
+            className={cn(!isFullWidth && 'text-primary')}
+          />
+        )}
       </div>
 
       <div ref={assistDiffContainerRef} className="flex flex-1 min-h-0 overflow-hidden gap-0">
@@ -157,7 +174,9 @@ function NoteForm({ note }: { note: NoteRead }) {
           style={{ flex: isDesktop && (assistDiff || chunkDiff) ? assistDiffRatio : 1 }}
         >
           {/* Centered text column — title, tags and body scroll together */}
-          <div className="mx-auto w-full max-w-[720px] px-4 pb-24 md:px-6">
+          <div
+            className={cn('mx-auto w-full px-4 pb-24 md:px-6', isFullWidth ? 'max-w-none md:px-12' : 'max-w-[720px]')}
+          >
             <input
               type="text"
               // Same limit as the backend (`NoteBase.title`), so a long title cannot cause a 422.
@@ -359,7 +378,7 @@ function InstructionPopover({ selection, getView, isPending, onSubmit, onCancel,
           onChange={e => setInstructions(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t('instructions_placeholder')}
-          className="h-7 w-64 rounded border border-border bg-background px-2 text-xs outline-none focus:border-primary"
+          className="h-7 w-[min(16rem,calc(100vw-8rem))] rounded border border-border bg-background px-2 text-xs outline-none focus:border-primary"
           disabled={isPending}
         />
         <Button
@@ -390,15 +409,18 @@ function ConflictBanner({ onReload, onKeepMine }: { onReload: () => Promise<void
   };
 
   return (
-    <div className="mb-3 flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-2.5 text-sm">
+    // flex-wrap: on a phone the buttons go to a second row instead of squeezing the text.
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-muted px-4 py-2.5 text-sm">
       <AlertCircle className="size-4 shrink-0 text-destructive" />
-      <span className="flex-1 text-foreground">{t('conflict_banner')}</span>
-      <Button size="sm" variant="outline" onClick={() => void onReload()} icon={RefreshCw}>
-        {t('reload')}
-      </Button>
-      <Button size="sm" variant="ghost" onClick={handleKeepMine} disabled={isKeeping}>
-        {t('keep_mine')}
-      </Button>
+      <span className="min-w-48 flex-1 text-foreground">{t('conflict_banner')}</span>
+      <div className="ml-auto flex gap-2">
+        <Button size="sm" variant="outline" onClick={() => void onReload()} icon={RefreshCw}>
+          {t('reload')}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={handleKeepMine} disabled={isKeeping}>
+          {t('keep_mine')}
+        </Button>
+      </div>
     </div>
   );
 }
