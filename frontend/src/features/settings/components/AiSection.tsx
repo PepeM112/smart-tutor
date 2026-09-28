@@ -108,7 +108,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
                 title={t('settings.remove_key_title')}
                 description={t('settings.remove_key_confirm')}
                 confirmLabel={t('settings.remove_key')}
-                confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+                confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 onConfirm={() => removeKey('anthropic')}
               />
             )}
@@ -164,7 +164,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
                 title={t('settings.remove_key_title')}
                 description={t('settings.remove_key_confirm')}
                 confirmLabel={t('settings.remove_key')}
-                confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+                confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 onConfirm={() => removeKey('openai')}
               />
             )}

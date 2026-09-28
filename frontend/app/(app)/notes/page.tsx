@@ -1,10 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 import { NoteSource } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/FilterPopover';
@@ -22,7 +23,7 @@ import { useFilters } from '@/hooks/useFilters';
 import { useUrlSort } from '@/hooks/useUrlSort';
 import { sdk } from '@/lib/apiClient';
 import { FilterType, type FilterItem } from '@/lib/filters';
-import { Routes } from '@/lib/routes';
+import { noteHref } from '@/lib/routes';
 
 const PER_PAGE = 20;
 
@@ -33,7 +34,18 @@ const SOURCE_OPTIONS = [
 
 export default function NotesPage() {
   const t = useTranslations();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   useBreadcrumb(t('notes.title'));
+
+  const { mutate: createNote, isPending: isCreating } = useMutation({
+    mutationFn: () => sdk.notesCreate({ body: { title: '', content: '', tags: [] } }),
+    onSuccess: res => {
+      void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      if (res.data) router.push(noteHref(res.data));
+    },
+    onError: () => toast.error(t('notes.failed_to_create')),
+  });
 
   const [page, setPage] = useState(1);
   const resetPage = useCallback(() => setPage(1), []);
@@ -126,8 +138,8 @@ export default function NotesPage() {
           <>
             <ImportNoteButton compact />
             <GenerateNoteDialog compact />
-            <Button size="lg" icon={Plus} asChild>
-              <Link href={Routes.NOTE_NEW}>{t('notes.new_note')}</Link>
+            <Button size="lg" icon={Plus} onClick={() => createNote()} disabled={isCreating}>
+              {t('notes.new_note')}
             </Button>
           </>
         }

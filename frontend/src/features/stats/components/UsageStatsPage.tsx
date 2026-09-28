@@ -22,12 +22,12 @@ export function UsageStatsPage() {
 
   const provider = useMemo(() => {
     const v = filters.provider as Primitive | undefined;
-    return v != null ? (Number(v)) : null;
+    return v != null ? Number(v) : null;
   }, [filters.provider]);
 
   const features = useMemo(() => {
     const v = filters.feature as Primitive[] | undefined;
-    return v?.length ? (v.map(Number)) : null;
+    return v?.length ? v.map(Number) : null;
   }, [filters.feature]);
 
   const timeRangeItems: ButtonGroupItem<number>[] = useMemo(

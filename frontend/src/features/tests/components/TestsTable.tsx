@@ -25,7 +25,7 @@ type Props = {
   onSort?: (column: string | null, order: SortDirection) => void;
 };
 
-export default function TestsTable({ data, sort, onSort }: Props) {
+export function TestsTable({ data, sort, onSort }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -254,7 +254,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
             title={t('tests.delete_test')}
             description={t('tests.delete_test_confirm', { title: row.original.title })}
             confirmLabel={t('common.delete')}
-            confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+            confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onConfirm={() => deleteTest(row.original.id)}
           />
         </div>

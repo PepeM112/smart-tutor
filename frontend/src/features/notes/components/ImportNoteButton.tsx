@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/apiClient';
-import { Routes } from '@/lib/routes';
+import { noteHref } from '@/lib/routes';
 
 export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
   const t = useTranslations();
@@ -24,7 +24,7 @@ export function ImportNoteButton({ compact = false }: { compact?: boolean }) {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
       toast.success(t('notes.note_imported'));
       if (!res.data) return;
-      router.push(Routes.NOTE_DETAIL(res.data.id));
+      router.push(noteHref(res.data));
     },
     onError: () => toast.error(t('notes.failed_to_import')),
   });

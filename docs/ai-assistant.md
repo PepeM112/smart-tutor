@@ -115,7 +115,7 @@ On the frontend, `AssistProvider` is mounted once (in the app layout) and owns a
 
 The panel has two layouts, tracked in a small persisted Zustand store (`store/use-assist-panel-store.ts`, localStorage key `assist-panel`):
 
-- **Floating** — a draggable, resizable card (or, below the `xl` breakpoint, a full-screen mobile overlay). Dragging is handled by `hooks/use-draggable.ts`, resizing by `hooks/use-resizable.ts`.
+- **Floating** — a draggable, resizable card. On a phone (< `md`) it is a bottom drawer (vaul, 85dvh, one snap point); drag down or tap the backdrop to close. "View changes" closes the drawer first, so the diff drawer is not under it. Dragging is handled by `hooks/use-draggable.ts`, resizing by `hooks/use-resizable.ts`.
 - **Docked** — a fixed-width column next to the sidebar, resizable by dragging its left edge, only available at `xl` and above.
 
 Only `mode` and `dockedWidth` are persisted; `isOpen` is not, so the panel always starts closed on page load regardless of how it was left. A header button (`toggleMode`) switches between the two.
@@ -154,7 +154,7 @@ Net effect: the visual order on screen always matches wire order, and a tool ind
 
 ### Diff Review Flow (`refine_note` / `refine_questions`)
 
-Unlike the action-card tools, these two execute immediately. Their `tool_result` populates a separate, un-persisted Zustand store (`store/use-assist-diff-store.ts`) with the old/new content (note) or the old/new question set (test). The chat message itself just shows a compact "view changes" link — the actual diff (`components/diff/DiffPanel.tsx` plus per-type content components) renders **on the resource's own page**, not inside the chat panel: the link deep-links to `?diff=assist` on the note or test editor, which reads the pending diff from the store and shows an accept/reject panel in context.
+Unlike the action-card tools, these two execute immediately. Their `tool_result` populates a separate, un-persisted Zustand store (`store/use-assist-diff-store.ts`) with the old/new content (note) or the old/new question set (test). The chat message itself just shows a compact "view changes" link — the actual diff (`components/diff/DiffPanel.tsx` plus per-type content components) renders **on the resource's own page**, not inside the chat panel: the note or test editor shows the accept/reject panel whenever the store holds a pending diff for that resource. There is no URL gate, so the link only navigates to the resource, and it is hidden when that page is already open (no remount, so the editor keeps its undo history). On a phone the diff drawer waits until the Assistant drawer is closed (`useAssistCoversPage`), so the two drawers do not stack. Accept in the note editor is one undo step.
 
 `edit_test`'s question-removal side effect gets its own recovery path instead of a diff: a `sonner` toast with an 8-second "Undo" action that calls the bulk-restore endpoint, since a removal is just a soft delete and restoring it is a single call rather than something worth a full diff view.
 

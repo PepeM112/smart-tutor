@@ -344,7 +344,7 @@ function useQuestionsColumns({
             title={t('questions.delete_question')}
             description={t('questions.delete_question_confirm')}
             confirmLabel={t('common.delete')}
-            confirmClassName="bg-destructive text-white hover:bg-destructive/90"
+            confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onConfirm={() => deleteQuestion(row.original.id)}
           />
         </div>

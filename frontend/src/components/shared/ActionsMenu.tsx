@@ -70,7 +70,9 @@ export function ActionsMenu({ actions }: { actions: MobileAction[] }) {
           description={pendingConfirm.confirm.description}
           confirmLabel={pendingConfirm.label}
           confirmClassName={
-            pendingConfirm.variant === 'destructive' ? 'bg-destructive text-white hover:bg-destructive/90' : undefined
+            pendingConfirm.variant === 'destructive'
+              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              : undefined
           }
           onConfirm={() => {
             pendingConfirm.onClick();

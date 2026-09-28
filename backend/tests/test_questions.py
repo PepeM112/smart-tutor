@@ -24,7 +24,6 @@ from app.schemas.question import (
     QuestionUpdate,
 )
 
-
 # ---------------------------------------------------------------------------
 # QuestionCreateStandalone schema validation
 # ---------------------------------------------------------------------------

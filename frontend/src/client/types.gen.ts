@@ -445,10 +445,6 @@ export type NoteCreate = {
      */
     title: string;
     /**
-     * Description
-     */
-    description?: string | null;
-    /**
      * Content
      */
     content?: string;
@@ -500,10 +496,6 @@ export type NoteRead = {
      */
     title: string;
     /**
-     * Description
-     */
-    description?: string | null;
-    /**
      * Content
      */
     content?: string;
@@ -525,6 +517,10 @@ export type NoteRead = {
      */
     isIndexed: boolean;
     /**
+     * Version
+     */
+    version: number;
+    /**
      * Createdat
      */
     createdAt: Date;
@@ -532,16 +528,6 @@ export type NoteRead = {
      * Updatedat
      */
     updatedAt: Date;
-};
-
-/**
- * NoteRefine
- */
-export type NoteRefine = {
-    /**
-     * Instructions
-     */
-    instructions: string;
 };
 
 /**
@@ -567,10 +553,6 @@ export type NoteUpdate = {
      */
     title?: string | null;
     /**
-     * Description
-     */
-    description?: string | null;
-    /**
      * Content
      */
     content?: string | null;
@@ -578,6 +560,14 @@ export type NoteUpdate = {
      * Tags
      */
     tags?: Array<string> | null;
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Reindex
+     */
+    reindex?: boolean;
 };
 
 /**
@@ -2934,36 +2924,6 @@ export type NotesUpdateResponses = {
 };
 
 export type NotesUpdateResponse = NotesUpdateResponses[keyof NotesUpdateResponses];
-
-export type NotesRefineData = {
-    body: NoteRefine;
-    path: {
-        /**
-         * Note Id
-         */
-        note_id: string;
-    };
-    query?: never;
-    url: '/api/v1/notes/{note_id}/refine';
-};
-
-export type NotesRefineErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type NotesRefineError = NotesRefineErrors[keyof NotesRefineErrors];
-
-export type NotesRefineResponses = {
-    /**
-     * Successful Response
-     */
-    200: NoteRead;
-};
-
-export type NotesRefineResponse = NotesRefineResponses[keyof NotesRefineResponses];
 
 export type NotesEditChunkData = {
     body: NoteChunkEdit;

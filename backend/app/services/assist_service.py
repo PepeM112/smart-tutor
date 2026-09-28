@@ -456,3 +456,5 @@ def _record_usage(
         ),
         feature=AIFeature.ASSIST,
     )
+    # Nothing else commits the request session after the stream, so the usage row would be lost.
+    db.commit()

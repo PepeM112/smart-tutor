@@ -17,7 +17,9 @@ class DummyRow(Base):
 
 
 engine = create_engine("sqlite:///:memory:")
-Base.metadata.create_all(engine)
+# Create only this table. `Base.metadata` also holds every app model that other test files
+# imported (Note → User FK, pgvector columns), and SQLite cannot build those.
+Base.metadata.create_all(engine, tables=[DummyRow.__table__])
 
 
 def _seed(session: Session) -> None:

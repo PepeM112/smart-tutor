@@ -26,6 +26,9 @@ class UserRole(NamedIntEnum):
 
 
 class TestStatus(NamedIntEnum):
+    # Not a test class: stops pytest from collecting it. Dunder names are not enum members.
+    __test__ = False
+
     ACTIVE = 1
     DELETED = 2
 

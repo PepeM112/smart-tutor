@@ -90,11 +90,11 @@ export function DataTable<T>({
             description={renderDescription?.(row.original) ?? undefined}
             cells={row
               .getVisibleCells()
-              .filter(cell => !(cell.column.columnDef.meta)?.hideOnMobile)
+              .filter(cell => !cell.column.columnDef.meta?.hideOnMobile)
               .map(cell => ({
                 id: cell.id,
                 headerLabel:
-                  (cell.column.columnDef.meta)?.label ??
+                  cell.column.columnDef.meta?.label ??
                   (typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : null),
                 content: flexRender(cell.column.columnDef.cell, cell.getContext()),
               }))}

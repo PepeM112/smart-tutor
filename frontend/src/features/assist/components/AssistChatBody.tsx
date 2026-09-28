@@ -13,7 +13,7 @@ type AssistChatBodyProps = {
   footer: React.ReactNode;
 };
 
-export default function AssistChatBody({ turns, onConfirm, footer }: AssistChatBodyProps) {
+export function AssistChatBody({ turns, onConfirm, footer }: AssistChatBodyProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

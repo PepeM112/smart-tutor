@@ -9,10 +9,10 @@ export type ChatAttachment = {
     noteId?: string;
     testId?: string;
     questionIds?: string[];
-    // note_chunk only — needed to reapply an edit after the live text selection is gone
+    // note_chunk only — ProseMirror positions stored when attaching from the bubble menu
     plainText?: string;
-    markdownStart?: number;
-    markdownEnd?: number;
+    pmFrom?: number;
+    pmTo?: number;
   };
 };
 

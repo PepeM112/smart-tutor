@@ -33,6 +33,8 @@ class CompletionResult:
     output_tokens: int
     provider: str
     model: str
+    # True when the model stopped at `max_tokens`, so `text` is cut off.
+    truncated: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +142,8 @@ class AnthropicLLMClient(LLMClient):
                 f"Anthropic returned empty text (stop_reason={response.stop_reason}, usage={response.usage})"
             )
 
-        if response.stop_reason == "max_tokens":
+        truncated = response.stop_reason == "max_tokens"
+        if truncated:
             logger.warning("Anthropic response truncated (max_tokens=%d, usage=%s)", max_tokens, response.usage)
 
         return CompletionResult(
@@ -149,6 +152,7 @@ class AnthropicLLMClient(LLMClient):
             output_tokens=response.usage.output_tokens,
             provider="anthropic",
             model=self.MODEL,
+            truncated=truncated,
         )
 
     def stream_with_tools(
@@ -241,7 +245,8 @@ class OpenAILLMClient(LLMClient):
         if not text:
             raise ValueError("OpenAI returned empty text")
 
-        if choice.finish_reason == "length":
+        truncated = choice.finish_reason == "length"
+        if truncated:
             logger.warning("OpenAI response truncated (max_tokens=%d)", max_tokens)
 
         usage = response.usage
@@ -251,6 +256,7 @@ class OpenAILLMClient(LLMClient):
             output_tokens=usage.completion_tokens if usage else 0,
             provider="openai",
             model=self.MODEL,
+            truncated=truncated,
         )
 
     def stream_with_tools(

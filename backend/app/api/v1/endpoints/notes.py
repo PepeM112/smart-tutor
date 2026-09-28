@@ -13,7 +13,6 @@ from app.schemas.note import (
     NoteCreate,
     NoteGenerate,
     NoteRead,
-    NoteRefine,
     NoteSortBy,
     NoteUpdate,
     PaginatedNoteRead,
@@ -77,13 +76,6 @@ def create(data: NoteCreate, db: DbSession, current_user: CurrentUser, bg: Backg
     return note
 
 
-@router.post("/{note_id}/refine", response_model=NoteRead)
-def refine(note_id: str, data: NoteRefine, db: DbSession, current_user: CurrentUser, bg: BackgroundTasks) -> Note:
-    note = note_service.refine_note(db, note_id=note_id, current_user=current_user, data=data)
-    bg.add_task(note_service.schedule_indexing, note.id)
-    return note
-
-
 @router.post("/{note_id}/edit-chunk", response_model=NoteChunkEditResponse)
 def edit_chunk(note_id: str, data: NoteChunkEdit, db: DbSession, current_user: CurrentUser) -> NoteChunkEditResponse:
     return note_service.edit_note_chunk(db, note_id=note_id, current_user=current_user, data=data)
@@ -92,7 +84,8 @@ def edit_chunk(note_id: str, data: NoteChunkEdit, db: DbSession, current_user: C
 @router.patch("/{note_id}", response_model=NoteRead)
 def update(note_id: str, data: NoteUpdate, db: DbSession, current_user: CurrentUser, bg: BackgroundTasks) -> Note:
     note = note_service.update_note(db, note_id=note_id, current_user=current_user, data=data)
-    if data.content is not None:
+    # Skip when already indexed: two tabs, or a leave right after a reindex, would re-embed for nothing
+    if data.reindex and not note.is_indexed:
         bg.add_task(note_service.schedule_indexing, note.id)
     return note
 

@@ -12,21 +12,21 @@ from __future__ import annotations
 
 import json
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from app.core.enums import AnswerStatus, LongTextLength
 from app.schemas.question import LongTextContent, RubricItem
-from app.services.grading.anthropic_provider import AnthropicGradingProvider
-from app.services.grading.base import CriterionResult
-from app.services.grading.openai_provider import OpenAIGradingProvider
-from app.services.grading.prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
+from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
 from app.services.grading_service import (
+    CriterionResult,
     _build_rubric_result,
     _determine_status,
     _score_from_rubric_result,
+    grade,
 )
+from app.services.llm import AnthropicLLMClient, CompletionResult, LLMClient, OpenAILLMClient
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -209,25 +209,22 @@ class TestScoreFromRubricResult:
 
 
 # ---------------------------------------------------------------------------
-# Anthropic provider — response parsing
+# grade() — response parsing (provider-agnostic, LLM client mocked)
 # ---------------------------------------------------------------------------
+# The old per-provider grading classes were replaced by the shared `LLMClient`
+# (`services/llm.py`). Its API-key handling is tested in `test_notes.py`.
 
 
-class TestAnthropicProvider:
-    def _make_provider(self) -> AnthropicGradingProvider:
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-ant-test-key"}):
-            return AnthropicGradingProvider()
+def _mock_llm(text: str) -> MagicMock:
+    llm = MagicMock(spec=LLMClient)
+    llm.complete.return_value = CompletionResult(
+        text=text, input_tokens=10, output_tokens=20, provider="anthropic", model="test"
+    )
+    return llm
 
-    def _mock_response(self, text: str) -> MagicMock:
-        from anthropic.types import TextBlock
 
-        block = TextBlock(type="text", text=text)
-        response = MagicMock()
-        response.content = [block]
-        return response
-
+class TestGrade:
     def test_parses_valid_response(self) -> None:
-        provider = self._make_provider()
         ai_json = _make_ai_response(
             [
                 {"index": 0, "met": True, "reason": "Student mentioned it"},
@@ -235,122 +232,48 @@ class TestAnthropicProvider:
                 {"index": 2, "met": True, "reason": "Well explained"},
             ]
         )
-        provider._client = MagicMock()
-        provider._client.messages.create.return_value = self._mock_response(ai_json)
 
-        results = provider.grade("Question?", SAMPLE_RUBRIC, "Some answer")
+        results, completion = grade(_mock_llm(ai_json), "Question?", SAMPLE_RUBRIC, "Some answer")
 
         assert len(results) == 3
         assert results[0].met is True
         assert results[0].reason == "Student mentioned it"
         assert results[1].met is False
         assert results[2].index == 2
+        assert completion.input_tokens == 10
+
+    def test_sends_grading_prompts(self) -> None:
+        llm = _mock_llm(_make_ai_response([]))
+
+        grade(llm, "Question?", SAMPLE_RUBRIC, "Some answer")
+
+        kwargs = llm.complete.call_args.kwargs
+        assert kwargs["system"] == GRADING_SYSTEM_PROMPT
+        assert kwargs["user_prompt"] == build_grading_user_prompt("Question?", SAMPLE_RUBRIC, "Some answer")
 
     def test_parses_code_fenced_response(self) -> None:
-        provider = self._make_provider()
-        ai_json = (
-            "```json\n"
-            + _make_ai_response(
-                [
-                    {"index": 0, "met": True, "reason": "Good"},
-                ]
-            )
-            + "\n```"
-        )
-        provider._client = MagicMock()
-        provider._client.messages.create.return_value = self._mock_response(ai_json)
+        ai_json = "```json\n" + _make_ai_response([{"index": 0, "met": True, "reason": "Good"}]) + "\n```"
 
-        results = provider.grade("Q?", SAMPLE_RUBRIC[:1], "A")
+        results, _ = grade(_mock_llm(ai_json), "Q?", SAMPLE_RUBRIC[:1], "A")
+
         assert len(results) == 1
         assert results[0].met is True
 
     def test_raises_on_empty_response(self) -> None:
-        provider = self._make_provider()
-        provider._client = MagicMock()
-        provider._client.messages.create.return_value = self._mock_response("")
-
-        with pytest.raises(ValueError, match="empty text"):
-            provider.grade("Question?", SAMPLE_RUBRIC, "Some answer")
+        with pytest.raises(json.JSONDecodeError):
+            grade(_mock_llm(""), "Question?", SAMPLE_RUBRIC, "Some answer")
 
     def test_raises_on_missing_results_key(self) -> None:
-        provider = self._make_provider()
-        provider._client = MagicMock()
-        provider._client.messages.create.return_value = self._mock_response('{"data": []}')
-
         with pytest.raises(KeyError):
-            provider.grade("Question?", SAMPLE_RUBRIC, "Some answer")
+            grade(_mock_llm('{"data": []}'), "Question?", SAMPLE_RUBRIC, "Some answer")
 
     def test_handles_response_without_reason_field(self) -> None:
-        provider = self._make_provider()
-        ai_json = _make_ai_response(
-            [
-                {"index": 0, "met": True},
-                {"index": 1, "met": False},
-            ]
-        )
-        provider._client = MagicMock()
-        provider._client.messages.create.return_value = self._mock_response(ai_json)
+        ai_json = _make_ai_response([{"index": 0, "met": True}, {"index": 1, "met": False}])
 
-        results = provider.grade("Q?", SAMPLE_RUBRIC[:2], "A")
+        results, _ = grade(_mock_llm(ai_json), "Q?", SAMPLE_RUBRIC[:2], "A")
+
         assert results[0].reason == ""
         assert results[1].reason == ""
-
-    def test_raises_without_api_key(self) -> None:
-        with patch.dict("os.environ", {}, clear=True):
-            from app.services.grading.anthropic_provider import AnthropicGradingProvider
-
-            with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
-                AnthropicGradingProvider()
-
-
-# ---------------------------------------------------------------------------
-# OpenAI provider — response parsing
-# ---------------------------------------------------------------------------
-
-
-class TestOpenAIProvider:
-    def _make_provider(self) -> OpenAIGradingProvider:
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test-key"}):
-            return OpenAIGradingProvider()
-
-    def _mock_response(self, text: str) -> MagicMock:
-        choice = MagicMock()
-        choice.message.content = text
-        response = MagicMock()
-        response.choices = [choice]
-        return response
-
-    def test_parses_valid_response(self) -> None:
-        provider = self._make_provider()
-        ai_json = _make_ai_response(
-            [
-                {"index": 0, "met": True, "reason": "Covered"},
-                {"index": 1, "met": False, "reason": "Missing"},
-            ]
-        )
-        provider._client = MagicMock()
-        provider._client.chat.completions.create.return_value = self._mock_response(ai_json)
-
-        results = provider.grade("Q?", SAMPLE_RUBRIC[:2], "Answer")
-
-        assert len(results) == 2
-        assert results[0].met is True
-        assert results[0].reason == "Covered"
-
-    def test_empty_content_falls_back_to_empty_results(self) -> None:
-        provider = self._make_provider()
-        provider._client = MagicMock()
-        provider._client.chat.completions.create.return_value = self._mock_response("")
-
-        results = provider.grade("Q?", SAMPLE_RUBRIC[:1], "Answer")
-        assert results == []
-
-    def test_raises_without_api_key(self) -> None:
-        with patch.dict("os.environ", {}, clear=True):
-            from app.services.grading.openai_provider import OpenAIGradingProvider
-
-            with pytest.raises(ValueError, match="OPENAI_API_KEY"):
-                OpenAIGradingProvider()
 
 
 # ---------------------------------------------------------------------------
@@ -375,12 +298,13 @@ class TestAnthropicIntegration:
         if not os.getenv("ANTHROPIC_API_KEY"):
             pytest.skip("ANTHROPIC_API_KEY not set")
 
-    def _make_provider(self) -> AnthropicGradingProvider:
-        return AnthropicGradingProvider()
+    def _make_llm(self) -> LLMClient:
+        return AnthropicLLMClient()
 
     def test_grades_correct_answer(self) -> None:
-        provider = self._make_provider()
-        results = provider.grade(
+        llm = self._make_llm()
+        results, _ = grade(
+            llm,
             "What is the capital of France and name a famous landmark there.",
             _INTEGRATION_RUBRIC,
             _GOOD_ANSWER,
@@ -393,8 +317,9 @@ class TestAnthropicIntegration:
         assert results[0].reason != ""
 
     def test_grades_wrong_answer(self) -> None:
-        provider = self._make_provider()
-        results = provider.grade(
+        llm = self._make_llm()
+        results, _ = grade(
+            llm,
             "What is the capital of France and name a famous landmark there.",
             _INTEGRATION_RUBRIC,
             _BAD_ANSWER,
@@ -406,10 +331,11 @@ class TestAnthropicIntegration:
 
     def test_full_pipeline_scoring(self) -> None:
         """End-to-end: grade -> build rubric result -> calculate score."""
-        provider = self._make_provider()
+        llm = self._make_llm()
         content = LongTextContent(length_limit=LongTextLength.SHORT, rubric=_INTEGRATION_RUBRIC)
 
-        results = provider.grade(
+        results, _ = grade(
+            llm,
             "What is the capital of France and name a famous landmark there.",
             _INTEGRATION_RUBRIC,
             _GOOD_ANSWER,
@@ -433,12 +359,13 @@ class TestOpenAIIntegration:
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("OPENAI_API_KEY not set")
 
-    def _make_provider(self) -> OpenAIGradingProvider:
-        return OpenAIGradingProvider()
+    def _make_llm(self) -> LLMClient:
+        return OpenAILLMClient()
 
     def test_grades_correct_answer(self) -> None:
-        provider = self._make_provider()
-        results = provider.grade(
+        llm = self._make_llm()
+        results, _ = grade(
+            llm,
             "What is the capital of France and name a famous landmark there.",
             _INTEGRATION_RUBRIC,
             _GOOD_ANSWER,

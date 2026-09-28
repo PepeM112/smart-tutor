@@ -667,11 +667,13 @@ export const NoteChunkEditSchema = {
     properties: {
         fullText: {
             type: 'string',
+            maxLength: 50000,
             minLength: 1,
             title: 'Fulltext'
         },
         selectedText: {
             type: 'string',
+            maxLength: 50000,
             minLength: 1,
             title: 'Selectedtext'
         },
@@ -712,20 +714,9 @@ export const NoteCreateSchema = {
             maxLength: 200,
             title: 'Title'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 500
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         content: {
             type: 'string',
+            maxLength: 50000,
             title: 'Content',
             default: ''
         },
@@ -803,18 +794,6 @@ export const NoteReadSchema = {
             maxLength: 200,
             title: 'Title'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 500
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         content: {
             type: 'string',
             title: 'Content',
@@ -843,6 +822,10 @@ export const NoteReadSchema = {
             type: 'boolean',
             title: 'Isindexed'
         },
+        version: {
+            type: 'integer',
+            title: 'Version'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -861,26 +844,11 @@ export const NoteReadSchema = {
         'userId',
         'source',
         'isIndexed',
+        'version',
         'createdAt',
         'updatedAt'
     ],
     title: 'NoteRead'
-} as const;
-
-export const NoteRefineSchema = {
-    properties: {
-        instructions: {
-            type: 'string',
-            maxLength: 2000,
-            minLength: 1,
-            title: 'Instructions'
-        }
-    },
-    type: 'object',
-    required: [
-        'instructions'
-    ],
-    title: 'NoteRefine'
 } as const;
 
 export const NoteSourceSchema = {
@@ -910,22 +878,11 @@ export const NoteUpdateSchema = {
             ],
             title: 'Title'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 500
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         content: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'string',
+                    maxLength: 50000
                 },
                 {
                     type: 'null'
@@ -946,9 +903,21 @@ export const NoteUpdateSchema = {
                 }
             ],
             title: 'Tags'
+        },
+        version: {
+            type: 'integer',
+            title: 'Version'
+        },
+        reindex: {
+            type: 'boolean',
+            title: 'Reindex',
+            default: false
         }
     },
     type: 'object',
+    required: [
+        'version'
+    ],
     title: 'NoteUpdate'
 } as const;
 

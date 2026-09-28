@@ -9,8 +9,9 @@ export function useBreadcrumb(title: string, crumbs?: BreadcrumbItem[], back?: s
   const reset = useBreadcrumbStore(s => s.reset);
 
   // Compare by value, not reference — callers often pass a new array each render
+  const crumbsKey = JSON.stringify(crumbs);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stableCrumbs = useMemo(() => crumbs, [JSON.stringify(crumbs)]);
+  const stableCrumbs = useMemo(() => crumbs, [crumbsKey]);
 
   // Layout effect (not a passive effect) so the store update — and the Breadcrumb
   // header's re-render — commits before the browser paints. A plain useEffect runs

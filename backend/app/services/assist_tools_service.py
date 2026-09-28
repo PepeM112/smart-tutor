@@ -62,6 +62,11 @@ _ALLOWED_ROUTE_PREFIXES = (
 )
 
 
+def _note_label(title: str | None) -> str:
+    """Title for tool output. A blank title would give `****` in the markdown."""
+    return (title or "").strip() or "Untitled"
+
+
 # ---------------------------------------------------------------------------
 # Read tools
 # ---------------------------------------------------------------------------
@@ -74,7 +79,7 @@ def list_notes(db: Session, *, current_user: User, arguments: dict[str, object])
         return ToolResult(output="No notes found.")
     lines = [f"Found {total} note(s):"]
     for n in notes:
-        lines.append(f"- **{n.title}** (ID: `{n.id}`)")
+        lines.append(f"- **{_note_label(n.title)}** (ID: `{n.id}`)")
     return ToolResult(output="\n".join(lines))
 
 
@@ -106,7 +111,7 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
 
     lines = [f"Found {len(relevant)} relevant chunk(s):"]
     for r in relevant:
-        lines.append(f"\n**{r.note_title}** (ID: `{r.note_id}`, similarity: {r.similarity:.3f})")
+        lines.append(f"\n**{_note_label(r.note_title)}** (ID: `{r.note_id}`, similarity: {r.similarity:.3f})")
         lines.append(r.chunk_content)
     return ToolResult(output="\n".join(lines))
 
@@ -127,7 +132,7 @@ def get_note_content(db: Session, *, current_user: User, arguments: dict[str, ob
     note_id = str(arguments.get("note_id", ""))
     note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
     content = note.content or "(empty)"
-    return ToolResult(output=f"**{note.title}**\n\n{content}")
+    return ToolResult(output=f"**{_note_label(note.title)}**\n\n{content}")
 
 
 def get_test_details(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
@@ -192,10 +197,14 @@ def create_note(db: Session, *, current_user: User, arguments: dict[str, object]
         current_user=current_user,
         data=NoteGenerate(topic=topic, guidance=guidance, length=length),
     )
-    note_service.schedule_indexing(note.id)
+    # Not indexed here: the tool runs inside the chat stream, and the embedding call would
+    # hold it. `search_notes` indexes stale notes (is_indexed = False) before each search.
     logger.info("create_note: created note=%s", note.id)
     return ToolResult(
-        output=(f"Note created successfully!\n- **Title:** {note.title}\n- **Preview:** {(note.content or '')[:300]}…"),
+        output=(
+            f"Note created successfully!\n- **Title:** {_note_label(note.title)}\n"
+            f"- **Preview:** {(note.content or '')[:300]}…"
+        ),
         metadata=NoteCreatedMetadata(note_id=note.id),
     )
 
@@ -205,10 +214,7 @@ def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]
     instructions = str(arguments.get("instructions", ""))
 
     logger.info("refine_note: user=%s note=%s", current_user.id, note_id)
-    old_note = note_service.get_note(db, note_id=note_id, current_user=current_user)
-    old_content = old_note.content or ""
-
-    refined_text = note_service.preview_refine_note(
+    old_content, refined_text = note_service.preview_refine_note(
         db,
         note_id=note_id,
         current_user=current_user,

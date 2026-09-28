@@ -6,12 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getErrorDetail(error: unknown, fallback: string): string {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'detail' in error &&
-    typeof (error).detail === 'string'
-  ) {
+  if (typeof error === 'object' && error !== null && 'detail' in error && typeof error.detail === 'string') {
     return (error as { detail: string }).detail;
   }
   return fallback;

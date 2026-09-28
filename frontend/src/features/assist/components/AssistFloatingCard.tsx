@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
 
@@ -12,7 +13,7 @@ import { useDraggable } from '../hooks/useDraggable';
 import { useResizable } from '../hooks/useResizable';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
 
-import AssistChatBody from './AssistChatBody';
+import { AssistChatBody } from './AssistChatBody';
 import { AssistInput } from './AssistInput';
 
 import type { AssistTurn } from '../types';
@@ -161,17 +162,17 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
     />
   );
 
-  const headerLeft = (variant: 'mobile' | 'desktop') =>
-    variant === 'desktop' && isXl ? (
-      <Button
-        variant="ghost"
-        size="icon"
-        icon={PanelRight}
-        onClick={toggleMode}
-        aria-label="Dock to side"
-        tooltip="Dock to side"
-      />
-    ) : null;
+  // Desktop only: the mobile sheet cannot dock.
+  const dockButton = isXl ? (
+    <Button
+      variant="ghost"
+      size="icon"
+      icon={PanelRight}
+      onClick={toggleMode}
+      aria-label="Dock to side"
+      tooltip="Dock to side"
+    />
+  ) : null;
 
   const headerRight = (variant: 'mobile' | 'desktop') => (
     <div className={`flex items-center ${variant === 'desktop' ? '' : 'gap-1'}`}>
@@ -208,36 +209,17 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
           </button>
         )}
 
-        <AnimatePresence>
-          {isOpen && (
-            <>
-              <motion.div
-                key="backdrop"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-40 bg-black/40"
-                onClick={() => storeSetOpen(false)}
-              />
-              <motion.div
-                key="mobile-panel"
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-xl"
-              >
-                <div className="flex shrink-0 items-center justify-end border-b border-border px-2 py-2.5">
-                  {headerLeft('mobile')}
-                  {headerRight('mobile')}
-                </div>
-
-                <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {/* Bottom drawer: drag down or tap the backdrop to close. vaul moves it above the
+        on-screen keyboard while the composer has focus (`repositionInputs`, on by default). */}
+        <Drawer open={isOpen} onOpenChange={storeSetOpen}>
+          <DrawerContent title="AI Assistant" className="h-[85dvh]">
+            <div className="-mt-2 flex shrink-0 items-center justify-end border-b border-border px-2 pb-1.5">
+              {headerRight('mobile')}
+            </div>
+            {/* No drag from the composer: selecting typed text must not move the drawer. */}
+            <AssistChatBody turns={turns} onConfirm={onConfirm} footer={<div data-vaul-no-drag>{composer}</div>} />
+          </DrawerContent>
+        </Drawer>
       </>
     );
   }
@@ -303,7 +285,7 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-1.5 py-2">
               <div className="flex flex-1 items-center">
-                {headerLeft('desktop')}
+                {dockButton}
                 <div
                   onMouseDown={card.handleMouseDown}
                   onDoubleClick={handleResetPositionAndSize}

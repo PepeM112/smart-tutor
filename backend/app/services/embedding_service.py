@@ -8,6 +8,7 @@ of the user's chat LLM provider choice.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 
 import tiktoken
@@ -20,6 +21,7 @@ from app.crud import note as note_crud
 from app.crud import note_chunk as note_chunk_crud
 from app.crud import token_usage as token_usage_crud
 from app.models.note_chunk import NoteChunk
+from app.services import note_service
 from app.services.pricing_service import calculate_cost
 
 logger = logging.getLogger("smarttutor.embedding")
@@ -47,6 +49,17 @@ def _get_client() -> OpenAI:
 class TextChunk:
     text: str
     index: int
+
+
+# The note editor stores text colors as inline HTML: <span data-color="red" data-bg="yellow">.
+# Only the tags are removed; the text inside them stays. Tags carry no meaning for
+# search and would only add noise tokens to the embeddings.
+_COLOR_SPAN_TAG = re.compile(r"</?span(?:\s+data-(?:color|bg)=\"[a-z]+\")*\s*>")
+
+
+def strip_color_spans(text_content: str) -> str:
+    """Remove the note editor's color <span> tags and keep their inner text."""
+    return _COLOR_SPAN_TAG.sub("", text_content)
 
 
 def chunk_text(text_content: str) -> list[TextChunk]:
@@ -96,25 +109,36 @@ def _generate_embeddings(texts: list[str]) -> tuple[list[list[float]], int]:
 def index_note(db: Session, *, note_id: str) -> None:
     """Chunk a note's content, generate embeddings, and store in note_chunks.
 
-    Called as a BackgroundTask after note creation or update.
+    Commits or rolls back `db`, so it must own the session: always run it through
+    `note_service.schedule_indexing` (a fresh session), never on a request's session.
     """
+    # Two runs on one note at the same time would each delete the old chunks and then
+    # insert a full set (READ COMMITTED: run 2's DELETE cannot see run 1's new rows).
+    # The lock is held until the commit/rollback below, across the slow embedding call.
+    if not note_chunk_crud.try_lock_note_indexing(db, note_id=note_id):
+        logger.info("index_note: note %s is already being indexed, skipping", note_id)
+        return
+
     note = note_crud.get_by_id(db, id=note_id)
     if note is None:
         logger.warning("index_note: note %s not found, skipping", note_id)
+        db.rollback()
         return
+
+    # The embedding call is slow. If an autosave lands meanwhile, the chunks below are
+    # already stale, so `mark_indexed` only succeeds while the note is still at this version.
+    indexed_version = note.version
 
     note_chunk_crud.delete_by_note_id(db, note_id=note_id)
 
     header_parts = [f"Title: {note.title}"]
-    if note.description:
-        header_parts.append(f"Description: {note.description}")
     if note.tags:
         header_parts.append(f"Tags: {', '.join(note.tags)}")
     header = "\n".join(header_parts) + "\n\n"
 
-    chunks = chunk_text(header + (note.content or ""))
+    chunks = chunk_text(header + strip_color_spans(note.content or ""))
     if not chunks:
-        note.is_indexed = True
+        note_crud.mark_indexed(db, note_id=note_id, version=indexed_version)
         db.commit()
         return
 
@@ -142,8 +166,8 @@ def index_note(db: Session, *, note_id: str) -> None:
         ],
     )
 
-    note.is_indexed = True
-    db.flush()
+    if not note_crud.mark_indexed(db, note_id=note_id, version=indexed_version):
+        logger.info("index_note: note %s changed during indexing, left stale", note_id)
 
     cost = calculate_cost(db, model=EMBEDDING_MODEL, input_tokens=total_tokens, output_tokens=0)
     token_usage_crud.create(
@@ -176,7 +200,21 @@ class SearchResult:
 
 
 def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> list[SearchResult]:
-    """Search user's notes by semantic similarity. Returns top matching chunks."""
+    """Search user's notes by semantic similarity. Returns top matching chunks.
+
+    Stale notes (is_indexed=False) are indexed lazily before the search so the
+    results reflect the latest saved content. A failure on any individual note is
+    logged and skipped — it must not abort the search.
+    """
+    # Each stale note is indexed in its own session. `index_note` commits and rolls back,
+    # which must not touch the caller's (the Assistant request's) session.
+    unindexed_ids = note_crud.list_unindexed_ids_by_user(db, user_id=user_id)
+    for stale_id in unindexed_ids:
+        try:
+            note_service.schedule_indexing(stale_id)
+        except Exception:
+            logger.exception("search_notes: failed to index stale note %s, skipping", stale_id)
+
     if note_chunk_crud.count_by_user(db, user_id=user_id) == 0:
         return []
 
@@ -194,7 +232,7 @@ def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> li
         output_tokens=0,
         estimated_cost=cost,
     )
-    db.flush()
+    db.commit()
 
     rows = note_chunk_crud.search_by_similarity(db, user_id=user_id, query_embedding=query_embedding, limit=limit)
     return [

@@ -13,7 +13,6 @@ logger = logging.getLogger("smarttutor.seed.notes")
 NOTES = [
     {
         "title": "Spanish Verb Conjugations",
-        "description": "Regular verb conjugation patterns in present tense",
         "content": (
             "# Spanish Verb Conjugations — Present Tense\n\n"
             "## -AR Verbs (hablar — to speak)\n"
@@ -48,7 +47,6 @@ NOTES = [
     },
     {
         "title": "Cell Biology Fundamentals",
-        "description": "Core concepts of cell structure and function",
         "content": (
             "# Cell Biology Fundamentals\n\n"
             "## Cell Types\n"
@@ -71,7 +69,6 @@ NOTES = [
     },
     {
         "title": "World War II Timeline",
-        "description": "Key events from 1939 to 1945",
         "content": (
             "# World War II — Key Events\n\n"
             "## 1939\n"
@@ -106,7 +103,6 @@ def seed_notes(db: Session, user_id: str) -> list[Note]:
         note = Note(
             user_id=user_id,
             title=data["title"],
-            description=data["description"],
             content=data["content"],
             source=NoteSource.USER_CREATED,
             tags=data["tags"],

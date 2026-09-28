@@ -1,0 +1,491 @@
+/* stylelint-disable selector-class-pattern -- Tiptap / ProseMirror / highlight.js own these class names (tableWrapper, selectedCell, hljs-built_in…). */
+/* stylelint-disable no-descending-specificity -- rules target different elements (table-cell <p> vs quote <p>); order is by section for readability. */
+
+/* ═══════════════════════════════════════════════════════════════
+   Note editor typography + colors
+   ─────────────────────────────────────────────────────────────
+   Tune the note look here. Every element reads its size and spacing
+   from the variables below. Sizes are in `rem`, so the Settings
+   font-size option still scales the whole note.
+   ═══════════════════════════════════════════════════════════════ */
+
+.note-editor-content {
+  /* Body */
+  --note-text-size: 0.875rem; /* 15px at the default font setting */
+  --note-line-height: 1.65;
+  --note-block-gap: 0.5rem; /* space below paragraphs, lists, quotes… */
+
+  /* Headings */
+  --note-h1-size: 1.55rem;
+  --note-h1-weight: 700;
+  --note-h1-gap-top: 1.5rem;
+  --note-h2-size: 1.25rem;
+  --note-h2-weight: 600;
+  --note-h2-gap-top: 1.25rem;
+  --note-h3-size: 1.125rem;
+  --note-h3-weight: 600;
+  --note-h3-gap-top: 1.1rem;
+  --note-heading-gap-bottom: 0.35rem;
+  --note-heading-line-height: 1.3;
+
+  /* Lists */
+  --note-list-indent: 1.5rem;
+  --note-list-item-gap: 0.15rem;
+
+  /* Quote */
+  --note-quote-border: 3px solid var(--foreground);
+  --note-quote-padding: 0.9rem;
+
+  /* Code */
+  --note-code-size: 0.85em;
+  --note-code-block-size: 0.8125rem;
+  --note-code-block-padding: 0.85rem 1rem;
+
+  /* Table */
+  --note-table-size: 0.8125rem;
+  --note-table-cell-padding: 0.3rem 0.6rem;
+  --note-table-line-height: 1.45;
+
+  /* Divider */
+  --note-hr-gap: 1.25rem;
+
+  font-size: var(--note-text-size);
+  line-height: var(--note-line-height);
+  color: var(--foreground);
+}
+
+/* Page title (the input above the editor, in NotePage). */
+.note-title {
+  --note-title-size: clamp(1.5rem, 7vw, 2.25rem);
+  --note-title-weight: 700;
+
+  font-size: var(--note-title-size);
+  font-weight: var(--note-title-weight);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+/* ── Blocks ─────────────────────────────────────────────────── */
+
+.note-editor-content p {
+  margin: 0 0 var(--note-block-gap);
+}
+
+.note-editor-content h1,
+.note-editor-content h2,
+.note-editor-content h3 {
+  line-height: var(--note-heading-line-height);
+  margin-bottom: var(--note-heading-gap-bottom);
+}
+
+.note-editor-content h1 {
+  font-size: var(--note-h1-size);
+  font-weight: var(--note-h1-weight);
+  margin-top: var(--note-h1-gap-top);
+}
+
+.note-editor-content h2 {
+  font-size: var(--note-h2-size);
+  font-weight: var(--note-h2-weight);
+  margin-top: var(--note-h2-gap-top);
+}
+
+.note-editor-content h3 {
+  font-size: var(--note-h3-size);
+  font-weight: var(--note-h3-weight);
+  margin-top: var(--note-h3-gap-top);
+}
+
+.note-editor-content > :first-child {
+  margin-top: 0;
+}
+
+/* ── Lists ──────────────────────────────────────────────────── */
+
+.note-editor-content ul,
+.note-editor-content ol {
+  padding-left: var(--note-list-indent);
+  margin: 0 0 var(--note-block-gap);
+}
+
+.note-editor-content ul {
+  list-style: disc;
+}
+
+.note-editor-content ul ul {
+  list-style: circle;
+}
+
+.note-editor-content ol {
+  list-style: decimal;
+}
+
+.note-editor-content li {
+  margin-bottom: var(--note-list-item-gap);
+}
+
+/* A list item wraps its text in <p>; no paragraph gap inside lists. */
+.note-editor-content li > p {
+  margin: 0;
+}
+
+.note-editor-content li > ul,
+.note-editor-content li > ol {
+  margin: var(--note-list-item-gap) 0 0;
+}
+
+/* Task list: checkbox + text on one line. */
+.note-editor-content ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.15rem;
+}
+
+.note-editor-content ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.note-editor-content ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: 0.3em;
+  user-select: none;
+}
+
+.note-editor-content ul[data-type='taskList'] li > label input {
+  width: 0.95em;
+  height: 0.95em;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.note-editor-content ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-editor-content ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+/* ── Inline ─────────────────────────────────────────────────── */
+
+.note-editor-content strong {
+  font-weight: 600;
+}
+
+.note-editor-content a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.note-editor-content code {
+  font-family: var(--font-mono);
+  font-size: var(--note-code-size);
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+  background: var(--muted);
+  color: var(--note-red);
+}
+
+/* ── Quote ──────────────────────────────────────────────────── */
+
+.note-editor-content blockquote {
+  border-left: var(--note-quote-border);
+  padding-left: var(--note-quote-padding);
+  margin: 0 0 var(--note-block-gap);
+}
+
+.note-editor-content blockquote > p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Code block (lowlight / highlight.js classes) ───────────── */
+
+.note-editor-content pre {
+  margin: 0 0 var(--note-block-gap);
+  padding: var(--note-code-block-padding);
+  border-radius: 0.5rem;
+  background: var(--code-bg);
+  color: var(--code-fg);
+  font-family: var(--font-mono);
+  font-size: var(--note-code-block-size);
+  line-height: 1.55;
+  overflow-x: auto;
+}
+
+.note-editor-content pre code {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* The code block is always dark, so one palette serves every theme. */
+.note-editor-content pre .hljs-comment,
+.note-editor-content pre .hljs-quote {
+  color: #7f848e;
+  font-style: italic;
+}
+
+.note-editor-content pre .hljs-keyword,
+.note-editor-content pre .hljs-selector-tag,
+.note-editor-content pre .hljs-doctag {
+  color: #c678dd;
+}
+
+.note-editor-content pre .hljs-string,
+.note-editor-content pre .hljs-regexp,
+.note-editor-content pre .hljs-addition {
+  color: #98c379;
+}
+
+.note-editor-content pre .hljs-number,
+.note-editor-content pre .hljs-literal,
+.note-editor-content pre .hljs-attr,
+.note-editor-content pre .hljs-attribute {
+  color: #d19a66;
+}
+
+.note-editor-content pre .hljs-title,
+.note-editor-content pre .hljs-section,
+.note-editor-content pre .hljs-function .hljs-title {
+  color: #61afef;
+}
+
+.note-editor-content pre .hljs-built_in,
+.note-editor-content pre .hljs-type,
+.note-editor-content pre .hljs-class .hljs-title {
+  color: #e5c07b;
+}
+
+.note-editor-content pre .hljs-variable,
+.note-editor-content pre .hljs-template-variable,
+.note-editor-content pre .hljs-name,
+.note-editor-content pre .hljs-tag,
+.note-editor-content pre .hljs-deletion {
+  color: #e06c75;
+}
+
+.note-editor-content pre .hljs-meta,
+.note-editor-content pre .hljs-symbol,
+.note-editor-content pre .hljs-bullet,
+.note-editor-content pre .hljs-link {
+  color: #56b6c2;
+}
+
+/* ── Table ──────────────────────────────────────────────────── */
+
+.note-editor-content .tableWrapper {
+  margin: 0 0 var(--note-block-gap);
+  overflow-x: auto;
+}
+
+.note-editor-content table {
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: var(--note-table-size);
+  line-height: var(--note-table-line-height);
+}
+
+.note-editor-content th,
+.note-editor-content td {
+  position: relative;
+  border: 1px solid var(--border);
+  padding: var(--note-table-cell-padding);
+  text-align: left;
+  vertical-align: top;
+  min-width: 4rem;
+}
+
+.note-editor-content th {
+  font-weight: 600;
+  background: var(--muted);
+}
+
+.note-editor-content th p,
+.note-editor-content td p {
+  margin: 0;
+}
+
+/* Cell selection (drag across cells). */
+.note-editor-content .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  pointer-events: none;
+}
+
+/* ── Divider ────────────────────────────────────────────────── */
+
+.note-editor-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--note-hr-gap) 0;
+}
+
+.note-editor-content hr.ProseMirror-selectednode {
+  border-top-color: var(--primary);
+}
+
+/* ── Placeholder ────────────────────────────────────────────── */
+
+.note-editor-content .is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  opacity: 0.6;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Color palette (Notion-style). Names match NOTE_COLORS in noteColor.ts.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --note-gray: #787774;
+  --note-brown: #9f6b53;
+  --note-orange: #d9730d;
+  --note-yellow: #cb912f;
+  --note-green: #448361;
+  --note-blue: #337ea9;
+  --note-purple: #9065b0;
+  --note-pink: #c14c8a;
+  --note-red: #d44c47;
+  --note-gray-bg: #f1f1ef;
+  --note-brown-bg: #f4eeee;
+  --note-orange-bg: #fbecdd;
+  --note-yellow-bg: #fbf3db;
+  --note-green-bg: #edf3ec;
+  --note-blue-bg: #e7f3f8;
+  --note-purple-bg: #f4f0f7;
+  --note-pink-bg: #faf1f5;
+  --note-red-bg: #fdebec;
+}
+
+:is([data-theme='midnight'], [data-theme='carbon'], [data-theme='neon'], [data-theme='noir']) {
+  --note-gray: #9b9b9b;
+  --note-brown: #ba856f;
+  --note-orange: #c77d48;
+  --note-yellow: #ca9849;
+  --note-green: #529e72;
+  --note-blue: #5e87c9;
+  --note-purple: #9d68d3;
+  --note-pink: #d15796;
+  --note-red: #df5452;
+  --note-gray-bg: #2f2f2f;
+  --note-brown-bg: #4a3228;
+  --note-orange-bg: #5c3b23;
+  --note-yellow-bg: #564328;
+  --note-green-bg: #243d30;
+  --note-blue-bg: #143a4e;
+  --note-purple-bg: #3c2d49;
+  --note-pink-bg: #4e2c3c;
+  --note-red-bg: #522e2a;
+}
+
+.note-editor-content [data-color='gray'] {
+  color: var(--note-gray);
+}
+
+.note-editor-content [data-color='brown'] {
+  color: var(--note-brown);
+}
+
+.note-editor-content [data-color='orange'] {
+  color: var(--note-orange);
+}
+
+.note-editor-content [data-color='yellow'] {
+  color: var(--note-yellow);
+}
+
+.note-editor-content [data-color='green'] {
+  color: var(--note-green);
+}
+
+.note-editor-content [data-color='blue'] {
+  color: var(--note-blue);
+}
+
+.note-editor-content [data-color='purple'] {
+  color: var(--note-purple);
+}
+
+.note-editor-content [data-color='pink'] {
+  color: var(--note-pink);
+}
+
+.note-editor-content [data-color='red'] {
+  color: var(--note-red);
+}
+
+.note-editor-content [data-bg] {
+  border-radius: 0.2em;
+  padding: 0 0.1em;
+  box-decoration-break: clone;
+}
+
+.note-editor-content [data-bg='gray'] {
+  background: var(--note-gray-bg);
+}
+
+.note-editor-content [data-bg='brown'] {
+  background: var(--note-brown-bg);
+}
+
+.note-editor-content [data-bg='orange'] {
+  background: var(--note-orange-bg);
+}
+
+.note-editor-content [data-bg='yellow'] {
+  background: var(--note-yellow-bg);
+}
+
+.note-editor-content [data-bg='green'] {
+  background: var(--note-green-bg);
+}
+
+.note-editor-content [data-bg='blue'] {
+  background: var(--note-blue-bg);
+}
+
+.note-editor-content [data-bg='purple'] {
+  background: var(--note-purple-bg);
+}
+
+.note-editor-content [data-bg='pink'] {
+  background: var(--note-pink-bg);
+}
+
+.note-editor-content [data-bg='red'] {
+  background: var(--note-red-bg);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AI chunk edit highlight (decoration from chunkHighlight.ts)
+   ═══════════════════════════════════════════════════════════════ */
+
+.note-editor-content .chunk-highlight {
+  padding: 2px 0;
+  background-color: var(--highlight-ai);
+  box-decoration-break: clone;
+}
+
+.note-editor-content .chunk-highlight[data-state='pending'] {
+  cursor: progress;
+}
+
+.note-editor-content .chunk-highlight[data-state='ready'] {
+  cursor: pointer;
+}
+
+.note-editor-content .chunk-highlight[data-state='ready']:hover,
+.note-editor-content .chunk-highlight[data-state='active'] {
+  background-color: var(--highlight-ai-active);
+}

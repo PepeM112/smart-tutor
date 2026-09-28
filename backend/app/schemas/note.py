@@ -1,29 +1,70 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.core.enums import NoteLength, NoteSource
 from app.schemas.base import BaseSchema
 from app.schemas.pagination import PaginatedResponse
 
+NOTE_CONTENT_MAX_CHARS = 50_000
+NOTE_MAX_TAGS = 10
+NOTE_TAG_MAX_CHARS = 25
 
+
+def _normalize_tags(tags: list[str]) -> list[str]:
+    """Trim, lowercase, drop empty tags and duplicates (first one wins), then check the limits."""
+    cleaned = list(dict.fromkeys(tag.strip().lower() for tag in tags if tag.strip()))
+    if len(cleaned) > NOTE_MAX_TAGS:
+        raise ValueError(f"A note can have at most {NOTE_MAX_TAGS} tags")
+    too_long = next((tag for tag in cleaned if len(tag) > NOTE_TAG_MAX_CHARS), None)
+    if too_long is not None:
+        raise ValueError(f"Tag '{too_long}' is longer than {NOTE_TAG_MAX_CHARS} characters")
+    return cleaned
+
+
+# Input limits live on Create/Update only. `NoteRead` inherits `NoteBase`, and a limit there
+# would make older notes (or AI-generated ones) that are over it fail to serialize.
 class NoteBase(BaseSchema):
     title: str = Field(max_length=200)
-    description: str | None = Field(default=None, max_length=500)
     content: str = ""
     tags: list[str] = []
 
 
 class NoteCreate(NoteBase):
-    pass
+    content: str = Field(default="", max_length=NOTE_CONTENT_MAX_CHARS)
+
+    @field_validator("tags")
+    @classmethod
+    def _validate_tags(cls, tags: list[str]) -> list[str]:
+        return _normalize_tags(tags)
 
 
 class NoteUpdate(BaseSchema):
     title: str | None = Field(default=None, max_length=200)
-    description: str | None = Field(default=None, max_length=500)
-    content: str | None = None
+    content: str | None = Field(default=None, max_length=NOTE_CONTENT_MAX_CHARS)
     tags: list[str] | None = None
+    # Always required. The service checks it only when title/content/tags change;
+    # a reindex-only PATCH skips the check.
+    version: int
+    # When true the endpoint schedules embedding reindex as a BackgroundTask.
+    # Excluded from column updates by the CRUD layer.
+    reindex: bool = False
+
+    # `None` means "not sent" (the default). An explicit JSON `null` must not get through:
+    # it would write NULL to a NOT NULL column (500), or JSON null to `tags`, which breaks
+    # every later read of the note. It would also skip the version check.
+    @field_validator("title", "content", "tags", mode="before")
+    @classmethod
+    def _reject_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("Field cannot be null; omit it to leave it unchanged")
+        return value
+
+    @field_validator("tags")
+    @classmethod
+    def _validate_tags(cls, tags: list[str] | None) -> list[str] | None:
+        return None if tags is None else _normalize_tags(tags)
 
 
 class NoteRead(NoteBase):
@@ -31,6 +72,7 @@ class NoteRead(NoteBase):
     user_id: str
     source: NoteSource
     is_indexed: bool
+    version: int
     created_at: datetime
     updated_at: datetime
 
@@ -41,13 +83,9 @@ class NoteGenerate(BaseSchema):
     length: NoteLength | None = None
 
 
-class NoteRefine(BaseSchema):
-    instructions: str = Field(..., min_length=1, max_length=2000)
-
-
 class NoteChunkEdit(BaseSchema):
-    full_text: str = Field(..., min_length=1)
-    selected_text: str = Field(..., min_length=1)
+    full_text: str = Field(..., min_length=1, max_length=NOTE_CONTENT_MAX_CHARS)
+    selected_text: str = Field(..., min_length=1, max_length=NOTE_CONTENT_MAX_CHARS)
     instructions: str = Field(..., min_length=1, max_length=2000)
 
 

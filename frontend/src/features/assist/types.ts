@@ -99,12 +99,7 @@ export type StoppedSegment = {
 };
 
 export type TurnSegment =
-  | TextSegment
-  | ToolIndicatorSegment
-  | ToolResultSegment
-  | ActionCardSegment
-  | ErrorSegment
-  | StoppedSegment;
+  TextSegment | ToolIndicatorSegment | ToolResultSegment | ActionCardSegment | ErrorSegment | StoppedSegment;
 
 export type AssistTurn = {
   id: string;
