@@ -634,7 +634,7 @@
     "expand_folder": "Expandir carpeta",
     "note_renamed": "Nota renombrada.",
     "failed_to_rename_note": "Error al renombrar la nota.",
-    "item_actions": "Acciones"
+    "drop_here": "Mover aquí"
   },
   "trash": {
     "title": "Papelera",

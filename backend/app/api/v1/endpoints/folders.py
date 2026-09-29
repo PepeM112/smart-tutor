@@ -1,13 +1,13 @@
 from typing import Annotated, TypeAlias
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.folder import Folder
 from app.models.user import User
-from app.schemas.folder import FolderContents, FolderCreate, FolderDeletePreview, FolderRead, FolderUpdate
+from app.schemas.folder import FileTree, FolderCreate, FolderDeletePreview, FolderRead, FolderUpdate
 from app.services import folder_service
 
 router = APIRouter()
@@ -21,14 +21,10 @@ def list_(db: DbSession, current_user: CurrentUser) -> list[FolderRead]:
     return folder_service.list_folders(db, current_user=current_user)
 
 
-@router.get("/contents", response_model=FolderContents)
-def contents(
-    db: DbSession,
-    current_user: CurrentUser,
-    folder_id: Annotated[str | None, Query()] = None,
-) -> FolderContents:
-    """Return subfolders and notes for a folder. Omit folder_id for the root."""
-    return folder_service.get_contents(db, current_user=current_user, folder_id=folder_id)
+@router.get("/tree", response_model=FileTree)
+def tree(db: DbSession, current_user: CurrentUser) -> FileTree:
+    """Return all non-trashed folders and notes as two flat lists. The client builds the tree."""
+    return folder_service.get_tree(db, current_user=current_user)
 
 
 @router.post("", response_model=FolderRead, status_code=status.HTTP_201_CREATED)

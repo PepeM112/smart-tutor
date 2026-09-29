@@ -8,13 +8,12 @@ Run:  pytest tests/test_folders.py
 
 from __future__ import annotations
 
+from collections import namedtuple
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-
-from app.schemas.folder import FolderCreate, FolderUpdate
-
 
 # ---------------------------------------------------------------------------
 # Helpers — lightweight fakes that avoid a real DB
@@ -102,9 +101,7 @@ class TestSiblingUniqueness:
         with patch("app.services.folder_service.folder_crud") as mock_crud:
             mock_crud.sibling_name_exists.return_value = True
             with pytest.raises(HTTPException) as exc_info:
-                folder_service._assert_no_sibling_conflict(
-                    db, user_id="u1", parent_id=None, name="Duplicated"
-                )
+                folder_service._assert_no_sibling_conflict(db, user_id="u1", parent_id=None, name="Duplicated")
         assert exc_info.value.status_code == 409
         assert "Duplicated" in exc_info.value.detail
 
@@ -114,9 +111,7 @@ class TestSiblingUniqueness:
         db = MagicMock()
         with patch("app.services.folder_service.folder_crud") as mock_crud:
             mock_crud.sibling_name_exists.return_value = False
-            folder_service._assert_no_sibling_conflict(
-                db, user_id="u1", parent_id=None, name="Unique"
-            )
+            folder_service._assert_no_sibling_conflict(db, user_id="u1", parent_id=None, name="Unique")
 
 
 # ---------------------------------------------------------------------------
@@ -239,3 +234,105 @@ class TestOwnership:
             with pytest.raises(HTTPException) as exc_info:
                 folder_service._get_owned_folder_or_404(db, folder_id="f1", current_user=user)
         assert exc_info.value.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# folder_service.get_tree
+# ---------------------------------------------------------------------------
+
+
+# The CRUD returns SQLAlchemy Rows: tuples whose columns are also named attributes.
+_FolderRow = namedtuple("_FolderRow", ["id", "name", "parent_id", "updated_at"])
+_NoteRow = namedtuple("_NoteRow", ["id", "title", "folder_id", "updated_at"])
+
+
+def _now() -> datetime:
+    return datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+
+class TestGetTree:
+    def test_returns_flat_folders_and_notes_for_all_depths(self) -> None:
+        """Folders at any depth and notes in any folder appear in the flat lists."""
+        from app.services import folder_service
+
+        db = MagicMock()
+        user = _make_user("u1")
+        ts = _now()
+        # folder "root" (no parent) and folder "child" (parent = "f1")
+        folder_rows = [
+            _FolderRow("f1", "Root", None, ts),
+            _FolderRow("f2", "Child", "f1", ts),
+        ]
+        # note in root folder and note in child folder
+        note_rows = [
+            _NoteRow("n1", "Alpha", None, ts),
+            _NoteRow("n2", "Beta", "f2", ts),
+        ]
+        with patch("app.services.folder_service.folder_crud") as mock_crud:
+            mock_crud.list_tree_folders.return_value = folder_rows
+            mock_crud.list_tree_notes.return_value = note_rows
+
+            result = folder_service.get_tree(db, current_user=user)
+
+        assert len(result.folders) == 2
+        assert result.folders[0].id == "f1"
+        assert result.folders[0].parent_id is None
+        assert result.folders[1].id == "f2"
+        assert result.folders[1].parent_id == "f1"
+        assert len(result.notes) == 2
+        assert result.notes[0].id == "n1"
+        assert result.notes[0].folder_id is None
+        assert result.notes[1].id == "n2"
+        assert result.notes[1].folder_id == "f2"
+
+    def test_note_items_have_no_content_key(self) -> None:
+        """FileTreeNote must not expose a content field."""
+        from app.services import folder_service
+
+        db = MagicMock()
+        user = _make_user("u1")
+        ts = _now()
+        note_rows = [_NoteRow("n1", "Title", None, ts)]
+        with patch("app.services.folder_service.folder_crud") as mock_crud:
+            mock_crud.list_tree_folders.return_value = []
+            mock_crud.list_tree_notes.return_value = note_rows
+
+            result = folder_service.get_tree(db, current_user=user)
+
+        note_dict = result.notes[0].model_dump()
+        assert "content" not in note_dict
+
+    def test_excludes_trashed_items(self) -> None:
+        """CRUD is called without trashed rows; get_tree passes them straight through."""
+        from app.services import folder_service
+
+        db = MagicMock()
+        user = _make_user("u1")
+        # The CRUD already filters deleted_at IS NULL; here it returns 0 live items.
+        with patch("app.services.folder_service.folder_crud") as mock_crud:
+            mock_crud.list_tree_folders.return_value = []
+            mock_crud.list_tree_notes.return_value = []
+
+            result = folder_service.get_tree(db, current_user=user)
+
+        assert result.folders == []
+        assert result.notes == []
+        mock_crud.list_tree_folders.assert_called_once_with(db, user_id="u1")
+        mock_crud.list_tree_notes.assert_called_once_with(db, user_id="u1")
+
+    def test_excludes_other_user_items(self) -> None:
+        """CRUD is called with current_user.id — other-user items are never fetched."""
+        from app.services import folder_service
+
+        db = MagicMock()
+        user = _make_user("u_mine")
+        ts = _now()
+        with patch("app.services.folder_service.folder_crud") as mock_crud:
+            mock_crud.list_tree_folders.return_value = [_FolderRow("f1", "Mine", None, ts)]
+            mock_crud.list_tree_notes.return_value = []
+
+            folder_service.get_tree(db, current_user=user)
+
+        # Confirm user_id passed to CRUD matches the authenticated user
+        mock_crud.list_tree_folders.assert_called_once_with(db, user_id="u_mine")
+        mock_crud.list_tree_notes.assert_called_once_with(db, user_id="u_mine")

@@ -1,14 +1,12 @@
 'use client';
 
-import { ChevronsLeftRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import { AnswerStatus, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
+import { SplitPane } from '@/components/shared/SplitPane';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { useResizableSplit } from '@/hooks/useResizableSplit';
-import { cn } from '@/lib/utils';
 
 import { GroupDetailPanel } from './GroupDetailPanel';
 import { QuestionDetailPanel } from './QuestionDetailPanel';
@@ -30,10 +28,6 @@ export function ResultDetail({ result, test }: Props) {
   const t = useTranslations();
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const { isDesktop } = useBreakpoint();
-  const { containerRef, splitRatio, handleDividerMouseDown, resetRatio } = useResizableSplit(
-    SPLIT_RATIO_KEY,
-    DEFAULT_SPLIT_RATIO
-  );
 
   const items: ExamItem[] = useMemo(() => buildExamItems(test), [test]);
 
@@ -111,29 +105,16 @@ export function ResultDetail({ result, test }: Props) {
   }
 
   return (
-    <div ref={containerRef} className="flex h-[calc(100vh-6rem)] overflow-hidden">
-      <div className="min-w-0 overflow-y-auto scrollbar-none p-0.5 pr-4 pb-4 space-y-4" style={{ flex: splitRatio }}>
-        {listContent}
-      </div>
-
-      <div
-        className={cn(
-          'shrink-0 relative flex items-center justify-center w-12',
-          hasSelection ? 'cursor-col-resize' : 'invisible'
-        )}
-        onMouseDown={hasSelection ? handleDividerMouseDown : undefined}
-        onDoubleClick={hasSelection ? resetRatio : undefined}
-      >
-        <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-        <div className="relative z-10 flex items-center justify-center w-6 h-10 rounded-full border border-border bg-background text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronsLeftRight className="size-5" />
-        </div>
-      </div>
-
-      <div className="min-w-0 overflow-y-auto scrollbar-none p-0.5 pl-4 pb-4" style={{ flex: 1 - splitRatio }}>
-        {rightPanelContent}
-      </div>
-    </div>
+    <SplitPane
+      storageKey={SPLIT_RATIO_KEY}
+      defaultRatio={DEFAULT_SPLIT_RATIO}
+      className="h-[calc(100vh-6rem)]"
+      mainClassName="scrollbar-none p-0.5 pr-2 pb-4 space-y-4"
+      main={listContent}
+      side={hasSelection ? rightPanelContent : null}
+      // No card frame: the detail panels draw their own cards.
+      sideClassName="overflow-y-auto scrollbar-none p-0.5 pl-2 pb-4"
+    />
   );
 }
 

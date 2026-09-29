@@ -1,6 +1,5 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Check, ChevronRight, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -16,9 +15,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
-import { sdk } from '@/lib/apiClient';
 import { folderHref, noteHref, Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
+
+import { useFileTree } from '../hooks/useFileTree';
+import { type ChildrenIndex } from '../lib/fileTree';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -78,18 +79,21 @@ function SiblingList({ siblings }: { siblings: SiblingEntry[] }) {
 function FolderSiblingCard({
   parentId,
   currentId,
-  allFolders,
+  childrenIndex,
   children,
 }: {
   parentId: string | null;
   currentId: string;
-  allFolders: FolderRead[];
+  childrenIndex: ChildrenIndex;
   children: React.ReactNode;
 }) {
-  const siblings: SiblingEntry[] = allFolders
-    .filter(f => f.parentId === parentId)
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(f => ({ id: f.id, name: f.name, href: folderHref(f), isCurrent: f.id === currentId }));
+  // Backend already sorts folders by lower(name); no client-side re-sort needed.
+  const siblings: SiblingEntry[] = (childrenIndex.get(parentId)?.folders ?? []).map(f => ({
+    id: f.id,
+    name: f.name,
+    href: folderHref(f),
+    isCurrent: f.id === currentId,
+  }));
 
   if (siblings.length === 0) return <>{children}</>;
 
@@ -109,38 +113,27 @@ function FolderSiblingCard({
 function NoteSiblingCard({
   folderId,
   currentId,
+  childrenIndex,
   children,
 }: {
   folderId: string | null;
   currentId: string;
+  childrenIndex: ChildrenIndex;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  // Backend sorts notes by lower(title); no client-side re-sort needed.
+  // The tree is already in memory, so no extra fetch is required on hover.
+  const siblings: SiblingEntry[] = (childrenIndex.get(folderId)?.notes ?? []).map(n => ({
+    id: n.id,
+    name: n.title || '',
+    href: noteHref({ id: n.id, title: n.title }),
+    isCurrent: n.id === currentId,
+  }));
 
-  const { data: contentsRes } = useQuery({
-    queryKey: ['folders', 'contents', folderId],
-    queryFn: () => sdk.foldersContents({ query: { folder_id: folderId } }),
-    // Only fetch when the card is open — avoid an extra round trip on mount.
-    enabled: open,
-  });
-
-  const notes = contentsRes?.data?.notes ?? [];
-  // Copy before sort: `notes` is the query cache array and must not change.
-  const siblings: SiblingEntry[] = [...notes]
-    .sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''))
-    .map(n => ({
-      id: n.id,
-      name: n.title || '',
-      href: noteHref({ id: n.id, title: n.title ?? '' }),
-      isCurrent: n.id === currentId,
-    }));
-
-  // If the contents are loaded and there is only the current note, no card is needed.
-  // But we still render the card before loading to avoid layout shift.
   const showContent = siblings.length > 0;
 
   return (
-    <HoverCard open={open} onOpenChange={setOpen} openDelay={200}>
+    <HoverCard openDelay={200}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       {showContent && (
         <HoverCardContent className="w-auto min-w-[160px] p-0">
@@ -158,12 +151,12 @@ function NoteSiblingCard({
 
 function CurrentCrumb({
   current,
-  allFolders,
+  childrenIndex,
   onRename,
   renameDisabled,
 }: {
   current: FileBreadcrumbCurrent;
-  allFolders: FolderRead[];
+  childrenIndex: ChildrenIndex;
   onRename?: (name: string) => void;
   renameDisabled?: boolean;
 }) {
@@ -210,14 +203,14 @@ function CurrentCrumb({
 
   if (current.kind === 'folder') {
     return (
-      <FolderSiblingCard parentId={current.parentId} currentId={current.id} allFolders={allFolders}>
+      <FolderSiblingCard parentId={current.parentId} currentId={current.id} childrenIndex={childrenIndex}>
         {label}
       </FolderSiblingCard>
     );
   }
 
   return (
-    <NoteSiblingCard folderId={current.parentId} currentId={current.id}>
+    <NoteSiblingCard folderId={current.parentId} currentId={current.id} childrenIndex={childrenIndex}>
       {label}
     </NoteSiblingCard>
   );
@@ -226,7 +219,7 @@ function CurrentCrumb({
 // ─── PathCrumb ────────────────────────────────────────────────────────────────
 // An ancestor item — a Link with a sibling folder HoverCard.
 
-function PathCrumb({ folder, allFolders }: { folder: FolderRead; allFolders: FolderRead[] }) {
+function PathCrumb({ folder, childrenIndex }: { folder: FolderRead; childrenIndex: ChildrenIndex }) {
   const link = (
     <Link
       href={folderHref(folder)}
@@ -237,7 +230,7 @@ function PathCrumb({ folder, allFolders }: { folder: FolderRead; allFolders: Fol
   );
 
   return (
-    <FolderSiblingCard parentId={folder.parentId} currentId={folder.id} allFolders={allFolders}>
+    <FolderSiblingCard parentId={folder.parentId} currentId={folder.id} childrenIndex={childrenIndex}>
       {link}
     </FolderSiblingCard>
   );
@@ -286,12 +279,9 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
   const backFallback = fallbackHref ?? (parentFolder ? folderHref(parentFolder) : Routes.FILES);
   const goBack = useBackNavigation(backFallback);
 
-  // Cached flat folder list — used for sibling cards without an extra fetch.
-  const { data: foldersRes } = useQuery({
-    queryKey: ['folders'],
-    queryFn: () => sdk.foldersList(),
-  });
-  const allFolders = foldersRes?.data ?? [];
+  // Full tree — already in memory when the files page has loaded.
+  // Using the tree's childrenIndex lets sibling cards avoid a second round trip.
+  const { childrenIndex } = useFileTree();
 
   // Collapse when path + current exceeds the threshold.
   const totalItems = path.length + 1; // +1 for current
@@ -322,13 +312,13 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
             {path.map((folder, i) => (
               <span key={folder.id} className="flex items-center gap-0.5">
                 {i > 0 && <Sep />}
-                <PathCrumb folder={folder} allFolders={allFolders} />
+                <PathCrumb folder={folder} childrenIndex={childrenIndex} />
               </span>
             ))}
             {path.length > 0 && <Sep />}
             <CurrentCrumb
               current={current}
-              allFolders={allFolders}
+              childrenIndex={childrenIndex}
               onRename={onRename}
               renameDisabled={renameDisabled}
             />
@@ -338,7 +328,7 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
           <>
             {firstItem && (
               <>
-                <PathCrumb folder={firstItem} allFolders={allFolders} />
+                <PathCrumb folder={firstItem} childrenIndex={childrenIndex} />
                 <Sep />
               </>
             )}
@@ -350,13 +340,13 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
             )}
             {lastParent && (
               <>
-                <PathCrumb folder={lastParent} allFolders={allFolders} />
+                <PathCrumb folder={lastParent} childrenIndex={childrenIndex} />
                 <Sep />
               </>
             )}
             <CurrentCrumb
               current={current}
-              allFolders={allFolders}
+              childrenIndex={childrenIndex}
               onRename={onRename}
               renameDisabled={renameDisabled}
             />

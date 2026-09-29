@@ -293,19 +293,67 @@ export type CriterionChallengeInput = {
 };
 
 /**
- * FolderContents
+ * FileTree
  *
- * Subfolders and notes inside a folder (or the root when folder_id is omitted).
+ * All non-trashed folders and notes of the user as flat lists.
  */
-export type FolderContents = {
+export type FileTree = {
     /**
      * Folders
      */
-    folders: Array<FolderRead>;
+    folders: Array<FileTreeFolder>;
     /**
      * Notes
      */
-    notes: Array<NoteRead>;
+    notes: Array<FileTreeNote>;
+};
+
+/**
+ * FileTreeFolder
+ *
+ * Light folder record for the full file-tree response.
+ */
+export type FileTreeFolder = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parentid
+     */
+    parentId: string | null;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
+};
+
+/**
+ * FileTreeNote
+ *
+ * Light note record for the full file-tree response (no content).
+ */
+export type FileTreeNote = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Folderid
+     */
+    folderId: string | null;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
 };
 
 /**
@@ -2944,35 +2992,30 @@ export type FoldersCreateResponses = {
 
 export type FoldersCreateResponse = FoldersCreateResponses[keyof FoldersCreateResponses];
 
-export type FoldersContentsData = {
+export type FoldersTreeData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * Folder Id
-         */
-        folder_id?: string | null;
-    };
-    url: '/api/v1/folders/contents';
+    query?: never;
+    url: '/api/v1/folders/tree';
 };
 
-export type FoldersContentsErrors = {
+export type FoldersTreeErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type FoldersContentsError = FoldersContentsErrors[keyof FoldersContentsErrors];
+export type FoldersTreeError = FoldersTreeErrors[keyof FoldersTreeErrors];
 
-export type FoldersContentsResponses = {
+export type FoldersTreeResponses = {
     /**
      * Successful Response
      */
-    200: FolderContents;
+    200: FileTree;
 };
 
-export type FoldersContentsResponse = FoldersContentsResponses[keyof FoldersContentsResponses];
+export type FoldersTreeResponse = FoldersTreeResponses[keyof FoldersTreeResponses];
 
 export type FoldersDeletePreviewData = {
     body?: never;

@@ -1,78 +1,162 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useDndContext, useDraggable, useDroppable } from '@dnd-kit/core';
 import { ChevronRight, Folder, NotepadText } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { type FolderRead, type NoteRead } from '@/client';
+import { type FileTreeFolder, type FileTreeNote } from '@/client';
 import { InlineRename } from '@/components/shared/InlineRename';
-import { sdk } from '@/lib/apiClient';
 import { formatShortDate } from '@/lib/format';
 import { folderHref, noteHref } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-import { FolderActionsMenu } from './FolderActionsMenu';
-import { NoteActionsMenu } from './NoteActionsMenu';
+import { type ChildrenIndex, canDrop, type DraggedItem } from '../lib/fileTree';
+
+import { FolderRowActions, NoteRowActions } from './FileRowActions';
 
 import type { useFileMutations } from '../hooks/useFileMutations';
 
-// ─── shared types ─────────────────────────────────────────────────────────────
+// ─── Shared types ─────────────────────────────────────────────────────────────
 
 type Mutations = ReturnType<typeof useFileMutations>;
 
-type SharedRowProps = {
-  depth: number;
-  /** IDs of the expanded folders. */
-  expanded: Set<string>;
-  onToggleExpand: (id: string) => void;
-  onPreview: (noteId: string) => void;
-  previewId: string | null;
-  mutations: Mutations;
-};
+// Unique ID prefixes for dnd-kit draggable / droppable instances.
+const dragId = (kind: 'folder' | 'note', id: string) => `drag:${kind}:${id}`;
+const dropId = (id: string) => `drop:folder:${id}`;
+
+// How long (ms) the pointer must hover a collapsed folder during a drag before it auto-expands.
+const HOVER_TO_OPEN_MS = 600;
 
 // ─── FolderTreeRow ────────────────────────────────────────────────────────────
 
-type FolderTreeRowProps = SharedRowProps & { folder: FolderRead };
+type FolderTreeRowProps = {
+  folder: FileTreeFolder;
+  depth: number;
+  expanded: Set<string>;
+  onToggleExpand: (id: string) => void;
+  childrenIndex: ChildrenIndex;
+  folders: FileTreeFolder[];
+  onPreview: (noteId: string) => void;
+  previewId: string | null;
+  mutations: Mutations;
+  /** Disable DnD entirely on non-desktop viewports. */
+  isDesktop: boolean;
+};
 
 export function FolderTreeRow({
   folder,
   depth,
   expanded,
   onToggleExpand,
+  childrenIndex,
+  folders,
   onPreview,
   previewId,
   mutations,
+  isDesktop,
 }: FolderTreeRowProps) {
   const t = useTranslations();
   const isExpanded = expanded.has(folder.id);
   const [renaming, setRenaming] = useState(false);
 
-  // Lazily fetch children when the row is expanded.
-  const { data: contentsRes, isLoading: isLoadingChildren } = useQuery({
-    queryKey: ['folders', 'contents', folder.id],
-    queryFn: () => sdk.foldersContents({ query: { folder_id: folder.id } }),
-    enabled: isExpanded,
+  // ── DnD: this row is both draggable and droppable ─────────────────────────
+  const dragData: DraggedItem = {
+    kind: 'folder',
+    id: folder.id,
+    parentId: folder.parentId,
+    name: folder.name,
+  };
+
+  const {
+    setNodeRef: setDragRef,
+    setActivatorNodeRef,
+    attributes,
+    listeners,
+    isDragging,
+  } = useDraggable({
+    id: dragId('folder', folder.id),
+    data: dragData,
+    // No drag while renaming: a space typed in the input would start a keyboard drag.
+    disabled: !isDesktop || renaming,
+    // Keep the treegrid semantics (dnd-kit sets role="button" by default).
+    attributes: { role: 'row' },
   });
 
-  const childFolders = contentsRes?.data?.folders ?? [];
-  const childNotes = contentsRes?.data?.notes ?? [];
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: dropId(folder.id),
+    data: { folderId: folder.id },
+    disabled: !isDesktop,
+  });
+
+  // Combine drag and drop refs onto the same DOM element.
+  const setRef = useCallback(
+    (node: HTMLElement | null) => {
+      setDragRef(node);
+      setDropRef(node);
+      setActivatorNodeRef(node);
+    },
+    [setDragRef, setDropRef, setActivatorNodeRef]
+  );
+
+  // Read the active drag from context to decide if this folder is a valid drop target.
+  const { active } = useDndContext();
+  const activeDrag = active?.data.current as DraggedItem | undefined;
+  const isValidTarget = isDesktop && activeDrag ? canDrop(activeDrag, folder.id, folders) : false;
+
+  // Hover-to-open: auto-expand a collapsed folder when the pointer stays over
+  // it for HOVER_TO_OPEN_MS during a drag.
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isOver && activeDrag && !isExpanded && isValidTarget) {
+      hoverTimer.current = setTimeout(() => {
+        onToggleExpand(folder.id);
+      }, HOVER_TO_OPEN_MS);
+    } else {
+      if (hoverTimer.current) {
+        clearTimeout(hoverTimer.current);
+        hoverTimer.current = null;
+      }
+    }
+    return () => {
+      if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    };
+  }, [isOver, activeDrag, isExpanded, isValidTarget, folder.id, onToggleExpand]);
+
+  const children = childrenIndex.get(folder.id);
+  const childFolders = children?.folders ?? [];
+  const childNotes = children?.notes ?? [];
 
   return (
     <>
       {/* Row */}
       <div
+        ref={setRef}
         role="row"
-        className="group flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md hover:bg-accent/30 transition-colors"
+        {...(isDesktop ? attributes : {})}
+        {...(isDesktop ? listeners : {})}
+        className={cn(
+          'group flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors cursor-pointer',
+          isDragging ? 'opacity-50' : 'hover:bg-accent/30',
+          isOver && isValidTarget && 'bg-primary/10 ring-1 ring-primary/40'
+        )}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
+        onClick={() => {
+          if (!renaming) onToggleExpand(folder.id);
+        }}
       >
-        {/* Chevron — toggles expansion */}
+        {/* Chevron — aria control; click also toggles but row click handles it */}
         <button
           type="button"
           aria-label={t('files.expand_folder')}
           aria-expanded={isExpanded}
-          onClick={() => onToggleExpand(folder.id)}
+          onClick={e => {
+            e.stopPropagation();
+            onToggleExpand(folder.id);
+          }}
           className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronRight className={cn('size-3.5 transition-transform duration-150', isExpanded && 'rotate-90')} />
@@ -81,7 +165,7 @@ export function FolderTreeRow({
         {/* Folder icon */}
         <Folder className="size-4 shrink-0 text-primary/70" />
 
-        {/* Name cell — either inline rename input or a link */}
+        {/* Name cell — Link navigates; click stops propagation so the row does not toggle */}
         <div className="flex min-w-0 flex-1 items-center">
           {renaming ? (
             <InlineRename
@@ -109,27 +193,13 @@ export function FolderTreeRow({
           {formatShortDate(folder.updatedAt)}
         </span>
 
-        {/* Actions: fixed width, so the Updated column lines up in folder and note rows */}
-        <div className="flex w-16 shrink-0 items-center justify-end gap-1">
-          <FolderActionsMenu
-            folder={folder}
-            onStartRename={() => setRenaming(true)}
-            onTrash={id => mutations.trashFolder(id)}
-            isTrashingFolder={mutations.isTrashingFolder}
-            moveFolder={mutations.moveFolder}
-            isMovingFolder={mutations.isMovingFolder}
-          />
-        </div>
+        {/* Inline actions */}
+        <FolderRowActions folder={folder} onStartRename={() => setRenaming(true)} mutations={mutations} />
       </div>
 
       {/* Expanded children */}
       {isExpanded && (
         <>
-          {isLoadingChildren && (
-            <div className="py-1 text-xs text-muted-foreground" style={{ paddingLeft: `${(depth + 1) * 16 + 28}px` }}>
-              {t('common.loading')}
-            </div>
-          )}
           {childFolders.map(child => (
             <FolderTreeRow
               key={child.id}
@@ -137,9 +207,12 @@ export function FolderTreeRow({
               depth={depth + 1}
               expanded={expanded}
               onToggleExpand={onToggleExpand}
+              childrenIndex={childrenIndex}
+              folders={folders}
               onPreview={onPreview}
               previewId={previewId}
               mutations={mutations}
+              isDesktop={isDesktop}
             />
           ))}
           {childNotes.map(note => (
@@ -150,9 +223,10 @@ export function FolderTreeRow({
               onPreview={onPreview}
               previewId={previewId}
               mutations={mutations}
+              isDesktop={isDesktop}
             />
           ))}
-          {!isLoadingChildren && childFolders.length === 0 && childNotes.length === 0 && (
+          {childFolders.length === 0 && childNotes.length === 0 && (
             <div className="py-1 text-xs text-muted-foreground" style={{ paddingLeft: `${(depth + 1) * 16 + 28}px` }}>
               {t('files.empty_folder')}
             </div>
@@ -164,32 +238,71 @@ export function FolderTreeRow({
 }
 
 // ─── NoteTreeRow ──────────────────────────────────────────────────────────────
-// Notes have no children, so they do not need expanded/onToggleExpand.
 
 type NoteTreeRowProps = {
-  note: NoteRead;
+  note: FileTreeNote;
   depth: number;
   onPreview: (noteId: string) => void;
   previewId: string | null;
   mutations: Mutations;
+  isDesktop: boolean;
 };
 
-export function NoteTreeRow({ note, depth, onPreview, previewId, mutations }: NoteTreeRowProps) {
+export function NoteTreeRow({ note, depth, onPreview, previewId, mutations, isDesktop }: NoteTreeRowProps) {
   const t = useTranslations();
+  const router = useRouter();
   const [renaming, setRenaming] = useState(false);
   const isPreviewed = previewId === note.id;
   const title = note.title.trim() || t('notes.untitled');
+  const href = noteHref({ id: note.id, title: note.title });
+
+  const dragData: DraggedItem = {
+    kind: 'note',
+    id: note.id,
+    parentId: note.folderId,
+    name: note.title,
+  };
+
+  const {
+    setNodeRef: setDragRef,
+    setActivatorNodeRef,
+    attributes,
+    listeners,
+    isDragging,
+  } = useDraggable({
+    id: dragId('note', note.id),
+    data: dragData,
+    // No drag while renaming: a space typed in the input would start a keyboard drag.
+    disabled: !isDesktop || renaming,
+    // Keep the treegrid semantics (dnd-kit sets role="button" by default).
+    attributes: { role: 'row' },
+  });
+
+  // The row is the activator node: the keyboard sensor then ignores Enter/Space from child elements.
+  const setRef = useCallback(
+    (node: HTMLElement | null) => {
+      setDragRef(node);
+      setActivatorNodeRef(node);
+    },
+    [setDragRef, setActivatorNodeRef]
+  );
 
   return (
     <div
+      ref={setRef}
       role="row"
+      {...(isDesktop ? attributes : {})}
+      {...(isDesktop ? listeners : {})}
       className={cn(
-        'group flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors',
-        isPreviewed ? 'bg-muted' : 'hover:bg-accent/30'
+        'group flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors cursor-pointer',
+        isDragging ? 'opacity-50' : isPreviewed ? 'bg-muted' : 'hover:bg-accent/30'
       )}
       style={{ paddingLeft: `${depth * 16 + 4}px` }}
+      onClick={() => {
+        if (!renaming) router.push(href);
+      }}
     >
-      {/* Spacer matching the chevron width for notes (no expand button) */}
+      {/* Spacer matching chevron width (notes have no expand control) */}
       <span className="size-5 shrink-0" />
 
       {/* Note icon */}
@@ -203,12 +316,17 @@ export function NoteTreeRow({ note, depth, onPreview, previewId, mutations }: No
             maxLength={200}
             onSave={name => {
               setRenaming(false);
-              mutations.renameNote({ id: note.id, name, version: note.version });
+              // version is fetched inside the mutation to avoid needing NoteRead here.
+              mutations.renameNote({ id: note.id, name });
             }}
             onCancel={() => setRenaming(false)}
           />
         ) : (
-          <Link href={noteHref(note)} className="truncate font-medium text-foreground hover:underline">
+          <Link
+            href={href}
+            className="truncate font-medium text-foreground hover:underline"
+            onClick={e => e.stopPropagation()}
+          >
             {title}
           </Link>
         )}
@@ -219,17 +337,7 @@ export function NoteTreeRow({ note, depth, onPreview, previewId, mutations }: No
         {formatShortDate(note.updatedAt)}
       </span>
 
-      <div className="flex w-16 shrink-0 items-center justify-end gap-1">
-        <NoteActionsMenu
-          note={note}
-          onStartRename={() => setRenaming(true)}
-          onPreview={onPreview}
-          onTrash={id => mutations.trashNote(id)}
-          isTrashingNote={mutations.isTrashingNote}
-          moveNote={mutations.moveNote}
-          isMovingNote={mutations.isMovingNote}
-        />
-      </div>
+      <NoteRowActions note={note} onStartRename={() => setRenaming(true)} onPreview={onPreview} mutations={mutations} />
     </div>
   );
 }

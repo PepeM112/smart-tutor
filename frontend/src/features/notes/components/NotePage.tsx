@@ -218,7 +218,7 @@ function NoteForm({ note }: { note: NoteRead }) {
       queryClient.setQueryData<{ data: NoteRead }>(['notes', note.id], old =>
         old && res.data ? { ...old, data: { ...old.data, folderId: res.data.folderId } } : old
       );
-      void queryClient.invalidateQueries({ queryKey: ['folders', 'contents'] });
+      void queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] });
       // refetchType 'none': same as useNoteDraft — do not refetch the open note while the user edits.
       void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
       toast.success(t('files.note_moved'));

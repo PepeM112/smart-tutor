@@ -12,7 +12,15 @@ from sqlalchemy.orm import Session
 from app.crud import folder as folder_crud
 from app.models.folder import Folder
 from app.models.user import User
-from app.schemas.folder import FolderContents, FolderCreate, FolderDeletePreview, FolderRead, FolderUpdate
+from app.schemas.folder import (
+    FileTree,
+    FileTreeFolder,
+    FileTreeNote,
+    FolderCreate,
+    FolderDeletePreview,
+    FolderRead,
+    FolderUpdate,
+)
 
 
 def _get_owned_folder_or_404(db: Session, *, folder_id: str, current_user: User) -> Folder:
@@ -65,17 +73,15 @@ def list_folders(db: Session, *, current_user: User) -> list[FolderRead]:
     return [FolderRead.model_validate(f) for f in folders]
 
 
-def get_contents(db: Session, *, current_user: User, folder_id: str | None) -> FolderContents:
-    """Return subfolders and notes for a folder (or root when folder_id is None)."""
-    if folder_id is not None:
-        _get_owned_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+def get_tree(db: Session, *, current_user: User) -> FileTree:
+    """Return all non-trashed folders and notes of the user as two flat lists."""
+    folder_rows = folder_crud.list_tree_folders(db, user_id=current_user.id)
+    note_rows = folder_crud.list_tree_notes(db, user_id=current_user.id)
 
-    folders = folder_crud.list_subfolders(db, user_id=current_user.id, parent_id=folder_id)
-    notes = folder_crud.list_notes_in_folder(db, user_id=current_user.id, folder_id=folder_id)
-
-    return FolderContents(
-        folders=[FolderRead.model_validate(f) for f in folders],
-        notes=list(notes),
+    return FileTree(
+        # Rows expose the selected columns as attributes, so from_attributes validation maps them by name.
+        folders=[FileTreeFolder.model_validate(row) for row in folder_rows],
+        notes=[FileTreeNote.model_validate(row) for row in note_rows],
     )
 
 

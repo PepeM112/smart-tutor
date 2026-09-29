@@ -6,7 +6,7 @@ No business logic here — ownership checks and cycle detection belong in the se
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import Row, func, select
 from sqlalchemy import update as sql_update
 from sqlalchemy.orm import Session
 
@@ -28,24 +28,24 @@ def list_by_user(db: Session, *, user_id: str) -> Sequence[Folder]:
     return db.scalars(stmt).all()
 
 
-def list_subfolders(db: Session, *, user_id: str, parent_id: str | None) -> Sequence[Folder]:
-    """Direct LIVE children of a folder (or root when parent_id is None)."""
+def list_tree_folders(db: Session, *, user_id: str) -> Sequence[Row[tuple[str, str, str | None, datetime]]]:
+    """Light folder columns for the file-tree endpoint; live only, ordered by name (case-insensitive)."""
     stmt = (
-        select(Folder)
-        .where(Folder.user_id == user_id, Folder.parent_id == parent_id, Folder.deleted_at.is_(None))
+        select(Folder.id, Folder.name, Folder.parent_id, Folder.updated_at)
+        .where(Folder.user_id == user_id, Folder.deleted_at.is_(None))
         .order_by(func.lower(Folder.name))
     )
-    return db.scalars(stmt).all()
+    return db.execute(stmt).fetchall()
 
 
-def list_notes_in_folder(db: Session, *, user_id: str, folder_id: str | None) -> Sequence[Note]:
-    """LIVE notes directly in a folder (or root when folder_id is None), alphabetical by title."""
+def list_tree_notes(db: Session, *, user_id: str) -> Sequence[Row[tuple[str, str, str | None, datetime]]]:
+    """Light note columns (no content) for the file-tree endpoint; live only, ordered by title (case-insensitive)."""
     stmt = (
-        select(Note)
-        .where(Note.user_id == user_id, Note.folder_id == folder_id, Note.deleted_at.is_(None))
+        select(Note.id, Note.title, Note.folder_id, Note.updated_at)
+        .where(Note.user_id == user_id, Note.deleted_at.is_(None))
         .order_by(func.lower(Note.title))
     )
-    return db.scalars(stmt).all()
+    return db.execute(stmt).fetchall()
 
 
 def sibling_name_exists(

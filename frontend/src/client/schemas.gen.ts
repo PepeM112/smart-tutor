@@ -448,18 +448,18 @@ export const CriterionChallengeInputSchema = {
     title: 'CriterionChallengeInput'
 } as const;
 
-export const FolderContentsSchema = {
+export const FileTreeSchema = {
     properties: {
         folders: {
             items: {
-                $ref: '#/components/schemas/FolderRead'
+                $ref: '#/components/schemas/FileTreeFolder'
             },
             type: 'array',
             title: 'Folders'
         },
         notes: {
             items: {
-                $ref: '#/components/schemas/NoteRead'
+                $ref: '#/components/schemas/FileTreeNote'
             },
             type: 'array',
             title: 'Notes'
@@ -470,8 +470,84 @@ export const FolderContentsSchema = {
         'folders',
         'notes'
     ],
-    title: 'FolderContents',
-    description: 'Subfolders and notes inside a folder (or the root when folder_id is omitted).'
+    title: 'FileTree',
+    description: 'All non-trashed folders and notes of the user as flat lists.'
+} as const;
+
+export const FileTreeFolderSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        parentId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parentid'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'name',
+        'parentId',
+        'updatedAt'
+    ],
+    title: 'FileTreeFolder',
+    description: 'Light folder record for the full file-tree response.'
+} as const;
+
+export const FileTreeNoteSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        folderId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Folderid'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'title',
+        'folderId',
+        'updatedAt'
+    ],
+    title: 'FileTreeNote',
+    description: 'Light note record for the full file-tree response (no content).'
 } as const;
 
 export const FolderCreateSchema = {

@@ -634,7 +634,7 @@
     "expand_folder": "Expand folder",
     "note_renamed": "Note renamed.",
     "failed_to_rename_note": "Failed to rename note.",
-    "item_actions": "Actions"
+    "drop_here": "Move here"
   },
   "trash": {
     "title": "Trash",

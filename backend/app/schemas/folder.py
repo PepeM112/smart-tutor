@@ -3,7 +3,6 @@ from datetime import datetime
 from pydantic import Field
 
 from app.schemas.base import BaseSchema
-from app.schemas.note import NoteRead
 
 
 class FolderBase(BaseSchema):
@@ -28,11 +27,29 @@ class FolderRead(FolderBase):
     updated_at: datetime
 
 
-class FolderContents(BaseSchema):
-    """Subfolders and notes inside a folder (or the root when folder_id is omitted)."""
+class FileTreeFolder(BaseSchema):
+    """Light folder record for the full file-tree response."""
 
-    folders: list[FolderRead]
-    notes: list[NoteRead]
+    id: str
+    name: str
+    parent_id: str | None
+    updated_at: datetime
+
+
+class FileTreeNote(BaseSchema):
+    """Light note record for the full file-tree response (no content)."""
+
+    id: str
+    title: str
+    folder_id: str | None
+    updated_at: datetime
+
+
+class FileTree(BaseSchema):
+    """All non-trashed folders and notes of the user as flat lists."""
+
+    folders: list[FileTreeFolder]
+    notes: list[FileTreeNote]
 
 
 class FolderDeletePreview(BaseSchema):

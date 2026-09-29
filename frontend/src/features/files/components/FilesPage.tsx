@@ -56,13 +56,13 @@ export function FilesPage({ folderId }: Props) {
   const folderPath = useFolderPath(folderId);
   const currentFolder = folderPath.length > 0 ? folderPath[folderPath.length - 1] : null;
 
-  const { renameFolder } = useFileMutations({ currentFolderId: folderId });
+  const { renameFolder } = useFileMutations();
 
   const { mutate: createNote, isPending: isCreating } = useMutation({
     mutationFn: () => sdk.notesCreate({ body: { title: '', content: '', tags: [], folderId: folderId ?? undefined } }),
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      void queryClient.invalidateQueries({ queryKey: ['folders', 'contents', folderId] });
+      void queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] });
       if (res.data) router.push(noteHref(res.data));
     },
     onError: err => toast.error(getErrorDetail(err, t('notes.failed_to_create'))),
@@ -72,12 +72,12 @@ export function FilesPage({ folderId }: Props) {
 
   const toolbar = (
     <div className="flex flex-row flex-wrap items-center justify-end gap-2">
-      <Button variant="outline" size="sm" icon={FolderPlus} onClick={() => setNewFolderOpen(true)}>
+      <Button variant="outline" size="lg" icon={FolderPlus} onClick={() => setNewFolderOpen(true)}>
         {t('files.new_folder')}
       </Button>
       <ImportNoteButton compact folderId={folderId} />
       <GenerateNoteDialog compact folderId={folderId} />
-      <Button size="sm" icon={Plus} onClick={() => createNote()} disabled={isCreating}>
+      <Button size="lg" icon={Plus} onClick={() => createNote()} disabled={isCreating}>
         {t('files.new_note')}
       </Button>
     </div>
