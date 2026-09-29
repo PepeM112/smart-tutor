@@ -1,7 +1,9 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, UnaryExpression, func, select
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import update as sql_update  # `update` is taken by the CRUD function below
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
@@ -20,6 +22,12 @@ def get_by_id_for_update(db: Session, *, id: str) -> Note | None:
     """Like `get_by_id`, but locks the row until the transaction ends (SELECT … FOR UPDATE)."""
     stmt = select(Note).where(Note.id == id).with_for_update()
     return db.scalars(stmt).first()
+
+
+def list_live_by_ids(db: Session, *, ids: Sequence[str]) -> Sequence[Note]:
+    """Return the LIVE (non-trashed) notes among `ids`."""
+    stmt = select(Note).where(Note.id.in_(ids), Note.deleted_at.is_(None))
+    return db.scalars(stmt).all()
 
 
 _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
@@ -110,6 +118,36 @@ def mark_indexed(db: Session, *, note_id: str, version: int) -> bool:
     return result.rowcount > 0
 
 
+def move(db: Session, *, note: Note, folder_id: str | None) -> Note:
+    """Change `folder_id` only. Does not touch version or is_indexed."""
+    note.folder_id = folder_id
+    db.flush()
+    return note
+
+
+def soft_delete(db: Session, *, note: Note, now: datetime) -> Note:
+    """Move a note to Trash."""
+    note.deleted_at = now
+    db.flush()
+    return note
+
+
+def restore(db: Session, *, note: Note, folder_id: str | None) -> Note:
+    """Bring a trashed note back into `folder_id` and clear its `orphan_path`."""
+    note.folder_id = folder_id
+    note.orphan_path = None
+    note.deleted_at = None
+    db.flush()
+    return note
+
+
 def delete(db: Session, *, note: Note) -> None:
+    """Permanently delete one note."""
     db.delete(note)
+    db.flush()
+
+
+def delete_all_trashed(db: Session, *, user_id: str) -> None:
+    """Bulk-delete every trashed note of the user with one DELETE."""
+    db.execute(sql_delete(Note).where(Note.user_id == user_id, Note.deleted_at.is_not(None)))
     db.flush()

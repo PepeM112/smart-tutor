@@ -127,7 +127,7 @@ class TestDeletePreview:
         user = _make_user()
         with (
             patch("app.services.folder_service.folder_crud") as mock_crud,
-            patch("app.services.folder_service._get_owned_folder_or_404") as mock_get,
+            patch("app.services.folder_service.get_live_folder_or_404") as mock_get,
         ):
             mock_get.return_value = _make_folder("f1")
             # 2 sub-folders, 5 notes across the subtree (live only)
@@ -146,7 +146,7 @@ class TestDeletePreview:
         user = _make_user()
         with (
             patch("app.services.folder_service.folder_crud") as mock_crud,
-            patch("app.services.folder_service._get_owned_folder_or_404") as mock_get,
+            patch("app.services.folder_service.get_live_folder_or_404") as mock_get,
         ):
             mock_get.return_value = _make_folder("f1")
             mock_crud.count_live_descendants.return_value = (0, 0)
@@ -171,7 +171,7 @@ class TestMoveNote:
         note = _make_note("n1", version=3)
 
         with (
-            patch("app.services.note_service.get_note") as mock_get_note,
+            patch("app.services.note_service.get_live_note") as mock_get_note,
             patch("app.services.note_service._validate_folder_ownership") as mock_validate,
         ):
             mock_get_note.return_value = note
@@ -193,7 +193,7 @@ class TestMoveNote:
         note = _make_note("n1", folder_id="f1")
 
         with (
-            patch("app.services.note_service.get_note") as mock_get_note,
+            patch("app.services.note_service.get_live_note") as mock_get_note,
             patch("app.services.note_service._validate_folder_ownership") as mock_validate,
         ):
             mock_get_note.return_value = note
@@ -212,7 +212,7 @@ class TestMoveNote:
 
 
 class TestOwnership:
-    def test_get_owned_folder_or_404_raises_404_when_not_found(self) -> None:
+    def testget_live_folder_or_404_raises_404_when_not_found(self) -> None:
         from app.services import folder_service
 
         db = MagicMock()
@@ -220,10 +220,10 @@ class TestOwnership:
         with patch("app.services.folder_service.folder_crud") as mock_crud:
             mock_crud.get_by_id.return_value = None
             with pytest.raises(HTTPException) as exc_info:
-                folder_service._get_owned_folder_or_404(db, folder_id="missing", current_user=user)
+                folder_service.get_live_folder_or_404(db, folder_id="missing", current_user=user)
         assert exc_info.value.status_code == 404
 
-    def test_get_owned_folder_or_404_raises_403_for_another_user(self) -> None:
+    def testget_live_folder_or_404_raises_403_for_another_user(self) -> None:
         from app.services import folder_service
 
         db = MagicMock()
@@ -232,7 +232,7 @@ class TestOwnership:
         with patch("app.services.folder_service.folder_crud") as mock_crud:
             mock_crud.get_by_id.return_value = other_folder
             with pytest.raises(HTTPException) as exc_info:
-                folder_service._get_owned_folder_or_404(db, folder_id="f1", current_user=user)
+                folder_service.get_live_folder_or_404(db, folder_id="f1", current_user=user)
         assert exc_info.value.status_code == 403
 
 

@@ -60,6 +60,11 @@ user explicitly asks for them.
 SRS scheduling data unless explicitly asked.
 - Keep responses user-friendly — refer to questions by their number in the \
 list or by their prompt text, not by ID.
+- Note locations: tools give a `location` like `Files > Biology > Cells`, \
+the same path the user sees in the app. Never say "root" or show a path \
+with slashes. A note at the top level is just "in Files" (or "not in a \
+folder"). When you list several notes, group them by folder instead of \
+repeating the location on each line.
 
 ## Important: question ordering
 

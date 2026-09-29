@@ -11,15 +11,18 @@ from functools import reduce
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.constants import FOLDER_NAME_MAX
 from app.crud import folder as folder_crud
+from app.crud import note as note_crud
 from app.models.folder import Folder
 from app.models.note import Note
 from app.schemas.folder import FolderCreate
-from app.schemas.trash import TrashItemRead, TrashKind  # noqa: F401 (TrashKind re-exported)
+from app.schemas.trash import TrashItemRead
+from app.services import folder_service
+from app.services.folder_paths import build_folder_path
+from app.services.service_helpers import get_owned_or_404
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -35,39 +38,13 @@ def _purge_expired(db: Session, *, user_id: str) -> None:
     db.commit()
 
 
-def _folder_path(db: Session, *, folder_id: str | None, orphan_path: list[str] | None, user_id: str) -> str | None:
-    """Return the original location of an item as a path, or None for root.
-
-    `folder_id` is the current parent (live or trashed). `orphan_path` holds folders that
-    were deleted forever below that parent. Each is added so the path shows the real place.
-    """
-    if folder_id is None and not orphan_path:
-        return None
-    # Use all folders (trashed included) so the path is shown even after a delete.
-    all_folders: dict[str, Folder] = {
-        f.id: f for f in db.scalars(select(Folder).where(Folder.user_id == user_id)).all()
-    }
-    parts: list[str] = []  # innermost first; reversed at the end
-    current_id: str | None = folder_id
-    seen: set[str] = set()
-    while current_id is not None and current_id not in seen:
-        seen.add(current_id)
-        f = all_folders.get(current_id)
-        if f is None:
-            break
-        parts.append(f.name)
-        # A folder can carry its own orphan_path: those names sit between it and its parent.
-        parts.extend(reversed(f.orphan_path or []))
-        current_id = f.parent_id
-    names = [*reversed(parts), *(orphan_path or [])]
-    return "/" + "/".join(names)
-
-
 def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
     """Return top-level trashed items after purging expired ones."""
     _purge_expired(db, user_id=current_user.id)
 
     items: list[TrashItemRead] = []
+    # One query for all folders (trashed included, so the path shows even after a delete).
+    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=True)
 
     for folder in folder_crud.list_trashed_top_folders(db, user_id=current_user.id):
         sub_folders, note_count = folder_crud.count_batch_items(
@@ -75,9 +52,7 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
             folder_id=folder.id,
             deleted_at=folder.deleted_at,  # type: ignore[arg-type]
         )
-        original_path = _folder_path(
-            db, folder_id=folder.parent_id, orphan_path=folder.orphan_path, user_id=current_user.id
-        )
+        original_path = build_folder_path(folders, folder_id=folder.parent_id, orphan_path=folder.orphan_path)
         items.append(
             TrashItemRead(
                 kind="folder",
@@ -91,9 +66,7 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
         )
 
     for note in folder_crud.list_trashed_top_notes(db, user_id=current_user.id):
-        original_path = _folder_path(
-            db, folder_id=note.folder_id, orphan_path=note.orphan_path, user_id=current_user.id
-        )
+        original_path = build_folder_path(folders, folder_id=note.folder_id, orphan_path=note.orphan_path)
         items.append(
             TrashItemRead(
                 kind="note",
@@ -111,20 +84,18 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
 
 
 def _get_trashed_folder_or_404(db: Session, *, folder_id: str, current_user: User) -> Folder:
-    folder = folder_crud.get_by_id(db, id=folder_id)
-    if folder is None or folder.deleted_at is None:
+    folder = get_owned_or_404(
+        db, fetch=folder_crud.get_by_id, id=folder_id, current_user=current_user, entity_name="Folder"
+    )
+    if folder.deleted_at is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found in Trash")
-    if folder.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return folder
 
 
 def _get_trashed_note_or_404(db: Session, *, note_id: str, current_user: User) -> Note:
-    note = db.scalars(select(Note).where(Note.id == note_id)).first()
-    if note is None or note.deleted_at is None:
+    note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    if note.deleted_at is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found in Trash")
-    if note.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return note
 
 
@@ -202,13 +173,10 @@ def _restore_ancestors(db: Session, *, parent_id: str | None, user_id: str) -> s
     # for example after an orphan_path folder was reused, so every name is checked.
     for ancestor in reversed(chain):
         new_parent = _descend_orphan_path(db, anchor_id=anchor, path=ancestor.orphan_path or [], user_id=user_id)
-        ancestor.name = _resolve_restore_name(
+        name = _resolve_restore_name(
             db, name=ancestor.name, parent_id=new_parent, user_id=user_id, exclude_id=ancestor.id
         )
-        ancestor.parent_id = new_parent
-        ancestor.orphan_path = None
-        ancestor.deleted_at = None
-        db.flush()
+        folder_crud.restore_row(db, folder=ancestor, name=name, parent_id=new_parent)
         anchor = ancestor.id
     return anchor
 
@@ -230,16 +198,14 @@ def restore_folder(db: Session, *, folder_id: str, current_user: User) -> None:
     effective_parent = _restore_location(
         db, parent_id=folder.parent_id, orphan_path=folder.orphan_path, user_id=current_user.id
     )
-    folder.name = _resolve_restore_name(
+    name = _resolve_restore_name(
         db,
         name=folder.name,
         parent_id=effective_parent,
         user_id=current_user.id,
         exclude_id=folder.id,
     )
-    folder.parent_id = effective_parent
-    folder.orphan_path = None
-    db.flush()
+    folder_crud.relocate(db, folder=folder, name=name, parent_id=effective_parent)
 
     folder_crud.restore_folder_batch(db, folder=folder)
     db.commit()
@@ -253,11 +219,8 @@ def restore_note(db: Session, *, note_id: str, current_user: User) -> None:
     """
     note = _get_trashed_note_or_404(db, note_id=note_id, current_user=current_user)
 
-    note.folder_id = _restore_location(
-        db, parent_id=note.folder_id, orphan_path=note.orphan_path, user_id=current_user.id
-    )
-    note.orphan_path = None
-    note.deleted_at = None
+    folder_id = _restore_location(db, parent_id=note.folder_id, orphan_path=note.orphan_path, user_id=current_user.id)
+    note_crud.restore(db, note=note, folder_id=folder_id)
     db.commit()
 
 
@@ -269,28 +232,24 @@ def hard_delete_folder(db: Session, *, folder_id: str, current_user: User) -> No
     remove them and restore can rebuild their path.
     """
     folder = _get_trashed_folder_or_404(db, folder_id=folder_id, current_user=current_user)
-    folder_crud.detach_other_batches(db, folder=folder)
-    db.delete(folder)
+    folder_crud.hard_delete(db, folder=folder)
     db.commit()
 
 
 def hard_delete_note(db: Session, *, note_id: str, current_user: User) -> None:
     """Permanently delete a trashed note."""
     note = _get_trashed_note_or_404(db, note_id=note_id, current_user=current_user)
-    db.delete(note)
+    note_crud.delete(db, note=note)
     db.commit()
 
 
 def empty_trash(db: Session, *, current_user: User) -> None:
-    """Hard-delete all trashed folders and notes for the user."""
-    # Delete trashed folders first; FK CASCADE removes their note and sub-folder rows.
-    for folder in db.scalars(
-        select(Folder).where(Folder.user_id == current_user.id, Folder.deleted_at.is_not(None))
-    ).all():
-        db.delete(folder)
+    """Hard-delete all trashed folders and notes for the user.
 
-    # Delete remaining standalone trashed notes (those not under a trashed folder).
-    for note in db.scalars(select(Note).where(Note.user_id == current_user.id, Note.deleted_at.is_not(None))).all():
-        db.delete(note)
-
+    Two bulk DELETEs: trashed notes first, then trashed folders (FK CASCADE removes their
+    sub-rows). No live item can be lost: live items never sit under a trashed folder, so the
+    cascade only reaches rows that are trashed too, and those are all deleted here anyway.
+    """
+    note_crud.delete_all_trashed(db, user_id=current_user.id)
+    folder_crud.delete_all_trashed(db, user_id=current_user.id)
     db.commit()

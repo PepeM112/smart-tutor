@@ -21,19 +21,29 @@ from app.schemas.folder import (
     FolderRead,
     FolderUpdate,
 )
+from app.services.service_helpers import get_owned_or_404
 
 
-def _get_owned_folder_or_404(db: Session, *, folder_id: str, current_user: User) -> Folder:
+def get_live_folder_or_404(db: Session, *, folder_id: str, current_user: User) -> Folder:
     """Fetch a LIVE folder and verify it belongs to the current user.
 
-    Raises 404 for missing, trashed, or other-user folders (403 for the last case).
+    Raises 404 for missing or trashed folders, and 403 for folders of another user.
     """
-    folder = folder_crud.get_by_id(db, id=folder_id)
-    if folder is None or folder.deleted_at is not None:
+    folder = get_owned_or_404(
+        db, fetch=folder_crud.get_by_id, id=folder_id, current_user=current_user, entity_name="Folder"
+    )
+    if folder.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
-    if folder.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return folder
+
+
+def load_folder_map(db: Session, *, user_id: str, include_trashed: bool) -> dict[str, Folder]:
+    """Load the folders of a user ONCE as `{id: Folder}`, to build many paths without more queries.
+
+    Use it with `folder_paths.build_folder_path`. Pass `include_trashed=True` when the items
+    can sit in (or under) trashed folders, as in the Trash list.
+    """
+    return {f.id: f for f in folder_crud.list_by_user(db, user_id=user_id, include_trashed=include_trashed)}
 
 
 def _assert_no_sibling_conflict(
@@ -87,7 +97,7 @@ def get_tree(db: Session, *, current_user: User) -> FileTree:
 
 def create_folder(db: Session, *, current_user: User, data: FolderCreate) -> Folder:
     if data.parent_id is not None:
-        _get_owned_folder_or_404(db, folder_id=data.parent_id, current_user=current_user)
+        get_live_folder_or_404(db, folder_id=data.parent_id, current_user=current_user)
 
     _assert_no_sibling_conflict(db, user_id=current_user.id, parent_id=data.parent_id, name=data.name)
 
@@ -98,14 +108,14 @@ def create_folder(db: Session, *, current_user: User, data: FolderCreate) -> Fol
 
 
 def update_folder(db: Session, *, folder_id: str, current_user: User, data: FolderUpdate) -> Folder:
-    folder = _get_owned_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+    folder = get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
 
     # Determine effective target parent (after the update).
     new_parent_id = data.parent_id if "parent_id" in data.model_fields_set else folder.parent_id
     new_name = data.name if data.name is not None else folder.name
 
     if "parent_id" in data.model_fields_set and data.parent_id is not None:
-        _get_owned_folder_or_404(db, folder_id=data.parent_id, current_user=current_user)
+        get_live_folder_or_404(db, folder_id=data.parent_id, current_user=current_user)
         _assert_no_cycle(db, folder_id=folder_id, new_parent_id=data.parent_id)
 
     # Check sibling uniqueness only when name or parent changes.
@@ -126,7 +136,7 @@ def update_folder(db: Session, *, folder_id: str, current_user: User, data: Fold
 
 
 def get_delete_preview(db: Session, *, folder_id: str, current_user: User) -> FolderDeletePreview:
-    _get_owned_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
     # Count only live items so the confirmation shows what will actually be trashed.
     folder_count, note_count = folder_crud.count_live_descendants(db, folder_id=folder_id)
     # Include the folder itself.
@@ -135,7 +145,7 @@ def get_delete_preview(db: Session, *, folder_id: str, current_user: User) -> Fo
 
 def delete_folder(db: Session, *, folder_id: str, current_user: User) -> None:
     """Soft-delete a folder and all its live descendants + their notes as one batch."""
-    _get_owned_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
     now = datetime.now(timezone.utc)
     folder_crud.soft_delete_cascade(db, folder_id=folder_id, now=now)
     db.commit()

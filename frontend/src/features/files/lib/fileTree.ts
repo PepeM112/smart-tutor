@@ -20,6 +20,33 @@ export type DraggedItem = {
   name: string;
 };
 
+/** Data that a folder drop zone (folder row or view zone) puts on its droppable. */
+export type DropTargetData = {
+  /** null = the view level (root). */
+  folderId: string | null;
+};
+
+// ─── Type guards ──────────────────────────────────────────────────────────────
+// dnd-kit types `data.current` as `any`. These guards check the shape at runtime,
+// so a wrong payload is ignored instead of crashing a drop handler.
+
+export function isDraggedItem(value: unknown): value is DraggedItem {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    (v.kind === 'folder' || v.kind === 'note') &&
+    typeof v.id === 'string' &&
+    (v.parentId === null || typeof v.parentId === 'string') &&
+    typeof v.name === 'string'
+  );
+}
+
+export function isDropTargetData(value: unknown): value is DropTargetData {
+  if (typeof value !== 'object' || value === null) return false;
+  const folderId = (value as Record<string, unknown>).folderId;
+  return folderId === null || typeof folderId === 'string';
+}
+
 // ─── buildChildrenIndex ───────────────────────────────────────────────────────
 
 /**

@@ -2,6 +2,7 @@
 
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { useMemo } from 'react';
 import { toast } from 'sonner';
 
 import type { FileTree, NoteRead } from '@/client';
@@ -164,18 +165,35 @@ export function useFileMutations({ refetchNotes = false }: FileMutationsOptions 
     },
   });
 
-  return {
-    trashFolder,
-    isTrashingFolder,
-    trashNote,
-    isTrashingNote,
-    renameFolder,
-    isRenamingFolder,
-    renameNote,
-    isRenamingNote,
-    moveFolder,
-    isMovingFolder,
-    moveNote,
-    isMovingNote,
-  };
+  // Memoised so the tree context value stays stable between renders that change nothing.
+  return useMemo(
+    () => ({
+      trashFolder,
+      isTrashingFolder,
+      trashNote,
+      isTrashingNote,
+      renameFolder,
+      isRenamingFolder,
+      renameNote,
+      isRenamingNote,
+      moveFolder,
+      isMovingFolder,
+      moveNote,
+      isMovingNote,
+    }),
+    [
+      trashFolder,
+      isTrashingFolder,
+      trashNote,
+      isTrashingNote,
+      renameFolder,
+      isRenamingFolder,
+      renameNote,
+      isRenamingNote,
+      moveFolder,
+      isMovingFolder,
+      moveNote,
+      isMovingNote,
+    ]
+  );
 }

@@ -731,7 +731,7 @@ class TestEditTruncation:
         data = NoteChunkEdit(full_text="full", selected_text="sel", instructions="fix")
 
         with (
-            patch("app.services.note_service.get_note", return_value=_make_note()),
+            patch("app.services.note_service.get_live_note", return_value=_make_note()),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=True)),
             patch("app.services.note_service.token_usage_service") as mock_usage,
             pytest.raises(HTTPException) as exc_info,
@@ -749,7 +749,7 @@ class TestEditTruncation:
         data = NoteChunkEdit(full_text="full", selected_text="sel", instructions="fix")
 
         with (
-            patch("app.services.note_service.get_note", return_value=_make_note()),
+            patch("app.services.note_service.get_live_note", return_value=_make_note()),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=False)),
             patch("app.services.note_service.token_usage_service"),
         ):
@@ -766,7 +766,7 @@ class TestEditTruncation:
         note.content = "Some content"
 
         with (
-            patch("app.services.note_service.get_note", return_value=note),
+            patch("app.services.note_service.get_live_note", return_value=note),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=False)),
             patch("app.services.note_service.token_usage_service"),
         ):
@@ -783,7 +783,7 @@ class TestEditTruncation:
         note.content = "Some content"
 
         with (
-            patch("app.services.note_service.get_note", return_value=note),
+            patch("app.services.note_service.get_live_note", return_value=note),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=True)),
             patch("app.services.note_service.token_usage_service"),
             pytest.raises(HTTPException) as exc_info,

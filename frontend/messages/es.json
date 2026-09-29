@@ -632,6 +632,7 @@
     "col_name": "Nombre",
     "col_updated": "Actualizado",
     "expand_folder": "Expandir carpeta",
+    "collapse_folder": "Contraer carpeta",
     "note_renamed": "Nota renombrada.",
     "failed_to_rename_note": "Error al renombrar la nota.",
     "drop_here": "Mover aquí",

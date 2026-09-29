@@ -632,6 +632,7 @@
     "col_name": "Name",
     "col_updated": "Updated",
     "expand_folder": "Expand folder",
+    "collapse_folder": "Collapse folder",
     "note_renamed": "Note renamed.",
     "failed_to_rename_note": "Failed to rename note.",
     "drop_here": "Move here",

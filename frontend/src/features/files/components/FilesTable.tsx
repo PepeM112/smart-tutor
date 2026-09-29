@@ -17,19 +17,19 @@ import {
 } from '@dnd-kit/core';
 import { Folder, NotepadText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type ReactNode, useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { QueryState } from '@/components/shared/QueryState';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
 
+import { FilesTreeContext, type FilesTreeContextValue } from '../context/FilesTreeContext';
 import { useFileMutations } from '../hooks/useFileMutations';
 import { useFileTree } from '../hooks/useFileTree';
-import { canDrop, type DraggedItem } from '../lib/fileTree';
+import { FOLDER_DROP_PREFIX } from '../hooks/useTreeRowDnd';
+import { canDrop, type DraggedItem, isDraggedItem, isDropTargetData } from '../lib/fileTree';
 
 import { FolderTreeRow, NoteTreeRow } from './FileTreeRow';
-
-const FOLDER_DROP_PREFIX = 'drop:folder:';
 
 /**
  * The view drop zone contains the folder rows, so the pointer is often inside both.
@@ -65,7 +65,7 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
   const { folders, childrenIndex, isLoading, isError } = useFileTree();
   const mutations = useFileMutations();
 
-  // Immutable set of expanded folder IDs — toggled by FolderTreeRow.
+  // Immutable set of expanded folder IDs — toggled by FolderTreeRow through the tree context.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   // Stable identity: rows use it in the hover-to-open effect deps, so a new function would restart the timer.
@@ -91,7 +91,13 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
   );
 
   function handleDragStart(event: DragStartEvent) {
-    setActiveDrag(event.active.data.current as DraggedItem);
+    const data: unknown = event.active.data.current;
+    setActiveDrag(isDraggedItem(data) ? data : null);
+  }
+
+  // Esc (or a lost drag) fires cancel, not end: without this the overlay would stay.
+  function handleDragCancel() {
+    setActiveDrag(null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -99,8 +105,10 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
     const { active, over } = event;
     if (!over) return;
 
-    const dragged = active.data.current as DraggedItem;
-    const targetFolderId = (over.data.current as { folderId: string | null }).folderId;
+    const dragged: unknown = active.data.current;
+    const target: unknown = over.data.current;
+    if (!isDraggedItem(dragged) || !isDropTargetData(target)) return;
+    const targetFolderId = target.folderId;
 
     if (!canDrop(dragged, targetFolderId, folders)) return;
 
@@ -110,6 +118,21 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
       mutations.moveNote({ id: dragged.id, folderId: targetFolderId });
     }
   }
+
+  // Memoised: rows re-render only when something they read changes.
+  const treeContext = useMemo<FilesTreeContextValue>(
+    () => ({
+      expanded,
+      onToggleExpand: handleToggleExpand,
+      childrenIndex,
+      folders,
+      onPreview,
+      previewId,
+      mutations,
+      isDesktop,
+    }),
+    [expanded, handleToggleExpand, childrenIndex, folders, onPreview, previewId, mutations, isDesktop]
+  );
 
   // ── Root children ─────────────────────────────────────────────────────────
   const rootChildren = childrenIndex.get(currentFolderId);
@@ -123,30 +146,10 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
       {/* Tree rows */}
       <div className="py-1">
         {rootFolders.map(folder => (
-          <FolderTreeRow
-            key={folder.id}
-            folder={folder}
-            depth={0}
-            expanded={expanded}
-            onToggleExpand={handleToggleExpand}
-            childrenIndex={childrenIndex}
-            folders={folders}
-            onPreview={onPreview}
-            previewId={previewId}
-            mutations={mutations}
-            isDesktop={isDesktop}
-          />
+          <FolderTreeRow key={folder.id} folder={folder} depth={0} />
         ))}
         {rootNotes.map(note => (
-          <NoteTreeRow
-            key={note.id}
-            note={note}
-            depth={0}
-            onPreview={onPreview}
-            previewId={previewId}
-            mutations={mutations}
-            isDesktop={isDesktop}
-          />
+          <NoteTreeRow key={note.id} note={note} depth={0} />
         ))}
       </div>
     </ViewDropZone>
@@ -167,8 +170,9 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
       collisionDetection={preferFolderRows}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
-      {tableContent}
+      <FilesTreeContext.Provider value={treeContext}>{tableContent}</FilesTreeContext.Provider>
 
       {/* Drag overlay — shows icon + name of the item being dragged */}
       <DragOverlay>
@@ -214,8 +218,8 @@ function ViewDropZone({ currentFolderId, folders, children }: ViewDropZoneProps)
 
   // Read the active drag from DnD context to validate the drop target.
   const { active } = useDndContext();
-  const drag = active?.data.current as DraggedItem | undefined;
-  const isValid = drag ? canDrop(drag, currentFolderId, folders) : false;
+  const dragData: unknown = active?.data.current;
+  const isValid = isDraggedItem(dragData) ? canDrop(dragData, currentFolderId, folders) : false;
   const highlight = isOver && isValid;
 
   return (

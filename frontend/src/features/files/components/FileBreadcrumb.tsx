@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Check, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -13,13 +13,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
-import { folderHref, noteHref, Routes } from '@/lib/routes';
+import { folderHref, Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 import { useFileTree } from '../hooks/useFileTree';
 import { type ChildrenIndex } from '../lib/fileTree';
+import { folderSiblings, noteSiblings } from '../lib/siblings';
+
+import { SiblingCard } from './SiblingCard';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -45,104 +47,6 @@ type Props = {
 
 // Collapse when there are more than 3 items in total (path + current).
 const COLLAPSE_THRESHOLD = 3;
-
-// ─── SiblingList ─────────────────────────────────────────────────────────────
-// Reusable list rendered inside HoverCard content: folders or notes as links.
-
-type SiblingEntry = { id: string; name: string; href: string; isCurrent: boolean };
-
-function SiblingList({ siblings }: { siblings: SiblingEntry[] }) {
-  if (siblings.length === 0) return null;
-  return (
-    <ul className="max-h-60 overflow-y-auto py-0.5">
-      {siblings.map(s => (
-        <li key={s.id}>
-          <Link
-            href={s.href}
-            className={cn(
-              'flex items-center gap-2 rounded-md px-2.5 py-1 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
-              s.isCurrent ? 'font-medium text-foreground' : 'text-muted-foreground'
-            )}
-          >
-            {s.isCurrent && <Check className="size-3 shrink-0" />}
-            <span className={cn('truncate max-w-[200px]', !s.isCurrent && 'pl-5')}>{s.name || '—'}</span>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-// ─── FolderSiblingCard ────────────────────────────────────────────────────────
-// HoverCard that lists folders sharing the same parentId.
-
-function FolderSiblingCard({
-  parentId,
-  currentId,
-  childrenIndex,
-  children,
-}: {
-  parentId: string | null;
-  currentId: string;
-  childrenIndex: ChildrenIndex;
-  children: React.ReactNode;
-}) {
-  // Backend already sorts folders by lower(name); no client-side re-sort needed.
-  const siblings: SiblingEntry[] = (childrenIndex.get(parentId)?.folders ?? []).map(f => ({
-    id: f.id,
-    name: f.name,
-    href: folderHref(f),
-    isCurrent: f.id === currentId,
-  }));
-
-  if (siblings.length === 0) return <>{children}</>;
-
-  return (
-    <HoverCard openDelay={200}>
-      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
-      <HoverCardContent className="w-auto min-w-[160px] p-0">
-        <SiblingList siblings={siblings} />
-      </HoverCardContent>
-    </HoverCard>
-  );
-}
-
-// ─── NoteSiblingCard ──────────────────────────────────────────────────────────
-// HoverCard that lazy-fetches notes in the same folder when the card opens.
-
-function NoteSiblingCard({
-  folderId,
-  currentId,
-  childrenIndex,
-  children,
-}: {
-  folderId: string | null;
-  currentId: string;
-  childrenIndex: ChildrenIndex;
-  children: React.ReactNode;
-}) {
-  // Backend sorts notes by lower(title); no client-side re-sort needed.
-  // The tree is already in memory, so no extra fetch is required on hover.
-  const siblings: SiblingEntry[] = (childrenIndex.get(folderId)?.notes ?? []).map(n => ({
-    id: n.id,
-    name: n.title || '',
-    href: noteHref({ id: n.id, title: n.title }),
-    isCurrent: n.id === currentId,
-  }));
-
-  const showContent = siblings.length > 0;
-
-  return (
-    <HoverCard openDelay={200}>
-      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
-      {showContent && (
-        <HoverCardContent className="w-auto min-w-[160px] p-0">
-          <SiblingList siblings={siblings} />
-        </HoverCardContent>
-      )}
-    </HoverCard>
-  );
-}
 
 // InlineRename is the shared component in @/components/shared/InlineRename.
 
@@ -202,18 +106,10 @@ function CurrentCrumb({
   }
 
   if (current.kind === 'folder') {
-    return (
-      <FolderSiblingCard parentId={current.parentId} currentId={current.id} childrenIndex={childrenIndex}>
-        {label}
-      </FolderSiblingCard>
-    );
+    return <SiblingCard siblings={folderSiblings(childrenIndex, current.parentId, current.id)}>{label}</SiblingCard>;
   }
 
-  return (
-    <NoteSiblingCard folderId={current.parentId} currentId={current.id} childrenIndex={childrenIndex}>
-      {label}
-    </NoteSiblingCard>
-  );
+  return <SiblingCard siblings={noteSiblings(childrenIndex, current.parentId, current.id)}>{label}</SiblingCard>;
 }
 
 // ─── PathCrumb ────────────────────────────────────────────────────────────────
@@ -229,11 +125,7 @@ function PathCrumb({ folder, childrenIndex }: { folder: FileTreeFolder; children
     </Link>
   );
 
-  return (
-    <FolderSiblingCard parentId={folder.parentId} currentId={folder.id} childrenIndex={childrenIndex}>
-      {link}
-    </FolderSiblingCard>
-  );
+  return <SiblingCard siblings={folderSiblings(childrenIndex, folder.parentId, folder.id)}>{link}</SiblingCard>;
 }
 
 // ─── CollapsedCrumbs ─────────────────────────────────────────────────────────

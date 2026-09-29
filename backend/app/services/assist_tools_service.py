@@ -12,19 +12,16 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import select
-
 from app.core.enums import NoteLength, QuestionType
 from app.crud import folder as folder_crud
 from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
-from app.models.note import Note
 from app.schemas.note import NoteGenerate
 from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import GeneratedQuestionPreview, QuestionEditRequest, TestGenerationRequest
-from app.services import note_service, question_service, test_generation_service, test_service
+from app.services import folder_service, note_service, question_service, test_generation_service, test_service
 from app.services.assist_tools import (
     NavigateMetadata,
     NoteCreatedMetadata,
@@ -34,11 +31,15 @@ from app.services.assist_tools import (
     TestEditMetadata,
     ToolResult,
 )
+from app.services.folder_paths import build_folder_path
 from app.services.service_helpers import get_owned_or_404
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sqlalchemy.orm import Session
 
+    from app.models.folder import Folder
     from app.models.question import Question
     from app.models.user import User
 
@@ -72,23 +73,10 @@ def _note_label(title: str | None) -> str:
     return (title or "").strip() or "Untitled"
 
 
-def _folder_path(db: Session, *, folder_id: str | None, user_id: str) -> str:
-    """Build a slash-separated path string for a note's folder. Returns '/' for root."""
-    if folder_id is None:
-        return "/"
-    # Walk up the adjacency list; bounded by depth (personal app, not deep trees).
-    folders = {f.id: f for f in folder_crud.list_by_user(db, user_id=user_id)}
-    parts: list[str] = []
-    current_id: str | None = folder_id
-    seen: set[str] = set()
-    while current_id is not None and current_id not in seen:
-        seen.add(current_id)
-        f = folders.get(current_id)
-        if f is None:
-            break
-        parts.append(f.name)
-        current_id = f.parent_id
-    return "/" + "/".join(reversed(parts))
+def _location_label(folders: Mapping[str, Folder], folder_id: str | None) -> str:
+    """Where an item is, as the user sees it in the app: "Files" or "Files > A > B" (not "/A/B")."""
+    path = build_folder_path(folders, folder_id=folder_id)
+    return " > ".join(["Files", *(path.strip("/").split("/") if path else [])])
 
 
 # ---------------------------------------------------------------------------
@@ -101,9 +89,9 @@ def list_folders(db: Session, *, current_user: User, arguments: dict[str, object
     if not folders:
         return ToolResult(output="No folders found.")
     lines = [f"Found {len(folders)} folder(s):"]
+    folder_map = {f.id: f for f in folders}
     for f in folders:
-        parent_label = f"parent: `{f.parent_id}`" if f.parent_id else "root"
-        lines.append(f"- **{f.name}** (ID: `{f.id}`, {parent_label})")
+        lines.append(f"- **{f.name}** (ID: `{f.id}`, location: {_location_label(folder_map, f.parent_id)})")
     return ToolResult(output="\n".join(lines))
 
 
@@ -113,9 +101,11 @@ def list_notes(db: Session, *, current_user: User, arguments: dict[str, object])
     if not notes:
         return ToolResult(output="No notes found.")
     lines = [f"Found {total} note(s):"]
+    # One query for all folders, then paths are built in memory.
+    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
     for n in notes:
-        path = _folder_path(db, folder_id=n.folder_id, user_id=current_user.id)
-        lines.append(f"- **{_note_label(n.title)}** (ID: `{n.id}`, folder: `{path}`)")
+        location = _location_label(folders, n.folder_id)
+        lines.append(f"- **{_note_label(n.title)}** (ID: `{n.id}`, location: {location})")
     return ToolResult(output="\n".join(lines))
 
 
@@ -147,18 +137,17 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
 
     # Resolve folder paths for result note IDs in one pass.
     note_ids = list({r.note_id for r in relevant})
-    # Exclude trashed notes from RAG result display.
-    notes_map: dict[str, Note] = {
-        n.id: n for n in db.scalars(select(Note).where(Note.id.in_(note_ids), Note.deleted_at.is_(None))).all()
-    }
+    # `search_by_similarity` already skips trashed notes; this lookup is only for the folder id.
+    notes_map = {n.id: n for n in note_crud.list_live_by_ids(db, ids=note_ids)}
+    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
 
     lines = [f"Found {len(relevant)} relevant chunk(s):"]
     for r in relevant:
         note = notes_map.get(r.note_id)
         folder_id = note.folder_id if note else None
-        path = _folder_path(db, folder_id=folder_id, user_id=current_user.id)
+        location = _location_label(folders, folder_id)
         sim = f"{r.similarity:.3f}"
-        lines.append(f"\n**{_note_label(r.note_title)}** (ID: `{r.note_id}`, folder: `{path}`, sim: {sim})")
+        lines.append(f"\n**{_note_label(r.note_title)}** (ID: `{r.note_id}`, location: {location}, sim: {sim})")
         lines.append(r.chunk_content)
     return ToolResult(output="\n".join(lines))
 
@@ -181,9 +170,10 @@ def get_note_content(db: Session, *, current_user: User, arguments: dict[str, ob
     # get_by_id also returns trashed notes (the note page shows them). The Assistant must not read them.
     if note.deleted_at is not None:
         return ToolResult(output=f"Note `{note_id}` is in Trash. Ask the user to restore it first.")
-    path = _folder_path(db, folder_id=note.folder_id, user_id=current_user.id)
+    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
+    location = _location_label(folders, note.folder_id)
     content = note.content or "(empty)"
-    return ToolResult(output=f"**{_note_label(note.title)}** (folder: `{path}`)\n\n{content}")
+    return ToolResult(output=f"**{_note_label(note.title)}** (location: {location})\n\n{content}")
 
 
 def get_test_details(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:

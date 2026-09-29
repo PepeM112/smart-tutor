@@ -6,10 +6,12 @@ No business logic here — ownership checks and cycle detection belong in the se
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 
-from sqlalchemy import Row, func, select
+from sqlalchemy import Row, Select, func, or_, select
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import update as sql_update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
+from app.crud.helpers import rowcount
 from app.models.folder import Folder
 from app.models.note import Note
 from app.schemas.folder import FolderCreate, FolderUpdate
@@ -20,11 +22,11 @@ def get_by_id(db: Session, *, id: str) -> Folder | None:
     return db.scalars(select(Folder).where(Folder.id == id)).first()
 
 
-def list_by_user(db: Session, *, user_id: str) -> Sequence[Folder]:
-    """Return all LIVE folders for a user, ordered by name (case-insensitive)."""
-    stmt = (
-        select(Folder).where(Folder.user_id == user_id, Folder.deleted_at.is_(None)).order_by(func.lower(Folder.name))
-    )
+def list_by_user(db: Session, *, user_id: str, include_trashed: bool = False) -> Sequence[Folder]:
+    """Return the folders of a user ordered by name (case-insensitive). LIVE only unless `include_trashed`."""
+    stmt = select(Folder).where(Folder.user_id == user_id).order_by(func.lower(Folder.name))
+    if not include_trashed:
+        stmt = stmt.where(Folder.deleted_at.is_(None))
     return db.scalars(stmt).all()
 
 
@@ -106,13 +108,13 @@ def soft_delete_cascade(db: Session, *, folder_id: str, now: datetime) -> tuple[
     f_result = db.execute(
         sql_update(Folder).where(Folder.id.in_(all_folder_ids), Folder.deleted_at.is_(None)).values(deleted_at=now)
     )
-    folder_count: int = f_result.rowcount  # type: ignore[assignment]
+    folder_count = rowcount(f_result)
 
     # Mark live notes whose folder is in the subtree as trashed.
     n_result = db.execute(
         sql_update(Note).where(Note.folder_id.in_(all_folder_ids), Note.deleted_at.is_(None)).values(deleted_at=now)
     )
-    note_count: int = n_result.rowcount  # type: ignore[assignment]
+    note_count = rowcount(n_result)
 
     db.flush()
     return folder_count, note_count
@@ -211,8 +213,45 @@ def update(db: Session, *, folder: Folder, data: FolderUpdate) -> Folder:
     return folder
 
 
-def delete(db: Session, *, folder: Folder) -> None:
+def hard_delete(db: Session, *, folder: Folder) -> None:
+    """Permanently delete a folder. FK CASCADE removes its sub-folders and notes.
+
+    Items of other trash batches are moved out of the subtree first (see `detach_other_batches`),
+    so only the batch of `folder` disappears.
+    """
+    detach_other_batches(db, folder=folder)
     db.delete(folder)
+    db.flush()
+
+
+def relocate(db: Session, *, folder: Folder, name: str, parent_id: str | None) -> Folder:
+    """Set the restored place of a folder (name + parent) and clear its `orphan_path`.
+
+    `deleted_at` is left alone: `restore_folder_batch` needs it as the batch key.
+    """
+    folder.name = name
+    folder.parent_id = parent_id
+    folder.orphan_path = None
+    db.flush()
+    return folder
+
+
+def restore_row(db: Session, *, folder: Folder, name: str, parent_id: str | None) -> Folder:
+    """Bring back ONE trashed folder row (no contents) at the given place."""
+    relocate(db, folder=folder, name=name, parent_id=parent_id)
+    folder.deleted_at = None
+    db.flush()
+    return folder
+
+
+def delete_all_trashed(db: Session, *, user_id: str) -> None:
+    """Bulk-delete every trashed folder of the user (one DELETE; FK CASCADE removes sub-rows).
+
+    Safe for live items: by invariant a live folder or note never sits under a trashed folder
+    (soft delete trashes the whole subtree, and move/create reject trashed targets). The
+    cascade can only reach rows that are trashed too, and those are deleted here anyway.
+    """
+    db.execute(sql_delete(Folder).where(Folder.user_id == user_id, Folder.deleted_at.is_not(None)))
     db.flush()
 
 
@@ -221,45 +260,48 @@ def delete(db: Session, *, folder: Folder) -> None:
 # ---------------------------------------------------------------------------
 
 
-def list_trashed_top_folders(db: Session, *, user_id: str) -> Sequence[Folder]:
+def _trashed_top_folders_stmt(user_id: str) -> Select[tuple[Folder]]:
     """Trashed folders that are the top item of their delete batch.
 
-    Top = parent is live (or None), OR parent has a different deleted_at.
+    Top = parent is root, live, or trashed at a different time.
     """
-    f = Folder
-    parent = Folder.__table__.alias("parent")
-    stmt = (
-        select(f)
-        .outerjoin(parent, f.parent_id == parent.c.id)
+    parent = aliased(Folder)
+    return (
+        select(Folder)
+        .outerjoin(parent, Folder.parent_id == parent.id)
         .where(
-            f.user_id == user_id,
-            f.deleted_at.is_not(None),
-            # Top of batch: parent is live or root or trashed at a different time.
-            ((f.parent_id.is_(None)) | (parent.c.deleted_at.is_(None)) | (parent.c.deleted_at != f.deleted_at)),
+            Folder.user_id == user_id,
+            Folder.deleted_at.is_not(None),
+            or_(Folder.parent_id.is_(None), parent.deleted_at.is_(None), parent.deleted_at != Folder.deleted_at),
         )
-        .order_by(f.deleted_at.desc())
     )
-    return db.scalars(stmt).all()
+
+
+def _trashed_top_notes_stmt(user_id: str) -> Select[tuple[Note]]:
+    """Trashed notes that are the top item of their delete batch.
+
+    Top = folder is none, live, or trashed at a different time.
+    """
+    folder = aliased(Folder)
+    return (
+        select(Note)
+        .outerjoin(folder, Note.folder_id == folder.id)
+        .where(
+            Note.user_id == user_id,
+            Note.deleted_at.is_not(None),
+            or_(Note.folder_id.is_(None), folder.deleted_at.is_(None), folder.deleted_at != Note.deleted_at),
+        )
+    )
+
+
+def list_trashed_top_folders(db: Session, *, user_id: str) -> Sequence[Folder]:
+    """Trashed folders that are the top item of their delete batch, newest first."""
+    return db.scalars(_trashed_top_folders_stmt(user_id).order_by(Folder.deleted_at.desc())).all()
 
 
 def list_trashed_top_notes(db: Session, *, user_id: str) -> Sequence[Note]:
-    """Trashed notes that are the top item of their delete batch.
-
-    Top = folder is live (or None), OR folder has a different deleted_at.
-    """
-    n = Note
-    folder = Folder.__table__.alias("folder")
-    stmt = (
-        select(n)
-        .outerjoin(folder, n.folder_id == folder.c.id)
-        .where(
-            n.user_id == user_id,
-            n.deleted_at.is_not(None),
-            ((n.folder_id.is_(None)) | (folder.c.deleted_at.is_(None)) | (folder.c.deleted_at != n.deleted_at)),
-        )
-        .order_by(n.deleted_at.desc())
-    )
-    return db.scalars(stmt).all()
+    """Trashed notes that are the top item of their delete batch, newest first."""
+    return db.scalars(_trashed_top_notes_stmt(user_id).order_by(Note.deleted_at.desc())).all()
 
 
 def count_batch_items(db: Session, *, folder_id: str, deleted_at: datetime) -> tuple[int, int]:
@@ -307,43 +349,16 @@ def restore_folder_batch(db: Session, *, folder: Folder) -> None:
 
 def purge_old_folders(db: Session, *, user_id: str, before: datetime) -> None:
     """Hard-delete trashed folders older than `before`. FK cascade removes children."""
-    # Only purge top-level roots of each batch; the cascade FK removes sub-folders + notes.
-    # We identify roots as trashed folders with a live (or absent) parent.
-    parent = Folder.__table__.alias("parent")
-    stmt = (
-        select(Folder)
-        .outerjoin(parent, Folder.parent_id == parent.c.id)
-        .where(
-            Folder.user_id == user_id,
-            Folder.deleted_at < before,
-            Folder.deleted_at.is_not(None),
-            (
-                (Folder.parent_id.is_(None))
-                | (parent.c.deleted_at.is_(None))
-                | (parent.c.deleted_at != Folder.deleted_at)
-            ),
-        )
-    )
+    # Only the top of each batch is purged; the cascade FK removes its sub-folders + notes.
+    stmt = _trashed_top_folders_stmt(user_id).where(Folder.deleted_at < before)
     for folder in db.scalars(stmt).all():
         # Same rule as "Delete forever": items of another batch survive with their orphan_path.
-        detach_other_batches(db, folder=folder)
-        db.delete(folder)
-    db.flush()
+        hard_delete(db, folder=folder)
 
 
 def purge_old_notes(db: Session, *, user_id: str, before: datetime) -> None:
     """Hard-delete trashed notes older than `before` that are not inside a trashed folder batch."""
-    folder = Folder.__table__.alias("folder")
-    stmt = (
-        select(Note)
-        .outerjoin(folder, Note.folder_id == folder.c.id)
-        .where(
-            Note.user_id == user_id,
-            Note.deleted_at < before,
-            Note.deleted_at.is_not(None),
-            ((Note.folder_id.is_(None)) | (folder.c.deleted_at.is_(None)) | (folder.c.deleted_at != Note.deleted_at)),
-        )
-    )
+    stmt = _trashed_top_notes_stmt(user_id).where(Note.deleted_at < before)
     for note in db.scalars(stmt).all():
         db.delete(note)
     db.flush()

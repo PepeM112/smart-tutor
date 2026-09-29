@@ -19,6 +19,7 @@ from app.schemas.note import (
     SortOrder,
 )
 from app.services import token_usage_service
+from app.services.folder_service import get_live_folder_or_404
 from app.services.llm import CompletionResult, complete_for_user
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
@@ -108,22 +109,31 @@ def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
     return get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
 
 
-def _assert_note_live(note: Note) -> None:
-    """Raise 409 when a write operation is attempted on a trashed note."""
+def get_live_note(db: Session, *, note_id: str, current_user: User, for_update: bool = False) -> Note:
+    """Fetch an owned note for a WRITE operation: raise 409 if it is in Trash.
+
+    `for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE).
+    """
+    note = get_owned_or_404(
+        db,
+        fetch=note_crud.get_by_id_for_update if for_update else note_crud.get_by_id,
+        id=note_id,
+        current_user=current_user,
+        entity_name="Note",
+    )
     if note.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Note is in Trash. Restore it before making changes.",
         )
+    return note
 
 
 def _validate_folder_ownership(db: Session, *, folder_id: str | None, current_user: User) -> None:
-    """Raise 404/403 if folder_id is given but not owned by current_user."""
+    """Raise 404/403 if folder_id is given but not a live folder owned by current_user."""
     if folder_id is None:
         return
-    from app.services import folder_service  # avoid circular import at module level
-
-    folder_service._get_owned_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
 
 
 def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
@@ -144,10 +154,9 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
 
 def move_note(db: Session, *, note_id: str, current_user: User, folder_id: str | None) -> Note:
     """Change note.folder_id only. Does not touch version or is_indexed."""
-    note = get_note(db, note_id=note_id, current_user=current_user)
-    _assert_note_live(note)
+    note = get_live_note(db, note_id=note_id, current_user=current_user)
     _validate_folder_ownership(db, folder_id=folder_id, current_user=current_user)
-    note.folder_id = folder_id
+    note_crud.move(db, note=note, folder_id=folder_id)
     db.commit()
     db.refresh(note)
     return note
@@ -156,10 +165,7 @@ def move_note(db: Session, *, note_id: str, current_user: User, folder_id: str |
 def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpdate) -> Note:
     # Row lock: two concurrent PATCHes with the same version would otherwise both pass
     # the check below. With the lock, the second one waits, sees the new version and gets 409.
-    note = get_owned_or_404(
-        db, fetch=note_crud.get_by_id_for_update, id=note_id, current_user=current_user, entity_name="Note"
-    )
-    _assert_note_live(note)
+    note = get_live_note(db, note_id=note_id, current_user=current_user, for_update=True)
 
     content_fields_changing = data.content is not None or data.title is not None or data.tags is not None
 
@@ -186,7 +192,7 @@ def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
     """Soft-delete a note (move to Trash). Already-trashed notes are a no-op."""
     note = get_note(db, note_id=note_id, current_user=current_user)
     if note.deleted_at is None:
-        note.deleted_at = datetime.now(timezone.utc)
+        note_crud.soft_delete(db, note=note, now=datetime.now(timezone.utc))
         db.commit()
 
 
@@ -227,8 +233,7 @@ def preview_refine_note(db: Session, *, note_id: str, current_user: User, instru
 
     Only the usage row is committed. The user accepts the diff in the editor, and autosave saves it.
     """
-    note = get_note(db, note_id=note_id, current_user=current_user)
-    _assert_note_live(note)
+    note = get_live_note(db, note_id=note_id, current_user=current_user)
     if not note.content or not note.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -253,8 +258,7 @@ def preview_refine_note(db: Session, *, note_id: str, current_user: User, instru
 
 
 def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: NoteChunkEdit) -> NoteChunkEditResponse:
-    note = get_note(db, note_id=note_id, current_user=current_user)
-    _assert_note_live(note)
+    get_live_note(db, note_id=note_id, current_user=current_user)
 
     user_prompt = build_chunk_edit_user_prompt(
         full_text=data.full_text,

@@ -59,6 +59,26 @@ def _make_note(
     return n
 
 
+def _fake_relocate(_db: object, *, folder: MagicMock, name: str, parent_id: str | None) -> MagicMock:
+    """Stand-in for folder_crud.relocate (the CRUD module is mocked in service tests)."""
+    folder.name = name
+    folder.parent_id = parent_id
+    folder.orphan_path = None
+    return folder
+
+
+def _fake_restore_row(_db: object, *, folder: MagicMock, name: str, parent_id: str | None) -> MagicMock:
+    """Stand-in for folder_crud.restore_row."""
+    _fake_relocate(_db, folder=folder, name=name, parent_id=parent_id)
+    folder.deleted_at = None
+    return folder
+
+
+def _wire_restore(mock_crud: MagicMock) -> None:
+    mock_crud.relocate.side_effect = _fake_relocate
+    mock_crud.restore_row.side_effect = _fake_restore_row
+
+
 def _make_user(id: str = "u1") -> MagicMock:
     u = MagicMock()
     u.id = id
@@ -77,7 +97,7 @@ class TestCascadeSoftDelete:
         db = MagicMock()
         user = _make_user()
         with (
-            patch("app.services.folder_service._get_owned_folder_or_404") as mock_get,
+            patch("app.services.folder_service.get_live_folder_or_404") as mock_get,
             patch("app.services.folder_service.folder_crud") as mock_crud,
             patch("app.services.folder_service.datetime") as mock_dt,
         ):
@@ -101,7 +121,7 @@ class TestCascadeSoftDelete:
             trashed = _make_folder("f1", deleted_at=_ts(1))
             mock_crud.get_by_id.return_value = trashed
             with pytest.raises(HTTPException) as exc_info:
-                folder_service._get_owned_folder_or_404(db, folder_id="f1", current_user=user)
+                folder_service.get_live_folder_or_404(db, folder_id="f1", current_user=user)
         assert exc_info.value.status_code == 404
 
 
@@ -135,7 +155,7 @@ class TestTrashedNoteRejected:
         user = _make_user()
         trashed = _make_note("n1", deleted_at=_ts(1))
 
-        with patch("app.services.note_service.get_note") as mock_get:
+        with patch("app.services.note_service.get_owned_or_404") as mock_get:
             mock_get.return_value = trashed
             with pytest.raises(HTTPException) as exc_info:
                 note_service.move_note(db, note_id="n1", current_user=user, folder_id=None)
@@ -164,6 +184,7 @@ class TestRestoreFolder:
             mock_get.return_value = folder
             mock_crud.get_by_id.return_value = trashed_parent
             mock_crud.sibling_name_exists.return_value = False
+            _wire_restore(mock_crud)
             trash_service.restore_folder(db, folder_id="f1", current_user=user)
 
         # The parent row is live again and the folder stays inside it.
@@ -189,6 +210,8 @@ class TestRestoreFolder:
             mock_crud.sibling_name_exists.return_value = False
             mock_crud.restore_folder_batch.return_value = None
 
+            _wire_restore(mock_crud)
+
             trash_service.restore_folder(db, folder_id="f1", current_user=user)
 
         assert folder.parent_id == "fp"
@@ -210,6 +233,8 @@ class TestRestoreFolder:
             # First call (original name) conflicts; second call (restored suffix) does not.
             mock_crud.sibling_name_exists.side_effect = [True, False]
             mock_crud.restore_folder_batch.return_value = None
+
+            _wire_restore(mock_crud)
 
             trash_service.restore_folder(db, folder_id="f1", current_user=user)
 
@@ -275,34 +300,102 @@ class TestPurge:
 
 
 # ---------------------------------------------------------------------------
-# P0-1: hard_delete_folder calls detach_other_batches before db.delete
+# P0-1: hard delete detaches other-batch items before the row is deleted
 # ---------------------------------------------------------------------------
 
 
 class TestHardDeleteFolderDetach:
-    def test_detach_called_before_delete(self) -> None:
-        """detach_other_batches must be called so foreign-key CASCADE does not remove
-        items that belong to a different trash batch inside the same subtree."""
+    def test_service_uses_crud_hard_delete_and_commits(self) -> None:
         from app.services import trash_service
 
         db = MagicMock()
-        user = _make_user()
         folder = _make_folder("f1", deleted_at=_ts(1))
 
-        call_order: list[str] = []
-
         with (
-            patch("app.services.trash_service._get_trashed_folder_or_404") as mock_get,
+            patch("app.services.trash_service._get_trashed_folder_or_404", return_value=folder),
             patch("app.services.trash_service.folder_crud") as mock_crud,
         ):
-            mock_get.return_value = folder
-            mock_crud.detach_other_batches.side_effect = lambda *a, **kw: call_order.append("detach")
-            db.delete.side_effect = lambda *a: call_order.append("delete")
+            trash_service.hard_delete_folder(db, folder_id="f1", current_user=_make_user())
 
-            trash_service.hard_delete_folder(db, folder_id="f1", current_user=user)
+        mock_crud.hard_delete.assert_called_once_with(db, folder=folder)
+        db.commit.assert_called_once()
+
+    def test_crud_detach_called_before_delete(self) -> None:
+        """detach_other_batches must run first so foreign-key CASCADE does not remove
+        items that belong to a different trash batch inside the same subtree."""
+        from app.crud import folder as folder_crud
+
+        db = MagicMock()
+        folder = _make_folder("f1", deleted_at=_ts(1))
+        call_order: list[str] = []
+        db.delete.side_effect = lambda *a: call_order.append("delete")
+
+        with patch(
+            "app.crud.folder.detach_other_batches", side_effect=lambda *a, **kw: call_order.append("detach")
+        ) as mock_detach:
+            folder_crud.hard_delete(db, folder=folder)
 
         assert call_order == ["detach", "delete"], "detach must precede db.delete"
-        mock_crud.detach_other_batches.assert_called_once_with(db, folder=folder)
+        mock_detach.assert_called_once_with(db, folder=folder)
+
+
+# ---------------------------------------------------------------------------
+# empty_trash — two bulk deletes, notes first
+# ---------------------------------------------------------------------------
+
+
+class TestEmptyTrash:
+    def test_bulk_deletes_notes_then_folders_and_commits_once(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        order: list[str] = []
+        with (
+            patch("app.services.trash_service.folder_crud") as mock_folder_crud,
+            patch("app.services.trash_service.note_crud") as mock_note_crud,
+        ):
+            mock_note_crud.delete_all_trashed.side_effect = lambda *a, **kw: order.append("notes")
+            mock_folder_crud.delete_all_trashed.side_effect = lambda *a, **kw: order.append("folders")
+            trash_service.empty_trash(db, current_user=_make_user())
+
+        assert order == ["notes", "folders"]
+        mock_note_crud.delete_all_trashed.assert_called_once_with(db, user_id="u1")
+        mock_folder_crud.delete_all_trashed.assert_called_once_with(db, user_id="u1")
+        db.commit.assert_called_once()
+        db.delete.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# list_trash — folders are loaded once, not once per item
+# ---------------------------------------------------------------------------
+
+
+class TestListTrashPaths:
+    def test_folder_map_loaded_once_for_all_items(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        parent = _make_folder("p", name="P", deleted_at=None)
+        folders = {"p": parent}
+        top_folders = [_make_folder(f"t{i}", parent_id="p", name=f"T{i}", deleted_at=_ts(i + 1)) for i in range(3)]
+        notes = [_make_note(f"n{i}", folder_id="p", deleted_at=_ts(i + 5)) for i in range(3)]
+        for n in notes:
+            n.title = "Note"
+
+        with (
+            patch("app.services.trash_service._purge_expired"),
+            patch("app.services.trash_service.folder_service.load_folder_map", return_value=folders) as mock_load,
+            patch("app.services.trash_service.folder_crud") as mock_crud,
+            patch("app.services.trash_service.note_crud"),
+        ):
+            mock_crud.list_trashed_top_folders.return_value = top_folders
+            mock_crud.list_trashed_top_notes.return_value = notes
+            mock_crud.count_batch_items.return_value = (0, 0)
+            items = trash_service.list_trash(db, current_user=_make_user())
+
+        mock_load.assert_called_once_with(db, user_id="u1", include_trashed=True)
+        assert len(items) == 6
+        assert {i.original_path for i in items} == {"/P"}
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +408,7 @@ class TestFolderUpdateSchema:
         """Sending name=null in a PATCH body must produce a validation error, not silently
         pass None to the CRUD layer where the column is NOT NULL."""
         import pydantic
+
         from app.schemas.folder import FolderUpdate
 
         with pytest.raises(pydantic.ValidationError):
@@ -337,8 +431,8 @@ class TestRestoreNameTruncation:
     def test_long_name_candidate_fits_in_column_limit(self) -> None:
         """When the original name is 95 chars, the ' (restored)' suffix would exceed 100.
         The function must truncate the base so the final candidate stays within the limit."""
-        from app.services.trash_service import _resolve_restore_name
         from app.core.constants import FOLDER_NAME_MAX
+        from app.services.trash_service import _resolve_restore_name
 
         long_name = "A" * 95  # 95 chars — original fits in column; suffixed version does not
 
@@ -456,6 +550,7 @@ class TestRestorePath:
         ):
             mock_crud.get_by_id.side_effect = lambda _db, id: folders.get(id)
             mock_crud.sibling_name_exists.return_value = False
+            _wire_restore(mock_crud)
             trash_service.restore_note(db, note_id="n1", current_user=user)
 
         assert top.deleted_at is None and parent.deleted_at is None
@@ -477,6 +572,7 @@ class TestRestorePath:
         ):
             mock_crud.get_by_id.side_effect = lambda _db, id: {"p": parent}.get(id)
             mock_crud.sibling_name_exists.side_effect = [True, False]
+            _wire_restore(mock_crud)
             trash_service.restore_note(db, note_id="n1", current_user=_make_user())
 
         assert parent.name == "P (restored)"
@@ -496,6 +592,7 @@ class TestRestorePath:
             # "A" exists (different case), "B" does not.
             mock_crud.get_live_child_by_name.side_effect = [live_a, None]
             mock_crud.create.return_value = created
+            _wire_restore(mock_crud)
             trash_service.restore_note(db, note_id="n1", current_user=_make_user())
 
         create_data = mock_crud.create.call_args.kwargs["data"]
@@ -518,18 +615,8 @@ class TestRestorePath:
             mock_crud.get_live_child_by_name.return_value = None
             mock_crud.create.return_value = created
             mock_crud.sibling_name_exists.return_value = False
+            _wire_restore(mock_crud)
             trash_service.restore_folder(db, folder_id="f1", current_user=_make_user())
 
         assert folder.parent_id == "new-x"
         assert folder.orphan_path is None
-
-    def test_folder_path_appends_orphan_names(self) -> None:
-        from app.services import trash_service
-
-        db = MagicMock()
-        parent = _make_folder("p", name="P", parent_id=None)
-        db.scalars.return_value.all.return_value = [parent]
-
-        assert trash_service._folder_path(db, folder_id="p", orphan_path=["A", "B"], user_id="u1") == "/P/A/B"
-        assert trash_service._folder_path(db, folder_id=None, orphan_path=["A"], user_id="u1") == "/A"
-        assert trash_service._folder_path(db, folder_id=None, orphan_path=None, user_id="u1") is None

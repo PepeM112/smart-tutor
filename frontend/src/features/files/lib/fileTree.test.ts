@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { FileTree, FileTreeFolder, FileTreeNote } from '@/client';
 
-import { buildChildrenIndex, canDrop, isDescendantOrSelf, moveInTree } from './fileTree';
+import {
+  buildChildrenIndex,
+  canDrop,
+  isDescendantOrSelf,
+  isDraggedItem,
+  isDropTargetData,
+  moveInTree,
+} from './fileTree';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -144,5 +151,33 @@ describe('moveInTree', () => {
     const result = moveInTree(TREE, { kind: 'folder', id: 'folderA' }, 'folderB');
     expect(result.folders.find(f => f.id === 'folderB')?.parentId).toBe('folderA');
     expect(result.notes).toEqual(TREE.notes);
+  });
+});
+
+// ─── type guards ──────────────────────────────────────────────────────────────
+
+describe('isDraggedItem', () => {
+  it('accepts a valid dragged item', () => {
+    expect(isDraggedItem({ kind: 'note', id: 'n1', parentId: null, name: 'Note' })).toBe(true);
+  });
+
+  it('rejects missing, wrong or non-object values', () => {
+    expect(isDraggedItem(undefined)).toBe(false);
+    expect(isDraggedItem(null)).toBe(false);
+    expect(isDraggedItem({ kind: 'file', id: 'x', parentId: null, name: 'x' })).toBe(false);
+    expect(isDraggedItem({ kind: 'folder', id: 'x', name: 'x' })).toBe(false);
+  });
+});
+
+describe('isDropTargetData', () => {
+  it('accepts a folder id or null', () => {
+    expect(isDropTargetData({ folderId: 'a' })).toBe(true);
+    expect(isDropTargetData({ folderId: null })).toBe(true);
+  });
+
+  it('rejects other shapes', () => {
+    expect(isDropTargetData(undefined)).toBe(false);
+    expect(isDropTargetData({})).toBe(false);
+    expect(isDropTargetData({ folderId: 5 })).toBe(false);
   });
 });
