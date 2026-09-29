@@ -27,3 +27,5 @@ class Note(Base, CreatedAtMixin, UpdatedAtMixin):
     is_indexed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     version: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    # Names of folders deleted forever between this note and its current folder (outermost first).
+    orphan_path: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { type TrashItemRead } from '@/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { fileQueryKeys, invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { sdk } from '@/lib/apiClient';
 import { getErrorDetail } from '@/lib/utils';
@@ -18,7 +19,7 @@ export function TrashPage() {
   useBreadcrumb(t('trash.title'));
 
   const { data: res, isLoading } = useQuery({
-    queryKey: ['trash'],
+    queryKey: fileQueryKeys.trash(),
     queryFn: () => sdk.trashList(),
   });
   const items = res?.data ?? [];
@@ -26,9 +27,7 @@ export function TrashPage() {
   const { mutate: emptyTrash, isPending: isEmptying } = useMutation({
     mutationFn: () => sdk.trashEmpty(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trash'] });
-      void queryClient.invalidateQueries({ queryKey: ['folders'] });
-      void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
       toast.success(t('trash.emptied'));
     },
     onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_empty'))),
@@ -88,9 +87,7 @@ function TrashItem({ item }: TrashItemProps) {
   const { mutate: restore, isPending: isRestoring } = useMutation({
     mutationFn: () => sdk.trashRestore({ path: { kind: item.kind, item_id: item.id } }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trash'] });
-      void queryClient.invalidateQueries({ queryKey: ['folders'] });
-      void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
       toast.success(t('trash.restored'));
     },
     onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
@@ -99,9 +96,7 @@ function TrashItem({ item }: TrashItemProps) {
   const { mutate: hardDelete, isPending: isDeleting } = useMutation({
     mutationFn: () => sdk.trashHardDelete({ path: { kind: item.kind, item_id: item.id } }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trash'] });
-      void queryClient.invalidateQueries({ queryKey: ['folders'] });
-      void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
       toast.success(t('trash.deleted_forever'));
     },
     onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_delete'))),

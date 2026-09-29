@@ -838,3 +838,32 @@ class TestOpenAINoteIntegration:
         assert "#" in result.text
         assert result.input_tokens > 0
         assert result.output_tokens > 0
+
+
+# ---------------------------------------------------------------------------
+# P1-1: generate_note validates folder ownership before calling the LLM
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateNoteFolderValidation:
+    def test_invalid_folder_prevents_llm_call(self) -> None:
+        """An invalid or unowned folder_id must raise 404/403 before spending AI tokens."""
+        from app.services import note_service
+
+        db = MagicMock()
+        user = MagicMock()
+        user.id = "u1"
+
+        data = NoteGenerate(topic="Photosynthesis", folder_id="bad-folder")
+
+        with (
+            patch("app.services.note_service._validate_folder_ownership") as mock_validate,
+            patch("app.services.note_service.complete_for_user") as mock_llm,
+        ):
+            mock_validate.side_effect = HTTPException(status_code=404, detail="Folder not found")
+            with pytest.raises(HTTPException) as exc_info:
+                note_service.generate_note(db, current_user=user, data=data)
+
+        # LLM must not have been called.
+        mock_llm.assert_not_called()
+        assert exc_info.value.status_code == 404

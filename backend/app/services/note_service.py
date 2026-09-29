@@ -191,6 +191,9 @@ def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
 
 
 def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Note:
+    # Validate folder ownership before spending AI tokens.
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
+
     user_prompt = build_note_generation_user_prompt(
         data.topic,
         data.guidance,
@@ -206,8 +209,6 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
         max_tokens=max_tokens,
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_GENERATION)
-
-    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
     note = note_crud.create(
         db,
         user_id=current_user.id,

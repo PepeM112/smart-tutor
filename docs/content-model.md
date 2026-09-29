@@ -162,6 +162,7 @@ Folders are containers for notes. They form an adjacency list: each folder has a
 | `name`       | String(100)     | Display name                                          |
 | `parent_id`  | FK → `folder`   | Parent folder, `NULL` = root                          |
 | `deleted_at` | DateTime, NULL  | Set when moved to Trash; `NULL` = live                |
+| `orphan_path`| JSONB, NULL     | Names of folders deleted forever above this item (outermost first); used by restore |
 
 **Sibling uniqueness:** A partial unique index enforces case-insensitive uniqueness among live siblings:
 ```sql
@@ -170,6 +171,8 @@ UNIQUE (user_id, parent_id, lower(name)) WHERE deleted_at IS NULL NULLS NOT DIST
 `NULLS NOT DISTINCT` means two root folders (`parent_id IS NULL`) with the same name are still rejected.
 
 **FK cascade:** `folder.parent_id` uses `ON DELETE CASCADE`. This runs only for hard deletes (purge / "Delete forever"). Soft delete is done by the service layer, which sets `deleted_at` on the root and all descendants in one recursive CTE.
+
+**Hard delete and `orphan_path`:** before a trashed folder is deleted forever, `detach_other_batches` moves the items of other trash batches in its subtree (folders and notes) to the parent of the deleted folder (live, trashed or root). Each moved item gets `orphan_path = [names from the deleted folder down to its old parent] + old orphan_path`. Restore first brings back trashed ancestors (rows only), then walks `orphan_path`: it reuses a live same-name folder or creates one, puts the item in the last folder and clears `orphan_path`. `note.orphan_path` has the same meaning.
 
 **Note.folder_id:** `note.folder_id` is a nullable FK → `folder.id` with `ON DELETE CASCADE` (same behaviour as above — cascade for hard delete, service handles soft delete). An index on `(user_id, folder_id)` supports the folder-contents query.
 

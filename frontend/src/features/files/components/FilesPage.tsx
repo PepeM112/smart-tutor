@@ -20,6 +20,7 @@ import { getErrorDetail } from '@/lib/utils';
 
 import { useFileMutations } from '../hooks/useFileMutations';
 import { useFolderPath } from '../hooks/useFolderPath';
+import { invalidateAfterFileChange } from '../lib/queryKeys';
 
 import { FileBreadcrumb } from './FileBreadcrumb';
 import { FilePageShell } from './FilePageShell';
@@ -61,8 +62,7 @@ export function FilesPage({ folderId }: Props) {
   const { mutate: createNote, isPending: isCreating } = useMutation({
     mutationFn: () => sdk.notesCreate({ body: { title: '', content: '', tags: [], folderId: folderId ?? undefined } }),
     onSuccess: res => {
-      void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      void queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] });
+      invalidateAfterFileChange(queryClient, { notes: true });
       if (res.data) router.push(noteHref(res.data));
     },
     onError: err => toast.error(getErrorDetail(err, t('notes.failed_to_create'))),

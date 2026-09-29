@@ -3,7 +3,7 @@
 No business logic here — ownership checks and cycle detection belong in the service.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 from sqlalchemy import Row, func, select
@@ -72,9 +72,10 @@ def get_descendant_ids(db: Session, *, folder_id: str) -> list[str]:
     """Return all descendant folder IDs (excluding the folder itself) via recursive CTE.
 
     Includes trashed descendants — the caller decides what to filter.
+    Uses UNION (distinct) instead of UNION ALL to avoid duplicates in cyclic-safe traversal.
     """
     descendants = select(Folder.id).where(Folder.parent_id == folder_id).cte(name="descendants", recursive=True)
-    descendants = descendants.union_all(select(Folder.id).join(descendants, Folder.parent_id == descendants.c.id))
+    descendants = descendants.union(select(Folder.id).join(descendants, Folder.parent_id == descendants.c.id))
     return list(db.scalars(select(descendants.c.id)).all())
 
 
@@ -115,6 +116,85 @@ def soft_delete_cascade(db: Session, *, folder_id: str, now: datetime) -> tuple[
 
     db.flush()
     return folder_count, note_count
+
+
+def build_orphan_path(
+    batch_folders: Mapping[str, tuple[str, str | None]],
+    *,
+    top_id: str,
+    start_id: str,
+    existing: list[str] | None,
+) -> list[str]:
+    """Return the names from `top_id` down to `start_id` (outermost first) + `existing`.
+
+    `batch_folders` maps folder id -> (name, parent_id). The walk goes up from `start_id`
+    and stops after `top_id`. `existing` is added at the END: it is the older path that
+    lies below `start_id`, so the new names must come before it.
+    """
+    names: list[str] = []
+    current: str | None = start_id
+    seen: set[str] = set()
+    while current is not None and current in batch_folders and current not in seen:
+        seen.add(current)
+        name, parent_id = batch_folders[current]
+        names.append(name)
+        if current == top_id:
+            break
+        current = parent_id
+    return [*reversed(names), *(existing or [])]
+
+
+def detach_other_batches(db: Session, *, folder: Folder) -> None:
+    """Move items of other trash batches out of `folder`'s subtree before it is hard-deleted.
+
+    FK CASCADE would delete every row under `folder`. Items of a *different* batch
+    (deleted_at != folder.deleted_at) must survive, so each one is re-parented to the parent
+    of `folder` (which survives; it can be live, trashed or root). The names of the deleted
+    folders between `folder` and the item are saved in `orphan_path`, so restore can
+    rebuild the original location.
+    """
+    batch_ts = folder.deleted_at
+    desc_ids = get_descendant_ids(db, folder_id=folder.id)
+    # Only folders of this batch are deleted. An item of another batch keeps its own children:
+    # it is moved only when its parent is in this batch.
+    batch_rows = db.execute(
+        select(Folder.id, Folder.name, Folder.parent_id).where(
+            Folder.id.in_([folder.id, *desc_ids]), Folder.deleted_at == batch_ts
+        )
+    ).all()
+    batch_folders: dict[str, tuple[str, str | None]] = {row.id: (row.name, row.parent_id) for row in batch_rows}
+    batch_ids = list(batch_folders)
+
+    orphan_folders = db.scalars(
+        select(Folder).where(Folder.parent_id.in_(batch_ids), Folder.deleted_at.is_distinct_from(batch_ts))
+    ).all()
+    orphan_notes = db.scalars(
+        select(Note).where(Note.folder_id.in_(batch_ids), Note.deleted_at.is_distinct_from(batch_ts))
+    ).all()
+
+    def _path_for(start_id: str | None, existing: list[str] | None) -> list[str]:
+        return build_orphan_path(batch_folders, top_id=folder.id, start_id=start_id or folder.id, existing=existing)
+
+    for child in orphan_folders:
+        child.orphan_path = _path_for(child.parent_id, child.orphan_path)
+        child.parent_id = folder.parent_id
+    for note in orphan_notes:
+        note.orphan_path = _path_for(note.folder_id, note.orphan_path)
+        note.folder_id = folder.parent_id
+
+    db.flush()
+
+
+def get_live_child_by_name(db: Session, *, user_id: str, parent_id: str | None, name: str) -> Folder | None:
+    """Return the LIVE folder with this name (case-insensitive) in `parent_id`, or None."""
+    return db.scalars(
+        select(Folder).where(
+            Folder.user_id == user_id,
+            Folder.parent_id == parent_id,
+            func.lower(Folder.name) == name.lower(),
+            Folder.deleted_at.is_(None),
+        )
+    ).first()
 
 
 def create(db: Session, *, user_id: str, data: FolderCreate) -> Folder:
@@ -245,6 +325,8 @@ def purge_old_folders(db: Session, *, user_id: str, before: datetime) -> None:
         )
     )
     for folder in db.scalars(stmt).all():
+        # Same rule as "Delete forever": items of another batch survive with their orphan_path.
+        detach_other_batches(db, folder=folder)
         db.delete(folder)
     db.flush()
 

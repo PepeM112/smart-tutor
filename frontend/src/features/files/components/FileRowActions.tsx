@@ -11,6 +11,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
+import { fileQueryKeys } from '../lib/queryKeys';
+
 import { MoveDialog } from './MoveDialog';
 
 import type { useFileMutations } from '../hooks/useFileMutations';
@@ -60,7 +62,7 @@ export function FolderRowActions({ folder, onStartRename, mutations }: FolderRow
 
   // Fetch delete-preview counts only when the confirm dialog opens.
   const { data: previewRes } = useQuery({
-    queryKey: ['folders', folder.id, 'delete-preview'],
+    queryKey: fileQueryKeys.folderDeletePreview(folder.id),
     queryFn: () => sdk.foldersDeletePreview({ path: { folder_id: folder.id } }),
     enabled: deleteOpen,
   });

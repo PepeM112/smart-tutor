@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { sdk } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
+import { fileQueryKeys } from '../lib/queryKeys';
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -105,7 +107,7 @@ export function MoveDialog({ open, onOpenChange, movingFolderId, currentParentId
   const [selected, setSelected] = useState<string | null | undefined>(undefined);
 
   const { data: foldersRes } = useQuery({
-    queryKey: ['folders'],
+    queryKey: fileQueryKeys.folders(),
     queryFn: () => sdk.foldersList(),
     enabled: open,
   });

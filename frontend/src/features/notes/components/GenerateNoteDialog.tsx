@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
@@ -61,7 +62,7 @@ export function GenerateNoteDialog({ compact = false, folderId }: GenerateNoteDi
         },
       }),
     onSuccess: res => {
-      void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      invalidateAfterFileChange(queryClient, { notes: true, refetchNotes: true });
       toast.success(t('notes_ai.note_generated'));
       setOpen(false);
       resetForm();

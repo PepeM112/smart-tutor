@@ -1,12 +1,13 @@
 from datetime import datetime
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
+from app.core.constants import FOLDER_NAME_MAX
 from app.schemas.base import BaseSchema
 
 
 class FolderBase(BaseSchema):
-    name: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=FOLDER_NAME_MAX)
 
 
 class FolderCreate(FolderBase):
@@ -14,8 +15,16 @@ class FolderCreate(FolderBase):
 
 
 class FolderUpdate(BaseSchema):
-    name: str | None = Field(default=None, min_length=1, max_length=100)
+    name: str | None = Field(default=None, min_length=1, max_length=FOLDER_NAME_MAX)
     parent_id: str | None = None  # None means "not sent"; use explicit sentinel if needed
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _reject_null_name(cls, v: object) -> object:
+        """Explicit null for `name` is not allowed — the column is NOT NULL."""
+        if v is None:
+            raise ValueError("name cannot be null")
+        return v
 
 
 class FolderRead(FolderBase):

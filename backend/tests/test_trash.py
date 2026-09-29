@@ -29,6 +29,7 @@ def _make_folder(
     parent_id: str | None = None,
     name: str = "F",
     deleted_at: datetime | None = None,
+    orphan_path: list[str] | None = None,
 ) -> MagicMock:
     f = MagicMock()
     f.id = id
@@ -36,6 +37,7 @@ def _make_folder(
     f.parent_id = parent_id
     f.name = name
     f.deleted_at = deleted_at
+    f.orphan_path = orphan_path
     return f
 
 
@@ -45,6 +47,7 @@ def _make_note(
     folder_id: str | None = None,
     deleted_at: datetime | None = None,
     version: int = 1,
+    orphan_path: list[str] | None = None,
 ) -> MagicMock:
     n = MagicMock()
     n.id = id
@@ -52,6 +55,7 @@ def _make_note(
     n.folder_id = folder_id
     n.deleted_at = deleted_at
     n.version = version
+    n.orphan_path = orphan_path
     return n
 
 
@@ -145,14 +149,13 @@ class TestTrashedNoteRejected:
 
 
 class TestRestoreFolder:
-    def test_restore_moves_to_root_when_parent_is_trashed(self) -> None:
+    def test_restore_brings_back_trashed_parent_rows(self) -> None:
         from app.services import trash_service
 
         db = MagicMock()
         user = _make_user()
-        now = _ts(1)
-        folder = _make_folder("f1", parent_id="fp", deleted_at=now)
-        trashed_parent = _make_folder("fp", deleted_at=_ts(2))
+        folder = _make_folder("f1", parent_id="fp", deleted_at=_ts(1))
+        trashed_parent = _make_folder("fp", parent_id=None, deleted_at=_ts(2))
 
         with (
             patch("app.services.trash_service._get_trashed_folder_or_404") as mock_get,
@@ -160,15 +163,13 @@ class TestRestoreFolder:
         ):
             mock_get.return_value = folder
             mock_crud.get_by_id.return_value = trashed_parent
-            # sibling_name_exists: no conflict
             mock_crud.sibling_name_exists.return_value = False
-            mock_crud.restore_folder_batch.return_value = None
-
             trash_service.restore_folder(db, folder_id="f1", current_user=user)
 
-        # Parent was trashed, so effective parent becomes None (root).
-        assert folder.parent_id is None
-        db.commit.assert_called_once()
+        # The parent row is live again and the folder stays inside it.
+        assert trashed_parent.deleted_at is None
+        assert folder.parent_id == "fp"
+        mock_crud.restore_folder_batch.assert_called_once_with(db, folder=folder)
 
     def test_restore_keeps_original_parent_when_live(self) -> None:
         from app.services import trash_service
@@ -271,3 +272,264 @@ class TestPurge:
         mock_crud.purge_old_folders.assert_called_once_with(db, user_id="u1", before=expected_cutoff)
         mock_crud.purge_old_notes.assert_called_once_with(db, user_id="u1", before=expected_cutoff)
         db.commit.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# P0-1: hard_delete_folder calls detach_other_batches before db.delete
+# ---------------------------------------------------------------------------
+
+
+class TestHardDeleteFolderDetach:
+    def test_detach_called_before_delete(self) -> None:
+        """detach_other_batches must be called so foreign-key CASCADE does not remove
+        items that belong to a different trash batch inside the same subtree."""
+        from app.services import trash_service
+
+        db = MagicMock()
+        user = _make_user()
+        folder = _make_folder("f1", deleted_at=_ts(1))
+
+        call_order: list[str] = []
+
+        with (
+            patch("app.services.trash_service._get_trashed_folder_or_404") as mock_get,
+            patch("app.services.trash_service.folder_crud") as mock_crud,
+        ):
+            mock_get.return_value = folder
+            mock_crud.detach_other_batches.side_effect = lambda *a, **kw: call_order.append("detach")
+            db.delete.side_effect = lambda *a: call_order.append("delete")
+
+            trash_service.hard_delete_folder(db, folder_id="f1", current_user=user)
+
+        assert call_order == ["detach", "delete"], "detach must precede db.delete"
+        mock_crud.detach_other_batches.assert_called_once_with(db, folder=folder)
+
+
+# ---------------------------------------------------------------------------
+# P1-2: FolderUpdate rejects explicit null name
+# ---------------------------------------------------------------------------
+
+
+class TestFolderUpdateSchema:
+    def test_explicit_null_name_raises_422(self) -> None:
+        """Sending name=null in a PATCH body must produce a validation error, not silently
+        pass None to the CRUD layer where the column is NOT NULL."""
+        import pydantic
+        from app.schemas.folder import FolderUpdate
+
+        with pytest.raises(pydantic.ValidationError):
+            FolderUpdate.model_validate({"name": None})
+
+    def test_omitting_name_is_fine(self) -> None:
+        """Not sending name at all should leave it unset (default None = no-op in CRUD)."""
+        from app.schemas.folder import FolderUpdate
+
+        schema = FolderUpdate.model_validate({})
+        assert "name" not in schema.model_fields_set
+
+
+# ---------------------------------------------------------------------------
+# P1-3: _resolve_restore_name truncates the base when it is too long
+# ---------------------------------------------------------------------------
+
+
+class TestRestoreNameTruncation:
+    def test_long_name_candidate_fits_in_column_limit(self) -> None:
+        """When the original name is 95 chars, the ' (restored)' suffix would exceed 100.
+        The function must truncate the base so the final candidate stays within the limit."""
+        from app.services.trash_service import _resolve_restore_name
+        from app.core.constants import FOLDER_NAME_MAX
+
+        long_name = "A" * 95  # 95 chars — original fits in column; suffixed version does not
+
+        db = MagicMock()
+        # First sibling_name_exists call (original name) → conflict.
+        # Second call (truncated + ' (restored)') → no conflict.
+        with patch("app.services.trash_service.folder_crud") as mock_crud:
+            mock_crud.sibling_name_exists.side_effect = [True, False]
+            result = _resolve_restore_name(db, name=long_name, parent_id=None, user_id="u1", exclude_id="f1")
+
+        assert len(result) <= FOLDER_NAME_MAX, f"result length {len(result)} exceeds {FOLDER_NAME_MAX}"
+        assert result.endswith(" (restored)")
+
+
+# ---------------------------------------------------------------------------
+# build_orphan_path — pure helper for detach_other_batches
+# ---------------------------------------------------------------------------
+
+
+class TestBuildOrphanPath:
+    # top (A) -> B -> C; A is the hard-deleted folder.
+    FOLDERS: dict[str, tuple[str, str | None]] = {
+        "a": ("A", "outside"),
+        "b": ("B", "a"),
+        "c": ("C", "b"),
+    }
+
+    def test_path_from_top_to_item_parent(self) -> None:
+        from app.crud.folder import build_orphan_path
+
+        assert build_orphan_path(self.FOLDERS, top_id="a", start_id="c", existing=None) == ["A", "B", "C"]
+
+    def test_item_directly_in_top_folder(self) -> None:
+        from app.crud.folder import build_orphan_path
+
+        assert build_orphan_path(self.FOLDERS, top_id="a", start_id="a", existing=None) == ["A"]
+
+    def test_stops_at_top_folder(self) -> None:
+        from app.crud.folder import build_orphan_path
+
+        # "outside" is not in the batch map and A is the top, so it is not added.
+        assert build_orphan_path(self.FOLDERS, top_id="b", start_id="c", existing=[]) == ["B", "C"]
+
+    def test_existing_path_is_added_at_the_end(self) -> None:
+        from app.crud.folder import build_orphan_path
+
+        assert build_orphan_path(self.FOLDERS, top_id="a", start_id="b", existing=["X", "Y"]) == ["A", "B", "X", "Y"]
+
+    def test_repeated_hard_deletes_keep_outermost_first(self) -> None:
+        """Delete inner folder first, then the outer one: the outer names must come first."""
+        from app.crud.folder import build_orphan_path
+
+        # First delete: folder "mid" (parent "out") is removed; item sat in "leaf" under "mid".
+        first = build_orphan_path(
+            {"mid": ("Mid", "out"), "leaf": ("Leaf", "mid")}, top_id="mid", start_id="leaf", existing=None
+        )
+        assert first == ["Mid", "Leaf"]
+        # Second delete: folder "out" is removed and the item now sits directly in it.
+        second = build_orphan_path({"out": ("Out", None)}, top_id="out", start_id="out", existing=first)
+        assert second == ["Out", "Mid", "Leaf"]
+
+    def test_cycle_does_not_loop_forever(self) -> None:
+        from app.crud.folder import build_orphan_path
+
+        cyclic: dict[str, tuple[str, str | None]] = {"x": ("X", "y"), "y": ("Y", "x")}
+        assert build_orphan_path(cyclic, top_id="zzz", start_id="x", existing=None) == ["Y", "X"]
+
+
+class TestDetachOtherBatches:
+    def test_orphans_are_reparented_with_path(self) -> None:
+        from app.crud import folder as folder_crud
+
+        ts = _ts(1)
+        top = _make_folder("a", parent_id="gp", name="A", deleted_at=ts)
+        child_batch = _make_folder("b", parent_id="a", name="B", deleted_at=ts)
+        other_note = _make_note("n1", folder_id="b", deleted_at=_ts(3), orphan_path=["Old"])
+        other_folder = _make_folder("f9", parent_id="a", name="F9", deleted_at=_ts(4))
+
+        db = MagicMock()
+        rows = [MagicMock(id=f.id, parent_id=f.parent_id) for f in (top, child_batch)]
+        rows[0].name, rows[1].name = "A", "B"
+        db.execute.return_value.all.return_value = rows
+        db.scalars.return_value.all.side_effect = [[other_folder], [other_note]]
+
+        with patch("app.crud.folder.get_descendant_ids", return_value=["b"]):
+            folder_crud.detach_other_batches(db, folder=top)
+
+        # Items move to the parent of the deleted top folder.
+        assert other_folder.parent_id == "gp"
+        assert other_folder.orphan_path == ["A"]
+        assert other_note.folder_id == "gp"
+        assert other_note.orphan_path == ["A", "B", "Old"]
+
+
+# ---------------------------------------------------------------------------
+# Restore path: trashed ancestors and orphan_path
+# ---------------------------------------------------------------------------
+
+
+class TestRestorePath:
+    def test_note_restores_chain_of_trashed_ancestors_only_rows(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        user = _make_user()
+        note = _make_note("n1", folder_id="p", deleted_at=_ts(1))
+        live_root = _make_folder("live", deleted_at=None)
+        top = _make_folder("g", parent_id="live", name="G", deleted_at=_ts(2))
+        parent = _make_folder("p", parent_id="g", name="P", deleted_at=_ts(2))
+        folders = {"p": parent, "g": top, "live": live_root}
+
+        with (
+            patch("app.services.trash_service._get_trashed_note_or_404", return_value=note),
+            patch("app.services.trash_service.folder_crud") as mock_crud,
+        ):
+            mock_crud.get_by_id.side_effect = lambda _db, id: folders.get(id)
+            mock_crud.sibling_name_exists.return_value = False
+            trash_service.restore_note(db, note_id="n1", current_user=user)
+
+        assert top.deleted_at is None and parent.deleted_at is None
+        assert top.parent_id == "live"
+        assert parent.parent_id == "g"
+        assert note.folder_id == "p" and note.deleted_at is None
+        mock_crud.restore_folder_batch.assert_not_called()
+
+    def test_topmost_ancestor_is_renamed_on_conflict(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        note = _make_note("n1", folder_id="p", deleted_at=_ts(1))
+        parent = _make_folder("p", parent_id=None, name="P", deleted_at=_ts(2))
+
+        with (
+            patch("app.services.trash_service._get_trashed_note_or_404", return_value=note),
+            patch("app.services.trash_service.folder_crud") as mock_crud,
+        ):
+            mock_crud.get_by_id.side_effect = lambda _db, id: {"p": parent}.get(id)
+            mock_crud.sibling_name_exists.side_effect = [True, False]
+            trash_service.restore_note(db, note_id="n1", current_user=_make_user())
+
+        assert parent.name == "P (restored)"
+
+    def test_orphan_path_reuses_live_folder_and_creates_missing(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        note = _make_note("n1", folder_id=None, deleted_at=_ts(1), orphan_path=["A", "B"])
+        live_a = _make_folder("live-a", name="a")
+        created = _make_folder("new-b", name="B")
+
+        with (
+            patch("app.services.trash_service._get_trashed_note_or_404", return_value=note),
+            patch("app.services.trash_service.folder_crud") as mock_crud,
+        ):
+            # "A" exists (different case), "B" does not.
+            mock_crud.get_live_child_by_name.side_effect = [live_a, None]
+            mock_crud.create.return_value = created
+            trash_service.restore_note(db, note_id="n1", current_user=_make_user())
+
+        create_data = mock_crud.create.call_args.kwargs["data"]
+        assert (create_data.name, create_data.parent_id) == ("B", "live-a")
+        assert note.folder_id == "new-b"
+        assert note.orphan_path is None
+        assert note.deleted_at is None
+
+    def test_folder_with_orphan_path_and_missing_parent_goes_under_recreated_path(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        folder = _make_folder("f1", parent_id=None, name="F", deleted_at=_ts(1), orphan_path=["X"])
+        created = _make_folder("new-x", name="X")
+
+        with (
+            patch("app.services.trash_service._get_trashed_folder_or_404", return_value=folder),
+            patch("app.services.trash_service.folder_crud") as mock_crud,
+        ):
+            mock_crud.get_live_child_by_name.return_value = None
+            mock_crud.create.return_value = created
+            mock_crud.sibling_name_exists.return_value = False
+            trash_service.restore_folder(db, folder_id="f1", current_user=_make_user())
+
+        assert folder.parent_id == "new-x"
+        assert folder.orphan_path is None
+
+    def test_folder_path_appends_orphan_names(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        parent = _make_folder("p", name="P", parent_id=None)
+        db.scalars.return_value.all.return_value = [parent]
+
+        assert trash_service._folder_path(db, folder_id="p", orphan_path=["A", "B"], user_id="u1") == "/P/A/B"
+        assert trash_service._folder_path(db, folder_id=None, orphan_path=["A"], user_id="u1") == "/A"
+        assert trash_service._folder_path(db, folder_id=None, orphan_path=None, user_id="u1") is None

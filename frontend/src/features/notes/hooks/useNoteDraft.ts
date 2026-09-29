@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
+import { fileQueryKeys } from '@/features/files/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
 
 import { type AutosaveStatus, type SavePayload, useAutosave } from '../editor/useAutosave';
@@ -67,8 +68,10 @@ export function useNoteDraft({ note, editorRef }: UseNoteDraftArgs): UseNoteDraf
     (saved: NoteRead) => {
       knownVersion.current = saved.version;
       // Patch the cache instead of refetching, so the editor never remounts.
-      queryClient.setQueryData<{ data: NoteRead }>(['notes', note.id], old => (old ? { ...old, data: saved } : old));
-      void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
+      queryClient.setQueryData<{ data: NoteRead }>(fileQueryKeys.note(note.id), old =>
+        old ? { ...old, data: saved } : old
+      );
+      void queryClient.invalidateQueries({ queryKey: fileQueryKeys.notes(), refetchType: 'none' });
     },
     [queryClient, note.id]
   );
@@ -124,7 +127,7 @@ export function useNoteDraft({ note, editorRef }: UseNoteDraftArgs): UseNoteDraf
   const fetchServerNote = async (): Promise<NoteRead | null> => {
     try {
       const res = await queryClient.fetchQuery({
-        queryKey: ['notes', note.id],
+        queryKey: fileQueryKeys.note(note.id),
         queryFn: () => sdk.notesGet({ path: { note_id: note.id } }),
         staleTime: 0,
       });

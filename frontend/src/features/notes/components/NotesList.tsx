@@ -14,6 +14,7 @@ import { DataTable, type MobileAction } from '@/components/shared/DataTable';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { fileQueryKeys, invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
 import { formatShortDate } from '@/lib/format';
 import { folderHref, noteHref } from '@/lib/routes';
@@ -38,7 +39,7 @@ export function NotesList({ data, sort, onSort }: Props) {
   const queryClient = useQueryClient();
 
   const { data: foldersRes } = useQuery({
-    queryKey: ['folders'],
+    queryKey: fileQueryKeys.folders(),
     queryFn: () => sdk.foldersList(),
   });
   const folders = useMemo(() => foldersRes?.data ?? [], [foldersRes]);
@@ -46,8 +47,7 @@ export function NotesList({ data, sort, onSort }: Props) {
   const { mutate: restoreNote } = useMutation({
     mutationFn: (id: string) => sdk.trashRestore({ path: { kind: 'note', item_id: id } }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      void queryClient.invalidateQueries({ queryKey: ['trash'] });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true, refetchNotes: true });
     },
     onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
   });
@@ -55,8 +55,7 @@ export function NotesList({ data, sort, onSort }: Props) {
   const { mutate: deleteNote, isPending: isDeleting } = useMutation({
     mutationFn: (id: string) => sdk.notesDelete({ path: { note_id: id } }),
     onSuccess: (_, id) => {
-      void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      void queryClient.invalidateQueries({ queryKey: ['trash'] });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true, refetchNotes: true });
       toast.success(t('notes.note_moved_to_trash'), {
         action: { label: t('common.undo'), onClick: () => restoreNote(id) },
       });

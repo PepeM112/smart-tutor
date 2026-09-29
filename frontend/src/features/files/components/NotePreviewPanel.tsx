@@ -12,6 +12,8 @@ import { RichNoteEditor } from '@/features/notes/editor/RichNoteEditor';
 import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
 
+import { fileQueryKeys } from '../lib/queryKeys';
+
 type Props = {
   noteId: string;
   onClose: () => void;
@@ -35,7 +37,7 @@ export function NotePreviewPanel({ noteId, onClose }: Props) {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['notes', noteId],
+    queryKey: fileQueryKeys.note(noteId),
     queryFn: () => sdk.notesGet({ path: { note_id: noteId } }),
   });
 

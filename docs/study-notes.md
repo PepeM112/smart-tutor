@@ -151,7 +151,12 @@ The `/trash` page lists only the top item of each delete batch — not each desc
 
 ### Restore
 
-Restore places the item back in its original parent folder. If that parent no longer exists or is itself in Trash, the item goes to the root. A restored folder brings back only the items that were trashed in the same delete batch — items the user trashed separately before that delete are not restored.
+Restore rebuilds the original path of the item:
+
+- **Parent is still in Trash:** the trashed ancestors are restored too, but only the folder rows. Their other contents stay in Trash and appear as separate Trash entries. If the topmost restored ancestor clashes with a live sibling name, it is renamed (`(restored)`, `(2)`, ...).
+- **Parent was deleted forever:** when a folder is deleted forever, items of other batches inside it are moved to the parent of that folder and keep the names of the lost folders in `orphan_path` (outermost first). On restore, each name is reused if a live folder with that name (case-insensitive) exists at that level, or created. The item goes in the last folder and `orphan_path` is cleared.
+- The Trash page shows the full original path, including the `orphan_path` names.
+- A restored folder brings back only the items that were trashed in the same delete batch — items the user trashed separately before that delete are not restored. If the item itself clashes with a live sibling name, it is renamed.
 
 ### Purge (30 days)
 

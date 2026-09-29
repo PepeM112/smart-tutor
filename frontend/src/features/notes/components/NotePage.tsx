@@ -24,6 +24,7 @@ import { FileBreadcrumb } from '@/features/files/components/FileBreadcrumb';
 import { FilePageShell } from '@/features/files/components/FilePageShell';
 import { MoveDialog } from '@/features/files/components/MoveDialog';
 import { useFolderPath } from '@/features/files/hooks/useFolderPath';
+import { fileQueryKeys, invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { sdk } from '@/lib/apiClient';
@@ -52,7 +53,7 @@ export function NotePage({ noteId }: Props) {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['notes', noteId],
+    queryKey: fileQueryKeys.note(noteId),
     queryFn: () => sdk.notesGet({ path: { note_id: noteId } }),
     refetchOnWindowFocus: true,
   });
@@ -98,8 +99,8 @@ function TrashedNoteView({ note }: { note: NoteRead }) {
     mutationFn: () => sdk.trashRestore({ path: { kind: 'note', item_id: note.id } }),
     onSuccess: () => {
       // Refetch the note so the page switches from read-only to editable.
-      void queryClient.invalidateQueries({ queryKey: ['notes', note.id] });
-      void queryClient.invalidateQueries({ queryKey: ['trash'] });
+      void queryClient.invalidateQueries({ queryKey: fileQueryKeys.note(note.id) });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
       toast.success(t('trash.restored'));
     },
     onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
@@ -108,7 +109,7 @@ function TrashedNoteView({ note }: { note: NoteRead }) {
   const { mutate: hardDelete, isPending: isDeleting } = useMutation({
     mutationFn: () => sdk.trashHardDelete({ path: { kind: 'note', item_id: note.id } }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trash'] });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
       // No need to refetch the note — it no longer exists after hard delete.
       toast.success(t('trash.deleted_forever'));
     },
@@ -221,12 +222,11 @@ function NoteForm({ note }: { note: NoteRead }) {
     mutationFn: (folderId: string | null) => sdk.notesMove({ path: { note_id: note.id }, body: { folderId } }),
     onSuccess: res => {
       // Merge only folderId: the draft owns content and version, so a move must not reset them.
-      queryClient.setQueryData<{ data: NoteRead }>(['notes', note.id], old =>
+      queryClient.setQueryData<{ data: NoteRead }>(fileQueryKeys.note(note.id), old =>
         old && res.data ? { ...old, data: { ...old.data, folderId: res.data.folderId } } : old
       );
-      void queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] });
-      // refetchType 'none': same as useNoteDraft — do not refetch the open note while the user edits.
-      void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
+      // The helper uses refetchType 'none' for notes, so the open editor is not reset.
+      invalidateAfterFileChange(queryClient, { notes: true });
       toast.success(t('files.note_moved'));
       setMoveOpen(false);
     },

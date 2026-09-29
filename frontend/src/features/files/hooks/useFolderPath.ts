@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { type FolderRead } from '@/client';
 import { sdk } from '@/lib/apiClient';
 
+import { fileQueryKeys } from '../lib/queryKeys';
+
 /**
  * Build the ancestor chain from root to (and including) `folderId`.
  *
@@ -34,7 +36,7 @@ export function buildFolderPath(folderId: string | null, folders: FolderRead[]):
  */
 export function useFolderPath(folderId: string | null): FolderRead[] {
   const { data: foldersRes } = useQuery({
-    queryKey: ['folders'],
+    queryKey: fileQueryKeys.folders(),
     queryFn: () => sdk.foldersList(),
   });
 

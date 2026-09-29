@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { sdk } from '@/lib/apiClient';
 import { getErrorDetail } from '@/lib/utils';
 
+import { invalidateAfterFileChange } from '../lib/queryKeys';
+
 // ─── Create ──────────────────────────────────────────────────────────────────
 
 type CreateProps = {
@@ -52,7 +54,7 @@ function NewFolderForm({ parentId, onCreated, onClose }: NewFolderFormProps) {
   const { mutate: create, isPending } = useMutation({
     mutationFn: () => sdk.foldersCreate({ body: { name: name.trim(), parentId: parentId ?? null } }),
     onSuccess: res => {
-      void queryClient.invalidateQueries({ queryKey: ['folders'] });
+      invalidateAfterFileChange(queryClient);
       toast.success(t('files.folder_created'));
       onClose();
       if (res.data) onCreated?.(res.data);
