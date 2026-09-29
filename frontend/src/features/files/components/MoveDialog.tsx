@@ -1,17 +1,15 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Folder, FolderOpen } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
-import { type FolderRead } from '@/client';
+import { type FileTreeFolder } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { sdk } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
-import { fileQueryKeys } from '../lib/queryKeys';
+import { useFolders } from '../hooks/useFolders';
 
 type Props = {
   open: boolean;
@@ -25,7 +23,7 @@ type Props = {
 };
 
 /** Collect a folder's subtree IDs (inclusive) from the flat list. */
-function collectDescendants(folderId: string, all: FolderRead[]): Set<string> {
+function collectDescendants(folderId: string, all: FileTreeFolder[]): Set<string> {
   const result = new Set<string>([folderId]);
   const queue = [folderId];
   while (queue.length > 0) {
@@ -41,8 +39,8 @@ function collectDescendants(folderId: string, all: FolderRead[]): Set<string> {
 }
 
 type TreeNodeProps = {
-  folder: FolderRead;
-  all: FolderRead[];
+  folder: FileTreeFolder;
+  all: FileTreeFolder[];
   disabledIds: Set<string>;
   selected: string | null;
   onSelect: (id: string) => void;
@@ -137,12 +135,7 @@ function MoveDialogBody({ movingFolderId, currentParentId, isPending, onCancel, 
   // null = root. Starts on the current parent.
   const [selected, setSelected] = useState<string | null>(currentParentId);
 
-  const { data: foldersRes } = useQuery({
-    queryKey: fileQueryKeys.folders(),
-    queryFn: () => sdk.foldersList(),
-  });
-
-  const allFolders = useMemo(() => foldersRes?.data ?? [], [foldersRes]);
+  const { folders: allFolders } = useFolders();
 
   const disabledIds = useMemo(
     () => (movingFolderId ? collectDescendants(movingFolderId, allFolders) : new Set<string>()),

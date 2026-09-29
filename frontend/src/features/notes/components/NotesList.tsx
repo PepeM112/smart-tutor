@@ -1,24 +1,22 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Bot, Download, Pencil, Trash2, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
-import { NoteSource, type NoteRead, type FolderRead } from '@/client';
+import { NoteSource, type FileTreeFolder, type NoteRead } from '@/client';
 import { DataTable, type MobileAction } from '@/components/shared/DataTable';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { fileQueryKeys, invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
-import { sdk } from '@/lib/apiClient';
+import { useFileMutations } from '@/features/files/hooks/useFileMutations';
+import { useFolders } from '@/features/files/hooks/useFolders';
 import { formatShortDate } from '@/lib/format';
 import { folderHref, noteHref } from '@/lib/routes';
-import { getErrorDetail } from '@/lib/utils';
 
 type Props = {
   data: NoteRead[];
@@ -36,34 +34,13 @@ export function NotesList({ data, sort, onSort }: Props) {
   const t = useTranslations();
   const noteTitle = useNoteTitle();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
-  const { data: foldersRes } = useQuery({
-    queryKey: fileQueryKeys.folders(),
-    queryFn: () => sdk.foldersList(),
-  });
-  const folders = useMemo(() => foldersRes?.data ?? [], [foldersRes]);
+  const { foldersById } = useFolders();
 
-  const { mutate: restoreNote } = useMutation({
-    mutationFn: (id: string) => sdk.trashRestore({ path: { kind: 'note', item_id: id } }),
-    onSuccess: () => {
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true, refetchNotes: true });
-    },
-    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
-  });
+  // No note editor is open on the notes list, so it is safe to refetch the list now.
+  const { trashNote: deleteNote, isTrashingNote: isDeleting } = useFileMutations({ refetchNotes: true });
 
-  const { mutate: deleteNote, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => sdk.notesDelete({ path: { note_id: id } }),
-    onSuccess: (_, id) => {
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true, refetchNotes: true });
-      toast.success(t('notes.note_moved_to_trash'), {
-        action: { label: t('common.undo'), onClick: () => restoreNote(id) },
-      });
-    },
-    onError: () => toast.error(t('notes.failed_to_delete')),
-  });
-
-  const columns = useNotesColumns({ deleteNote, isDeleting, folders });
+  const columns = useNotesColumns({ deleteNote, isDeleting, foldersById });
 
   const renderPreview = useCallback(
     (note: NoteRead) => (
@@ -144,14 +121,13 @@ function SourceBadge({ source }: { source: NoteSource }) {
 type ColumnDeps = {
   deleteNote: (id: string) => void;
   isDeleting: boolean;
-  folders: FolderRead[];
+  foldersById: Map<string, FileTreeFolder>;
 };
 
-function useNotesColumns({ deleteNote, isDeleting, folders }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
+function useNotesColumns({ deleteNote, isDeleting, foldersById }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
   const t = useTranslations();
   const noteTitle = useNoteTitle();
   const router = useRouter();
-  const folderMap = useMemo(() => new Map(folders.map(f => [f.id, f])), [folders]);
 
   return [
     {
@@ -168,7 +144,7 @@ function useNotesColumns({ deleteNote, isDeleting, folders }: ColumnDeps): Colum
       id: 'folder',
       header: t('files.folder_column'),
       cell: ({ row }) => {
-        const folder = row.original.folderId ? folderMap.get(row.original.folderId) : null;
+        const folder = row.original.folderId ? foldersById.get(row.original.folderId) : null;
         if (!folder) return <span className="text-sm text-muted-foreground">{t('files.no_folder')}</span>;
         return (
           <Link

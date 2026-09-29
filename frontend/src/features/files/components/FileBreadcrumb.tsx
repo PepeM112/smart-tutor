@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { type FolderRead } from '@/client';
+import { type FileTreeFolder } from '@/client';
 import { InlineRename } from '@/components/shared/InlineRename';
 import {
   DropdownMenu,
@@ -33,7 +33,7 @@ export type FileBreadcrumbCurrent = {
 
 type Props = {
   /** Ancestor chain from root to the direct parent (does NOT include current). */
-  path: FolderRead[];
+  path: FileTreeFolder[];
   current: FileBreadcrumbCurrent;
   /** Called with the new trimmed name when the user confirms a rename. */
   onRename?: (name: string) => void;
@@ -219,7 +219,7 @@ function CurrentCrumb({
 // ─── PathCrumb ────────────────────────────────────────────────────────────────
 // An ancestor item — a Link with a sibling folder HoverCard.
 
-function PathCrumb({ folder, childrenIndex }: { folder: FolderRead; childrenIndex: ChildrenIndex }) {
+function PathCrumb({ folder, childrenIndex }: { folder: FileTreeFolder; childrenIndex: ChildrenIndex }) {
   const link = (
     <Link
       href={folderHref(folder)}
@@ -239,7 +239,7 @@ function PathCrumb({ folder, childrenIndex }: { folder: FolderRead; childrenInde
 // ─── CollapsedCrumbs ─────────────────────────────────────────────────────────
 // The `…` button that shows hidden middle items in a dropdown.
 
-function CollapsedCrumbs({ hidden }: { hidden: FolderRead[] }) {
+function CollapsedCrumbs({ hidden }: { hidden: FileTreeFolder[] }) {
   const t = useTranslations();
   return (
     <DropdownMenu>

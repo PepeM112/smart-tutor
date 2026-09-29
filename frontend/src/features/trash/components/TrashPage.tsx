@@ -1,22 +1,21 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Folder, NotepadText, Trash2 } from 'lucide-react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
-import { toast } from 'sonner';
 
 import { type TrashItemRead } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { fileQueryKeys, invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
+import { fileQueryKeys } from '@/features/files/lib/queryKeys';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { sdk } from '@/lib/apiClient';
-import { getErrorDetail } from '@/lib/utils';
+
+import { useTrashMutations } from '../hooks/useTrashMutations';
 
 export function TrashPage() {
   const t = useTranslations();
-  const queryClient = useQueryClient();
   useBreadcrumb(t('trash.title'));
 
   const {
@@ -29,14 +28,7 @@ export function TrashPage() {
   });
   const items = res?.data ?? [];
 
-  const { mutate: emptyTrash, isPending: isEmptying } = useMutation({
-    mutationFn: () => sdk.trashEmpty(),
-    onSuccess: () => {
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
-      toast.success(t('trash.emptied'));
-    },
-    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_empty'))),
-  });
+  const { emptyTrash, isEmptying } = useTrashMutations();
 
   return (
     <div className="space-y-6">
@@ -87,25 +79,8 @@ type TrashItemProps = {
 
 function TrashItem({ item }: TrashItemProps) {
   const t = useTranslations();
-  const queryClient = useQueryClient();
-
-  const { mutate: restore, isPending: isRestoring } = useMutation({
-    mutationFn: () => sdk.trashRestore({ path: { kind: item.kind, item_id: item.id } }),
-    onSuccess: () => {
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
-      toast.success(t('trash.restored'));
-    },
-    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
-  });
-
-  const { mutate: hardDelete, isPending: isDeleting } = useMutation({
-    mutationFn: () => sdk.trashHardDelete({ path: { kind: item.kind, item_id: item.id } }),
-    onSuccess: () => {
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
-      toast.success(t('trash.deleted_forever'));
-    },
-    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_delete'))),
-  });
+  const { restoreItem, isRestoring, hardDeleteItem, isHardDeleting } = useTrashMutations();
+  const target = { kind: item.kind, id: item.id };
 
   const format = useFormatter();
   // Explicit `now` (updates each minute): without it next-intl warns, and server and client can disagree.
@@ -122,12 +97,17 @@ function TrashItem({ item }: TrashItemProps) {
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => restore()} disabled={isRestoring || isDeleting}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => restoreItem(target)}
+          disabled={isRestoring || isHardDeleting}
+        >
           {t('trash.restore')}
         </Button>
         <ConfirmDialog
           trigger={
-            <Button size="sm" variant="ghost" disabled={isRestoring || isDeleting}>
+            <Button size="sm" variant="ghost" disabled={isRestoring || isHardDeleting}>
               {t('trash.delete_forever')}
             </Button>
           }
@@ -135,8 +115,8 @@ function TrashItem({ item }: TrashItemProps) {
           description={t('trash.delete_forever_confirm', { name: item.name })}
           confirmLabel={t('trash.delete_forever')}
           confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          disableConfirm={isDeleting}
-          onConfirm={() => hardDelete()}
+          disableConfirm={isHardDeleting}
+          onConfirm={() => hardDeleteItem(target)}
         />
       </div>
     </div>

@@ -1,10 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { type FolderRead } from '@/client';
-import { sdk } from '@/lib/apiClient';
+import type { FileTreeFolder } from '@/client';
 
-import { fileQueryKeys } from '../lib/queryKeys';
+import { useFolders } from './useFolders';
 
 /**
  * Build the ancestor chain from root to (and including) `folderId`.
@@ -12,12 +10,12 @@ import { fileQueryKeys } from '../lib/queryKeys';
  * Returns an empty array for null (root). Stops at the first cycle or
  * missing folder to prevent an infinite loop with corrupt data.
  */
-export function buildFolderPath(folderId: string | null, folders: FolderRead[]): FolderRead[] {
+export function buildFolderPath(folderId: string | null, folders: FileTreeFolder[]): FileTreeFolder[] {
   if (!folderId) return [];
 
-  const path: FolderRead[] = [];
+  const path: FileTreeFolder[] = [];
   const visited = new Set<string>();
-  let current: FolderRead | undefined = folders.find(f => f.id === folderId);
+  let current: FileTreeFolder | undefined = folders.find(f => f.id === folderId);
 
   while (current && !visited.has(current.id)) {
     visited.add(current.id);
@@ -32,14 +30,9 @@ export function buildFolderPath(folderId: string | null, folders: FolderRead[]):
 
 /**
  * Returns the ancestor chain for `folderId` (root → leaf, inclusive).
- * Reads from the cached `['folders']` list — no extra fetch.
+ * Reads from the cached file tree — no extra fetch.
  */
-export function useFolderPath(folderId: string | null): FolderRead[] {
-  const { data: foldersRes } = useQuery({
-    queryKey: fileQueryKeys.folders(),
-    queryFn: () => sdk.foldersList(),
-  });
-
-  // Keep the folders reference stable for useMemo by deriving inside the callback.
-  return useMemo(() => buildFolderPath(folderId, foldersRes?.data ?? []), [folderId, foldersRes?.data]);
+export function useFolderPath(folderId: string | null): FileTreeFolder[] {
+  const { folders } = useFolders();
+  return useMemo(() => buildFolderPath(folderId, folders), [folderId, folders]);
 }

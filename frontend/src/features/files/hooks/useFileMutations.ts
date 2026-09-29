@@ -4,12 +4,21 @@ import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
-import type { FileTree } from '@/client';
+import type { FileTree, NoteRead } from '@/client';
+import { useTrashMutations } from '@/features/trash/hooks/useTrashMutations';
 import { sdk } from '@/lib/apiClient';
 import { getErrorDetail } from '@/lib/utils';
 
 import { moveInTree } from '../lib/fileTree';
 import { fileQueryKeys, invalidateAfterFileChange } from '../lib/queryKeys';
+
+type FileMutationsOptions = {
+  /**
+   * Refetch the notes list after a trash. Only for pages with no open note editor
+   * (the notes list page). Default 'none' keeps an open editor from resetting.
+   */
+  refetchNotes?: boolean;
+};
 
 /**
  * Centralises all file-tree mutations (rename, move, trash) used by FileTreeRow,
@@ -22,33 +31,20 @@ import { fileQueryKeys, invalidateAfterFileChange } from '../lib/queryKeys';
  * moveNote / moveFolder also do an optimistic update of the cached tree so the
  * UI responds immediately (DnD and MoveDialog). On error the snapshot is restored.
  */
-export function useFileMutations() {
+export function useFileMutations({ refetchNotes = false }: FileMutationsOptions = {}) {
   const t = useTranslations();
   const queryClient = useQueryClient();
-
-  // ── restore helpers (Undo toasts only) ──────────────────────────────────────
-
-  const { mutate: restoreFolder } = useMutation({
-    mutationFn: (id: string) => sdk.trashRestore({ path: { kind: 'folder', item_id: id } }),
-    onSuccess: () => invalidateAfterFileChange(queryClient, { trash: true, notes: true }),
-    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
-  });
-
-  const { mutate: restoreNote } = useMutation({
-    mutationFn: (id: string) => sdk.trashRestore({ path: { kind: 'note', item_id: id } }),
-    // P0-1: also refresh the tree so the restored note appears without a reload.
-    onSuccess: () => invalidateAfterFileChange(queryClient, { trash: true, notes: true }),
-    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
-  });
+  // Undo in the toasts below restores through the shared trash hook.
+  const { restoreItem } = useTrashMutations({ refetchNotes });
 
   // ── trash folder ─────────────────────────────────────────────────────────────
 
   const { mutate: trashFolder, isPending: isTrashingFolder } = useMutation({
     mutationFn: (folderId: string) => sdk.foldersDelete({ path: { folder_id: folderId } }),
     onSuccess: (_, folderId) => {
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true, refetchNotes });
       toast.success(t('files.folder_moved_to_trash'), {
-        action: { label: t('common.undo'), onClick: () => restoreFolder(folderId) },
+        action: { label: t('common.undo'), onClick: () => restoreItem({ kind: 'folder', id: folderId, silent: true }) },
       });
     },
     onError: err => toast.error(getErrorDetail(err, t('files.failed_to_delete_folder'))),
@@ -59,9 +55,9 @@ export function useFileMutations() {
   const { mutate: trashNote, isPending: isTrashingNote } = useMutation({
     mutationFn: (noteId: string) => sdk.notesDelete({ path: { note_id: noteId } }),
     onSuccess: (_, noteId) => {
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
+      invalidateAfterFileChange(queryClient, { trash: true, notes: true, refetchNotes });
       toast.success(t('files.note_moved_to_trash'), {
-        action: { label: t('common.undo'), onClick: () => restoreNote(noteId) },
+        action: { label: t('common.undo'), onClick: () => restoreItem({ kind: 'note', id: noteId, silent: true }) },
       });
     },
     onError: err => toast.error(getErrorDetail(err, t('notes.failed_to_delete'))),
@@ -157,7 +153,13 @@ export function useFileMutations() {
     },
     onSettled: () => invalidateAfterFileChange(queryClient, { notes: true }),
     onSuccess: res => {
-      if (res.data) queryClient.setQueryData(fileQueryKeys.note(res.data.id), res);
+      // Merge only folderId: an open editor owns content and version, so a move must not reset them.
+      const moved = res.data;
+      if (moved) {
+        queryClient.setQueryData<{ data: NoteRead }>(fileQueryKeys.note(moved.id), old =>
+          old ? { ...old, data: { ...old.data, folderId: moved.folderId } } : old
+        );
+      }
       toast.success(t('files.note_moved'));
     },
   });

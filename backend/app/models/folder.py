@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, Index, String, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,6 +11,19 @@ from app.models.base import CreatedAtMixin, UpdatedAtMixin, generate_ulid
 
 class Folder(Base, CreatedAtMixin, UpdatedAtMixin):
     __tablename__ = "folder"
+    __table_args__ = (
+        # Sibling names are unique per user + parent (case-insensitive) among non-trashed folders.
+        # Declared here (and created by hand in migration b21642e96cb5) so autogenerate does not drop it.
+        Index(
+            "ix_folder_sibling_name",
+            "user_id",
+            "parent_id",
+            func.lower(text("name")),
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
     user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id", ondelete="CASCADE"))

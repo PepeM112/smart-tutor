@@ -1,12 +1,11 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { posToDOMRect } from '@tiptap/core';
 import { AlertCircle, BookOpen, FolderInput, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 import { type NoteRead } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
@@ -25,13 +24,15 @@ import { formatNoteDetail } from '@/features/assist/utils/formatPageData';
 import { FileBreadcrumb } from '@/features/files/components/FileBreadcrumb';
 import { FilePageShell } from '@/features/files/components/FilePageShell';
 import { MoveDialog } from '@/features/files/components/MoveDialog';
+import { useFileMutations } from '@/features/files/hooks/useFileMutations';
 import { useFolderPath } from '@/features/files/hooks/useFolderPath';
-import { fileQueryKeys, invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
+import { fileQueryKeys } from '@/features/files/lib/queryKeys';
+import { useTrashMutations } from '@/features/trash/hooks/useTrashMutations';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { sdk } from '@/lib/apiClient';
 import { noteHref, Routes } from '@/lib/routes';
-import { cn, getErrorDetail } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 import { RichNoteEditor, type RichNoteEditorRef } from '../editor/RichNoteEditor';
 import { type AutosaveStatus } from '../editor/useAutosave';
@@ -93,34 +94,31 @@ function TrashedNoteView({ note }: { note: NoteRead }) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Folder path for the FileBreadcrumb. useFolderPath reads from the ['folders'] cache.
+  // Folder path for the FileBreadcrumb. useFolderPath reads from the file tree cache.
   const folderPath = useFolderPath(note.folderId);
 
   const title = note.title.trim() || t('notes.untitled');
 
-  const { mutate: restore, isPending: isRestoring } = useMutation({
-    mutationFn: () => sdk.trashRestore({ path: { kind: 'note', item_id: note.id } }),
-    onSuccess: () => {
-      // Refetch the note so the page switches from read-only to editable.
-      void queryClient.invalidateQueries({ queryKey: fileQueryKeys.note(note.id) });
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
-      toast.success(t('trash.restored'));
-    },
-    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_restore'))),
-  });
+  const { restoreItem, isRestoring, hardDeleteItem, isHardDeleting } = useTrashMutations();
+  const target = { kind: 'note', id: note.id } as const;
 
-  const { mutate: hardDelete, isPending: isDeleting } = useMutation({
-    mutationFn: () => sdk.trashHardDelete({ path: { kind: 'note', item_id: note.id } }),
-    onSuccess: () => {
-      // Leave the page first: it shows a note that no longer exists.
-      router.replace(Routes.TRASH);
-      // The note is gone for good: drop it from the cache, do not refetch it.
-      queryClient.removeQueries({ queryKey: fileQueryKeys.note(note.id) });
-      invalidateAfterFileChange(queryClient, { trash: true, notes: true });
-      toast.success(t('trash.deleted_forever'));
-    },
-    onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_delete'))),
-  });
+  function handleRestore(): void {
+    restoreItem(target, {
+      // Refetch the note so the page switches from read-only to editable.
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: fileQueryKeys.note(note.id) }),
+    });
+  }
+
+  function handleHardDelete(): void {
+    hardDeleteItem(target, {
+      onSuccess: () => {
+        // Leave the page first: it shows a note that no longer exists.
+        router.replace(Routes.TRASH);
+        // The note is gone for good: drop it from the cache, do not refetch it.
+        queryClient.removeQueries({ queryKey: fileQueryKeys.note(note.id) });
+      },
+    });
+  }
 
   const { width, toggleWidth } = useNoteWidth();
   const { isDesktop } = useBreakpoint();
@@ -144,11 +142,11 @@ function TrashedNoteView({ note }: { note: NoteRead }) {
 
           <div className="mt-4 mb-6">
             <TrashBanner
-              onRestore={() => restore()}
+              onRestore={handleRestore}
               noteTitle={title}
-              onDelete={() => hardDelete()}
+              onDelete={handleHardDelete}
               isRestoring={isRestoring}
-              isDeleting={isDeleting}
+              isDeleting={isHardDeleting}
             />
           </div>
 
@@ -225,7 +223,6 @@ function NoteForm({ note }: { note: NoteRead }) {
 
   // ── Folder path + move ───────────────────────────────────────────────────────
 
-  const queryClient = useQueryClient();
   const [moveOpen, setMoveOpen] = useState(false);
 
   // Ancestor chain (root → note's folder) for the FileBreadcrumb.
@@ -237,20 +234,8 @@ function NoteForm({ note }: { note: NoteRead }) {
     void flush();
   }
 
-  const { mutate: moveNote, isPending: isMoving } = useMutation({
-    mutationFn: (folderId: string | null) => sdk.notesMove({ path: { note_id: note.id }, body: { folderId } }),
-    onSuccess: res => {
-      // Merge only folderId: the draft owns content and version, so a move must not reset them.
-      queryClient.setQueryData<{ data: NoteRead }>(fileQueryKeys.note(note.id), old =>
-        old && res.data ? { ...old, data: { ...old.data, folderId: res.data.folderId } } : old
-      );
-      // The helper uses refetchType 'none' for notes, so the open editor is not reset.
-      invalidateAfterFileChange(queryClient, { notes: true });
-      toast.success(t('files.note_moved'));
-      setMoveOpen(false);
-    },
-    onError: err => toast.error(getErrorDetail(err, t('files.failed_to_move_note'))),
-  });
+  // The shared moveNote merges only folderId into the note cache, so the open editor is not reset.
+  const { moveNote, isMovingNote } = useFileMutations();
 
   // ── AI chunk edit ────────────────────────────────────────────────────────────
 
@@ -367,8 +352,8 @@ function NoteForm({ note }: { note: NoteRead }) {
         open={moveOpen}
         onOpenChange={setMoveOpen}
         currentParentId={note.folderId}
-        isPending={isMoving}
-        onConfirm={moveNote}
+        isPending={isMovingNote}
+        onConfirm={folderId => moveNote({ id: note.id, folderId }, { onSuccess: () => setMoveOpen(false) })}
       />
 
       <SplitPane

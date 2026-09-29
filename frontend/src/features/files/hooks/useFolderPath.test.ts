@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FolderRead } from '@/client';
+import type { FileTreeFolder } from '@/client';
 
 import { buildFolderPath } from './useFolderPath';
 
@@ -11,8 +11,8 @@ const ULID_D = '01ARZ3NDEKTSV4RRFFQ69G5FAD';
 
 const NOW = new Date('2024-01-01T00:00:00Z');
 
-function makeFolder(id: string, name: string, parentId: string | null): FolderRead {
-  return { id, name, parentId, userId: 'user1', deletedAt: null, createdAt: NOW, updatedAt: NOW };
+function makeFolder(id: string, name: string, parentId: string | null): FileTreeFolder {
+  return { id, name, parentId, updatedAt: NOW };
 }
 
 describe('buildFolderPath', () => {
