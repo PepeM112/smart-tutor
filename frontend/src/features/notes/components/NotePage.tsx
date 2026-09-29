@@ -61,7 +61,13 @@ export function NotePage({ noteId }: Props) {
   useProvidePageData(useMemo(() => (noteData ? formatNoteDetail(noteData) : null), [noteData]));
 
   return (
-    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
+    // h-full: FilePageShell and its SplitPane take their height from this wrapper.
+    <QueryState
+      className="h-full"
+      isLoading={isLoading}
+      isError={isError}
+      errorMessage={t('notes.failed_to_load_note')}
+    >
       {noteData ? (
         noteData.deletedAt ? (
           <TrashedNoteView key={noteData.id} note={noteData} />
