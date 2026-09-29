@@ -19,6 +19,7 @@ import { noteHref } from '@/lib/routes';
 import { getErrorDetail } from '@/lib/utils';
 
 import { useFileMutations } from '../hooks/useFileMutations';
+import { useFileTree } from '../hooks/useFileTree';
 import { useFolderPath } from '../hooks/useFolderPath';
 import { invalidateAfterFileChange } from '../lib/queryKeys';
 
@@ -49,6 +50,11 @@ export function FilesPage({ folderId }: Props) {
     setPrevFolderId(folderId);
     setPreviewId(null);
   }
+
+  // Show the preview only while its note is still in the tree. A trashed note leaves the tree,
+  // so the pane closes by itself (no effect needed).
+  const { notes: treeNotes } = useFileTree();
+  const activePreviewId = previewId && treeNotes.some(n => n.id === previewId) ? previewId : null;
 
   // Root page (/files) uses the standard page header; folder pages use FileBreadcrumb.
   useBreadcrumb(folderId === null ? t('files.title') : '');
@@ -85,11 +91,13 @@ export function FilesPage({ folderId }: Props) {
 
   // ── Preview panel ────────────────────────────────────────────────────────────
 
-  const previewPanel = previewId ? <NotePreviewPanel noteId={previewId} onClose={() => setPreviewId(null)} /> : null;
+  const previewPanel = activePreviewId ? (
+    <NotePreviewPanel noteId={activePreviewId} onClose={() => setPreviewId(null)} />
+  ) : null;
 
   // ── Table ────────────────────────────────────────────────────────────────────
 
-  const table = <FilesTable currentFolderId={folderId} onPreview={setPreviewId} previewId={previewId} />;
+  const table = <FilesTable currentFolderId={folderId} onPreview={setPreviewId} previewId={activePreviewId} />;
 
   // ── Layout: desktop SplitPane, mobile drawer ─────────────────────────────────
 
@@ -100,9 +108,9 @@ export function FilesPage({ folderId }: Props) {
       ) : (
         <>
           <div className="overflow-y-auto">{table}</div>
-          <Drawer open={!!previewId} onOpenChange={open => !open && setPreviewId(null)}>
+          <Drawer open={!!activePreviewId} onOpenChange={open => !open && setPreviewId(null)}>
             <DrawerContent className="max-h-[75dvh]">
-              {previewId && <NotePreviewPanel noteId={previewId} onClose={() => setPreviewId(null)} />}
+              {activePreviewId && <NotePreviewPanel noteId={activePreviewId} onClose={() => setPreviewId(null)} />}
             </DrawerContent>
           </Drawer>
         </>

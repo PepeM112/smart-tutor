@@ -11,11 +11,6 @@ import { getErrorDetail } from '@/lib/utils';
 import { moveInTree } from '../lib/fileTree';
 import { fileQueryKeys, invalidateAfterFileChange } from '../lib/queryKeys';
 
-type Options = {
-  onTrash?: () => void;
-  onMove?: () => void;
-};
-
 /**
  * Centralises all file-tree mutations (rename, move, trash) used by FileTreeRow,
  * FileRowActions, and FilesPage toolbar.
@@ -27,7 +22,7 @@ type Options = {
  * moveNote / moveFolder also do an optimistic update of the cached tree so the
  * UI responds immediately (DnD and MoveDialog). On error the snapshot is restored.
  */
-export function useFileMutations({ onTrash, onMove }: Options = {}) {
+export function useFileMutations() {
   const t = useTranslations();
   const queryClient = useQueryClient();
 
@@ -55,7 +50,6 @@ export function useFileMutations({ onTrash, onMove }: Options = {}) {
       toast.success(t('files.folder_moved_to_trash'), {
         action: { label: t('common.undo'), onClick: () => restoreFolder(folderId) },
       });
-      onTrash?.();
     },
     onError: err => toast.error(getErrorDetail(err, t('files.failed_to_delete_folder'))),
   });
@@ -69,7 +63,6 @@ export function useFileMutations({ onTrash, onMove }: Options = {}) {
       toast.success(t('files.note_moved_to_trash'), {
         action: { label: t('common.undo'), onClick: () => restoreNote(noteId) },
       });
-      onTrash?.();
     },
     onError: err => toast.error(getErrorDetail(err, t('notes.failed_to_delete'))),
   });
@@ -139,7 +132,6 @@ export function useFileMutations({ onTrash, onMove }: Options = {}) {
     onSettled: () => invalidateAfterFileChange(queryClient),
     onSuccess: () => {
       toast.success(t('files.moved'));
-      onMove?.();
     },
   });
 
@@ -167,7 +159,6 @@ export function useFileMutations({ onTrash, onMove }: Options = {}) {
     onSuccess: res => {
       if (res.data) queryClient.setQueryData(fileQueryKeys.note(res.data.id), res);
       toast.success(t('files.note_moved'));
-      onMove?.();
     },
   });
 

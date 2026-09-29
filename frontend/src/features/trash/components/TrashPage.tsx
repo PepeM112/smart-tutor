@@ -2,10 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Folder, NotepadText, Trash2 } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { type TrashItemRead } from '@/client';
+import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fileQueryKeys, invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
@@ -18,7 +19,11 @@ export function TrashPage() {
   const queryClient = useQueryClient();
   useBreadcrumb(t('trash.title'));
 
-  const { data: res, isLoading } = useQuery({
+  const {
+    data: res,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: fileQueryKeys.trash(),
     queryFn: () => sdk.trashList(),
   });
@@ -56,20 +61,20 @@ export function TrashPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">{t('common.loading')}</div>
-      ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Trash2 className="mb-3 size-10 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">{t('trash.empty_state')}</p>
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {items.map(item => (
-            <TrashItem key={`${item.kind}-${item.id}`} item={item} />
-          ))}
-        </div>
-      )}
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('trash.failed_to_load')}>
+        {items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Trash2 className="mb-3 size-10 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">{t('trash.empty_state')}</p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {items.map(item => (
+              <TrashItem key={`${item.kind}-${item.id}`} item={item} />
+            ))}
+          </div>
+        )}
+      </QueryState>
     </div>
   );
 }
@@ -103,9 +108,11 @@ function TrashItem({ item }: TrashItemProps) {
   });
 
   const format = useFormatter();
+  // Explicit `now` (updates each minute): without it next-intl warns, and server and client can disagree.
+  const now = useNow({ updateInterval: 60_000 });
   const Icon = item.kind === 'folder' ? Folder : NotepadText;
   // next-intl gives a localized relative time ("3 days ago" / "hace 3 días").
-  const subtitle = buildSubtitle(item, format.relativeTime(new Date(item.deletedAt)), t);
+  const subtitle = buildSubtitle(item, format.relativeTime(new Date(item.deletedAt), now), t);
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2.5 ring-1 ring-foreground/10 bg-card">

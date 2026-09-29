@@ -103,13 +103,43 @@ function TreeNode({ folder, all, disabledIds, selected, onSelect, depth }: TreeN
 
 export function MoveDialog({ open, onOpenChange, movingFolderId, currentParentId, isPending, onConfirm }: Props) {
   const t = useTranslations();
-  // null = root selected; undefined = nothing selected yet
-  const [selected, setSelected] = useState<string | null | undefined>(undefined);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('files.move_to')}</DialogTitle>
+        </DialogHeader>
+        {/* DialogContent unmounts when closed, so the body starts fresh on each open. */}
+        <MoveDialogBody
+          movingFolderId={movingFolderId}
+          currentParentId={currentParentId ?? null}
+          isPending={isPending}
+          onCancel={() => onOpenChange(false)}
+          onConfirm={onConfirm}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type BodyProps = {
+  movingFolderId?: string | null;
+  /** null = the item is at root level. */
+  currentParentId: string | null;
+  isPending?: boolean;
+  onCancel: () => void;
+  onConfirm: (targetFolderId: string | null) => void;
+};
+
+function MoveDialogBody({ movingFolderId, currentParentId, isPending, onCancel, onConfirm }: BodyProps) {
+  const t = useTranslations();
+  // null = root. Starts on the current parent.
+  const [selected, setSelected] = useState<string | null>(currentParentId);
 
   const { data: foldersRes } = useQuery({
     queryKey: fileQueryKeys.folders(),
     queryFn: () => sdk.foldersList(),
-    enabled: open,
   });
 
   const allFolders = useMemo(() => foldersRes?.data ?? [], [foldersRes]);
@@ -121,64 +151,47 @@ export function MoveDialog({ open, onOpenChange, movingFolderId, currentParentId
 
   const roots = allFolders.filter(f => f.parentId === null);
 
-  const effectiveSelected = selected === undefined ? (currentParentId ?? null) : selected;
-
-  function handleConfirm() {
-    onConfirm(effectiveSelected);
-  }
+  // Moving to the current parent does nothing, so block it.
+  const isNoOp = selected === currentParentId;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={v => {
-        onOpenChange(v);
-        if (!v) setSelected(undefined);
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('files.move_to')}</DialogTitle>
-        </DialogHeader>
-
-        <div className="max-h-72 overflow-y-auto border rounded-md">
-          <div className="p-1">
-            {/* Root entry */}
-            <div
-              className={cn(
-                'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm cursor-pointer select-none',
-                effectiveSelected === null
-                  ? 'bg-accent text-accent-foreground font-medium'
-                  : 'hover:bg-accent/60 text-foreground'
-              )}
-              onClick={() => setSelected(null)}
-            >
-              <Folder className="size-4 shrink-0" />
-              <span>{t('files.root')}</span>
-            </div>
-
-            {roots.map(folder => (
-              <TreeNode
-                key={folder.id}
-                folder={folder}
-                all={allFolders}
-                disabledIds={disabledIds}
-                selected={effectiveSelected}
-                onSelect={setSelected}
-                depth={0}
-              />
-            ))}
+    <>
+      <div className="max-h-72 overflow-y-auto border rounded-md">
+        <div className="p-1">
+          {/* Root entry */}
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm cursor-pointer select-none',
+              selected === null ? 'bg-accent text-accent-foreground font-medium' : 'hover:bg-accent/60 text-foreground'
+            )}
+            onClick={() => setSelected(null)}
+          >
+            <Folder className="size-4 shrink-0" />
+            <span>{t('files.root')}</span>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-            {t('common.cancel')}
-          </Button>
-          <Button size="lg" onClick={handleConfirm} disabled={isPending}>
-            {t('files.move')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          {roots.map(folder => (
+            <TreeNode
+              key={folder.id}
+              folder={folder}
+              all={allFolders}
+              disabledIds={disabledIds}
+              selected={selected}
+              onSelect={setSelected}
+              depth={0}
+            />
+          ))}
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel} disabled={isPending}>
+          {t('common.cancel')}
+        </Button>
+        <Button size="lg" onClick={() => onConfirm(selected)} disabled={isPending || isNoOp}>
+          {t('files.move')}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

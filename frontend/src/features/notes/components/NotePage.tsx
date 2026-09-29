@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { posToDOMRect } from '@tiptap/core';
 import { AlertCircle, BookOpen, FolderInput, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -11,6 +12,7 @@ import { type NoteRead } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { SplitPane } from '@/components/shared/SplitPane';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { FloatingCard, FloatingCardAnchor, FloatingCardContent } from '@/components/ui/floating-card';
 import { DiffNoteContent, DiffPanel } from '@/features/assist/components/diff';
@@ -28,7 +30,7 @@ import { fileQueryKeys, invalidateAfterFileChange } from '@/features/files/lib/q
 import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { sdk } from '@/lib/apiClient';
-import { noteHref } from '@/lib/routes';
+import { noteHref, Routes } from '@/lib/routes';
 import { cn, getErrorDetail } from '@/lib/utils';
 
 import { RichNoteEditor, type RichNoteEditorRef } from '../editor/RichNoteEditor';
@@ -88,6 +90,7 @@ export function NotePage({ noteId }: Props) {
 
 function TrashedNoteView({ note }: { note: NoteRead }) {
   const t = useTranslations();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   // Folder path for the FileBreadcrumb. useFolderPath reads from the ['folders'] cache.
@@ -109,8 +112,11 @@ function TrashedNoteView({ note }: { note: NoteRead }) {
   const { mutate: hardDelete, isPending: isDeleting } = useMutation({
     mutationFn: () => sdk.trashHardDelete({ path: { kind: 'note', item_id: note.id } }),
     onSuccess: () => {
+      // Leave the page first: it shows a note that no longer exists.
+      router.replace(Routes.TRASH);
+      // The note is gone for good: drop it from the cache, do not refetch it.
+      queryClient.removeQueries({ queryKey: fileQueryKeys.note(note.id) });
       invalidateAfterFileChange(queryClient, { trash: true, notes: true });
-      // No need to refetch the note — it no longer exists after hard delete.
       toast.success(t('trash.deleted_forever'));
     },
     onError: err => toast.error(getErrorDetail(err, t('trash.failed_to_delete'))),
@@ -139,6 +145,7 @@ function TrashedNoteView({ note }: { note: NoteRead }) {
           <div className="mt-4 mb-6">
             <TrashBanner
               onRestore={() => restore()}
+              noteTitle={title}
               onDelete={() => hardDelete()}
               isRestoring={isRestoring}
               isDeleting={isDeleting}
@@ -153,17 +160,20 @@ function TrashedNoteView({ note }: { note: NoteRead }) {
 }
 
 function TrashBanner({
+  noteTitle,
   onRestore,
   onDelete,
   isRestoring,
   isDeleting,
 }: {
+  noteTitle: string;
   onRestore: () => void;
   onDelete: () => void;
   isRestoring: boolean;
   isDeleting: boolean;
 }) {
   const t = useTranslations('notes');
+  const tTrash = useTranslations('trash');
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-muted px-4 py-2.5 text-sm">
       <Trash2 className="size-4 shrink-0 text-muted-foreground" />
@@ -172,15 +182,24 @@ function TrashBanner({
         <Button size="sm" variant="outline" onClick={onRestore} disabled={isRestoring || isDeleting}>
           {t('restore')}
         </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-destructive hover:text-destructive"
-          onClick={onDelete}
-          disabled={isRestoring || isDeleting}
-        >
-          {t('delete_forever')}
-        </Button>
+        <ConfirmDialog
+          trigger={
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={isRestoring || isDeleting}
+            >
+              {t('delete_forever')}
+            </Button>
+          }
+          title={tTrash('delete_forever_title')}
+          description={tTrash('delete_forever_confirm', { name: noteTitle })}
+          confirmLabel={tTrash('delete_forever')}
+          confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          disableConfirm={isDeleting}
+          onConfirm={onDelete}
+        />
       </div>
     </div>
   );

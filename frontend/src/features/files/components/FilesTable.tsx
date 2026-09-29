@@ -19,6 +19,7 @@ import { Folder, NotepadText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type ReactNode, useCallback, useState } from 'react';
 
+import { QueryState } from '@/components/shared/QueryState';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
 
@@ -61,7 +62,7 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
   const t = useTranslations();
   const { isDesktop } = useBreakpoint();
 
-  const { folders, childrenIndex, isLoading } = useFileTree();
+  const { folders, childrenIndex, isLoading, isError } = useFileTree();
   const mutations = useFileMutations();
 
   // Immutable set of expanded folder IDs — toggled by FolderTreeRow.
@@ -114,7 +115,7 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
   const rootChildren = childrenIndex.get(currentFolderId);
   const rootFolders = rootChildren?.folders ?? [];
   const rootNotes = rootChildren?.notes ?? [];
-  const isEmpty = !isLoading && rootFolders.length === 0 && rootNotes.length === 0;
+  const isEmpty = rootFolders.length === 0 && rootNotes.length === 0;
 
   // ── Layout ────────────────────────────────────────────────────────────────
   const tableContent = (
@@ -151,24 +152,16 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
     </ViewDropZone>
   );
 
-  if (isLoading) {
-    return <div className="py-8 text-center text-sm text-muted-foreground">{t('common.loading')}</div>;
-  }
-
-  if (isEmpty) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <Folder className="mb-3 size-10 text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">
-          {currentFolderId ? t('files.empty_folder') : t('files.empty_root')}
-        </p>
-      </div>
-    );
-  }
-
   // Wrap with DndContext; on non-desktop the sensors are no-ops because each
   // row disables useDraggable/useDroppable via the `disabled` prop.
-  return (
+  const content = isEmpty ? (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <Folder className="mb-3 size-10 text-muted-foreground/40" />
+      <p className="text-sm text-muted-foreground">
+        {currentFolderId ? t('files.empty_folder') : t('files.empty_root')}
+      </p>
+    </div>
+  ) : (
     <DndContext
       sensors={sensors}
       collisionDetection={preferFolderRows}
@@ -191,6 +184,12 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
         )}
       </DragOverlay>
     </DndContext>
+  );
+
+  return (
+    <QueryState className="h-full" isLoading={isLoading} isError={isError} errorMessage={t('files.failed_to_load')}>
+      {content}
+    </QueryState>
   );
 }
 

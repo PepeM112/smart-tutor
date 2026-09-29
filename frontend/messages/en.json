@@ -634,7 +634,8 @@
     "expand_folder": "Expand folder",
     "note_renamed": "Note renamed.",
     "failed_to_rename_note": "Failed to rename note.",
-    "drop_here": "Move here"
+    "drop_here": "Move here",
+    "failed_to_load": "Failed to load files. Please try again."
   },
   "trash": {
     "title": "Trash",
@@ -654,6 +655,7 @@
     "failed_to_empty": "Failed to empty Trash.",
     "failed_to_delete": "Failed to delete item permanently.",
     "deleted_ago": "Deleted {time}",
-    "folder_contents": "{notes} note(s), {folders} folder(s)"
+    "folder_contents": "{notes} note(s), {folders} folder(s)",
+    "failed_to_load": "Failed to load Trash. Please try again."
   }
 }

@@ -293,7 +293,7 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
   const hiddenItems = collapsed ? path.slice(1, path.length - 1) : [];
 
   return (
-    <nav aria-label={t('files.breadcrumb_label')} className="flex items-center gap-1">
+    <nav aria-label={t('files.breadcrumb_label')} className="flex min-w-0 items-center gap-1">
       {/* Back arrow — visible on all screen sizes */}
       <button
         type="button"
@@ -303,6 +303,11 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
       >
         <ArrowLeft className="size-4" />
       </button>
+
+      {/* Mobile: the full path does not fit, so show only the current name. */}
+      <span className="min-w-0 truncate px-1.5 text-sm text-foreground lg:hidden">
+        {current.name.trim() || t('notes.untitled')}
+      </span>
 
       {/* Breadcrumb items — hidden on mobile */}
       <div className="hidden lg:flex items-center gap-0.5">

@@ -634,7 +634,8 @@
     "expand_folder": "Expandir carpeta",
     "note_renamed": "Nota renombrada.",
     "failed_to_rename_note": "Error al renombrar la nota.",
-    "drop_here": "Mover aquí"
+    "drop_here": "Mover aquí",
+    "failed_to_load": "No se pudieron cargar los archivos. Inténtalo de nuevo."
   },
   "trash": {
     "title": "Papelera",
@@ -654,6 +655,7 @@
     "failed_to_empty": "No se pudo vaciar la papelera.",
     "failed_to_delete": "No se pudo eliminar el elemento definitivamente.",
     "deleted_ago": "Eliminado {time}",
-    "folder_contents": "{notes} nota(s), {folders} carpeta(s)"
+    "folder_contents": "{notes} nota(s), {folders} carpeta(s)",
+    "failed_to_load": "No se pudo cargar la papelera. Inténtalo de nuevo."
   }
 }

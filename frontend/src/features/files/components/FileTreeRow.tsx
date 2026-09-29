@@ -105,13 +105,15 @@ export function FolderTreeRow({
   const { active } = useDndContext();
   const activeDrag = active?.data.current as DraggedItem | undefined;
   const isValidTarget = isDesktop && activeDrag ? canDrop(activeDrag, folder.id, folders) : false;
+  // A boolean, not the drag object: dnd-kit gives a new object on renders, which would restart the timer.
+  const isDragActive = active != null;
 
   // Hover-to-open: auto-expand a collapsed folder when the pointer stays over
   // it for HOVER_TO_OPEN_MS during a drag.
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isOver && activeDrag && !isExpanded && isValidTarget) {
+    if (isOver && isDragActive && !isExpanded && isValidTarget) {
       hoverTimer.current = setTimeout(() => {
         onToggleExpand(folder.id);
       }, HOVER_TO_OPEN_MS);
@@ -124,7 +126,7 @@ export function FolderTreeRow({
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
-  }, [isOver, activeDrag, isExpanded, isValidTarget, folder.id, onToggleExpand]);
+  }, [isOver, isDragActive, isExpanded, isValidTarget, folder.id, onToggleExpand]);
 
   const children = childrenIndex.get(folder.id);
   const childFolders = children?.folders ?? [];
