@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { type FolderRead } from '@/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -23,42 +22,32 @@ type CreateProps = {
   onOpenChange: (open: boolean) => void;
   /** Current folder's ID; undefined or null = root */
   parentId?: string | null;
-  onCreated?: (folder: FolderRead) => void;
 };
 
-export function NewFolderDialog({ open, onOpenChange, parentId, onCreated }: CreateProps) {
+export function NewFolderDialog({ open, onOpenChange, parentId }: CreateProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && (
-        <NewFolderForm
-          key="new-folder-form"
-          parentId={parentId}
-          onCreated={onCreated}
-          onClose={() => onOpenChange(false)}
-        />
-      )}
+      {open && <NewFolderForm key="new-folder-form" parentId={parentId} onClose={() => onOpenChange(false)} />}
     </Dialog>
   );
 }
 
 type NewFolderFormProps = {
   parentId?: string | null;
-  onCreated?: (folder: FolderRead) => void;
   onClose: () => void;
 };
 
-function NewFolderForm({ parentId, onCreated, onClose }: NewFolderFormProps) {
+function NewFolderForm({ parentId, onClose }: NewFolderFormProps) {
   const t = useTranslations();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: () => sdk.foldersCreate({ body: { name: name.trim(), parentId: parentId ?? null } }),
-    onSuccess: res => {
+    onSuccess: () => {
       invalidateAfterFileChange(queryClient);
       toast.success(t('files.folder_created'));
       onClose();
-      if (res.data) onCreated?.(res.data);
     },
     onError: err => toast.error(getErrorDetail(err, t('files.failed_to_create_folder'))),
   });

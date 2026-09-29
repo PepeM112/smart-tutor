@@ -72,7 +72,7 @@ export function NotesList({ data, sort, onSort }: Props) {
         icon: Trash2,
         onClick: () => deleteNote(note.id),
         confirm: {
-          title: t('notes.move_to_trash_title'),
+          title: t('files.move_to_trash'),
           description: t('notes.move_to_trash_confirm', { title: noteTitle(note) }),
         },
       },
@@ -214,7 +214,7 @@ function useNotesColumns({ deleteNote, isDeleting, foldersById }: ColumnDeps): C
                 <Trash2 className="size-4" />
               </Button>
             }
-            title={t('notes.move_to_trash_title')}
+            title={t('files.move_to_trash')}
             description={t('notes.move_to_trash_confirm', { title: noteTitle(row.original) })}
             confirmLabel={t('files.move_to_trash')}
             onConfirm={() => deleteNote(row.original.id)}

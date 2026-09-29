@@ -242,6 +242,64 @@ class TestRestoreFolder:
 
 
 # ---------------------------------------------------------------------------
+# P3-8: an item trashed more than 30 days ago acts as gone before the purge runs
+# ---------------------------------------------------------------------------
+
+
+class TestExpiredTrashActsAsGone:
+    def test_get_note_expired_raises_404(self) -> None:
+        from app.services import note_service
+
+        with (
+            patch("app.services.note_service.get_owned_or_404", return_value=_make_note("n1", deleted_at=_ts(31))),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            note_service.get_note(MagicMock(), note_id="n1", current_user=_make_user())
+
+        assert exc_info.value.status_code == 404
+
+    def test_get_note_trashed_inside_window_is_returned(self) -> None:
+        from app.services import note_service
+
+        note = _make_note("n1", deleted_at=_ts(29))
+        with patch("app.services.note_service.get_owned_or_404", return_value=note):
+            assert note_service.get_note(MagicMock(), note_id="n1", current_user=_make_user()) is note
+
+    def test_restore_expired_folder_raises_404(self) -> None:
+        from app.services import trash_service
+
+        folder = _make_folder("f1", deleted_at=_ts(31))
+        with (
+            patch("app.services.trash_service.get_owned_or_404", return_value=folder),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            trash_service._get_trashed_folder_or_404(MagicMock(), folder_id="f1", current_user=_make_user())
+
+        assert exc_info.value.status_code == 404
+
+    def test_restore_expired_note_raises_404(self) -> None:
+        from app.services import trash_service
+
+        note = _make_note("n1", deleted_at=_ts(31))
+        with (
+            patch("app.services.trash_service.get_owned_or_404", return_value=note),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            trash_service._get_trashed_note_or_404(MagicMock(), note_id="n1", current_user=_make_user())
+
+        assert exc_info.value.status_code == 404
+
+    def test_restore_note_inside_window_is_found(self) -> None:
+        from app.services import trash_service
+
+        note = _make_note("n1", deleted_at=_ts(29))
+        with patch("app.services.trash_service.get_owned_or_404", return_value=note):
+            found = trash_service._get_trashed_note_or_404(MagicMock(), note_id="n1", current_user=_make_user())
+
+        assert found is note
+
+
+# ---------------------------------------------------------------------------
 # trash_service — ownership 404
 # ---------------------------------------------------------------------------
 

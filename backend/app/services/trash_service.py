@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.constants import FOLDER_NAME_MAX
+from app.core.constants import FOLDER_NAME_MAX, TRASH_RETENTION_DAYS
 from app.crud import folder as folder_crud
 from app.crud import note as note_crud
 from app.models.folder import Folder
@@ -22,17 +22,15 @@ from app.schemas.folder import FolderCreate
 from app.schemas.trash import TrashItemRead
 from app.services import folder_service
 from app.services.folder_paths import build_folder_path
-from app.services.service_helpers import get_owned_or_404
+from app.services.service_helpers import get_owned_or_404, is_trash_expired
 
 if TYPE_CHECKING:
     from app.models.user import User
 
-_TRASH_TTL_DAYS = 30
-
 
 def _purge_expired(db: Session, *, user_id: str) -> None:
     """Hard-delete items trashed more than 30 days ago. Called lazily on GET /trash."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=_TRASH_TTL_DAYS)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=TRASH_RETENTION_DAYS)
     folder_crud.purge_old_folders(db, user_id=user_id, before=cutoff)
     folder_crud.purge_old_notes(db, user_id=user_id, before=cutoff)
     db.commit()
@@ -47,11 +45,11 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
     folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=True)
 
     for folder in folder_crud.list_trashed_top_folders(db, user_id=current_user.id):
+        folder_deleted_at = folder.deleted_at
+        if folder_deleted_at is None:  # The query returns trashed rows only.
+            continue
         sub_folders, note_count = folder_crud.count_batch_items(
-            db,
-            user_id=current_user.id,
-            folder_id=folder.id,
-            deleted_at=folder.deleted_at,  # type: ignore[arg-type]
+            db, user_id=current_user.id, folder_id=folder.id, deleted_at=folder_deleted_at
         )
         original_path = build_folder_path(folders, folder_id=folder.parent_id, orphan_path=folder.orphan_path)
         items.append(
@@ -59,7 +57,7 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
                 kind="folder",
                 id=folder.id,
                 name=folder.name,
-                deleted_at=folder.deleted_at,  # type: ignore[arg-type]
+                deleted_at=folder_deleted_at,
                 original_path=original_path,
                 folder_count=sub_folders,
                 note_count=note_count,
@@ -67,13 +65,16 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
         )
 
     for note in folder_crud.list_trashed_top_notes(db, user_id=current_user.id):
+        note_deleted_at = note.deleted_at
+        if note_deleted_at is None:  # The query returns trashed rows only.
+            continue
         original_path = build_folder_path(folders, folder_id=note.folder_id, orphan_path=note.orphan_path)
         items.append(
             TrashItemRead(
                 kind="note",
                 id=note.id,
                 name=note.title,
-                deleted_at=note.deleted_at,  # type: ignore[arg-type]
+                deleted_at=note_deleted_at,
                 original_path=original_path,
                 folder_count=0,
                 note_count=0,
@@ -88,14 +89,15 @@ def _get_trashed_folder_or_404(db: Session, *, folder_id: str, current_user: Use
     folder = get_owned_or_404(
         db, fetch=folder_crud.get_by_id, id=folder_id, current_user=current_user, entity_name="Folder"
     )
-    if folder.deleted_at is None:
+    # An expired item is gone, even if the purge has not run yet.
+    if folder.deleted_at is None or is_trash_expired(folder.deleted_at):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found in Trash")
     return folder
 
 
 def _get_trashed_note_or_404(db: Session, *, note_id: str, current_user: User) -> Note:
     note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
-    if note.deleted_at is None:
+    if note.deleted_at is None or is_trash_expired(note.deleted_at):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found in Trash")
     return note
 

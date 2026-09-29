@@ -47,7 +47,11 @@ def downgrade() -> None:
     op.drop_index("ix_note_deleted_at", table_name="note")
     op.drop_column("note", "deleted_at")
 
-    # folder — restore the unconditional index
+    # folder — restore the unconditional index.
+    # This step FAILS if a live folder and a trashed folder share a name under one parent.
+    # The upgrade index only checked live rows (deleted_at IS NULL), so such pairs are valid
+    # now, but the old index has no WHERE clause and sees them as duplicates. Purge or rename
+    # the trashed folder first, then run the downgrade again.
     op.execute("DROP INDEX IF EXISTS ix_folder_sibling_name")
     op.execute(
         """

@@ -156,11 +156,12 @@ Restore rebuilds the original path of the item:
 - **Parent is still in Trash:** the trashed ancestors are restored too, but only the folder rows. Their other contents stay in Trash and appear as separate Trash entries. If the topmost restored ancestor clashes with a live sibling name, it is renamed (`(restored)`, `(2)`, ...).
 - **Parent was deleted forever:** when a folder is deleted forever, items of other batches inside it are moved to the parent of that folder and keep the names of the lost folders in `orphan_path` (outermost first). On restore, each name is reused if a live folder with that name (case-insensitive) exists at that level, or created. The item goes in the last folder and `orphan_path` is cleared.
 - The Trash page shows the full original path, including the `orphan_path` names.
-- A restored folder brings back only the items that were trashed in the same delete batch — items the user trashed separately before that delete are not restored. If the item itself clashes with a live sibling name, it is renamed.
+- A restored folder brings back only the items that were trashed in the same delete batch — items the user trashed separately before that delete are not restored.
+- **Name conflict → rename.** Restore never fails on a name clash. If a live sibling in the target folder has the same name (case-insensitive), the restored folder gets the suffix ` (restored)`, then ` (2)`, ` (3)`, ... until the name is free. Long names are shortened first, so the result fits the 100-character limit. The same rule applies to each restored ancestor folder. Notes are not renamed: note titles do not have to be unique. The endpoint returns 204, so the UI does not show the new name.
 
 ### Purge (30 days)
 
-Items stay in Trash for 30 days. They are then deleted permanently. Purge is lazy: `GET /trash` hard-deletes all items where `deleted_at < now() - 30 days` before returning the list. No scheduler is needed.
+Items stay in Trash for 30 days. They are then deleted permanently. Purge is lazy: `GET /trash` hard-deletes all items where `deleted_at < now() - 30 days` before returning the list. No scheduler is needed. Until the purge runs, an item that is older than 30 days already acts as gone: `GET /notes/{id}`, restore and "Delete forever" return 404 for it (`is_trash_expired` in `service_helpers.py`, constant `TRASH_RETENTION_DAYS`).
 
 ### Trashed note URL
 

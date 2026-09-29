@@ -57,10 +57,10 @@ Defined in `assist_tools.py` (`TOOL_DEFINITIONS`), mirrored on the frontend in `
 
 | Tool                  | Kind  | Confirmation | Purpose                                                        |
 | ---------------------- | ----- | ------------ | ----------------------------------------------------------------- |
-| `list_notes`           | read  | no           | List the user's live notes; each result includes the folder path  |
+| `list_notes`           | read  | no           | List the user's live notes; each result has a `location`               |
 | `list_folders`         | read  | no           | List the user's live folders (flat; client builds the tree)       |
 | `list_tests`           | read  | no           | List the user's tests                                             |
-| `get_note_content`     | read  | no           | Full content of one live note, including its folder path          |
+| `get_note_content`     | read  | no           | Full content of one live note, with its `location`                      |
 | `get_test_details`     | read  | no           | A test plus its questions, with IDs                               |
 | `search_questions`     | read  | no           | Search the question bank                                          |
 | `search_user_notes`    | read  | no           | Semantic search across user's live notes via RAG embeddings       |
@@ -70,6 +70,8 @@ Defined in `assist_tools.py` (`TOOL_DEFINITIONS`), mirrored on the frontend in `
 | `edit_test`            | write | **yes**      | Rename/describe a test, or remove questions from it                |
 | `refine_note`          | write | no**         | AI-revise an existing note (produces a reviewable diff)             |
 | `refine_questions`     | write | no**         | AI-edit specific questions in a test (produces a reviewable diff)   |
+
+**Location:** tools show where an item is as `location`, in the words of the app UI: `Files` (root) or `Files > A > B`. They do not show `/A/B` paths.
 
 **Trashed notes** are excluded from all tools. `search_user_notes` filters the RAG chunk search to live notes only. `get_note_content` refuses to return a trashed note. `list_notes` and `list_folders` only show live items.
 

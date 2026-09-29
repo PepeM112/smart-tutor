@@ -90,7 +90,7 @@ function TrashItem({ item }: TrashItemProps) {
   const subtitle = buildSubtitle(item, format.relativeTime(new Date(item.deletedAt), now), t);
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2.5 ring-1 ring-foreground/10 bg-card">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 shadow-card">
       <Icon className="size-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-foreground">{item.name}</p>

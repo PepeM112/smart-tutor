@@ -684,6 +684,24 @@ class TestNoteServiceErrorHandling:
         assert exc_info.value.status_code == 502
         assert "invalid response" in exc_info.value.detail
 
+    def test_bad_folder_does_not_call_llm(self) -> None:
+        """The folder check runs before the AI call, so a bad folder costs no tokens."""
+        from app.services.note_service import generate_note
+
+        db = MagicMock()
+        data = NoteGenerate(topic="test topic", folder_id="missing")
+        err = HTTPException(status_code=404, detail="Folder not found")
+
+        with (
+            patch("app.services.note_service.get_live_folder_or_404", side_effect=err),
+            patch("app.services.note_service.complete_for_user") as mock_llm,
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            generate_note(db, current_user=_make_user(), data=data)
+
+        assert exc_info.value.status_code == 404
+        mock_llm.assert_not_called()
+
     def test_successful_generation(self) -> None:
         from app.services.note_service import generate_note
 

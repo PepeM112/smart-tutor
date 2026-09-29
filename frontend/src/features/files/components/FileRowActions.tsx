@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 import { useFilesTree } from '../context/FilesTreeContext';
 import { fileQueryKeys } from '../lib/queryKeys';
+import { ACTIONS_CELL_WIDTH_CLASS } from '../lib/treeLayout';
 
 import { MoveDialog } from './MoveDialog';
 
@@ -68,7 +69,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
         movingFolderId: undefined,
         isMoving: mutations.isMovingNote,
         move: (targetId: string | null) => mutations.moveNote({ id, folderId: targetId }),
-        deleteTitle: t('notes.move_to_trash_title'),
+        deleteTitle: t('files.move_to_trash'),
         deleteDescription: t('notes.move_to_trash_confirm', { title: displayTitle(item.note.title, t) }),
         isTrashing: mutations.isTrashingNote,
         trash: () => mutations.trashNote(id),
@@ -158,7 +159,8 @@ export function FileRowActions({ item, onStartRename }: Props) {
  */
 function actionsClass(anyOpen: boolean) {
   return cn(
-    'flex w-[116px] shrink-0 items-center justify-end gap-0.5',
+    'flex shrink-0 items-center justify-end gap-0.5',
+    ACTIONS_CELL_WIDTH_CLASS,
     'lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100',
     anyOpen && 'lg:opacity-100'
   );

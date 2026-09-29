@@ -166,7 +166,10 @@ Folders are containers for notes. They form an adjacency list: each folder has a
 
 **Sibling uniqueness:** A partial unique index enforces case-insensitive uniqueness among live siblings:
 ```sql
-UNIQUE (user_id, parent_id, lower(name)) WHERE deleted_at IS NULL NULLS NOT DISTINCT
+CREATE UNIQUE INDEX ix_folder_sibling_name
+ON folder (user_id, parent_id, lower(name))
+NULLS NOT DISTINCT
+WHERE deleted_at IS NULL
 ```
 `NULLS NOT DISTINCT` means two root folders (`parent_id IS NULL`) with the same name are still rejected.
 

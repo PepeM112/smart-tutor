@@ -15,7 +15,6 @@ export const Routes = {
   NOTE_DETAIL: (id: string) => `/notes/${id}`,
 
   FILES: '/files',
-  FOLDER_DETAIL: (id: string) => `/files/${id}`,
 
   QUESTIONS: '/questions',
   QUESTION_NEW: '/questions/new',

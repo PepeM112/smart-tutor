@@ -28,6 +28,7 @@ import { useFileMutations } from '../hooks/useFileMutations';
 import { useFileTree } from '../hooks/useFileTree';
 import { FOLDER_DROP_PREFIX } from '../hooks/useTreeRowDnd';
 import { canDrop, type DraggedItem, isDraggedItem, isDropTargetData } from '../lib/fileTree';
+import { ACTIONS_CELL_WIDTH_CLASS, TREE_NAME_OFFSET_PX } from '../lib/treeLayout';
 
 import { FolderTreeRow, NoteTreeRow } from './FileTreeRow';
 
@@ -177,7 +178,7 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
       {/* Drag overlay — shows icon + name of the item being dragged */}
       <DragOverlay>
         {activeDrag && (
-          <div className="flex items-center gap-2 rounded-md bg-card px-2 py-1 text-sm ring-1 ring-foreground/10 shadow-sm">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1 text-sm shadow-card">
             {activeDrag.kind === 'folder' ? (
               <Folder className="size-4 shrink-0 text-primary/70" />
             ) : (
@@ -237,12 +238,12 @@ function ViewDropZone({ currentFolderId, folders, children }: ViewDropZoneProps)
       <div
         role="row"
         className="flex items-center gap-2 border-b border-border py-1 pr-2 text-xs font-medium text-muted-foreground"
-        style={{ paddingLeft: '28px' }}
+        style={{ paddingLeft: `${TREE_NAME_OFFSET_PX}px` }}
       >
         <span className="flex-1">{highlight ? t('files.drop_here') : t('files.col_name')}</span>
-        <span className="hidden w-24 text-right sm:block">{t('files.col_updated')}</span>
+        <span className="hidden w-24 text-right sm:block">{t('notes.column_updated')}</span>
         {/* Spacer matching the 4-button actions cell */}
-        <span className="w-[116px] shrink-0" />
+        <span className={cn(ACTIONS_CELL_WIDTH_CLASS, 'shrink-0')} />
       </div>
       {children}
     </div>

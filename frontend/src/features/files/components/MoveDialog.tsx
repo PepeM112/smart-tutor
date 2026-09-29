@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { cn } from '@/lib/utils';
 
 import { useFolders } from '../hooks/useFolders';
+import { TREE_INDENT_STEP_PX } from '../lib/treeLayout';
 
 type Props = {
   open: boolean;
@@ -21,83 +22,6 @@ type Props = {
   isPending?: boolean;
   onConfirm: (targetFolderId: string | null) => void;
 };
-
-/** Collect a folder's subtree IDs (inclusive) from the flat list. */
-function collectDescendants(folderId: string, all: FileTreeFolder[]): Set<string> {
-  const result = new Set<string>([folderId]);
-  const queue = [folderId];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    all
-      .filter(f => f.parentId === current)
-      .forEach(child => {
-        result.add(child.id);
-        queue.push(child.id);
-      });
-  }
-  return result;
-}
-
-type TreeNodeProps = {
-  folder: FileTreeFolder;
-  all: FileTreeFolder[];
-  disabledIds: Set<string>;
-  selected: string | null;
-  onSelect: (id: string) => void;
-  depth: number;
-};
-
-function TreeNode({ folder, all, disabledIds, selected, onSelect, depth }: TreeNodeProps) {
-  const children = all.filter(f => f.parentId === folder.id);
-  const [expanded, setExpanded] = useState(false);
-  const isDisabled = disabledIds.has(folder.id);
-  const isSelected = selected === folder.id;
-
-  const Icon = isSelected || expanded ? FolderOpen : Folder;
-
-  return (
-    <div>
-      <div
-        className={cn(
-          'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm cursor-pointer select-none',
-          isDisabled
-            ? 'opacity-40 cursor-not-allowed text-muted-foreground'
-            : isSelected
-              ? 'bg-accent text-accent-foreground font-medium'
-              : 'hover:bg-accent/60 text-foreground'
-        )}
-        style={{ paddingLeft: `${8 + depth * 16}px` }}
-        onClick={() => {
-          if (isDisabled) return;
-          if (children.length > 0) setExpanded(e => !e);
-          onSelect(folder.id);
-        }}
-      >
-        {children.length > 0 ? (
-          <ChevronRight
-            className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-90')}
-          />
-        ) : (
-          <span className="size-3.5 shrink-0" />
-        )}
-        <Icon className="size-4 shrink-0" />
-        <span className="truncate flex-1">{folder.name}</span>
-      </div>
-      {expanded &&
-        children.map(child => (
-          <TreeNode
-            key={child.id}
-            folder={child}
-            all={all}
-            disabledIds={disabledIds}
-            selected={selected}
-            onSelect={onSelect}
-            depth={depth + 1}
-          />
-        ))}
-    </div>
-  );
-}
 
 export function MoveDialog({ open, onOpenChange, movingFolderId, currentParentId, isPending, onConfirm }: Props) {
   const t = useTranslations();
@@ -187,4 +111,81 @@ function MoveDialogBody({ movingFolderId, currentParentId, isPending, onCancel, 
       </DialogFooter>
     </>
   );
+}
+
+type TreeNodeProps = {
+  folder: FileTreeFolder;
+  all: FileTreeFolder[];
+  disabledIds: Set<string>;
+  selected: string | null;
+  onSelect: (id: string) => void;
+  depth: number;
+};
+
+function TreeNode({ folder, all, disabledIds, selected, onSelect, depth }: TreeNodeProps) {
+  const children = all.filter(f => f.parentId === folder.id);
+  const [expanded, setExpanded] = useState(false);
+  const isDisabled = disabledIds.has(folder.id);
+  const isSelected = selected === folder.id;
+
+  const Icon = isSelected || expanded ? FolderOpen : Folder;
+
+  return (
+    <div>
+      <div
+        className={cn(
+          'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm cursor-pointer select-none',
+          isDisabled
+            ? 'opacity-40 cursor-not-allowed text-muted-foreground'
+            : isSelected
+              ? 'bg-accent text-accent-foreground font-medium'
+              : 'hover:bg-accent/60 text-foreground'
+        )}
+        style={{ paddingLeft: `${8 + depth * TREE_INDENT_STEP_PX}px` }}
+        onClick={() => {
+          if (isDisabled) return;
+          if (children.length > 0) setExpanded(e => !e);
+          onSelect(folder.id);
+        }}
+      >
+        {children.length > 0 ? (
+          <ChevronRight
+            className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-90')}
+          />
+        ) : (
+          <span className="size-3.5 shrink-0" />
+        )}
+        <Icon className="size-4 shrink-0" />
+        <span className="truncate flex-1">{folder.name}</span>
+      </div>
+      {expanded &&
+        children.map(child => (
+          <TreeNode
+            key={child.id}
+            folder={child}
+            all={all}
+            disabledIds={disabledIds}
+            selected={selected}
+            onSelect={onSelect}
+            depth={depth + 1}
+          />
+        ))}
+    </div>
+  );
+}
+
+/** Collect a folder's subtree IDs (inclusive) from the flat list. */
+function collectDescendants(folderId: string, all: FileTreeFolder[]): Set<string> {
+  const result = new Set<string>([folderId]);
+  const queue = [folderId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    all
+      .filter(f => f.parentId === current)
+      .forEach(child => {
+        result.add(child.id);
+        queue.push(child.id);
+      });
+  }
+  return result;
 }

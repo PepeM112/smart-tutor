@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 
 import { useFilesTree } from '../context/FilesTreeContext';
 import { useTreeRowDnd } from '../hooks/useTreeRowDnd';
+import { TREE_INDENT_STEP_PX, TREE_NAME_OFFSET_PX } from '../lib/treeLayout';
 
 import { FileRowActions } from './FileRowActions';
 import { TreeRowShell } from './TreeRowShell';
@@ -136,7 +137,10 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
             <NoteTreeRow key={note.id} note={note} depth={depth + 1} />
           ))}
           {childFolders.length === 0 && childNotes.length === 0 && (
-            <div className="py-1 text-xs text-muted-foreground" style={{ paddingLeft: `${(depth + 1) * 16 + 28}px` }}>
+            <div
+              className="py-1 text-xs text-muted-foreground"
+              style={{ paddingLeft: `${(depth + 1) * TREE_INDENT_STEP_PX + TREE_NAME_OFFSET_PX}px` }}
+            >
               {t('files.empty_folder')}
             </div>
           )}

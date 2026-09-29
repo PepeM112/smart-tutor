@@ -29,7 +29,7 @@ from app.services.note_prompts import (
     build_note_generation_user_prompt,
     build_note_refinement_user_prompt,
 )
-from app.services.service_helpers import get_owned_or_404
+from app.services.service_helpers import get_owned_or_404, is_trash_expired
 
 _NOTE_MAX_TOKENS: dict[int, int] = {
     NoteLength.SHORT: 2048,
@@ -105,8 +105,14 @@ def list_notes(
 
 
 def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
-    """Fetch any owned note, including trashed ones (for GET /notes/{id})."""
-    return get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    """Fetch any owned note, including trashed ones (for GET /notes/{id}).
+
+    A note trashed longer ago than the retention time is gone: 404, even before the purge runs.
+    """
+    note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    if is_trash_expired(note.deleted_at):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    return note
 
 
 def get_live_note(db: Session, *, note_id: str, current_user: User, for_update: bool = False) -> Note:

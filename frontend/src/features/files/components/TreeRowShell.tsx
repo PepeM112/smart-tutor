@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 import { type TreeRowDnd } from '../hooks/useTreeRowDnd';
+import { TREE_INDENT_STEP_PX, TREE_ROW_BASE_PADDING_PX } from '../lib/treeLayout';
 
 type Props = {
   depth: number;
@@ -37,7 +38,7 @@ export function TreeRowShell({ depth, dnd, onClick, expanded, selected, children
         isDragging ? 'opacity-50' : selected ? 'bg-muted' : 'hover:bg-accent/30',
         isOver && isValidTarget && 'bg-primary/10 ring-1 ring-primary/40'
       )}
-      style={{ paddingLeft: `${depth * 16 + 4}px` }}
+      style={{ paddingLeft: `${depth * TREE_INDENT_STEP_PX + TREE_ROW_BASE_PADDING_PX}px` }}
       onClick={onClick}
     >
       {children}
