@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 
-import { SetBreadcrumb } from '@/components/Breadcrumb';
+import { SetBreadcrumb } from '@/components/PageHeader';
 import { SettingsPage as SettingsContent } from '@/features/settings/components/SettingsPage';
 
 export default async function SettingsPage() {

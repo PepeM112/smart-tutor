@@ -7,13 +7,13 @@ import { Button } from '@/components/ui/button';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { type BreadcrumbItem, useBreadcrumbStore } from '@/store/useBreadcrumbStore';
 
-// Renders nothing — lets server component pages set the breadcrumb without becoming client components
+// Renders nothing — lets server component pages set the breadcrumb without becoming client components.
 export function SetBreadcrumb({ title, crumbs, back }: { title: string; crumbs?: BreadcrumbItem[]; back?: string }) {
   useBreadcrumb(title, crumbs, back);
   return null;
 }
 
-export function Breadcrumb() {
+export function PageHeader() {
   const title = useBreadcrumbStore(s => s.title);
   const crumbs = useBreadcrumbStore(s => s.crumbs);
   const back = useBreadcrumbStore(s => s.back);

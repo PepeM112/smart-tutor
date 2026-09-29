@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 
-import { SetBreadcrumb } from '@/components/Breadcrumb';
+import { SetBreadcrumb } from '@/components/PageHeader';
 import { TokenUsageSection } from '@/features/dashboard/components/TokenUsageSection';
 
 export default async function DashboardPage() {

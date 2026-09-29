@@ -1,74 +1,62 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FolderPlus, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { SplitPane } from '@/components/shared/SplitPane';
 import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { GenerateNoteDialog } from '@/features/notes/components/GenerateNoteDialog';
 import { ImportNoteButton } from '@/features/notes/components/ImportNoteButton';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { sdk } from '@/lib/apiClient';
-import { folderHref, noteHref, Routes } from '@/lib/routes';
+import { noteHref } from '@/lib/routes';
 import { getErrorDetail } from '@/lib/utils';
-import { type BreadcrumbItem } from '@/store/useBreadcrumbStore';
 
-import { FilesList } from './FilesList';
+import { useFileMutations } from '../hooks/useFileMutations';
+import { useFolderPath } from '../hooks/useFolderPath';
+
+import { FileBreadcrumb } from './FileBreadcrumb';
+import { FilePageShell } from './FilePageShell';
+import { FilesTable } from './FilesTable';
 import { NewFolderDialog } from './FolderNameDialog';
+import { NotePreviewPanel } from './NotePreviewPanel';
 
 type Props = {
-  /** null = root, string = folder ID */
+  /** null = root /files, string = folder ID */
   folderId: string | null;
 };
-
-/** Build the breadcrumb trail from the flat folder list. */
-function buildBreadcrumbs(
-  folderId: string | null,
-  allFolders: Array<{ id: string; name: string; parentId: string | null }>,
-  rootLabel: string
-): BreadcrumbItem[] {
-  if (!folderId) return [];
-  const crumbs: BreadcrumbItem[] = [];
-  let current: { id: string; name: string; parentId: string | null } | undefined = allFolders.find(
-    f => f.id === folderId
-  );
-  while (current) {
-    crumbs.unshift({ label: current.name, href: folderHref(current) });
-    const parentId = current.parentId;
-    current = parentId ? allFolders.find(f => f.id === parentId) : undefined;
-  }
-  // Add root as the first crumb linking to /files
-  crumbs.unshift({ label: rootLabel, href: Routes.FILES });
-  // The last entry is the current page — remove its href so it renders as plain text
-  if (crumbs.length > 0) {
-    crumbs[crumbs.length - 1] = { label: crumbs[crumbs.length - 1].label };
-  }
-  return crumbs;
-}
 
 export function FilesPage({ folderId }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { isDesktop } = useBreakpoint();
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
-  const { data: foldersRes } = useQuery({
-    queryKey: ['folders'],
-    queryFn: () => sdk.foldersList(),
-  });
-  const allFolders = useMemo(() => foldersRes?.data ?? [], [foldersRes]);
+  // Reset the preview when navigating to a different folder.
+  // Using the React "adjust state on prop change" pattern instead of useEffect
+  // to avoid a cascading render from setState inside an effect body.
+  const [prevFolderId, setPrevFolderId] = useState(folderId);
+  if (prevFolderId !== folderId) {
+    setPrevFolderId(folderId);
+    setPreviewId(null);
+  }
 
-  const currentFolder = folderId ? allFolders.find(f => f.id === folderId) : null;
-  const pageTitle = currentFolder?.name ?? t('files.title');
-  const breadcrumbs = useMemo(() => {
-    if (!folderId) return [];
-    return buildBreadcrumbs(folderId, allFolders, t('files.title'));
-  }, [folderId, allFolders, t]);
+  // Root page (/files) uses the standard page header; folder pages use FileBreadcrumb.
+  useBreadcrumb(folderId === null ? t('files.title') : '');
 
-  useBreadcrumb(pageTitle, breadcrumbs.length > 0 ? breadcrumbs : undefined);
+  // Full ancestor chain (root → current folder inclusive) for FileBreadcrumb.
+  const folderPath = useFolderPath(folderId);
+  const currentFolder = folderPath.length > 0 ? folderPath[folderPath.length - 1] : null;
+
+  const { renameFolder } = useFileMutations({ currentFolderId: folderId });
 
   const { mutate: createNote, isPending: isCreating } = useMutation({
     mutationFn: () => sdk.notesCreate({ body: { title: '', content: '', tags: [], folderId: folderId ?? undefined } }),
@@ -80,23 +68,84 @@ export function FilesPage({ folderId }: Props) {
     onError: err => toast.error(getErrorDetail(err, t('notes.failed_to_create'))),
   });
 
-  return (
-    <div className="space-y-6">
-      {/* Toolbar */}
-      <div className="flex flex-row flex-wrap items-center justify-end gap-2">
-        <Button variant="outline" size="lg" icon={FolderPlus} onClick={() => setNewFolderOpen(true)}>
-          {t('files.new_folder')}
-        </Button>
-        <ImportNoteButton compact folderId={folderId} />
-        <GenerateNoteDialog compact folderId={folderId} />
-        <Button size="lg" icon={Plus} onClick={() => createNote()} disabled={isCreating}>
-          {t('files.new_note')}
-        </Button>
-      </div>
+  // ── Toolbar ──────────────────────────────────────────────────────────────────
 
-      <FilesList currentFolderId={folderId} />
-
-      <NewFolderDialog open={newFolderOpen} onOpenChange={setNewFolderOpen} parentId={folderId} />
+  const toolbar = (
+    <div className="flex flex-row flex-wrap items-center justify-end gap-2">
+      <Button variant="outline" size="sm" icon={FolderPlus} onClick={() => setNewFolderOpen(true)}>
+        {t('files.new_folder')}
+      </Button>
+      <ImportNoteButton compact folderId={folderId} />
+      <GenerateNoteDialog compact folderId={folderId} />
+      <Button size="sm" icon={Plus} onClick={() => createNote()} disabled={isCreating}>
+        {t('files.new_note')}
+      </Button>
     </div>
+  );
+
+  // ── Preview panel ────────────────────────────────────────────────────────────
+
+  const previewPanel = previewId ? <NotePreviewPanel noteId={previewId} onClose={() => setPreviewId(null)} /> : null;
+
+  // ── Table ────────────────────────────────────────────────────────────────────
+
+  const table = <FilesTable currentFolderId={folderId} onPreview={setPreviewId} previewId={previewId} />;
+
+  // ── Layout: desktop SplitPane, mobile drawer ─────────────────────────────────
+
+  const contentArea = (
+    <>
+      {isDesktop ? (
+        <SplitPane storageKey="files-preview-split-ratio" defaultRatio={0.55} main={table} side={previewPanel} />
+      ) : (
+        <>
+          <div className="overflow-y-auto">{table}</div>
+          <Drawer open={!!previewId} onOpenChange={open => !open && setPreviewId(null)}>
+            <DrawerContent className="max-h-[75dvh]">
+              {previewId && <NotePreviewPanel noteId={previewId} onClose={() => setPreviewId(null)} />}
+            </DrawerContent>
+          </Drawer>
+        </>
+      )}
+    </>
+  );
+
+  // ── Root /files page ─────────────────────────────────────────────────────────
+  // Keeps the standard PageHeader via useBreadcrumb; toolbar above the table.
+
+  if (folderId === null) {
+    return (
+      <div className="flex h-full flex-col gap-4">
+        {toolbar}
+        <div className="flex min-h-0 flex-1 flex-col">{contentArea}</div>
+        <NewFolderDialog open={newFolderOpen} onOpenChange={setNewFolderOpen} parentId={null} />
+      </div>
+    );
+  }
+
+  // ── Folder page ──────────────────────────────────────────────────────────────
+  // Uses FilePageShell: standard top bar (breadcrumb + toolbar), content fills remaining height.
+
+  return (
+    <FilePageShell
+      breadcrumb={
+        currentFolder ? (
+          <FileBreadcrumb
+            path={folderPath.slice(0, -1)}
+            current={{
+              kind: 'folder',
+              id: currentFolder.id,
+              name: currentFolder.name,
+              parentId: currentFolder.parentId,
+            }}
+            onRename={name => renameFolder({ id: currentFolder.id, name })}
+          />
+        ) : null
+      }
+      actions={toolbar}
+    >
+      {contentArea}
+      <NewFolderDialog open={newFolderOpen} onOpenChange={setNewFolderOpen} parentId={folderId} />
+    </FilePageShell>
   );
 }
