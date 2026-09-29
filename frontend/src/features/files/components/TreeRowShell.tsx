@@ -25,10 +25,10 @@ export function TreeRowShell({ depth, dnd, onClick, expanded, selected, children
   return (
     <div
       ref={setRef}
-      role="row"
       {...attributes}
       {...listeners}
-      // After the DnD spread, so the tree semantics always win.
+      // After the DnD spread (it sets role="button"), so the tree semantics always win.
+      role="row"
       aria-level={depth + 1}
       aria-expanded={expanded}
       aria-selected={selected}

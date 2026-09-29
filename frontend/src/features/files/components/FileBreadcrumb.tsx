@@ -14,6 +14,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
+import { displayTitle } from '@/lib/displayTitle';
+import { NAME_LIMITS } from '@/lib/limits';
 import { folderHref, Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
@@ -66,7 +68,7 @@ function CurrentCrumb({
 }) {
   const t = useTranslations();
   const [editing, setEditing] = useState(false);
-  const displayName = current.name.trim() || t('notes.untitled');
+  const displayName = displayTitle(current.name, t);
 
   function handleRenameRequest() {
     if (!renameDisabled && onRename) setEditing(true);
@@ -97,8 +99,7 @@ function CurrentCrumb({
     return (
       <InlineRename
         initialValue={current.name}
-        // 100 for folders, 200 for notes (matches backend limits).
-        maxLength={current.kind === 'folder' ? 100 : 200}
+        maxLength={NAME_LIMITS[current.kind]}
         onSave={handleSave}
         onCancel={() => setEditing(false)}
       />
@@ -197,9 +198,7 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
       </button>
 
       {/* Mobile: the full path does not fit, so show only the current name. */}
-      <span className="min-w-0 truncate px-1.5 text-sm text-foreground lg:hidden">
-        {current.name.trim() || t('notes.untitled')}
-      </span>
+      <span className="min-w-0 truncate px-1.5 text-sm text-foreground lg:hidden">{displayTitle(current.name, t)}</span>
 
       {/* Breadcrumb items — hidden on mobile */}
       <div className="hidden lg:flex items-center gap-0.5">

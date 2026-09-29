@@ -6,7 +6,7 @@ import { type ReactNode } from 'react';
 import { useResizableSplit } from '@/hooks/useResizableSplit';
 import { cn } from '@/lib/utils';
 
-type Props = {
+export type SplitPaneProps = {
   /** localStorage key for the saved ratio. Each split in the app uses its own key. */
   storageKey: string;
   defaultRatio?: number;
@@ -60,7 +60,7 @@ export function SplitPane({
   className,
   mainClassName,
   sideClassName,
-}: Props) {
+}: SplitPaneProps) {
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio, isDragging } = useResizableSplit(
     storageKey,
     defaultRatio

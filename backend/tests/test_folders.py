@@ -336,3 +336,176 @@ class TestGetTree:
         # Confirm user_id passed to CRUD matches the authenticated user
         mock_crud.list_tree_folders.assert_called_once_with(db, user_id="u_mine")
         mock_crud.list_tree_notes.assert_called_once_with(db, user_id="u_mine")
+
+
+# ---------------------------------------------------------------------------
+# Batch 5: name strip, NoteMove required field, IntegrityError to 409, row locks
+# ---------------------------------------------------------------------------
+
+
+class TestFolderNameSchema:
+    def test_create_strips_whitespace(self) -> None:
+        from app.schemas.folder import FolderCreate
+
+        assert FolderCreate.model_validate({"name": "  Math  "}).name == "Math"
+
+    def test_update_strips_whitespace(self) -> None:
+        from app.schemas.folder import FolderUpdate
+
+        assert FolderUpdate.model_validate({"name": " Math "}).name == "Math"
+
+    @pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
+    def test_create_rejects_empty_result(self, blank: str) -> None:
+        import pydantic
+
+        from app.schemas.folder import FolderCreate
+
+        with pytest.raises(pydantic.ValidationError):
+            FolderCreate.model_validate({"name": blank})
+
+    def test_update_rejects_empty_result(self) -> None:
+        import pydantic
+
+        from app.schemas.folder import FolderUpdate
+
+        with pytest.raises(pydantic.ValidationError):
+            FolderUpdate.model_validate({"name": "   "})
+
+    def test_update_still_rejects_null(self) -> None:
+        import pydantic
+
+        from app.schemas.folder import FolderUpdate
+
+        with pytest.raises(pydantic.ValidationError):
+            FolderUpdate.model_validate({"name": None})
+
+
+class TestNoteMoveSchema:
+    def test_empty_body_is_rejected(self) -> None:
+        import pydantic
+
+        from app.schemas.note import NoteMove
+
+        with pytest.raises(pydantic.ValidationError):
+            NoteMove.model_validate({})
+
+    def test_explicit_null_moves_to_root(self) -> None:
+        from app.schemas.note import NoteMove
+
+        assert NoteMove.model_validate({"folderId": None}).folder_id is None
+
+    def test_folder_id_is_accepted(self) -> None:
+        from app.schemas.note import NoteMove
+
+        assert NoteMove.model_validate({"folderId": "f1"}).folder_id == "f1"
+
+
+def _integrity_error(message: str) -> Exception:
+    from sqlalchemy.exc import IntegrityError
+
+    return IntegrityError("INSERT ...", {}, Exception(message))
+
+
+class TestSiblingConflictGuard:
+    def test_sibling_index_violation_becomes_409_and_rolls_back(self) -> None:
+        from app.services import folder_service
+
+        db = MagicMock()
+        error = _integrity_error('duplicate key value violates unique constraint "ix_folder_sibling_name"')
+        with (
+            pytest.raises(HTTPException) as exc_info,
+            folder_service.sibling_conflict_as_409(db, name="Math", parent_id=None),
+        ):
+            raise error
+        assert exc_info.value.status_code == 409
+        # Same text as the pre-check.
+        assert exc_info.value.detail == "A folder named 'Math' already exists in the root"
+        db.rollback.assert_called_once()
+
+    def test_other_integrity_error_is_reraised(self) -> None:
+        from sqlalchemy.exc import IntegrityError
+
+        from app.services import folder_service
+
+        db = MagicMock()
+        error = _integrity_error('insert violates foreign key constraint "folder_user_id_fkey"')
+        with (
+            pytest.raises(IntegrityError),
+            folder_service.sibling_conflict_as_409(db, name="Math", parent_id="p1"),
+        ):
+            raise error
+        db.rollback.assert_not_called()
+
+    def test_create_folder_race_returns_409(self) -> None:
+        """The pre-check passes, but the commit hits the unique index."""
+        from app.schemas.folder import FolderCreate
+        from app.services import folder_service
+
+        db = MagicMock()
+        db.commit.side_effect = _integrity_error('unique constraint "ix_folder_sibling_name"')
+        with patch("app.services.folder_service.folder_crud") as mock_crud:
+            mock_crud.sibling_name_exists.return_value = False
+            with pytest.raises(HTTPException) as exc_info:
+                folder_service.create_folder(db, current_user=_make_user(), data=FolderCreate(name="Math"))
+        assert exc_info.value.status_code == 409
+        db.rollback.assert_called_once()
+
+    def test_restore_race_returns_409(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        db.commit.side_effect = _integrity_error('unique constraint "ix_folder_sibling_name"')
+        folder = _make_folder("f1", parent_id=None, name="Math")
+        with (
+            patch("app.services.trash_service._get_trashed_folder_or_404", return_value=folder),
+            patch("app.services.trash_service._restore_location", return_value=None),
+            patch("app.services.trash_service._resolve_restore_name", return_value="Math"),
+            patch("app.services.trash_service.folder_crud"),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            trash_service.restore_folder(db, folder_id="f1", current_user=_make_user())
+        assert exc_info.value.status_code == 409
+
+
+class TestDestinationFolderLock:
+    def test_lock_option_uses_for_update_fetch(self) -> None:
+        from app.services import folder_service
+
+        db = MagicMock()
+        with patch("app.services.folder_service.folder_crud") as mock_crud:
+            mock_crud.get_by_id_for_update.return_value = _make_folder("f1")
+            folder_service.get_live_folder_or_404(db, folder_id="f1", current_user=_make_user(), for_update=True)
+        mock_crud.get_by_id_for_update.assert_called_once_with(db, id="f1")
+        mock_crud.get_by_id.assert_not_called()
+
+    def test_default_does_not_lock(self) -> None:
+        from app.services import folder_service
+
+        db = MagicMock()
+        with patch("app.services.folder_service.folder_crud") as mock_crud:
+            mock_crud.get_by_id.return_value = _make_folder("f1")
+            folder_service.get_live_folder_or_404(db, folder_id="f1", current_user=_make_user())
+        mock_crud.get_by_id_for_update.assert_not_called()
+
+    def test_move_note_locks_destination(self) -> None:
+        from app.services import note_service
+
+        db = MagicMock()
+        with (
+            patch("app.services.note_service.get_live_note", return_value=_make_note("n1")),
+            patch("app.services.note_service.get_live_folder_or_404") as mock_folder,
+            patch("app.services.note_service.note_crud"),
+        ):
+            note_service.move_note(db, note_id="n1", current_user=_make_user(), folder_id="f2")
+        assert mock_folder.call_args.kwargs["for_update"] is True
+
+    def test_delete_folder_locks_folder(self) -> None:
+        from app.services import folder_service
+
+        db = MagicMock()
+        with (
+            patch("app.services.folder_service.get_live_folder_or_404") as mock_get,
+            patch("app.services.folder_service.folder_crud"),
+        ):
+            folder_service.delete_folder(db, folder_id="f1", current_user=_make_user())
+        assert mock_get.call_args.kwargs["for_update"] is True

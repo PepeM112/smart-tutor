@@ -129,11 +129,17 @@ def get_live_note(db: Session, *, note_id: str, current_user: User, for_update: 
     return note
 
 
-def _validate_folder_ownership(db: Session, *, folder_id: str | None, current_user: User) -> None:
-    """Raise 404/403 if folder_id is given but not a live folder owned by current_user."""
+def _validate_folder_ownership(
+    db: Session, *, folder_id: str | None, current_user: User, for_update: bool = True
+) -> None:
+    """Raise 404/403 if folder_id is given but not a live folder owned by current_user.
+
+    The folder row is locked by default: the caller writes an item into it, and the lock
+    keeps a concurrent trash of that folder from leaving a live item under it.
+    """
     if folder_id is None:
         return
-    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user, for_update=for_update)
 
 
 def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
@@ -197,8 +203,8 @@ def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
 
 
 def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Note:
-    # Validate folder ownership before spending AI tokens.
-    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
+    # Validate folder ownership before spending AI tokens. No lock yet: the AI call is slow.
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user, for_update=False)
 
     user_prompt = build_note_generation_user_prompt(
         data.topic,
@@ -215,6 +221,8 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
         max_tokens=max_tokens,
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_GENERATION)
+    # Check again with a lock: the folder can be trashed while the AI works.
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
     note = note_crud.create(
         db,
         user_id=current_user.id,

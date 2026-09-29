@@ -10,6 +10,7 @@ import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { RichNoteEditor } from '@/features/notes/editor/RichNoteEditor';
 import { sdk } from '@/lib/apiClient';
+import { displayTitle } from '@/lib/displayTitle';
 import { noteHref } from '@/lib/routes';
 
 import { fileQueryKeys } from '../lib/queryKeys';
@@ -47,9 +48,7 @@ export function NotePreviewPanel({ noteId, onClose }: Props) {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header — stays put when the note changes; only the body crossfades. */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
-        <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-          {note?.title.trim() || t('notes.untitled')}
-        </p>
+        <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{displayTitle(note?.title, t)}</p>
         <Button variant="ghost" size="sm" onClick={() => note && router.push(noteHref(note))} disabled={!note}>
           {t('files.open')}
         </Button>

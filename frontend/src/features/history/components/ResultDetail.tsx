@@ -4,8 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import { AnswerStatus, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
-import { SplitPane } from '@/components/shared/SplitPane';
-import { Drawer, DrawerContent } from '@/components/ui/drawer';
+import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 import { GroupDetailPanel } from './GroupDetailPanel';
@@ -91,30 +90,21 @@ export function ResultDetail({ result, test }: Props) {
     <RightPanel selectedItem={selectedItem} items={items} test={test} answerMap={answerMap} itemNumbers={itemNumbers} />
   );
 
-  if (!isDesktop) {
-    return (
-      <div className="space-y-4 pb-4">
-        {listContent}
-        <Drawer open={hasSelection} onOpenChange={open => !open && setSelectedItem(null)}>
-          <DrawerContent className="max-h-[80dvh]">
-            <div className="overflow-y-auto px-4 pb-8">{rightPanelContent}</div>
-          </DrawerContent>
-        </Drawer>
-      </div>
-    );
-  }
-
   return (
-    <SplitPane
-      storageKey={SPLIT_RATIO_KEY}
-      defaultRatio={DEFAULT_SPLIT_RATIO}
-      className="h-[calc(100vh-6rem)]"
-      mainClassName="scrollbar-none p-0.5 pr-2 pb-4 space-y-4"
-      main={listContent}
-      side={hasSelection ? rightPanelContent : null}
-      // No card frame: the detail panels draw their own cards.
-      sideClassName="overflow-y-auto scrollbar-none p-0.5 pl-2 pb-4"
-    />
+    // h-full + flex column: the split pane takes the height that the layout gives (no magic vh number).
+    <div className="flex h-full flex-col">
+      <ResponsiveSplitPane
+        storageKey={SPLIT_RATIO_KEY}
+        defaultRatio={DEFAULT_SPLIT_RATIO}
+        mainClassName="scrollbar-none p-0.5 pr-2 pb-4 space-y-4"
+        mobileMainClassName="space-y-4 pb-4"
+        main={listContent}
+        side={hasSelection ? rightPanelContent : null}
+        onSideClose={() => setSelectedItem(null)}
+        // No card frame: the detail panels draw their own cards.
+        sideClassName="overflow-y-auto scrollbar-none p-0.5 pl-2 pb-4"
+      />
+    </div>
   );
 }
 

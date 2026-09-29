@@ -347,9 +347,7 @@
     "move_to_trash_title": "Mover a la papelera",
     "move_to_trash_confirm": "¿Mover \"{title}\" a la papelera? Puedes restaurarlo después.",
     "note_moved_to_trash": "Nota movida a la papelera.",
-    "in_trash_banner": "Esta nota está en la papelera.",
-    "restore": "Restaurar",
-    "delete_forever": "Eliminar definitivamente"
+    "in_trash_banner": "Esta nota está en la papelera."
   },
   "notes_ai": {
     "generate_with_ai": "Generar con IA",

@@ -1067,6 +1067,9 @@ export const NoteMoveSchema = {
         }
     },
     type: 'object',
+    required: [
+        'folderId'
+    ],
     title: 'NoteMove',
     description: 'Move a note to a different folder. Pass null to move to root.'
 } as const;

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { sdk } from '@/lib/apiClient';
+import { NAME_LIMITS } from '@/lib/limits';
 import { getErrorDetail } from '@/lib/utils';
 
 import { invalidateAfterFileChange } from '../lib/queryKeys';
@@ -80,6 +81,7 @@ function NewFolderForm({ parentId, onCreated, onClose }: NewFolderFormProps) {
             placeholder={t('files.folder_name_placeholder')}
             value={name}
             onChange={e => setName(e.target.value)}
+            maxLength={NAME_LIMITS.folder}
             autoFocus
           />
         </div>

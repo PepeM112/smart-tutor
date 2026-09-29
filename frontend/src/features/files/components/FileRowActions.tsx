@@ -9,6 +9,7 @@ import { type FileTreeFolder, type FileTreeNote } from '@/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sdk } from '@/lib/apiClient';
+import { displayTitle } from '@/lib/displayTitle';
 import { cn } from '@/lib/utils';
 
 import { useFilesTree } from '../context/FilesTreeContext';
@@ -68,7 +69,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
         isMoving: mutations.isMovingNote,
         move: (targetId: string | null) => mutations.moveNote({ id, folderId: targetId }),
         deleteTitle: t('notes.move_to_trash_title'),
-        deleteDescription: t('notes.move_to_trash_confirm', { title: item.note.title.trim() || t('notes.untitled') }),
+        deleteDescription: t('notes.move_to_trash_confirm', { title: displayTitle(item.note.title, t) }),
         isTrashing: mutations.isTrashingNote,
         trash: () => mutations.trashNote(id),
       };
@@ -137,7 +138,6 @@ export function FileRowActions({ item, onStartRename }: Props) {
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        trigger={<span />}
         title={config.deleteTitle}
         description={config.deleteDescription}
         confirmLabel={t('files.move_to_trash')}

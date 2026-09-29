@@ -4,7 +4,8 @@ import { useState } from 'react';
 
 type Props = {
   initialValue: string;
-  maxLength?: number;
+  /** Use `NAME_LIMITS` from `@/lib/limits`. */
+  maxLength: number;
   /** Called with the trimmed, changed name when the user commits. */
   onSave: (value: string) => void;
   onCancel: () => void;
@@ -15,7 +16,7 @@ type Props = {
  * Enter/blur commits (only if trimmed non-empty and different from initialValue), Esc cancels.
  * Used in FileBreadcrumb (current-crumb rename) and FileTreeRow (table inline rename).
  */
-export function InlineRename({ initialValue, maxLength = 200, onSave, onCancel }: Props) {
+export function InlineRename({ initialValue, maxLength, onSave, onCancel }: Props) {
   const [value, setValue] = useState(initialValue);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

@@ -22,6 +22,16 @@ def get_by_id(db: Session, *, id: str) -> Folder | None:
     return db.scalars(select(Folder).where(Folder.id == id)).first()
 
 
+def get_by_id_for_update(db: Session, *, id: str) -> Folder | None:
+    """Like `get_by_id`, but locks the row until the transaction ends (SELECT ... FOR UPDATE).
+
+    `populate_existing` makes sure the row is refreshed after a wait for a lock, so the
+    caller sees the state that the other transaction committed (e.g. `deleted_at`).
+    """
+    stmt = select(Folder).where(Folder.id == id).with_for_update().execution_options(populate_existing=True)
+    return db.scalars(stmt).first()
+
+
 def list_by_user(db: Session, *, user_id: str, include_trashed: bool = False) -> Sequence[Folder]:
     """Return the folders of a user ordered by name (case-insensitive). LIVE only unless `include_trashed`."""
     stmt = select(Folder).where(Folder.user_id == user_id).order_by(func.lower(Folder.name))
@@ -81,7 +91,7 @@ def get_descendant_ids(db: Session, *, folder_id: str) -> list[str]:
     return list(db.scalars(select(descendants.c.id)).all())
 
 
-def count_live_descendants(db: Session, *, folder_id: str) -> tuple[int, int]:
+def count_live_descendants(db: Session, *, user_id: str, folder_id: str) -> tuple[int, int]:
     """Return (folder_count, note_count) of LIVE items in the subtree (exclusive of folder_id itself)."""
     desc_ids = get_descendant_ids(db, folder_id=folder_id)
     all_ids = [folder_id, *desc_ids]
@@ -89,13 +99,15 @@ def count_live_descendants(db: Session, *, folder_id: str) -> tuple[int, int]:
     live_folder_count_stmt = select(func.count()).where(Folder.id.in_(desc_ids), Folder.deleted_at.is_(None))
     live_folder_count = db.scalar(live_folder_count_stmt) or 0
 
-    note_count_stmt = select(func.count()).where(Note.folder_id.in_(all_ids), Note.deleted_at.is_(None))
+    note_count_stmt = select(func.count()).where(
+        Note.user_id == user_id, Note.folder_id.in_(all_ids), Note.deleted_at.is_(None)
+    )
     note_count = db.scalar(note_count_stmt) or 0
 
     return live_folder_count, note_count
 
 
-def soft_delete_cascade(db: Session, *, folder_id: str, now: datetime) -> tuple[int, int]:
+def soft_delete_cascade(db: Session, *, user_id: str, folder_id: str, now: datetime) -> tuple[int, int]:
     """Soft-delete a folder and all its LIVE descendants and their LIVE notes.
 
     Returns (folder_count, note_count) of items actually trashed in this call.
@@ -112,7 +124,9 @@ def soft_delete_cascade(db: Session, *, folder_id: str, now: datetime) -> tuple[
 
     # Mark live notes whose folder is in the subtree as trashed.
     n_result = db.execute(
-        sql_update(Note).where(Note.folder_id.in_(all_folder_ids), Note.deleted_at.is_(None)).values(deleted_at=now)
+        sql_update(Note)
+        .where(Note.user_id == user_id, Note.folder_id.in_(all_folder_ids), Note.deleted_at.is_(None))
+        .values(deleted_at=now)
     )
     note_count = rowcount(n_result)
 
@@ -171,7 +185,9 @@ def detach_other_batches(db: Session, *, folder: Folder) -> None:
         select(Folder).where(Folder.parent_id.in_(batch_ids), Folder.deleted_at.is_distinct_from(batch_ts))
     ).all()
     orphan_notes = db.scalars(
-        select(Note).where(Note.folder_id.in_(batch_ids), Note.deleted_at.is_distinct_from(batch_ts))
+        select(Note).where(
+            Note.user_id == folder.user_id, Note.folder_id.in_(batch_ids), Note.deleted_at.is_distinct_from(batch_ts)
+        )
     ).all()
 
     def _path_for(start_id: str | None, existing: list[str] | None) -> list[str]:
@@ -304,7 +320,7 @@ def list_trashed_top_notes(db: Session, *, user_id: str) -> Sequence[Note]:
     return db.scalars(_trashed_top_notes_stmt(user_id).order_by(Note.deleted_at.desc())).all()
 
 
-def count_batch_items(db: Session, *, folder_id: str, deleted_at: datetime) -> tuple[int, int]:
+def count_batch_items(db: Session, *, user_id: str, folder_id: str, deleted_at: datetime) -> tuple[int, int]:
     """Count the sub-folders and notes that belong to the same delete batch as `folder_id`."""
     desc_ids = get_descendant_ids(db, folder_id=folder_id)
 
@@ -322,6 +338,7 @@ def count_batch_items(db: Session, *, folder_id: str, deleted_at: datetime) -> t
     note_count = (
         db.scalar(
             select(func.count()).where(
+                Note.user_id == user_id,
                 Note.folder_id.in_(all_ids),
                 Note.deleted_at == deleted_at,
             )
@@ -342,7 +359,9 @@ def restore_folder_batch(db: Session, *, folder: Folder) -> None:
         sql_update(Folder).where(Folder.id.in_(all_folder_ids), Folder.deleted_at == batch_ts).values(deleted_at=None)
     )
     db.execute(
-        sql_update(Note).where(Note.folder_id.in_(all_folder_ids), Note.deleted_at == batch_ts).values(deleted_at=None)
+        sql_update(Note)
+        .where(Note.user_id == folder.user_id, Note.folder_id.in_(all_folder_ids), Note.deleted_at == batch_ts)
+        .values(deleted_at=None)
     )
     db.flush()
 

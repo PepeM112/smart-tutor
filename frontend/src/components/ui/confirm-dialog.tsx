@@ -17,8 +17,8 @@ import {
 import { cn } from '@/lib/utils';
 
 type ConfirmDialogProps = {
-  /** Element that opens the dialog */
-  trigger: React.ReactNode;
+  /** Element that opens the dialog. Leave it out for a dialog that the parent opens with `open`. */
+  trigger?: React.ReactNode;
   title: string;
   description?: string;
   /** Optional content rendered between description and footer (e.g. an input) */
@@ -55,7 +55,7 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog {...(isControlled ? { open, onOpenChange } : { onOpenChange })}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

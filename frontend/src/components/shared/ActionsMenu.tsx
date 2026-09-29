@@ -61,7 +61,6 @@ export function ActionsMenu({ actions }: { actions: MobileAction[] }) {
       )}
       {pendingConfirm?.confirm && (
         <ConfirmDialog
-          trigger={<span className="hidden" />}
           open={!!pendingConfirm}
           onOpenChange={open => {
             if (!open) setPendingConfirm(null);

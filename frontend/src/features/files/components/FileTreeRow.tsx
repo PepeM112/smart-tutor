@@ -8,7 +8,9 @@ import { useEffect, useRef, useState } from 'react';
 
 import { type FileTreeFolder, type FileTreeNote } from '@/client';
 import { InlineRename } from '@/components/shared/InlineRename';
+import { displayTitle } from '@/lib/displayTitle';
 import { formatShortDate } from '@/lib/format';
+import { NAME_LIMITS } from '@/lib/limits';
 import { folderHref, noteHref } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
@@ -97,7 +99,7 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
           {renaming ? (
             <InlineRename
               initialValue={folder.name}
-              maxLength={100}
+              maxLength={NAME_LIMITS.folder}
               onSave={name => {
                 setRenaming(false);
                 mutations.renameFolder({ id: folder.id, name });
@@ -157,7 +159,7 @@ export function NoteTreeRow({ note, depth }: NoteTreeRowProps) {
   const { previewId, mutations } = useFilesTree();
   const [renaming, setRenaming] = useState(false);
   const isPreviewed = previewId === note.id;
-  const title = note.title.trim() || t('notes.untitled');
+  const title = displayTitle(note.title, t);
   const href = noteHref({ id: note.id, title: note.title });
 
   const dnd = useTreeRowDnd(
@@ -185,7 +187,7 @@ export function NoteTreeRow({ note, depth }: NoteTreeRowProps) {
         {renaming ? (
           <InlineRename
             initialValue={note.title}
-            maxLength={200}
+            maxLength={NAME_LIMITS.note}
             onSave={name => {
               setRenaming(false);
               // version is fetched inside the mutation to avoid needing NoteRead here.

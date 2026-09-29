@@ -109,7 +109,7 @@ class TestCascadeSoftDelete:
             folder_service.delete_folder(db, folder_id="f1", current_user=user)
 
         # The same `now` is passed to soft_delete_cascade.
-        mock_crud.soft_delete_cascade.assert_called_once_with(db, folder_id="f1", now=now)
+        mock_crud.soft_delete_cascade.assert_called_once_with(db, user_id="u1", folder_id="f1", now=now)
         db.commit.assert_called_once()
 
     def test_trashed_folder_is_rejected_as_404(self) -> None:

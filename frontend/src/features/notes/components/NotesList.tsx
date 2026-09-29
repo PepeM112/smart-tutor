@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useFileMutations } from '@/features/files/hooks/useFileMutations';
 import { useFolders } from '@/features/files/hooks/useFolders';
+import { displayTitle } from '@/lib/displayTitle';
 import { formatShortDate } from '@/lib/format';
 import { folderHref, noteHref } from '@/lib/routes';
 
@@ -27,7 +28,7 @@ type Props = {
 /** A new note has an empty title (the editor shows "Untitled" only as a placeholder). */
 function useNoteTitle(): (note: NoteRead) => string {
   const t = useTranslations();
-  return note => note.title.trim() || t('notes.untitled');
+  return note => displayTitle(note.title, t);
 }
 
 export function NotesList({ data, sort, onSort }: Props) {

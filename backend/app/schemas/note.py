@@ -106,4 +106,5 @@ PaginatedNoteRead = PaginatedResponse[NoteRead]
 class NoteMove(BaseSchema):
     """Move a note to a different folder. Pass null to move to root."""
 
-    folder_id: str | None = None
+    # No default: an empty body must be a 422, not a silent move to root.
+    folder_id: str | None

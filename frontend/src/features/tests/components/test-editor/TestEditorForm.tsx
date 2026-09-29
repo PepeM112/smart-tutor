@@ -17,8 +17,8 @@ import {
   type TestUpdate,
 } from '@/client';
 import { AutoTextarea } from '@/components/shared/AutoTextarea';
+import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
-import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
   DiffPanel,
@@ -30,7 +30,6 @@ import { useAssistCoversPage } from '@/features/assist/hooks/useAssistCoversPage
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/useMobileBreadcrumbActions';
-import { useResizableSplit } from '@/hooks/useResizableSplit';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
@@ -97,13 +96,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   // No URL gate, as in NotePage: the diff shows whenever this test has a pending Assistant diff.
   const assistCoversPage = useAssistCoversPage();
   const showTestDiff = pendingTestDiff?.testId === testId && !assistCoversPage;
-
-  const {
-    containerRef: testDiffContainerRef,
-    splitRatio: testDiffRatio,
-    handleDividerMouseDown: testDiffDividerDown,
-    resetRatio: testDiffResetRatio,
-  } = useResizableSplit(ASSIST_TEST_DIFF_SPLIT_KEY, 0.5);
 
   const acceptTestRefinement = useCallback(() => {
     if (!pendingTestDiff) return;
@@ -193,137 +185,112 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     />
   );
 
+  const diffSide =
+    showTestDiff && pendingTestDiff ? (
+      <AssistTestDiffPanel
+        currentItems={items}
+        proposedQuestions={pendingTestDiff.questions}
+        selectedIndices={pendingTestDiff.selectedIndices}
+        onAccept={acceptTestRefinement}
+        onReject={clearPendingTestDiff}
+      />
+    ) : null;
+
   return (
-    <div ref={testDiffContainerRef} className="flex gap-0">
-      <div className="min-w-0" style={{ flex: isDesktop && showTestDiff ? testDiffRatio : 1 }}>
-        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-          <div className="space-y-3 flex-1">
-            {isEditing ? (
-              <>
-                <Input
-                  className="w-full lg:w-1/2"
-                  placeholder={t('tests.test_name')}
-                  value={title}
-                  onChange={e => {
-                    setTitle(e.target.value);
-                  }}
-                />
-                <AutoTextarea
-                  rows={2}
-                  placeholder={t('tests.description_optional')}
-                  value={description}
-                  onChange={e => {
-                    setDescription(e.target.value);
-                  }}
-                />
-              </>
-            ) : (
-              <>
-                <h1 className="text-xl font-semibold">{title || t('tests.test_name')}</h1>
-                {description && <p className="text-sm text-muted-foreground">{description}</p>}
-              </>
-            )}
-          </div>
-          {isDesktop && (
-            <TestEditorActions
-              size="lg"
-              testId={testId}
-              isEdit={isEdit}
-              isEditing={isEditing}
-              isSaving={isSaving}
-              canSave={canSave}
-              onToggleEditing={setIsEditing}
-              onSave={saveTest}
-            />
-          )}
-        </div>
-
-        <div className="space-y-3 mb-4 transition-opacity">
-          {items.map((item, i) => {
-            const sharedProps = {
-              index: i,
-              onRemove: () => removeItem(i),
-              isEditing,
-            } as const;
-
-            if (item.type === 'group') {
-              return (
-                <QuestionGroupBlock
-                  key={item.key}
-                  data={item}
-                  onChange={data => updateItem(i, data)}
-                  {...sharedProps}
-                />
-              );
-            }
-            if (item.type === QuestionType.LONG_TEXT) {
-              return (
-                <LongTextQuestionBlock
-                  key={item.key}
-                  data={item}
-                  onChange={data => updateItem(i, data)}
-                  {...sharedProps}
-                />
-              );
-            }
-            return (
-              <MultipleChoiceQuestionBlock
-                key={item.key}
-                data={item}
-                onChange={data => updateItem(i, data)}
-                {...sharedProps}
-              />
-            );
-          })}
-        </div>
-
-        {isEditing && <AddQuestionDropdown onSelect={addItem} />}
-      </div>
-
-      {/* Desktop: AI refinement diff side panel */}
-      {isDesktop && showTestDiff && pendingTestDiff && (
-        <>
-          <div
-            className="shrink-0 relative flex items-center justify-center w-5 mx-2 cursor-col-resize"
-            onMouseDown={testDiffDividerDown}
-            onDoubleClick={testDiffResetRatio}
-          >
-            <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-            <div className="relative z-10 w-3 h-7 rounded-full border border-border bg-background" />
-          </div>
-          <div
-            className="min-w-0 overflow-y-auto rounded-xl border border-border bg-card self-start"
-            style={{ flex: 1 - testDiffRatio }}
-          >
-            <AssistTestDiffPanel
-              currentItems={items}
-              proposedQuestions={pendingTestDiff.questions}
-              selectedIndices={pendingTestDiff.selectedIndices}
-              onAccept={acceptTestRefinement}
-              onReject={clearPendingTestDiff}
-            />
-          </div>
-        </>
-      )}
-
-      {/* Mobile: AI refinement diff drawer */}
-      {!isDesktop && (
-        <Drawer open={showTestDiff && !!pendingTestDiff} onOpenChange={open => !open && clearPendingTestDiff()}>
-          <DrawerContent className="max-h-[75dvh]" title={t('test_editor.proposed_changes')}>
-            {pendingTestDiff && (
-              <div className="overflow-y-auto px-4 pb-8">
-                <AssistTestDiffPanel
-                  currentItems={items}
-                  proposedQuestions={pendingTestDiff.questions}
-                  selectedIndices={pendingTestDiff.selectedIndices}
-                  onAccept={acceptTestRefinement}
-                  onReject={clearPendingTestDiff}
-                />
+    // h-full + flex column: the split pane takes the height that the layout gives.
+    <div className="flex h-full flex-col">
+      <ResponsiveSplitPane
+        storageKey={ASSIST_TEST_DIFF_SPLIT_KEY}
+        main={
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+              <div className="space-y-3 flex-1">
+                {isEditing ? (
+                  <>
+                    <Input
+                      className="w-full lg:w-1/2"
+                      placeholder={t('tests.test_name')}
+                      value={title}
+                      onChange={e => {
+                        setTitle(e.target.value);
+                      }}
+                    />
+                    <AutoTextarea
+                      rows={2}
+                      placeholder={t('tests.description_optional')}
+                      value={description}
+                      onChange={e => {
+                        setDescription(e.target.value);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-xl font-semibold">{title || t('tests.test_name')}</h1>
+                    {description && <p className="text-sm text-muted-foreground">{description}</p>}
+                  </>
+                )}
               </div>
-            )}
-          </DrawerContent>
-        </Drawer>
-      )}
+              {isDesktop && (
+                <TestEditorActions
+                  size="lg"
+                  testId={testId}
+                  isEdit={isEdit}
+                  isEditing={isEditing}
+                  isSaving={isSaving}
+                  canSave={canSave}
+                  onToggleEditing={setIsEditing}
+                  onSave={saveTest}
+                />
+              )}
+            </div>
+
+            <div className="space-y-3 mb-4 transition-opacity">
+              {items.map((item, i) => {
+                const sharedProps = {
+                  index: i,
+                  onRemove: () => removeItem(i),
+                  isEditing,
+                } as const;
+
+                if (item.type === 'group') {
+                  return (
+                    <QuestionGroupBlock
+                      key={item.key}
+                      data={item}
+                      onChange={data => updateItem(i, data)}
+                      {...sharedProps}
+                    />
+                  );
+                }
+                if (item.type === QuestionType.LONG_TEXT) {
+                  return (
+                    <LongTextQuestionBlock
+                      key={item.key}
+                      data={item}
+                      onChange={data => updateItem(i, data)}
+                      {...sharedProps}
+                    />
+                  );
+                }
+                return (
+                  <MultipleChoiceQuestionBlock
+                    key={item.key}
+                    data={item}
+                    onChange={data => updateItem(i, data)}
+                    {...sharedProps}
+                  />
+                );
+              })}
+            </div>
+
+            {isEditing && <AddQuestionDropdown onSelect={addItem} />}
+          </div>
+        }
+        side={diffSide}
+        onSideClose={clearPendingTestDiff}
+        drawerTitle={t('test_editor.proposed_changes')}
+      />
     </div>
   );
 }

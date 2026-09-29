@@ -58,6 +58,8 @@ export default function ResultDetailPage({ params }: Props) {
 
   return (
     <QueryState
+      // h-full: ResultDetail fills the height of the layout.
+      className="h-full"
       isLoading={isLoadingResult || isLoadingTest}
       isError={isResultError || isTestError}
       errorMessage={t('history.failed_to_load_result')}

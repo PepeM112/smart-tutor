@@ -646,7 +646,7 @@ export type NoteMove = {
     /**
      * Folderid
      */
-    folderId?: string | null;
+    folderId: string | null;
 };
 
 /**

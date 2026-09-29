@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { folderHref, noteHref, parseFolderId, parseNoteId } from './routes';
+import { folderHref, noteHref, parseSlugId } from './routes';
 
 // 26-char Crockford base32 ULID (valid alphabet: 0-9, A-Z minus I, L, O, U)
 const ULID = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
@@ -34,23 +34,23 @@ describe('noteHref', () => {
   });
 });
 
-describe('parseNoteId', () => {
+describe('parseSlugId (note)', () => {
   it('returns bare ULID unchanged', () => {
-    expect(parseNoteId(ULID)).toBe(ULID);
+    expect(parseSlugId(ULID)).toBe(ULID);
   });
 
   it('extracts ULID from slug-prefixed param', () => {
-    expect(parseNoteId(`my-study-note-${ULID}`)).toBe(ULID);
+    expect(parseSlugId(`my-study-note-${ULID}`)).toBe(ULID);
   });
 
   it('is case-insensitive for the ULID', () => {
     const lower = ULID.toLowerCase();
-    expect(parseNoteId(`note-${lower}`)).toBe(lower);
+    expect(parseSlugId(`note-${lower}`)).toBe(lower);
   });
 
   it('returns param unchanged when last 26 chars are not a ULID', () => {
     const legacyId = 'abc123';
-    expect(parseNoteId(legacyId)).toBe(legacyId);
+    expect(parseSlugId(legacyId)).toBe(legacyId);
   });
 });
 
@@ -68,16 +68,16 @@ describe('folderHref', () => {
   });
 });
 
-describe('parseFolderId', () => {
+describe('parseSlugId (folder)', () => {
   it('returns bare ULID unchanged', () => {
-    expect(parseFolderId(ULID)).toBe(ULID);
+    expect(parseSlugId(ULID)).toBe(ULID);
   });
 
   it('extracts ULID from slug-prefixed param', () => {
-    expect(parseFolderId(`my-folder-${ULID}`)).toBe(ULID);
+    expect(parseSlugId(`my-folder-${ULID}`)).toBe(ULID);
   });
 
   it('returns param unchanged when last 26 chars are not a ULID', () => {
-    expect(parseFolderId('notaulid')).toBe('notaulid');
+    expect(parseSlugId('notaulid')).toBe('notaulid');
   });
 });

@@ -49,6 +49,7 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
     for folder in folder_crud.list_trashed_top_folders(db, user_id=current_user.id):
         sub_folders, note_count = folder_crud.count_batch_items(
             db,
+            user_id=current_user.id,
             folder_id=folder.id,
             deleted_at=folder.deleted_at,  # type: ignore[arg-type]
         )
@@ -195,20 +196,22 @@ def restore_folder(db: Session, *, folder_id: str, current_user: User) -> None:
     """
     folder = _get_trashed_folder_or_404(db, folder_id=folder_id, current_user=current_user)
 
-    effective_parent = _restore_location(
-        db, parent_id=folder.parent_id, orphan_path=folder.orphan_path, user_id=current_user.id
-    )
-    name = _resolve_restore_name(
-        db,
-        name=folder.name,
-        parent_id=effective_parent,
-        user_id=current_user.id,
-        exclude_id=folder.id,
-    )
-    folder_crud.relocate(db, folder=folder, name=name, parent_id=effective_parent)
+    # A concurrent request can take the chosen name after the checks below: 409 in that case.
+    with folder_service.sibling_conflict_as_409(db, name=folder.name, parent_id=folder.parent_id):
+        effective_parent = _restore_location(
+            db, parent_id=folder.parent_id, orphan_path=folder.orphan_path, user_id=current_user.id
+        )
+        name = _resolve_restore_name(
+            db,
+            name=folder.name,
+            parent_id=effective_parent,
+            user_id=current_user.id,
+            exclude_id=folder.id,
+        )
+        folder_crud.relocate(db, folder=folder, name=name, parent_id=effective_parent)
 
-    folder_crud.restore_folder_batch(db, folder=folder)
-    db.commit()
+        folder_crud.restore_folder_batch(db, folder=folder)
+        db.commit()
 
 
 def restore_note(db: Session, *, note_id: str, current_user: User) -> None:
@@ -219,9 +222,13 @@ def restore_note(db: Session, *, note_id: str, current_user: User) -> None:
     """
     note = _get_trashed_note_or_404(db, note_id=note_id, current_user=current_user)
 
-    folder_id = _restore_location(db, parent_id=note.folder_id, orphan_path=note.orphan_path, user_id=current_user.id)
-    note_crud.restore(db, note=note, folder_id=folder_id)
-    db.commit()
+    # The ancestor rows can clash with a folder that a concurrent request created: 409 in that case.
+    with folder_service.sibling_conflict_as_409(db, name=None, parent_id=note.folder_id):
+        folder_id = _restore_location(
+            db, parent_id=note.folder_id, orphan_path=note.orphan_path, user_id=current_user.id
+        )
+        note_crud.restore(db, note=note, folder_id=folder_id)
+        db.commit()
 
 
 def hard_delete_folder(db: Session, *, folder_id: str, current_user: User) -> None:

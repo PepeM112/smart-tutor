@@ -6,6 +6,16 @@ from app.core.constants import FOLDER_NAME_MAX
 from app.schemas.base import BaseSchema
 
 
+def _strip_name(v: object) -> object:
+    """Strip the whitespace of a name and reject an empty result. Other types go to Pydantic."""
+    if not isinstance(v, str):
+        return v
+    stripped = v.strip()
+    if not stripped:
+        raise ValueError("name cannot be empty")
+    return stripped
+
+
 class FolderBase(BaseSchema):
     name: str = Field(min_length=1, max_length=FOLDER_NAME_MAX)
 
@@ -13,18 +23,24 @@ class FolderBase(BaseSchema):
 class FolderCreate(FolderBase):
     parent_id: str | None = None
 
+    # Only on input: `FolderRead` inherits the base and must not reject names that are already stored.
+    @field_validator("name", mode="before")
+    @classmethod
+    def _strip_folder_name(cls, v: object) -> object:
+        return _strip_name(v)
+
 
 class FolderUpdate(BaseSchema):
     name: str | None = Field(default=None, min_length=1, max_length=FOLDER_NAME_MAX)
-    parent_id: str | None = None  # None means "not sent"; use explicit sentinel if needed
+    parent_id: str | None = None  # Only applied when sent; an explicit null moves the folder to root.
 
     @field_validator("name", mode="before")
     @classmethod
-    def _reject_null_name(cls, v: object) -> object:
-        """Explicit null for `name` is not allowed — the column is NOT NULL."""
+    def _clean_name(cls, v: object) -> object:
+        """Explicit null for `name` is not allowed (the column is NOT NULL). Else strip it."""
         if v is None:
             raise ValueError("name cannot be null")
-        return v
+        return _strip_name(v)
 
 
 class FolderRead(FolderBase):

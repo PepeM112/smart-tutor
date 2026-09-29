@@ -347,9 +347,7 @@
     "move_to_trash_title": "Move to Trash",
     "move_to_trash_confirm": "Move \"{title}\" to Trash? You can restore it later.",
     "note_moved_to_trash": "Note moved to Trash.",
-    "in_trash_banner": "This note is in Trash.",
-    "restore": "Restore",
-    "delete_forever": "Delete forever"
+    "in_trash_banner": "This note is in Trash."
   },
   "notes_ai": {
     "generate_with_ai": "Generate with AI",
