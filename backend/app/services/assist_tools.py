@@ -82,7 +82,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "list_notes",
         "description": (
-            "List the user's study notes. Returns titles and IDs. "
+            "List the user's study notes. Returns titles, IDs and folder path. "
             "Only filters by exact title text — does NOT search tags, content, or topics. "
             "Use without a title filter to browse all notes. "
             "For topic-based queries, prefer search_user_notes instead."
@@ -176,17 +176,33 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "navigate_to",
         "description": (
-            "Navigate the user to a specific page in the app. Use for directing them to notes, tests, settings, etc."
+            "Navigate the user to a specific page in the app. "
+            "Use for directing them to notes, tests, files, settings, etc."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "The route path, e.g. '/notes', '/tests/abc123/edit', '/settings'.",
+                    "description": (
+                        "The route path. Examples: '/notes', '/tests/abc123/edit', '/settings', "
+                        "'/files' (files root), '/files/<slug>-<ulid>' (a specific folder)."
+                    ),
                 },
             },
             "required": ["path"],
+        },
+    },
+    {
+        "name": "list_folders",
+        "description": (
+            "List all the user's folders. Returns folder names, IDs and parent IDs. "
+            "Use this to find a folder ID before creating a note in a specific folder."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
         },
     },
     {
@@ -194,7 +210,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "description": (
             "Generate a new AI-powered study note on a given topic. "
             "Call directly when the user explicitly asks to create a note. "
-            "Ask conversationally first only if intent is ambiguous."
+            "Ask conversationally first only if intent is ambiguous. "
+            "Use list_folders first to obtain a folder_id when the user wants the note in a folder."
         ),
         "input_schema": {
             "type": "object",
@@ -211,6 +228,10 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "type": "string",
                     "enum": ["short", "medium", "long"],
                     "description": "Note length. Defaults to medium.",
+                },
+                "folder_id": {
+                    "type": "string",
+                    "description": "Optional folder ID to place the note in. Use list_folders to find IDs.",
                 },
             },
             "required": ["topic"],
@@ -383,6 +404,7 @@ def _build_handlers() -> dict[str, ToolHandler]:
 
     return {
         "list_notes": svc.list_notes,
+        "list_folders": svc.list_folders,
         "search_user_notes": svc.search_user_notes,
         "list_tests": svc.list_tests,
         "get_note_content": svc.get_note_content,

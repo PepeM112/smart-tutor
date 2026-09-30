@@ -26,8 +26,11 @@ function loadSplitRatio(storageKey: string, defaultRatio: number): number {
 
 export function useResizableSplit(storageKey: string, defaultRatio: number) {
   const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(storageKey, defaultRatio));
+  // Separate isDragging state (two flips: mousedown / mouseup) so consumers can
+  // conditionally suppress spring animations while the divider is dragged.
+  const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
+  const isDraggingRef = useRef(false);
   const latestRatio = useRef(splitRatio);
 
   useEffect(() => {
@@ -36,7 +39,8 @@ export function useResizableSplit(storageKey: string, defaultRatio: number) {
 
   const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    isDragging.current = true;
+    isDraggingRef.current = true;
+    setIsDragging(true);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }, []);
@@ -48,14 +52,15 @@ export function useResizableSplit(storageKey: string, defaultRatio: number) {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current || !containerRef.current) return;
+      if (!isDraggingRef.current || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const ratio = (e.clientX - rect.left) / rect.width;
       setSplitRatio(Math.max(0.2, Math.min(0.8, ratio)));
     };
     const handleMouseUp = () => {
-      if (!isDragging.current) return;
-      isDragging.current = false;
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setIsDragging(false);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
       saveSplitRatio(storageKey, latestRatio.current);
@@ -70,5 +75,5 @@ export function useResizableSplit(storageKey: string, defaultRatio: number) {
     };
   }, [storageKey]);
 
-  return { containerRef, splitRatio, setSplitRatio, handleDividerMouseDown, resetRatio };
+  return { containerRef, splitRatio, setSplitRatio, handleDividerMouseDown, resetRatio, isDragging };
 }

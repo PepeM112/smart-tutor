@@ -38,6 +38,8 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
       // spellcheck off: the browser marks code words as spelling errors.
       code: { HTMLAttributes: { spellcheck: 'false' } },
       heading: { levels: [1, 2, 3] },
+      // StarterKit v3 bundles Link; disable it here so the configured Link below is the only one.
+      link: false,
     }),
 
     // Official @tiptap/markdown — parses GFM on load, serializes on save.

@@ -8,6 +8,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.database import Base
 from app.models.answer import Answer  # noqa: F401
+from app.models.folder import Folder  # noqa: F401
 from app.models.model_pricing import ModelPricing  # noqa: F401
 from app.models.note import Note  # noqa: F401
 from app.models.note_chunk import NoteChunk  # noqa: F401
@@ -39,6 +40,22 @@ if config.config_file_name is not None:
 # 3. Tell Alembic where to find your table definitions
 target_metadata = Base.metadata
 
+# Indexes created by hand in migrations that the models do not declare (GIN trigram, pgvector HNSW).
+# Autogenerate would otherwise want to drop them. Names are explicit on purpose: no wildcards,
+# so real index drift on other objects is still reported.
+HAND_MADE_INDEXES: frozenset[str] = frozenset(
+    {
+        "idx_notes_content_trgm",
+        "idx_notes_title_trgm",
+        "idx_note_chunk_embedding_hnsw",
+    }
+)
+
+
+def include_object(obj: object, name: str | None, type_: str, reflected: bool, compare_to: object) -> bool:
+    """Skip allow-listed hand-made indexes that exist only in the DB."""
+    return not (type_ == "index" and reflected and name in HAND_MADE_INDEXES)
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (generates SQL scripts)."""
@@ -46,6 +63,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -63,7 +81,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(connection=connection, target_metadata=target_metadata, include_object=include_object)
 
         with context.begin_transaction():
             context.run_migrations()

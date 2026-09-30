@@ -1,12 +1,15 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, UnaryExpression, func, select
+from sqlalchemy import CursorResult, Row, Select, UnaryExpression, func, or_, select
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import update as sql_update  # `update` is taken by the CRUD function below
-from sqlalchemy.orm import InstrumentedAttribute, Session
+from sqlalchemy.orm import InstrumentedAttribute, Session, aliased
 
 from app.core.enums import NoteSource
 from app.crud.helpers import ilike_search
+from app.models.folder import Folder
 from app.models.note import Note
 from app.schemas.note import NoteSortBy, NoteUpdate, SortOrder
 
@@ -20,6 +23,32 @@ def get_by_id_for_update(db: Session, *, id: str) -> Note | None:
     """Like `get_by_id`, but locks the row until the transaction ends (SELECT … FOR UPDATE)."""
     stmt = select(Note).where(Note.id == id).with_for_update()
     return db.scalars(stmt).first()
+
+
+def list_live_by_ids(db: Session, *, user_id: str, ids: Sequence[str]) -> Sequence[Note]:
+    """Return the LIVE (non-trashed) notes of `user_id` among `ids`."""
+    stmt = select(Note).where(Note.user_id == user_id, Note.id.in_(ids), Note.deleted_at.is_(None))
+    return db.scalars(stmt).all()
+
+
+def list_in_folders_outside_batch(
+    db: Session, *, user_id: str, folder_ids: Sequence[str], batch_ts: datetime | None
+) -> Sequence[Note]:
+    """Return the notes of `user_id` directly in `folder_ids` that are not in the batch `batch_ts`."""
+    stmt = select(Note).where(
+        Note.user_id == user_id, Note.folder_id.in_(folder_ids), Note.deleted_at.is_distinct_from(batch_ts)
+    )
+    return db.scalars(stmt).all()
+
+
+def list_tree_notes(db: Session, *, user_id: str) -> Sequence[Row[tuple[str, str, str | None, datetime]]]:
+    """Light note columns (no content) for the file-tree endpoint; live only, ordered by title (case-insensitive)."""
+    stmt = (
+        select(Note.id, Note.title, Note.folder_id, Note.updated_at)
+        .where(Note.user_id == user_id, Note.deleted_at.is_(None))
+        .order_by(func.lower(Note.title))
+    )
+    return db.execute(stmt).fetchall()
 
 
 _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
@@ -47,7 +76,8 @@ def list_by_user(
     page: int = 1,
     per_page: int = 20,
 ) -> tuple[Sequence[Note], int]:
-    stmt = select(Note).where(Note.user_id == user_id)
+    # Only live (non-trashed) notes appear in list views.
+    stmt = select(Note).where(Note.user_id == user_id, Note.deleted_at.is_(None))
 
     if title:
         stmt = stmt.where(ilike_search(Note.title, value=title))
@@ -72,9 +102,11 @@ def create(
     content: str = "",
     source: NoteSource,
     tags: list[str] | None = None,
+    folder_id: str | None = None,
 ) -> Note:
     note = Note(
         user_id=user_id,
+        folder_id=folder_id,
         title=title,
         content=content,
         source=int(source),
@@ -94,8 +126,8 @@ def update(db: Session, *, note: Note, data: NoteUpdate) -> Note:
 
 
 def list_unindexed_ids_by_user(db: Session, *, user_id: str) -> list[str]:
-    """Return IDs of notes owned by user that have not yet been embedded."""
-    stmt = select(Note.id).where(Note.user_id == user_id, Note.is_indexed.is_(False))
+    """Return IDs of LIVE notes owned by user that have not yet been embedded."""
+    stmt = select(Note.id).where(Note.user_id == user_id, Note.is_indexed.is_(False), Note.deleted_at.is_(None))
     return list(db.scalars(stmt).all())
 
 
@@ -107,6 +139,79 @@ def mark_indexed(db: Session, *, note_id: str, version: int) -> bool:
     return result.rowcount > 0
 
 
+def move(db: Session, *, note: Note, folder_id: str | None) -> Note:
+    """Change `folder_id` only. Does not touch version or is_indexed."""
+    note.folder_id = folder_id
+    db.flush()
+    return note
+
+
+def reparent(db: Session, *, note: Note, folder_id: str | None, orphan_path: list[str]) -> Note:
+    """Put a note in `folder_id` and set its `orphan_path`. `deleted_at` is not changed."""
+    note.folder_id = folder_id
+    note.orphan_path = orphan_path
+    db.flush()
+    return note
+
+
+def soft_delete(db: Session, *, note: Note, now: datetime) -> Note:
+    """Move a note to Trash."""
+    note.deleted_at = now
+    db.flush()
+    return note
+
+
+def restore(db: Session, *, note: Note, folder_id: str | None) -> Note:
+    """Bring a trashed note back into `folder_id` and clear its `orphan_path`."""
+    note.folder_id = folder_id
+    note.orphan_path = None
+    note.deleted_at = None
+    db.flush()
+    return note
+
+
 def delete(db: Session, *, note: Note) -> None:
+    """Permanently delete one note."""
     db.delete(note)
+    db.flush()
+
+
+def delete_all_trashed(db: Session, *, user_id: str) -> None:
+    """Bulk-delete every trashed note of the user with one DELETE."""
+    db.execute(sql_delete(Note).where(Note.user_id == user_id, Note.deleted_at.is_not(None)))
+    db.flush()
+
+
+# ---------------------------------------------------------------------------
+# Trash read helpers
+# ---------------------------------------------------------------------------
+
+
+def _trashed_top_notes_stmt(user_id: str) -> Select[tuple[Note]]:
+    """Trashed notes that are the top item of their delete batch.
+
+    Top = folder is none, live, or trashed at a different time.
+    """
+    folder = aliased(Folder)
+    return (
+        select(Note)
+        .outerjoin(folder, Note.folder_id == folder.id)
+        .where(
+            Note.user_id == user_id,
+            Note.deleted_at.is_not(None),
+            or_(Note.folder_id.is_(None), folder.deleted_at.is_(None), folder.deleted_at != Note.deleted_at),
+        )
+    )
+
+
+def list_trashed_top_notes(db: Session, *, user_id: str) -> Sequence[Note]:
+    """Trashed notes that are the top item of their delete batch, newest first."""
+    return db.scalars(_trashed_top_notes_stmt(user_id).order_by(Note.deleted_at.desc())).all()
+
+
+def purge_old_notes(db: Session, *, user_id: str, before: datetime) -> None:
+    """Hard-delete trashed notes older than `before` that are not inside a trashed folder batch."""
+    stmt = _trashed_top_notes_stmt(user_id).where(Note.deleted_at < before)
+    for note in db.scalars(stmt).all():
+        db.delete(note)
     db.flush()

@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 
-import { SetBreadcrumb } from '@/components/Breadcrumb';
+import { SetBreadcrumb } from '@/components/PageHeader';
 import { UsageStatsPage } from '@/features/stats/components/UsageStatsPage';
 
 export default async function StatsPage() {

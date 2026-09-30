@@ -15,6 +15,7 @@ import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { formatNotesList } from '@/features/assist/utils/formatPageData';
+import { invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
 import { GenerateNoteDialog } from '@/features/notes/components/GenerateNoteDialog';
 import { ImportNoteButton } from '@/features/notes/components/ImportNoteButton';
 import { NotesList } from '@/features/notes/components/NotesList';
@@ -41,7 +42,8 @@ export default function NotesPage() {
   const { mutate: createNote, isPending: isCreating } = useMutation({
     mutationFn: () => sdk.notesCreate({ body: { title: '', content: '', tags: [] } }),
     onSuccess: res => {
-      void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      // Refetch now: this page shows the notes list, and no editor is open.
+      invalidateAfterFileChange(queryClient, { notes: true, refetchNotes: true });
       if (res.data) router.push(noteHref(res.data));
     },
     onError: () => toast.error(t('notes.failed_to_create')),

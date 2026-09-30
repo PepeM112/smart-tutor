@@ -3,6 +3,7 @@ import {
   ClipboardList,
   FilePlus,
   FileText,
+  Folder,
   Pencil,
   Search,
   WandSparkles,
@@ -22,6 +23,7 @@ export type ToolDefinition = {
 
 export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
   list_notes: { label: 'Listing notes', icon: FileText, isWrite: false, requiresConfirm: false },
+  list_folders: { label: 'Listing folders', icon: Folder, isWrite: false, requiresConfirm: false },
   list_tests: { label: 'Listing tests', icon: ClipboardList, isWrite: false, requiresConfirm: false },
   get_note_content: { label: 'Reading note', icon: FileText, isWrite: false, requiresConfirm: false },
   get_test_details: { label: 'Reading test', icon: ClipboardList, isWrite: false, requiresConfirm: false },
@@ -33,7 +35,8 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
     icon: FilePlus,
     isWrite: true,
     requiresConfirm: false,
-    queryKeysToInvalidate: [['notes']],
+    // The tree feeds the files table and sibling cards. It must show the new note.
+    queryKeysToInvalidate: [['notes'], ['folders']],
   },
   refine_note: { label: 'Refining note', icon: Pencil, isWrite: true, requiresConfirm: false },
   create_test: {

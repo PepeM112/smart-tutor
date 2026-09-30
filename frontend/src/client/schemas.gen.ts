@@ -448,6 +448,249 @@ export const CriterionChallengeInputSchema = {
     title: 'CriterionChallengeInput'
 } as const;
 
+export const FileTreeSchema = {
+    properties: {
+        folders: {
+            items: {
+                $ref: '#/components/schemas/FileTreeFolder'
+            },
+            type: 'array',
+            title: 'Folders'
+        },
+        notes: {
+            items: {
+                $ref: '#/components/schemas/FileTreeNote'
+            },
+            type: 'array',
+            title: 'Notes'
+        }
+    },
+    type: 'object',
+    required: [
+        'folders',
+        'notes'
+    ],
+    title: 'FileTree',
+    description: 'All non-trashed folders and notes of the user as flat lists.'
+} as const;
+
+export const FileTreeFolderSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        parentId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parentid'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'name',
+        'parentId',
+        'updatedAt'
+    ],
+    title: 'FileTreeFolder',
+    description: 'Light folder record for the full file-tree response.'
+} as const;
+
+export const FileTreeNoteSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        folderId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Folderid'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'title',
+        'folderId',
+        'updatedAt'
+    ],
+    title: 'FileTreeNote',
+    description: 'Light note record for the full file-tree response (no content).'
+} as const;
+
+export const FolderCreateSchema = {
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 100,
+            minLength: 1,
+            title: 'Name'
+        },
+        parentId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parentid'
+        }
+    },
+    type: 'object',
+    required: [
+        'name'
+    ],
+    title: 'FolderCreate'
+} as const;
+
+export const FolderDeletePreviewSchema = {
+    properties: {
+        folderCount: {
+            type: 'integer',
+            title: 'Foldercount'
+        },
+        noteCount: {
+            type: 'integer',
+            title: 'Notecount'
+        }
+    },
+    type: 'object',
+    required: [
+        'folderCount',
+        'noteCount'
+    ],
+    title: 'FolderDeletePreview',
+    description: 'Recursive counts shown in the delete confirmation dialog.'
+} as const;
+
+export const FolderReadSchema = {
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 100,
+            minLength: 1,
+            title: 'Name'
+        },
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        userId: {
+            type: 'string',
+            title: 'Userid'
+        },
+        parentId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parentid'
+        },
+        deletedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Deletedat'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'name',
+        'id',
+        'userId',
+        'parentId',
+        'deletedAt',
+        'createdAt',
+        'updatedAt'
+    ],
+    title: 'FolderRead'
+} as const;
+
+export const FolderUpdateSchema = {
+    properties: {
+        name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 100,
+                    minLength: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        parentId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parentid'
+        }
+    },
+    type: 'object',
+    title: 'FolderUpdate'
+} as const;
+
 export const GeneratedQuestionPreview_InputSchema = {
     properties: {
         questionType: {
@@ -727,6 +970,17 @@ export const NoteCreateSchema = {
             type: 'array',
             title: 'Tags',
             default: []
+        },
+        folderId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Folderid'
         }
     },
     type: 'object',
@@ -763,6 +1017,17 @@ export const NoteGenerateSchema = {
                     type: 'null'
                 }
             ]
+        },
+        folderId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Folderid'
         }
     },
     type: 'object',
@@ -785,6 +1050,28 @@ export const NoteLengthSchema = {
         'MEDIUM',
         'LONG'
     ]
+} as const;
+
+export const NoteMoveSchema = {
+    properties: {
+        folderId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Folderid'
+        }
+    },
+    type: 'object',
+    required: [
+        'folderId'
+    ],
+    title: 'NoteMove',
+    description: 'Move a note to a different folder. Pass null to move to root.'
 } as const;
 
 export const NoteReadSchema = {
@@ -815,6 +1102,17 @@ export const NoteReadSchema = {
             type: 'string',
             title: 'Userid'
         },
+        folderId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Folderid'
+        },
         source: {
             $ref: '#/components/schemas/NoteSource'
         },
@@ -825,6 +1123,18 @@ export const NoteReadSchema = {
         version: {
             type: 'integer',
             title: 'Version'
+        },
+        deletedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Deletedat'
         },
         createdAt: {
             type: 'string',
@@ -842,9 +1152,11 @@ export const NoteReadSchema = {
         'title',
         'id',
         'userId',
+        'folderId',
         'source',
         'isIndexed',
         'version',
+        'deletedAt',
         'createdAt',
         'updatedAt'
     ],
@@ -2838,6 +3150,63 @@ export const ToolResultDataSchema = {
         'output'
     ],
     title: 'ToolResultData'
+} as const;
+
+export const TrashItemReadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'folder',
+                'note'
+            ],
+            title: 'Kind'
+        },
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        deletedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Deletedat'
+        },
+        originalPath: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Originalpath'
+        },
+        folderCount: {
+            type: 'integer',
+            title: 'Foldercount'
+        },
+        noteCount: {
+            type: 'integer',
+            title: 'Notecount'
+        }
+    },
+    type: 'object',
+    required: [
+        'kind',
+        'id',
+        'name',
+        'deletedAt',
+        'originalPath',
+        'folderCount',
+        'noteCount'
+    ],
+    title: 'TrashItemRead',
+    description: 'One top-level entry in the user\'s Trash list.\n\nTop-level means the item\'s parent is live (or has a different deleted_at),\nso it represents a distinct delete action.'
 } as const;
 
 export const UserCreateSchema = {

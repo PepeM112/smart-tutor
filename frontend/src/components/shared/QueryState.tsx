@@ -1,6 +1,7 @@
 'use client';
 
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { cn } from '@/lib/utils';
 
 import type { ReactNode } from 'react';
 
@@ -19,6 +20,11 @@ type QueryStateProps = {
   errorMessage: ReactNode;
   /** Success content, rendered once loading has finished and no error occurred. */
   children: ReactNode;
+  /**
+   * Classes for the wrapper div. A full-height page (FilePageShell) needs `h-full`:
+   * without it the wrapper has no definite height, and `h-full` below it collapses.
+   */
+  className?: string;
 };
 
 /**
@@ -27,10 +33,10 @@ type QueryStateProps = {
  * `LoadingSpinner` and a bare muted-foreground error paragraph, so every page gets the same
  * loading/error treatment instead of slightly different paddings/icon sizes per page.
  */
-export function QueryState({ isLoading, isError, errorMessage, children }: QueryStateProps) {
+export function QueryState({ isLoading, isError, errorMessage, children, className }: QueryStateProps) {
   if (isLoading) {
     return (
-      <div data-slot="query-state">
+      <div data-slot="query-state" className={cn(className)}>
         <LoadingSpinner />
       </div>
     );
@@ -38,11 +44,15 @@ export function QueryState({ isLoading, isError, errorMessage, children }: Query
 
   if (isError) {
     return (
-      <div data-slot="query-state">
+      <div data-slot="query-state" className={cn(className)}>
         <p className="text-muted-foreground">{errorMessage}</p>
       </div>
     );
   }
 
-  return <div data-slot="query-state">{children}</div>;
+  return (
+    <div data-slot="query-state" className={cn(className)}>
+      {children}
+    </div>
+  );
 }

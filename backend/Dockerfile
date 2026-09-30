@@ -29,9 +29,9 @@ FROM python:3.10-slim AS runner
 
 WORKDIR /app
 
-# Runtime only needs libpq5 (PostgreSQL client library)
+# Runtime needs libpq5 (PostgreSQL client library); libatomic1 is for the node binary that pyright runs
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 && \
+    libpq5 libatomic1 && \
     rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED=1

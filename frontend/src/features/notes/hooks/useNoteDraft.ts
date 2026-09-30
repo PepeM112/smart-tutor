@@ -4,12 +4,13 @@
 // (conflict Reload / Keep mine, and a newer version from a window-focus refetch).
 // `NoteForm` keeps only the layout and the AI diff panels.
 
-import { useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { type NoteRead } from '@/client';
+import { type FileTree, type NoteRead } from '@/client';
+import { fileQueryKeys } from '@/features/files/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
 
 import { type AutosaveStatus, type SavePayload, useAutosave } from '../editor/useAutosave';
@@ -67,8 +68,27 @@ export function useNoteDraft({ note, editorRef }: UseNoteDraftArgs): UseNoteDraf
     (saved: NoteRead) => {
       knownVersion.current = saved.version;
       // Patch the cache instead of refetching, so the editor never remounts.
-      queryClient.setQueryData<{ data: NoteRead }>(['notes', note.id], old => (old ? { ...old, data: saved } : old));
-      void queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'none' });
+      // Keep `folderId` from the cache. Autosave never changes the folder, and a late
+      // save response must not undo a move that finished while the save was in flight.
+      queryClient.setQueryData<{ data: NoteRead }>(fileQueryKeys.note(note.id), old =>
+        old ? { ...old, data: { ...saved, folderId: old.data.folderId } } : old
+      );
+      // Patch the tree row too, so the files table and sibling cards show the new title
+      // without a refetch. Do nothing if the tree is not cached.
+      queryClient.setQueryData<{ data?: FileTree }>(fileQueryKeys.foldersTree(), old =>
+        old?.data
+          ? {
+              ...old,
+              data: {
+                ...old.data,
+                notes: old.data.notes.map(n =>
+                  n.id === saved.id ? { ...n, title: saved.title, updatedAt: saved.updatedAt } : n
+                ),
+              },
+            }
+          : old
+      );
+      void queryClient.invalidateQueries({ queryKey: fileQueryKeys.notes(), refetchType: 'none' });
     },
     [queryClient, note.id]
   );
@@ -123,11 +143,13 @@ export function useNoteDraft({ note, editorRef }: UseNoteDraftArgs): UseNoteDraf
   // Through the query cache, so `['notes', id]` also holds the server copy afterwards.
   const fetchServerNote = async (): Promise<NoteRead | null> => {
     try {
-      const res = await queryClient.fetchQuery({
-        queryKey: ['notes', note.id],
-        queryFn: () => sdk.notesGet({ path: { note_id: note.id } }),
-        staleTime: 0,
-      });
+      const res = await queryClient.query(
+        queryOptions({
+          queryKey: fileQueryKeys.note(note.id),
+          queryFn: () => sdk.notesGet({ path: { note_id: note.id } }),
+          staleTime: 0,
+        })
+      );
       return res.data ?? null;
     } catch {
       toast.error(t('failed_to_load_note'));

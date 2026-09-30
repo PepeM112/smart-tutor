@@ -142,6 +142,7 @@ def _make_note(version: int = 1) -> MagicMock:
     note.version = version
     note.content = "existing content"
     note.is_indexed = True
+    note.deleted_at = None  # live by default
     return note
 
 
@@ -683,6 +684,24 @@ class TestNoteServiceErrorHandling:
         assert exc_info.value.status_code == 502
         assert "invalid response" in exc_info.value.detail
 
+    def test_bad_folder_does_not_call_llm(self) -> None:
+        """The folder check runs before the AI call, so a bad folder costs no tokens."""
+        from app.services.note_service import generate_note
+
+        db = MagicMock()
+        data = NoteGenerate(topic="test topic", folder_id="missing")
+        err = HTTPException(status_code=404, detail="Folder not found")
+
+        with (
+            patch("app.services.note_service.get_live_folder_or_404", side_effect=err),
+            patch("app.services.note_service.complete_for_user") as mock_llm,
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            generate_note(db, current_user=_make_user(), data=data)
+
+        assert exc_info.value.status_code == 404
+        mock_llm.assert_not_called()
+
     def test_successful_generation(self) -> None:
         from app.services.note_service import generate_note
 
@@ -730,7 +749,7 @@ class TestEditTruncation:
         data = NoteChunkEdit(full_text="full", selected_text="sel", instructions="fix")
 
         with (
-            patch("app.services.note_service.get_note"),
+            patch("app.services.note_service.get_live_note", return_value=_make_note()),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=True)),
             patch("app.services.note_service.token_usage_service") as mock_usage,
             pytest.raises(HTTPException) as exc_info,
@@ -748,7 +767,7 @@ class TestEditTruncation:
         data = NoteChunkEdit(full_text="full", selected_text="sel", instructions="fix")
 
         with (
-            patch("app.services.note_service.get_note"),
+            patch("app.services.note_service.get_live_note", return_value=_make_note()),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=False)),
             patch("app.services.note_service.token_usage_service"),
         ):
@@ -765,7 +784,7 @@ class TestEditTruncation:
         note.content = "Some content"
 
         with (
-            patch("app.services.note_service.get_note", return_value=note),
+            patch("app.services.note_service.get_live_note", return_value=note),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=False)),
             patch("app.services.note_service.token_usage_service"),
         ):
@@ -782,7 +801,7 @@ class TestEditTruncation:
         note.content = "Some content"
 
         with (
-            patch("app.services.note_service.get_note", return_value=note),
+            patch("app.services.note_service.get_live_note", return_value=note),
             patch("app.services.note_service.complete_for_user", return_value=self._completion(truncated=True)),
             patch("app.services.note_service.token_usage_service"),
             pytest.raises(HTTPException) as exc_info,
@@ -837,3 +856,32 @@ class TestOpenAINoteIntegration:
         assert "#" in result.text
         assert result.input_tokens > 0
         assert result.output_tokens > 0
+
+
+# ---------------------------------------------------------------------------
+# P1-1: generate_note validates folder ownership before calling the LLM
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateNoteFolderValidation:
+    def test_invalid_folder_prevents_llm_call(self) -> None:
+        """An invalid or unowned folder_id must raise 404/403 before spending AI tokens."""
+        from app.services import note_service
+
+        db = MagicMock()
+        user = MagicMock()
+        user.id = "u1"
+
+        data = NoteGenerate(topic="Photosynthesis", folder_id="bad-folder")
+
+        with (
+            patch("app.services.note_service._validate_folder_ownership") as mock_validate,
+            patch("app.services.note_service.complete_for_user") as mock_llm,
+        ):
+            mock_validate.side_effect = HTTPException(status_code=404, detail="Folder not found")
+            with pytest.raises(HTTPException) as exc_info:
+                note_service.generate_note(db, current_user=user, data=data)
+
+        # LLM must not have been called.
+        mock_llm.assert_not_called()
+        assert exc_info.value.status_code == 404

@@ -18,7 +18,7 @@ from app.schemas.test_generation import (
 from app.services import token_usage_service
 from app.services.grading_prompts import strip_code_fences
 from app.services.llm import complete_for_user
-from app.services.note_service import get_note
+from app.services.note_service import get_live_note
 from app.services.test_generation_prompts import (
     TEST_GENERATION_SYSTEM_PROMPT,
     build_question_edit_user_prompt,
@@ -223,7 +223,7 @@ def generate_test_questions(
     current_user: User,
     data: TestGenerationRequest,
 ) -> TestGenerationResponse:
-    note = get_note(db, note_id=data.note_id, current_user=current_user)
+    note = get_live_note(db, note_id=data.note_id, current_user=current_user)
 
     if not note.content or not note.content.strip():
         raise HTTPException(
@@ -263,7 +263,7 @@ def refine_test_questions(
     current_user: User,
     data: TestRefinementRequest,
 ) -> TestGenerationResponse:
-    note = get_note(db, note_id=data.note_id, current_user=current_user)
+    note = get_live_note(db, note_id=data.note_id, current_user=current_user)
 
     if not note.content or not note.content.strip():
         raise HTTPException(

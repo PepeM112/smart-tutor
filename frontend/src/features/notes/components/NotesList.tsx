@@ -1,21 +1,23 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Bot, Download, Pencil, Trash2, User } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 
-import { NoteSource, type NoteRead } from '@/client';
+import { NoteSource, type FileTreeFolder, type NoteRead } from '@/client';
 import { DataTable, type MobileAction } from '@/components/shared/DataTable';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { sdk } from '@/lib/apiClient';
+import { useFileMutations } from '@/features/files/hooks/useFileMutations';
+import { useFolders } from '@/features/files/hooks/useFolders';
+import { displayTitle } from '@/lib/displayTitle';
 import { formatShortDate } from '@/lib/format';
-import { noteHref } from '@/lib/routes';
+import { folderHref, noteHref } from '@/lib/routes';
 
 type Props = {
   data: NoteRead[];
@@ -26,24 +28,20 @@ type Props = {
 /** A new note has an empty title (the editor shows "Untitled" only as a placeholder). */
 function useNoteTitle(): (note: NoteRead) => string {
   const t = useTranslations();
-  return note => note.title.trim() || t('notes.untitled');
+  return note => displayTitle(note.title, t);
 }
 
 export function NotesList({ data, sort, onSort }: Props) {
   const t = useTranslations();
   const noteTitle = useNoteTitle();
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const { mutate: deleteNote, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => sdk.notesDelete({ path: { note_id: id } }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success(t('notes.note_deleted'));
-    },
-    onError: () => toast.error(t('notes.failed_to_delete')),
-  });
 
-  const columns = useNotesColumns({ deleteNote, isDeleting });
+  const { foldersById } = useFolders();
+
+  // No note editor is open on the notes list, so it is safe to refetch the list now.
+  const { trashNote: deleteNote, isTrashingNote: isDeleting } = useFileMutations({ refetchNotes: true });
+
+  const columns = useNotesColumns({ deleteNote, isDeleting, foldersById });
 
   const renderPreview = useCallback(
     (note: NoteRead) => (
@@ -70,13 +68,12 @@ export function NotesList({ data, sort, onSort }: Props) {
         },
       },
       {
-        label: t('common.delete'),
+        label: t('files.move_to_trash'),
         icon: Trash2,
-        variant: 'destructive',
         onClick: () => deleteNote(note.id),
         confirm: {
-          title: t('notes.delete_note'),
-          description: t('notes.delete_note_confirm', { title: noteTitle(note) }),
+          title: t('files.move_to_trash'),
+          description: t('notes.move_to_trash_confirm', { title: noteTitle(note) }),
         },
       },
     ],
@@ -125,9 +122,10 @@ function SourceBadge({ source }: { source: NoteSource }) {
 type ColumnDeps = {
   deleteNote: (id: string) => void;
   isDeleting: boolean;
+  foldersById: Map<string, FileTreeFolder>;
 };
 
-function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
+function useNotesColumns({ deleteNote, isDeleting, foldersById }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
   const t = useTranslations();
   const noteTitle = useNoteTitle();
   const router = useRouter();
@@ -142,6 +140,23 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
           <p className="font-medium text-foreground truncate">{noteTitle(row.original)}</p>
         </div>
       ),
+    },
+    {
+      id: 'folder',
+      header: t('files.folder_column'),
+      cell: ({ row }) => {
+        const folder = row.original.folderId ? foldersById.get(row.original.folderId) : null;
+        if (!folder) return <span className="text-sm text-muted-foreground">{t('files.no_folder')}</span>;
+        return (
+          <Link
+            href={folderHref(folder)}
+            className="text-sm text-foreground hover:underline truncate max-w-[140px] block"
+            onClick={e => e.stopPropagation()}
+          >
+            {folder.name}
+          </Link>
+        );
+      },
     },
     {
       id: 'source',
@@ -191,19 +206,17 @@ function useNotesColumns({ deleteNote, isDeleting }: ColumnDeps): ColumnDef<Note
               <Button
                 variant="ghost"
                 size="icon-lg"
-                className="text-destructive hover:text-destructive"
-                tooltip={t('common.delete')}
+                tooltip={t('files.move_to_trash')}
                 onClick={e => e.stopPropagation()}
                 disabled={isDeleting}
-                aria-label={t('common.delete')}
+                aria-label={t('files.move_to_trash')}
               >
                 <Trash2 className="size-4" />
               </Button>
             }
-            title={t('notes.delete_note')}
-            description={t('notes.delete_note_confirm', { title: noteTitle(row.original) })}
-            confirmLabel={t('common.delete')}
-            confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            title={t('files.move_to_trash')}
+            description={t('notes.move_to_trash_confirm', { title: noteTitle(row.original) })}
+            confirmLabel={t('files.move_to_trash')}
             onConfirm={() => deleteNote(row.original.id)}
           />
         </div>

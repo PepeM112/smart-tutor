@@ -5,11 +5,13 @@ import {
   BookOpen,
   FileText,
   FlaskConical,
+  Folder,
   Grid3X3,
   History,
   LayoutDashboard,
   RefreshCw,
   Settings,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -46,8 +48,10 @@ const sections: NavSection[] = [
     labelKey: 'sidebar.library',
     items: [
       { labelKey: 'sidebar.tests', href: Routes.TESTS, icon: BookOpen },
+      { labelKey: 'sidebar.files', href: Routes.FILES, icon: Folder },
       { labelKey: 'sidebar.notes', href: Routes.NOTES, icon: FileText },
       { labelKey: 'sidebar.questions', href: Routes.QUESTIONS, icon: Grid3X3 },
+      { labelKey: 'sidebar.trash', href: Routes.TRASH, icon: Trash2 },
     ],
   },
   {

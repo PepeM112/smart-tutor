@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
@@ -34,7 +35,12 @@ const LENGTH_OPTIONS = [
   { value: NoteLength.LONG, labelKey: 'notes_ai.length_long' },
 ] as const;
 
-export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
+type GenerateNoteDialogProps = {
+  compact?: boolean;
+  folderId?: string | null;
+};
+
+export function GenerateNoteDialog({ compact = false, folderId }: GenerateNoteDialogProps) {
   const t = useTranslations();
   const aiAvailable = useAiAvailable();
   const [open, setOpen] = useState(false);
@@ -52,10 +58,11 @@ export function GenerateNoteDialog({ compact = false }: { compact?: boolean }) {
           topic,
           guidance: guidance || undefined,
           length: length ?? undefined,
+          folderId: folderId ?? undefined,
         },
       }),
     onSuccess: res => {
-      void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      invalidateAfterFileChange(queryClient, { notes: true, refetchNotes: true });
       toast.success(t('notes_ai.note_generated'));
       setOpen(false);
       resetForm();

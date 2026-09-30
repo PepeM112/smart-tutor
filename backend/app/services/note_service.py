@@ -1,7 +1,10 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, NoteLength, NoteSource
+from app.crud import folder as folder_crud
 from app.crud import note as note_crud
 from app.database import SessionLocal
 from app.models.note import Note
@@ -17,6 +20,7 @@ from app.schemas.note import (
     SortOrder,
 )
 from app.services import token_usage_service
+from app.services.folder_service import get_live_folder_or_404
 from app.services.llm import CompletionResult, complete_for_user
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
@@ -26,7 +30,7 @@ from app.services.note_prompts import (
     build_note_generation_user_prompt,
     build_note_refinement_user_prompt,
 )
-from app.services.service_helpers import get_owned_or_404
+from app.services.service_helpers import get_owned_or_404, is_trash_expired
 
 _NOTE_MAX_TOKENS: dict[int, int] = {
     NoteLength.SHORT: 2048,
@@ -102,10 +106,51 @@ def list_notes(
 
 
 def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
-    return get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    """Fetch any owned note, including trashed ones (for GET /notes/{id}).
+
+    A note trashed longer ago than the retention time is gone: 404, even before the purge runs.
+    """
+    note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    if is_trash_expired(note.deleted_at):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    return note
+
+
+def get_live_note(db: Session, *, note_id: str, current_user: User, for_update: bool = False) -> Note:
+    """Fetch an owned note for a WRITE operation: raise 409 if it is in Trash.
+
+    `for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE). Only the
+    content PATCH needs it (version check); tree writes use `folder_crud.lock_tree` instead.
+    """
+    note = get_owned_or_404(
+        db,
+        fetch=note_crud.get_by_id_for_update if for_update else note_crud.get_by_id,
+        id=note_id,
+        current_user=current_user,
+        entity_name="Note",
+    )
+    if note.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Note is in Trash. Restore it before making changes.",
+        )
+    return note
+
+
+def _validate_folder_ownership(db: Session, *, folder_id: str | None, current_user: User) -> None:
+    """Raise 404/403 if folder_id is given but not a live folder owned by current_user.
+
+    Before a write into the folder, the caller takes `folder_crud.lock_tree` first, so a
+    concurrent trash of that folder can not leave a live item under it.
+    """
+    if folder_id is None:
+        return
+    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
 
 
 def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
+    folder_crud.lock_tree(db, user_id=current_user.id)
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
     note = note_crud.create(
         db,
         user_id=current_user.id,
@@ -113,7 +158,19 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
         content=data.content,
         source=NoteSource.USER_CREATED,
         tags=data.tags,
+        folder_id=data.folder_id,
     )
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+def move_note(db: Session, *, note_id: str, current_user: User, folder_id: str | None) -> Note:
+    """Change note.folder_id only. Does not touch version or is_indexed."""
+    folder_crud.lock_tree(db, user_id=current_user.id)
+    note = get_live_note(db, note_id=note_id, current_user=current_user)
+    _validate_folder_ownership(db, folder_id=folder_id, current_user=current_user)
+    note_crud.move(db, note=note, folder_id=folder_id)
     db.commit()
     db.refresh(note)
     return note
@@ -122,9 +179,7 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
 def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpdate) -> Note:
     # Row lock: two concurrent PATCHes with the same version would otherwise both pass
     # the check below. With the lock, the second one waits, sees the new version and gets 409.
-    note = get_owned_or_404(
-        db, fetch=note_crud.get_by_id_for_update, id=note_id, current_user=current_user, entity_name="Note"
-    )
+    note = get_live_note(db, note_id=note_id, current_user=current_user, for_update=True)
 
     content_fields_changing = data.content is not None or data.title is not None or data.tags is not None
 
@@ -148,12 +203,19 @@ def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpda
 
 
 def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
+    """Soft-delete a note (move to Trash). Already-trashed notes are a no-op."""
+    folder_crud.lock_tree(db, user_id=current_user.id)
     note = get_note(db, note_id=note_id, current_user=current_user)
-    note_crud.delete(db, note=note)
-    db.commit()
+    if note.deleted_at is None:
+        note_crud.soft_delete(db, note=note, now=datetime.now(timezone.utc))
+        db.commit()
 
 
 def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Note:
+    # Validate folder ownership before spending AI tokens. No lock yet: the AI call is slow,
+    # and the tree lock would block all tree writes of the user for that time.
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
+
     user_prompt = build_note_generation_user_prompt(
         data.topic,
         data.guidance,
@@ -169,13 +231,17 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
         max_tokens=max_tokens,
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_GENERATION)
-
+    # Check again under the tree lock: the folder can be trashed while the AI works.
+    # `lock_tree` expires the folder read above, so this check reads the committed state.
+    folder_crud.lock_tree(db, user_id=current_user.id)
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
     note = note_crud.create(
         db,
         user_id=current_user.id,
         title=data.topic,
         content=result.text,
         source=NoteSource.AI_GENERATED,
+        folder_id=data.folder_id,
     )
     db.commit()
     db.refresh(note)
@@ -187,7 +253,7 @@ def preview_refine_note(db: Session, *, note_id: str, current_user: User, instru
 
     Only the usage row is committed. The user accepts the diff in the editor, and autosave saves it.
     """
-    note = get_note(db, note_id=note_id, current_user=current_user)
+    note = get_live_note(db, note_id=note_id, current_user=current_user)
     if not note.content or not note.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -212,7 +278,7 @@ def preview_refine_note(db: Session, *, note_id: str, current_user: User, instru
 
 
 def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: NoteChunkEdit) -> NoteChunkEditResponse:
-    get_note(db, note_id=note_id, current_user=current_user)
+    get_live_note(db, note_id=note_id, current_user=current_user)
 
     user_prompt = build_chunk_edit_user_prompt(
         full_text=data.full_text,

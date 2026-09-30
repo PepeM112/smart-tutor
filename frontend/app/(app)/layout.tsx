@@ -1,6 +1,6 @@
-import { Breadcrumb } from '@/components/Breadcrumb';
 import { MobileHeader } from '@/components/layout/MobileHeader';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { PageHeader } from '@/components/PageHeader';
 import { AssistDockedWrapper } from '@/features/assist/components/AssistDockedWrapper';
 import { AssistPanel } from '@/features/assist/components/AssistPanel';
 import { AssistProvider } from '@/features/assist/context/AssistContext';
@@ -19,9 +19,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="lg:hidden">
               <MobileHeader />
             </div>
-            <main className="min-w-0 flex-1 overflow-auto">
-              <Breadcrumb />
-              <div className="px-4 pb-4 lg:px-8 lg:pb-8">{children}</div>
+            {/* Flex column: the content area gets a definite height, so full-height pages
+                (FilePageShell) can use h-full. Normal pages grow and <main> scrolls. */}
+            <main className="flex min-w-0 flex-1 flex-col overflow-auto">
+              <PageHeader />
+              <div className="flex-1 px-4 pb-4 lg:px-8 lg:pb-8">{children}</div>
             </main>
             <AssistDockedWrapper />
           </div>

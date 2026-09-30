@@ -151,6 +151,36 @@ Notes are a separate content type — standalone Markdown documents for study ma
 
 For full details, see [Study Notes](study-notes.md).
 
+### Folders
+
+Folders are containers for notes. They form an adjacency list: each folder has an optional `parent_id` FK pointing to another folder owned by the same user. There is no depth limit.
+
+| Field        | Type            | Description                                           |
+| ------------ | --------------- | ----------------------------------------------------- |
+| `id`         | String(26) ULID | Primary key                                           |
+| `user_id`    | FK → `user`     | Owner                                                 |
+| `name`       | String(100)     | Display name                                          |
+| `parent_id`  | FK → `folder`   | Parent folder, `NULL` = root                          |
+| `deleted_at` | DateTime, NULL  | Set when moved to Trash; `NULL` = live                |
+| `orphan_path`| JSONB, NULL     | Names of folders deleted forever above this item (outermost first); used by restore |
+
+**Sibling uniqueness:** A partial unique index enforces case-insensitive uniqueness among live siblings:
+```sql
+CREATE UNIQUE INDEX ix_folder_sibling_name
+ON folder (user_id, parent_id, lower(name))
+NULLS NOT DISTINCT
+WHERE deleted_at IS NULL
+```
+`NULLS NOT DISTINCT` means two root folders (`parent_id IS NULL`) with the same name are still rejected.
+
+**FK cascade:** `folder.parent_id` uses `ON DELETE CASCADE`. This runs only for hard deletes (purge / "Delete forever"). Soft delete is done by the service layer, which sets `deleted_at` on the root and all descendants in one recursive CTE.
+
+**Hard delete and `orphan_path`:** before a trashed folder is deleted forever, `trash_service._detach_other_batches` moves the items of other trash batches in its subtree (folders and notes) to the parent of the deleted folder (live, trashed or root). Each moved item gets `orphan_path = [names from the deleted folder down to its old parent] + old orphan_path`. The names come from `build_orphan_path` (`services/folder_paths.py`) and include the `orphan_path` of the deleted folder and of each folder between (same rule as the Trash path), so nested hard deletes keep all lost names in order. Restore first brings back trashed ancestors (rows only), then walks `orphan_path`: it reuses a live same-name folder or creates one, puts the item in the last folder and clears `orphan_path`. `note.orphan_path` has the same meaning.
+
+**Note.folder_id:** `note.folder_id` is a nullable FK → `folder.id` with `ON DELETE CASCADE` (same behaviour as above — cascade for hard delete, service handles soft delete). An index on `(user_id, folder_id)` supports the folder-contents query. A separate index on `folder_id` (`ix_note_folder_id`) supports the FK cascade lookup.
+
+**Soft delete on notes:** `note.deleted_at` follows the same pattern as `folder.deleted_at`. Every list query adds `deleted_at IS NULL`. The `GET /notes/{id}` endpoint still returns a trashed note (with `deletedAt` set) so the read-only Trash banner page works, but any write returns `409`.
+
 ## Answer Stripping
 
 When questions are served to the user (for exams or reviews), the answer data is stripped from the `content` field before sending. Simple questions have `answers` removed; MC questions have `correct_indices` removed; Long Text questions have `rubric` removed (but `length_limit` is kept so the frontend knows how to size the textarea). The user only sees the prompt and input constraints. Correct answers are revealed only after the user submits their answer via the check/correction endpoints.

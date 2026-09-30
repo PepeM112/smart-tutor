@@ -293,6 +293,148 @@ export type CriterionChallengeInput = {
 };
 
 /**
+ * FileTree
+ *
+ * All non-trashed folders and notes of the user as flat lists.
+ */
+export type FileTree = {
+    /**
+     * Folders
+     */
+    folders: Array<FileTreeFolder>;
+    /**
+     * Notes
+     */
+    notes: Array<FileTreeNote>;
+};
+
+/**
+ * FileTreeFolder
+ *
+ * Light folder record for the full file-tree response.
+ */
+export type FileTreeFolder = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parentid
+     */
+    parentId: string | null;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
+};
+
+/**
+ * FileTreeNote
+ *
+ * Light note record for the full file-tree response (no content).
+ */
+export type FileTreeNote = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Folderid
+     */
+    folderId: string | null;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
+};
+
+/**
+ * FolderCreate
+ */
+export type FolderCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parentid
+     */
+    parentId?: string | null;
+};
+
+/**
+ * FolderDeletePreview
+ *
+ * Recursive counts shown in the delete confirmation dialog.
+ */
+export type FolderDeletePreview = {
+    /**
+     * Foldercount
+     */
+    folderCount: number;
+    /**
+     * Notecount
+     */
+    noteCount: number;
+};
+
+/**
+ * FolderRead
+ */
+export type FolderRead = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Userid
+     */
+    userId: string;
+    /**
+     * Parentid
+     */
+    parentId: string | null;
+    /**
+     * Deletedat
+     */
+    deletedAt: Date | null;
+    /**
+     * Createdat
+     */
+    createdAt: Date;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
+};
+
+/**
+ * FolderUpdate
+ */
+export type FolderUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Parentid
+     */
+    parentId?: string | null;
+};
+
+/**
  * GeneratedQuestionPreview
  */
 export type GeneratedQuestionPreviewInput = {
@@ -452,6 +594,10 @@ export type NoteCreate = {
      * Tags
      */
     tags?: Array<string>;
+    /**
+     * Folderid
+     */
+    folderId?: string | null;
 };
 
 /**
@@ -467,6 +613,10 @@ export type NoteGenerate = {
      */
     guidance?: string | null;
     length?: NoteLength | null;
+    /**
+     * Folderid
+     */
+    folderId?: string | null;
 };
 
 /**
@@ -486,6 +636,18 @@ export enum NoteLength {
      */
     LONG = 3
 }
+
+/**
+ * NoteMove
+ *
+ * Move a note to a different folder. Pass null to move to root.
+ */
+export type NoteMove = {
+    /**
+     * Folderid
+     */
+    folderId: string | null;
+};
 
 /**
  * NoteRead
@@ -511,6 +673,10 @@ export type NoteRead = {
      * Userid
      */
     userId: string;
+    /**
+     * Folderid
+     */
+    folderId: string | null;
     source: NoteSource;
     /**
      * Isindexed
@@ -520,6 +686,10 @@ export type NoteRead = {
      * Version
      */
     version: number;
+    /**
+     * Deletedat
+     */
+    deletedAt: Date | null;
     /**
      * Createdat
      */
@@ -1627,6 +1797,45 @@ export type ToolResultData = {
 };
 
 /**
+ * TrashItemRead
+ *
+ * One top-level entry in the user's Trash list.
+ *
+ * Top-level means the item's parent is live (or has a different deleted_at),
+ * so it represents a distinct delete action.
+ */
+export type TrashItemRead = {
+    /**
+     * Kind
+     */
+    kind: 'folder' | 'note';
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Deletedat
+     */
+    deletedAt: Date;
+    /**
+     * Originalpath
+     */
+    originalPath: string | null;
+    /**
+     * Foldercount
+     */
+    folderCount: number;
+    /**
+     * Notecount
+     */
+    noteCount: number;
+};
+
+/**
  * UserCreate
  */
 export type UserCreate = {
@@ -2731,6 +2940,173 @@ export type ReviewListResponses = {
 
 export type ReviewListResponse = ReviewListResponses[keyof ReviewListResponses];
 
+export type FoldersListData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/folders';
+};
+
+export type FoldersListErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FoldersListError = FoldersListErrors[keyof FoldersListErrors];
+
+export type FoldersListResponses = {
+    /**
+     * Response Folderslist
+     *
+     * Successful Response
+     */
+    200: Array<FolderRead>;
+};
+
+export type FoldersListResponse = FoldersListResponses[keyof FoldersListResponses];
+
+export type FoldersCreateData = {
+    body: FolderCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/folders';
+};
+
+export type FoldersCreateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FoldersCreateError = FoldersCreateErrors[keyof FoldersCreateErrors];
+
+export type FoldersCreateResponses = {
+    /**
+     * Successful Response
+     */
+    201: FolderRead;
+};
+
+export type FoldersCreateResponse = FoldersCreateResponses[keyof FoldersCreateResponses];
+
+export type FoldersTreeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/folders/tree';
+};
+
+export type FoldersTreeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FoldersTreeError = FoldersTreeErrors[keyof FoldersTreeErrors];
+
+export type FoldersTreeResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileTree;
+};
+
+export type FoldersTreeResponse = FoldersTreeResponses[keyof FoldersTreeResponses];
+
+export type FoldersDeletePreviewData = {
+    body?: never;
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: string;
+    };
+    query?: never;
+    url: '/api/v1/folders/{folder_id}/delete-preview';
+};
+
+export type FoldersDeletePreviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FoldersDeletePreviewError = FoldersDeletePreviewErrors[keyof FoldersDeletePreviewErrors];
+
+export type FoldersDeletePreviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: FolderDeletePreview;
+};
+
+export type FoldersDeletePreviewResponse = FoldersDeletePreviewResponses[keyof FoldersDeletePreviewResponses];
+
+export type FoldersDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: string;
+    };
+    query?: never;
+    url: '/api/v1/folders/{folder_id}';
+};
+
+export type FoldersDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FoldersDeleteError = FoldersDeleteErrors[keyof FoldersDeleteErrors];
+
+export type FoldersDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type FoldersDeleteResponse = FoldersDeleteResponses[keyof FoldersDeleteResponses];
+
+export type FoldersUpdateData = {
+    body: FolderUpdate;
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: string;
+    };
+    query?: never;
+    url: '/api/v1/folders/{folder_id}';
+};
+
+export type FoldersUpdateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FoldersUpdateError = FoldersUpdateErrors[keyof FoldersUpdateErrors];
+
+export type FoldersUpdateResponses = {
+    /**
+     * Successful Response
+     */
+    200: FolderRead;
+};
+
+export type FoldersUpdateResponse = FoldersUpdateResponses[keyof FoldersUpdateResponses];
+
 export type NotesListData = {
     body?: never;
     path?: never;
@@ -2954,6 +3330,156 @@ export type NotesEditChunkResponses = {
 };
 
 export type NotesEditChunkResponse = NotesEditChunkResponses[keyof NotesEditChunkResponses];
+
+export type NotesMoveData = {
+    body: NoteMove;
+    path: {
+        /**
+         * Note Id
+         */
+        note_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notes/{note_id}/move';
+};
+
+export type NotesMoveErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotesMoveError = NotesMoveErrors[keyof NotesMoveErrors];
+
+export type NotesMoveResponses = {
+    /**
+     * Successful Response
+     */
+    200: NoteRead;
+};
+
+export type NotesMoveResponse = NotesMoveResponses[keyof NotesMoveResponses];
+
+export type TrashEmptyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trash';
+};
+
+export type TrashEmptyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TrashEmptyError = TrashEmptyErrors[keyof TrashEmptyErrors];
+
+export type TrashEmptyResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type TrashEmptyResponse = TrashEmptyResponses[keyof TrashEmptyResponses];
+
+export type TrashListData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trash';
+};
+
+export type TrashListErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TrashListError = TrashListErrors[keyof TrashListErrors];
+
+export type TrashListResponses = {
+    /**
+     * Response Trashlist
+     *
+     * Successful Response
+     */
+    200: Array<TrashItemRead>;
+};
+
+export type TrashListResponse = TrashListResponses[keyof TrashListResponses];
+
+export type TrashRestoreData = {
+    body?: never;
+    path: {
+        /**
+         * Kind
+         */
+        kind: 'folder' | 'note';
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trash/{kind}/{item_id}/restore';
+};
+
+export type TrashRestoreErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TrashRestoreError = TrashRestoreErrors[keyof TrashRestoreErrors];
+
+export type TrashRestoreResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type TrashRestoreResponse = TrashRestoreResponses[keyof TrashRestoreResponses];
+
+export type TrashHardDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Kind
+         */
+        kind: 'folder' | 'note';
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trash/{kind}/{item_id}';
+};
+
+export type TrashHardDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TrashHardDeleteError = TrashHardDeleteErrors[keyof TrashHardDeleteErrors];
+
+export type TrashHardDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type TrashHardDeleteResponse = TrashHardDeleteResponses[keyof TrashHardDeleteResponses];
 
 export type TokenUsageGetUsageData = {
     body?: never;
