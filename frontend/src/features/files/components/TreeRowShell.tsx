@@ -28,7 +28,8 @@ export function TreeRowShell({ depth, dnd, onClick, expanded, selected, children
       ref={setRef}
       {...attributes}
       {...listeners}
-      // After the DnD spread (it sets role="button"), so the tree semantics always win.
+      // After the DnD spread. On desktop the hook already sets role="row". Below the desktop
+      // breakpoint the hook returns no attributes, so this line keeps the role on all rows.
       role="row"
       aria-level={depth + 1}
       aria-expanded={expanded}

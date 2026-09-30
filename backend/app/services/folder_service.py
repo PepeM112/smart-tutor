@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.crud import folder as folder_crud
+from app.crud import note as note_crud
 from app.models.folder import Folder
 from app.models.user import User
 from app.schemas.folder import (
@@ -29,18 +30,17 @@ from app.services.service_helpers import get_owned_or_404
 _SIBLING_INDEX = "ix_folder_sibling_name"
 
 
-def get_live_folder_or_404(db: Session, *, folder_id: str, current_user: User, for_update: bool = False) -> Folder:
+def get_live_folder_or_404(db: Session, *, folder_id: str, current_user: User) -> Folder:
     """Fetch a LIVE folder and verify it belongs to the current user.
 
     Raises 404 for missing or trashed folders, and 403 for folders of another user.
-    `for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE). Use it on a
-    destination folder before you put an item in it: the trash cascade updates the rows of the
-    folder and its descendants, so it waits for this lock (and the reverse). Then a live item
-    can not end up under a folder that is trashed at the same time.
+    It does not lock a row. Before a write that uses the result (for example, to put an item in
+    the folder), take `folder_crud.lock_tree` first: then no other tree write of the user can
+    trash or move the folder between this check and the commit.
     """
     folder = get_owned_or_404(
         db,
-        fetch=folder_crud.get_by_id_for_update if for_update else folder_crud.get_by_id,
+        fetch=folder_crud.get_by_id,
         id=folder_id,
         current_user=current_user,
         entity_name="Folder",
@@ -125,7 +125,7 @@ def list_folders(db: Session, *, current_user: User) -> list[FolderRead]:
 def get_tree(db: Session, *, current_user: User) -> FileTree:
     """Return all non-trashed folders and notes of the user as two flat lists."""
     folder_rows = folder_crud.list_tree_folders(db, user_id=current_user.id)
-    note_rows = folder_crud.list_tree_notes(db, user_id=current_user.id)
+    note_rows = note_crud.list_tree_notes(db, user_id=current_user.id)
 
     return FileTree(
         # Rows expose the selected columns as attributes, so from_attributes validation maps them by name.
@@ -135,8 +135,9 @@ def get_tree(db: Session, *, current_user: User) -> FileTree:
 
 
 def create_folder(db: Session, *, current_user: User, data: FolderCreate) -> Folder:
+    folder_crud.lock_tree(db, user_id=current_user.id)
     if data.parent_id is not None:
-        get_live_folder_or_404(db, folder_id=data.parent_id, current_user=current_user, for_update=True)
+        get_live_folder_or_404(db, folder_id=data.parent_id, current_user=current_user)
 
     _assert_no_sibling_conflict(db, user_id=current_user.id, parent_id=data.parent_id, name=data.name)
 
@@ -148,6 +149,7 @@ def create_folder(db: Session, *, current_user: User, data: FolderCreate) -> Fol
 
 
 def update_folder(db: Session, *, folder_id: str, current_user: User, data: FolderUpdate) -> Folder:
+    folder_crud.lock_tree(db, user_id=current_user.id)
     folder = get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
 
     # Determine effective target parent (after the update).
@@ -155,7 +157,7 @@ def update_folder(db: Session, *, folder_id: str, current_user: User, data: Fold
     new_name = data.name if data.name is not None else folder.name
 
     if "parent_id" in data.model_fields_set and data.parent_id is not None:
-        get_live_folder_or_404(db, folder_id=data.parent_id, current_user=current_user, for_update=True)
+        get_live_folder_or_404(db, folder_id=data.parent_id, current_user=current_user)
         _assert_no_cycle(db, folder_id=folder_id, new_parent_id=data.parent_id)
 
     # Check sibling uniqueness only when name or parent changes.
@@ -186,9 +188,10 @@ def get_delete_preview(db: Session, *, folder_id: str, current_user: User) -> Fo
 
 def delete_folder(db: Session, *, folder_id: str, current_user: User) -> None:
     """Soft-delete a folder and all its live descendants + their notes as one batch."""
-    # Lock the folder first. The cascade updates the rows of the whole subtree, so it waits
-    # for a concurrent move or create into that subtree (and the reverse).
-    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user, for_update=True)
+    # The tree lock makes the cascade wait for a concurrent move or create into the subtree
+    # (and the reverse), so no live item can end up under a trashed folder.
+    folder_crud.lock_tree(db, user_id=current_user.id)
+    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
     now = datetime.now(timezone.utc)
     folder_crud.soft_delete_cascade(db, user_id=current_user.id, folder_id=folder_id, now=now)
     db.commit()

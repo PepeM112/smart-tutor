@@ -348,6 +348,21 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 ---
 
+## Per-User Advisory Lock for Tree Writes
+
+**Context:** Audit 7 found a race. Two concurrent tree writes of one user (for example, "move note into folder F" and "trash folder F", or a restore and a hard delete in the same subtree) each read the tree, decide, and write. Row locks on some folders did not cover all the rows that each path reads, so a live note could end up under a trashed folder, or a hard delete could miss an item of another batch.
+
+**Options considered:**
+- **Row locks (`SELECT ... FOR UPDATE`)** on the rows that each path reads. Each path reads different rows (parent chain, subtree, siblings, orphan paths), so each one needs its own analysis, and one missed row gives a silent race. Locks taken in a different order can deadlock.
+- **`SERIALIZABLE` isolation.** Correct, but every tree endpoint must then retry on serialization failures, and the other endpoints on the same session must not be affected.
+- **One transaction-level advisory lock per user** (`pg_advisory_xact_lock(hashtext('tree:' || user_id))`).
+
+**Decision:** The advisory lock. `folder_crud.lock_tree` is the first call of every tree write service (folder create / rename / move / soft delete; note create / generate / move / trash; restore, hard delete, empty Trash, lazy purge). Commit or rollback releases it. The folder `FOR UPDATE` plumbing was removed. The note row lock stays for the content PATCH version check, which is not a tree write.
+
+**Why:** It is the simplest rule that is easy to check: "tree write → lock first". The cost is small for a personal app: only the tree writes of the same user wait for each other. There are no retries and no deadlocks, because each request takes one lock only. `generate_note` takes the lock after the slow AI call and checks the folder again under it, so it does not block the tree while the AI works.
+
+---
+
 ## Separate Move Endpoint for Notes (`POST /notes/{id}/move`)
 
 **Decision:** Moving a note to a different folder uses a dedicated endpoint rather than `PATCH /notes/{id}`.

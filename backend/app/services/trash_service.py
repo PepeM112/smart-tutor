@@ -21,19 +21,62 @@ from app.models.note import Note
 from app.schemas.folder import FolderCreate
 from app.schemas.trash import TrashItemRead
 from app.services import folder_service
-from app.services.folder_paths import build_folder_path
+from app.services.folder_paths import build_folder_path, build_orphan_path
 from app.services.service_helpers import get_owned_or_404, is_trash_expired
 
 if TYPE_CHECKING:
     from app.models.user import User
 
 
+def _detach_other_batches(db: Session, *, folder: Folder) -> None:
+    """Move the items of other trash batches out of `folder`'s subtree before a hard delete.
+
+    FK CASCADE deletes every row under `folder`. Items of a *different* batch (another
+    `deleted_at`) must survive, so each one moves to the parent of `folder` (it survives; it
+    can be live, trashed or root). The names of the deleted folders between that parent and
+    the item go into `orphan_path`, so restore can rebuild the original place.
+    """
+    batch = {f.id: f for f in folder_crud.list_batch_folders(db, folder=folder)}
+    batch_ids = list(batch)
+    # Only folders of this batch are deleted. An item of another batch keeps its own children:
+    # it moves only when its parent is in this batch.
+    orphan_folders = folder_crud.list_children_outside_batch(db, parent_ids=batch_ids, batch_ts=folder.deleted_at)
+    orphan_notes = note_crud.list_in_folders_outside_batch(
+        db, user_id=folder.user_id, folder_ids=batch_ids, batch_ts=folder.deleted_at
+    )
+
+    def _new_path(parent_id: str | None, existing: list[str] | None) -> list[str]:
+        return build_orphan_path(batch, top_id=folder.id, start_id=parent_id or folder.id, existing=existing)
+
+    for child in orphan_folders:
+        new_path = _new_path(child.parent_id, child.orphan_path)
+        folder_crud.reparent(db, folder=child, parent_id=folder.parent_id, orphan_path=new_path)
+    for note in orphan_notes:
+        new_path = _new_path(note.folder_id, note.orphan_path)
+        note_crud.reparent(db, note=note, folder_id=folder.parent_id, orphan_path=new_path)
+
+
+def _hard_delete_batch(db: Session, *, folder: Folder) -> None:
+    """Delete the trash batch of `folder` forever. Items of other batches in the subtree survive."""
+    _detach_other_batches(db, folder=folder)
+    folder_crud.hard_delete(db, folder=folder)
+
+
 def _purge_expired(db: Session, *, user_id: str) -> None:
     """Hard-delete items trashed more than 30 days ago. Called lazily on GET /trash."""
+    folder_crud.lock_tree(db, user_id=user_id)
     cutoff = datetime.now(timezone.utc) - timedelta(days=TRASH_RETENTION_DAYS)
-    folder_crud.purge_old_folders(db, user_id=user_id, before=cutoff)
-    folder_crud.purge_old_notes(db, user_id=user_id, before=cutoff)
+    # Only the top of each batch is deleted; FK CASCADE removes its sub-folders and notes.
+    for folder in folder_crud.list_expired_top_folders(db, user_id=user_id, before=cutoff):
+        # Same rule as "Delete forever": items of another batch survive with their orphan_path.
+        _hard_delete_batch(db, folder=folder)
+    note_crud.purge_old_notes(db, user_id=user_id, before=cutoff)
     db.commit()
+
+
+def _original_path(names: list[str] | None) -> str | None:
+    """Show a path from `build_folder_path` as "/A/B" (None = root, [] = "/")."""
+    return None if names is None else "/" + "/".join(names)
 
 
 def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
@@ -51,7 +94,9 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
         sub_folders, note_count = folder_crud.count_batch_items(
             db, user_id=current_user.id, folder_id=folder.id, deleted_at=folder_deleted_at
         )
-        original_path = build_folder_path(folders, folder_id=folder.parent_id, orphan_path=folder.orphan_path)
+        original_path = _original_path(
+            build_folder_path(folders, folder_id=folder.parent_id, orphan_path=folder.orphan_path)
+        )
         items.append(
             TrashItemRead(
                 kind="folder",
@@ -64,11 +109,13 @@ def list_trash(db: Session, *, current_user: User) -> list[TrashItemRead]:
             )
         )
 
-    for note in folder_crud.list_trashed_top_notes(db, user_id=current_user.id):
+    for note in note_crud.list_trashed_top_notes(db, user_id=current_user.id):
         note_deleted_at = note.deleted_at
         if note_deleted_at is None:  # The query returns trashed rows only.
             continue
-        original_path = build_folder_path(folders, folder_id=note.folder_id, orphan_path=note.orphan_path)
+        original_path = _original_path(
+            build_folder_path(folders, folder_id=note.folder_id, orphan_path=note.orphan_path)
+        )
         items.append(
             TrashItemRead(
                 kind="note",
@@ -196,6 +243,7 @@ def restore_folder(db: Session, *, folder_id: str, current_user: User) -> None:
     Trashed ancestors are restored too (rows only). Folders deleted forever are recreated
     from `orphan_path` (a live same-name folder is reused). Conflict → rename.
     """
+    folder_crud.lock_tree(db, user_id=current_user.id)
     folder = _get_trashed_folder_or_404(db, folder_id=folder_id, current_user=current_user)
 
     # A concurrent request can take the chosen name after the checks below: 409 in that case.
@@ -222,6 +270,7 @@ def restore_note(db: Session, *, note_id: str, current_user: User) -> None:
     Trashed ancestors are restored too (rows only). Folders deleted forever are recreated
     from `orphan_path` (a live same-name folder is reused).
     """
+    folder_crud.lock_tree(db, user_id=current_user.id)
     note = _get_trashed_note_or_404(db, note_id=note_id, current_user=current_user)
 
     # The ancestor rows can clash with a folder that a concurrent request created: 409 in that case.
@@ -240,13 +289,15 @@ def hard_delete_folder(db: Session, *, folder_id: str, current_user: User) -> No
     first, with their lost folder names saved in `orphan_path`. So the CASCADE does not
     remove them and restore can rebuild their path.
     """
+    folder_crud.lock_tree(db, user_id=current_user.id)
     folder = _get_trashed_folder_or_404(db, folder_id=folder_id, current_user=current_user)
-    folder_crud.hard_delete(db, folder=folder)
+    _hard_delete_batch(db, folder=folder)
     db.commit()
 
 
 def hard_delete_note(db: Session, *, note_id: str, current_user: User) -> None:
     """Permanently delete a trashed note."""
+    folder_crud.lock_tree(db, user_id=current_user.id)
     note = _get_trashed_note_or_404(db, note_id=note_id, current_user=current_user)
     note_crud.delete(db, note=note)
     db.commit()
@@ -258,7 +309,9 @@ def empty_trash(db: Session, *, current_user: User) -> None:
     Two bulk DELETEs: trashed notes first, then trashed folders (FK CASCADE removes their
     sub-rows). No live item can be lost: live items never sit under a trashed folder, so the
     cascade only reaches rows that are trashed too, and those are all deleted here anyway.
+    The tree lock keeps that true while this runs: no create, move or restore can run at the same time.
     """
+    folder_crud.lock_tree(db, user_id=current_user.id)
     note_crud.delete_all_trashed(db, user_id=current_user.id)
     folder_crud.delete_all_trashed(db, user_id=current_user.id)
     db.commit()

@@ -268,9 +268,12 @@ class TestGetTree:
             _NoteRow("n1", "Alpha", None, ts),
             _NoteRow("n2", "Beta", "f2", ts),
         ]
-        with patch("app.services.folder_service.folder_crud") as mock_crud:
+        with (
+            patch("app.services.folder_service.folder_crud") as mock_crud,
+            patch("app.services.folder_service.note_crud") as mock_note_crud,
+        ):
             mock_crud.list_tree_folders.return_value = folder_rows
-            mock_crud.list_tree_notes.return_value = note_rows
+            mock_note_crud.list_tree_notes.return_value = note_rows
 
             result = folder_service.get_tree(db, current_user=user)
 
@@ -293,9 +296,12 @@ class TestGetTree:
         user = _make_user("u1")
         ts = _now()
         note_rows = [_NoteRow("n1", "Title", None, ts)]
-        with patch("app.services.folder_service.folder_crud") as mock_crud:
+        with (
+            patch("app.services.folder_service.folder_crud") as mock_crud,
+            patch("app.services.folder_service.note_crud") as mock_note_crud,
+        ):
             mock_crud.list_tree_folders.return_value = []
-            mock_crud.list_tree_notes.return_value = note_rows
+            mock_note_crud.list_tree_notes.return_value = note_rows
 
             result = folder_service.get_tree(db, current_user=user)
 
@@ -309,16 +315,19 @@ class TestGetTree:
         db = MagicMock()
         user = _make_user("u1")
         # The CRUD already filters deleted_at IS NULL; here it returns 0 live items.
-        with patch("app.services.folder_service.folder_crud") as mock_crud:
+        with (
+            patch("app.services.folder_service.folder_crud") as mock_crud,
+            patch("app.services.folder_service.note_crud") as mock_note_crud,
+        ):
             mock_crud.list_tree_folders.return_value = []
-            mock_crud.list_tree_notes.return_value = []
+            mock_note_crud.list_tree_notes.return_value = []
 
             result = folder_service.get_tree(db, current_user=user)
 
         assert result.folders == []
         assert result.notes == []
         mock_crud.list_tree_folders.assert_called_once_with(db, user_id="u1")
-        mock_crud.list_tree_notes.assert_called_once_with(db, user_id="u1")
+        mock_note_crud.list_tree_notes.assert_called_once_with(db, user_id="u1")
 
     def test_excludes_other_user_items(self) -> None:
         """CRUD is called with current_user.id — other-user items are never fetched."""
@@ -327,15 +336,18 @@ class TestGetTree:
         db = MagicMock()
         user = _make_user("u_mine")
         ts = _now()
-        with patch("app.services.folder_service.folder_crud") as mock_crud:
+        with (
+            patch("app.services.folder_service.folder_crud") as mock_crud,
+            patch("app.services.folder_service.note_crud") as mock_note_crud,
+        ):
             mock_crud.list_tree_folders.return_value = [_FolderRow("f1", "Mine", None, ts)]
-            mock_crud.list_tree_notes.return_value = []
+            mock_note_crud.list_tree_notes.return_value = []
 
             folder_service.get_tree(db, current_user=user)
 
         # Confirm user_id passed to CRUD matches the authenticated user
         mock_crud.list_tree_folders.assert_called_once_with(db, user_id="u_mine")
-        mock_crud.list_tree_notes.assert_called_once_with(db, user_id="u_mine")
+        mock_note_crud.list_tree_notes.assert_called_once_with(db, user_id="u_mine")
 
 
 # ---------------------------------------------------------------------------
@@ -467,45 +479,182 @@ class TestSiblingConflictGuard:
         assert exc_info.value.status_code == 409
 
 
-class TestDestinationFolderLock:
-    def test_lock_option_uses_for_update_fetch(self) -> None:
+def _ordered(**mocks: MagicMock) -> MagicMock:
+    """Attach the mocks to one parent, so `parent.mock_calls` shows the call order across them."""
+    parent = MagicMock()
+    for name, mock in mocks.items():
+        parent.attach_mock(mock, name)
+    return parent
+
+
+def _call_names(parent: MagicMock) -> list[str]:
+    # Direct calls only ("folder_crud.update"), not calls on their return values.
+    return [name for name, _args, _kwargs in parent.mock_calls if "()" not in name]
+
+
+def _trashed_folder(id: str) -> MagicMock:
+    f = _make_folder(id)
+    f.deleted_at = datetime.now(timezone.utc)
+    f.orphan_path = None
+    return f
+
+
+class TestTreeLock:
+    """Every tree write takes the per-user tree lock before it reads anything to decide."""
+
+    def test_lock_tree_flushes_then_locks_then_expires(self) -> None:
+        from sqlalchemy.dialects import postgresql
+
+        from app.crud import folder as folder_crud
+
+        db = MagicMock()
+        folder_crud.lock_tree(db, user_id="u1")
+
+        assert [name for name, _args, _kwargs in db.mock_calls] == ["flush", "execute", "expire_all"]
+        stmt = db.execute.call_args.args[0]
+        sql = str(stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+        assert "pg_advisory_xact_lock(hashtext('tree:u1'))" in sql
+
+    def test_folder_move(self) -> None:
+        from app.schemas.folder import FolderUpdate
         from app.services import folder_service
 
         db = MagicMock()
         with patch("app.services.folder_service.folder_crud") as mock_crud:
-            mock_crud.get_by_id_for_update.return_value = _make_folder("f1")
-            folder_service.get_live_folder_or_404(db, folder_id="f1", current_user=_make_user(), for_update=True)
-        mock_crud.get_by_id_for_update.assert_called_once_with(db, id="f1")
-        mock_crud.get_by_id.assert_not_called()
+            mock_crud.get_by_id.side_effect = [_make_folder("f1"), _make_folder("f2")]
+            mock_crud.get_descendant_ids.return_value = []
+            mock_crud.sibling_name_exists.return_value = False
+            order = _ordered(folder_crud=mock_crud, db=db)
+            folder_service.update_folder(
+                db, folder_id="f1", current_user=_make_user(), data=FolderUpdate(parent_id="f2")
+            )
 
-    def test_default_does_not_lock(self) -> None:
+        names = _call_names(order)
+        assert names[0] == "folder_crud.lock_tree"
+        assert names.index("folder_crud.update") < names.index("db.commit")
+        mock_crud.lock_tree.assert_called_once_with(db, user_id="u1")
+
+    def test_folder_delete(self) -> None:
         from app.services import folder_service
 
         db = MagicMock()
         with patch("app.services.folder_service.folder_crud") as mock_crud:
             mock_crud.get_by_id.return_value = _make_folder("f1")
-            folder_service.get_live_folder_or_404(db, folder_id="f1", current_user=_make_user())
-        mock_crud.get_by_id_for_update.assert_not_called()
+            order = _ordered(folder_crud=mock_crud, db=db)
+            folder_service.delete_folder(db, folder_id="f1", current_user=_make_user())
 
-    def test_move_note_locks_destination(self) -> None:
+        assert _call_names(order) == [
+            "folder_crud.lock_tree",
+            "folder_crud.get_by_id",
+            "folder_crud.soft_delete_cascade",
+            "db.commit",
+        ]
+
+    def test_folder_restore(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        with patch("app.services.trash_service.folder_crud") as mock_crud:
+            mock_crud.get_by_id.return_value = _trashed_folder("f1")
+            mock_crud.sibling_name_exists.return_value = False
+            order = _ordered(folder_crud=mock_crud, db=db)
+            trash_service.restore_folder(db, folder_id="f1", current_user=_make_user())
+
+        names = _call_names(order)
+        assert names[0] == "folder_crud.lock_tree"
+        assert names.index("folder_crud.get_by_id") < names.index("folder_crud.relocate")
+        assert names.index("folder_crud.restore_folder_batch") < names.index("db.commit")
+
+    def test_note_restore(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        note = _make_note("n1")
+        note.deleted_at = datetime.now(timezone.utc)
+        note.orphan_path = None
+        with (
+            patch("app.services.trash_service.folder_crud") as mock_folder_crud,
+            patch("app.services.trash_service.note_crud") as mock_note_crud,
+        ):
+            mock_note_crud.get_by_id.return_value = note
+            order = _ordered(folder_crud=mock_folder_crud, note_crud=mock_note_crud, db=db)
+            trash_service.restore_note(db, note_id="n1", current_user=_make_user())
+
+        assert _call_names(order) == [
+            "folder_crud.lock_tree",
+            "note_crud.get_by_id",
+            "note_crud.restore",
+            "db.commit",
+        ]
+
+    def test_empty_trash(self) -> None:
+        from app.services import trash_service
+
+        db = MagicMock()
+        with (
+            patch("app.services.trash_service.folder_crud") as mock_folder_crud,
+            patch("app.services.trash_service.note_crud") as mock_note_crud,
+        ):
+            order = _ordered(folder_crud=mock_folder_crud, note_crud=mock_note_crud, db=db)
+            trash_service.empty_trash(db, current_user=_make_user())
+
+        assert _call_names(order) == [
+            "folder_crud.lock_tree",
+            "note_crud.delete_all_trashed",
+            "folder_crud.delete_all_trashed",
+            "db.commit",
+        ]
+
+    def test_note_move(self) -> None:
         from app.services import note_service
 
         db = MagicMock()
         with (
-            patch("app.services.note_service.get_live_note", return_value=_make_note("n1")),
-            patch("app.services.note_service.get_live_folder_or_404") as mock_folder,
-            patch("app.services.note_service.note_crud"),
+            patch("app.services.note_service.folder_crud") as mock_folder_crud,
+            patch("app.services.note_service.note_crud") as mock_note_crud,
+            patch("app.services.note_service.get_live_folder_or_404") as mock_get_folder,
         ):
+            mock_note_crud.get_by_id.return_value = _make_note("n1")
+            order = _ordered(folder_crud=mock_folder_crud, note_crud=mock_note_crud, get_folder=mock_get_folder, db=db)
             note_service.move_note(db, note_id="n1", current_user=_make_user(), folder_id="f2")
-        assert mock_folder.call_args.kwargs["for_update"] is True
 
-    def test_delete_folder_locks_folder(self) -> None:
-        from app.services import folder_service
+        assert _call_names(order) == [
+            "folder_crud.lock_tree",
+            "note_crud.get_by_id",
+            "get_folder",
+            "note_crud.move",
+            "db.commit",
+            "db.refresh",
+        ]
+
+    def test_generate_note_locks_after_the_ai_call(self) -> None:
+        """The AI call is slow, so the lock comes after it. The folder is checked again under the lock."""
+        from app.schemas.note import NoteGenerate
+        from app.services import note_service
 
         db = MagicMock()
         with (
-            patch("app.services.folder_service.get_live_folder_or_404") as mock_get,
-            patch("app.services.folder_service.folder_crud"),
+            patch("app.services.note_service.folder_crud") as mock_folder_crud,
+            patch("app.services.note_service.note_crud") as mock_note_crud,
+            patch("app.services.note_service.get_live_folder_or_404") as mock_get_folder,
+            patch("app.services.note_service.complete_for_user") as mock_llm,
+            patch("app.services.note_service.token_usage_service"),
         ):
-            folder_service.delete_folder(db, folder_id="f1", current_user=_make_user())
-        assert mock_get.call_args.kwargs["for_update"] is True
+            order = _ordered(
+                folder_crud=mock_folder_crud,
+                note_crud=mock_note_crud,
+                get_folder=mock_get_folder,
+                llm=mock_llm,
+                db=db,
+            )
+            note_service.generate_note(db, current_user=_make_user(), data=NoteGenerate(topic="T", folder_id="f1"))
+
+        assert _call_names(order) == [
+            "get_folder",
+            "llm",
+            "folder_crud.lock_tree",
+            "get_folder",
+            "note_crud.create",
+            "db.commit",
+            "db.refresh",
+        ]

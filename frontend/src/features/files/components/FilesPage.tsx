@@ -14,7 +14,7 @@ import { FileBreadcrumb } from './FileBreadcrumb';
 import { FilePageShell } from './FilePageShell';
 import { FilesTable } from './FilesTable';
 import { FilesToolbar } from './FilesToolbar';
-import { NewFolderDialog } from './FolderNameDialog';
+import { NewFolderDialog } from './NewFolderDialog';
 import { NotePreviewPanel } from './NotePreviewPanel';
 
 type Props = {

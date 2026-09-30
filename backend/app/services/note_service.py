@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, NoteLength, NoteSource
+from app.crud import folder as folder_crud
 from app.crud import note as note_crud
 from app.database import SessionLocal
 from app.models.note import Note
@@ -118,7 +119,8 @@ def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
 def get_live_note(db: Session, *, note_id: str, current_user: User, for_update: bool = False) -> Note:
     """Fetch an owned note for a WRITE operation: raise 409 if it is in Trash.
 
-    `for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE).
+    `for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE). Only the
+    content PATCH needs it (version check); tree writes use `folder_crud.lock_tree` instead.
     """
     note = get_owned_or_404(
         db,
@@ -135,20 +137,19 @@ def get_live_note(db: Session, *, note_id: str, current_user: User, for_update: 
     return note
 
 
-def _validate_folder_ownership(
-    db: Session, *, folder_id: str | None, current_user: User, for_update: bool = True
-) -> None:
+def _validate_folder_ownership(db: Session, *, folder_id: str | None, current_user: User) -> None:
     """Raise 404/403 if folder_id is given but not a live folder owned by current_user.
 
-    The folder row is locked by default: the caller writes an item into it, and the lock
-    keeps a concurrent trash of that folder from leaving a live item under it.
+    Before a write into the folder, the caller takes `folder_crud.lock_tree` first, so a
+    concurrent trash of that folder can not leave a live item under it.
     """
     if folder_id is None:
         return
-    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user, for_update=for_update)
+    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
 
 
 def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
+    folder_crud.lock_tree(db, user_id=current_user.id)
     _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
     note = note_crud.create(
         db,
@@ -166,6 +167,7 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
 
 def move_note(db: Session, *, note_id: str, current_user: User, folder_id: str | None) -> Note:
     """Change note.folder_id only. Does not touch version or is_indexed."""
+    folder_crud.lock_tree(db, user_id=current_user.id)
     note = get_live_note(db, note_id=note_id, current_user=current_user)
     _validate_folder_ownership(db, folder_id=folder_id, current_user=current_user)
     note_crud.move(db, note=note, folder_id=folder_id)
@@ -202,6 +204,7 @@ def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpda
 
 def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
     """Soft-delete a note (move to Trash). Already-trashed notes are a no-op."""
+    folder_crud.lock_tree(db, user_id=current_user.id)
     note = get_note(db, note_id=note_id, current_user=current_user)
     if note.deleted_at is None:
         note_crud.soft_delete(db, note=note, now=datetime.now(timezone.utc))
@@ -209,8 +212,9 @@ def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
 
 
 def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Note:
-    # Validate folder ownership before spending AI tokens. No lock yet: the AI call is slow.
-    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user, for_update=False)
+    # Validate folder ownership before spending AI tokens. No lock yet: the AI call is slow,
+    # and the tree lock would block all tree writes of the user for that time.
+    _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
 
     user_prompt = build_note_generation_user_prompt(
         data.topic,
@@ -227,7 +231,9 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
         max_tokens=max_tokens,
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_GENERATION)
-    # Check again with a lock: the folder can be trashed while the AI works.
+    # Check again under the tree lock: the folder can be trashed while the AI works.
+    # `lock_tree` expires the folder read above, so this check reads the committed state.
+    folder_crud.lock_tree(db, user_id=current_user.id)
     _validate_folder_ownership(db, folder_id=data.folder_id, current_user=current_user)
     note = note_crud.create(
         db,

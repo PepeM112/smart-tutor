@@ -14,14 +14,16 @@ type Props = {
 /** Shown when the server has a newer version of the note than the draft. */
 export function ConflictBanner({ onReload, onKeepMine }: Props) {
   const t = useTranslations('notes');
-  const [isKeeping, setIsKeeping] = useState(false);
+  // One flag for both actions. Reload and Keep mine both fetch and reset the draft,
+  // so they must not run at the same time.
+  const [isBusy, setIsBusy] = useState(false);
 
-  const handleKeepMine = async () => {
-    setIsKeeping(true);
+  const runExclusive = async (action: () => Promise<void>) => {
+    setIsBusy(true);
     try {
-      await onKeepMine();
+      await action();
     } finally {
-      setIsKeeping(false);
+      setIsBusy(false);
     }
   };
 
@@ -31,10 +33,16 @@ export function ConflictBanner({ onReload, onKeepMine }: Props) {
       <AlertCircle className="size-4 shrink-0 text-destructive" />
       <span className="min-w-48 flex-1 text-foreground">{t('conflict_banner')}</span>
       <div className="ml-auto flex gap-2">
-        <Button size="sm" variant="outline" onClick={() => void onReload()} icon={RefreshCw}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void runExclusive(onReload)}
+          disabled={isBusy}
+          icon={RefreshCw}
+        >
           {t('reload')}
         </Button>
-        <Button size="sm" variant="ghost" onClick={handleKeepMine} disabled={isKeeping}>
+        <Button size="sm" variant="ghost" onClick={() => void runExclusive(onKeepMine)} disabled={isBusy}>
           {t('keep_mine')}
         </Button>
       </div>

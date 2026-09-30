@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { QueryState } from '@/components/shared/QueryState';
@@ -30,7 +30,6 @@ type Props = {
  */
 export function NotePreviewPanel({ noteId, onClose }: Props) {
   const t = useTranslations();
-  const router = useRouter();
   const prefersReduced = useReducedMotion();
 
   const {
@@ -49,9 +48,16 @@ export function NotePreviewPanel({ noteId, onClose }: Props) {
       {/* Header — stays put when the note changes; only the body crossfades. */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
         <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{displayTitle(note?.title, t)}</p>
-        <Button variant="ghost" size="sm" onClick={() => note && router.push(noteHref(note))} disabled={!note}>
-          {t('files.open')}
-        </Button>
+        {/* A real link gives prefetch, middle-click and open in a new tab. */}
+        {note ? (
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={noteHref(note)}>{t('files.open')}</Link>
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" disabled>
+            {t('files.open')}
+          </Button>
+        )}
         <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('files.close_preview')}>
           <X className="size-4" />
         </Button>

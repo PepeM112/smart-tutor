@@ -125,7 +125,7 @@ export function useFileMutations({ refetchNotes = false }: FileMutationsOptions 
       if (ctx?.snapshot) queryClient.setQueryData(fileQueryKeys.foldersTree(), ctx.snapshot);
       toast.error(getErrorDetail(err, t('files.failed_to_move')));
     },
-    // P1-1: invalidate both the tree and the flat list so MoveDialog/breadcrumbs stay fresh.
+    // Refetch the tree so MoveDialog and breadcrumbs stay fresh.
     onSettled: () => invalidateAfterFileChange(queryClient),
     onSuccess: () => {
       toast.success(t('files.moved'));

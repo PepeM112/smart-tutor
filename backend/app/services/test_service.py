@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import GroupStatus, QuestionStatus
+from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.crud import test_question_group as group_crud
@@ -69,9 +70,22 @@ def list_tests(
     return [TestRead.model_validate(t) for t in items], total
 
 
+def _validate_source_note(db: Session, *, note_id: str | None, current_user: User) -> None:
+    """Raise 404 (403 for another user's note) unless `note_id` is None or a LIVE note of the user.
+
+    Without this check, a test could link to a note of another user or to a note in Trash.
+    """
+    if note_id is None:
+        return
+    note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    if note.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+
+
 def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
     # On create there are no existing orders — only check for internal duplicates
     _validate_order_space(data.questions, data.question_groups)
+    _validate_source_note(db, note_id=data.source_note_id, current_user=current_user)
 
     test = test_crud.create(
         db,

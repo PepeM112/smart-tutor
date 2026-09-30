@@ -180,7 +180,7 @@ function CurrentCrumb({
         !renameDisabled && onRename && 'hover:bg-muted cursor-pointer',
         (renameDisabled || !onRename) && 'cursor-default'
       )}
-      aria-label={!renameDisabled && onRename ? t('files.rename') : undefined}
+      aria-label={!renameDisabled && onRename ? `${t('files.rename')}: ${displayName}` : undefined}
     >
       <span className="block max-w-[200px] truncate">{displayName}</span>
     </button>

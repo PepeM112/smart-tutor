@@ -15,8 +15,6 @@ import { getErrorDetail } from '@/lib/utils';
 
 import { invalidateAfterFileChange } from '../lib/queryKeys';
 
-// ─── Create ──────────────────────────────────────────────────────────────────
-
 type CreateProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;

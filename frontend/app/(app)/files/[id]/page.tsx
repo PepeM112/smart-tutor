@@ -1,12 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { use, useMemo } from 'react';
+import { use } from 'react';
 
 import { FilesPage } from '@/features/files/components/FilesPage';
 import { FolderNotFound } from '@/features/files/components/FolderNotFound';
 import { useCanonicalFolderUrl } from '@/features/files/hooks/useCanonicalFolderUrl';
-import { sdk } from '@/lib/apiClient';
+import { useFolders } from '@/features/files/hooks/useFolders';
 import { parseSlugId } from '@/lib/routes';
 
 type Props = {
@@ -17,18 +16,14 @@ export default function FolderDetailPage({ params }: Props) {
   const { id } = use(params);
   const folderId = parseSlugId(id);
 
-  const { data: foldersRes, isSuccess } = useQuery({
-    queryKey: ['folders'],
-    queryFn: () => sdk.foldersList(),
-  });
-
-  const folder = useMemo(() => foldersRes?.data?.find(f => f.id === folderId) ?? null, [foldersRes, folderId]);
+  const { foldersById, isLoading, isFetching, isError } = useFolders();
+  const folder = foldersById.get(folderId) ?? null;
 
   useCanonicalFolderUrl(folder, id);
 
-  // Show a "not found" state when the folder list has loaded but this ID is absent
-  // (trashed or never existed).
-  if (isSuccess && !folder) {
+  // Wait for any fetch to end. A stale tree can miss a new or restored folder.
+  // On error, FilesPage shows its own error state.
+  if (!folder && !isLoading && !isFetching && !isError) {
     return <FolderNotFound />;
   }
 

@@ -21,6 +21,7 @@ import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { QueryState } from '@/components/shared/QueryState';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { displayTitle } from '@/lib/displayTitle';
 import { cn } from '@/lib/utils';
 
 import { FilesTreeContext, type FilesTreeContextValue } from '../context/FilesTreeContext';
@@ -184,7 +185,7 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
             ) : (
               <NotepadText className="size-4 shrink-0 text-muted-foreground" />
             )}
-            <span className="max-w-[200px] truncate font-medium">{activeDrag.name}</span>
+            <span className="max-w-[200px] truncate font-medium">{displayTitle(activeDrag.name, t)}</span>
           </div>
         )}
       </DragOverlay>

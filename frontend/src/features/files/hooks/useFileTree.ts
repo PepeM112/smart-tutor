@@ -14,6 +14,8 @@ export type UseFileTreeResult = {
   /** Memoised parentId → { folders, notes } index used by all rows. */
   childrenIndex: ChildrenIndex;
   isLoading: boolean;
+  /** True during any fetch, including a background refetch of stale data. */
+  isFetching: boolean;
   isError: boolean;
 };
 
@@ -27,7 +29,7 @@ const EMPTY_TREE: FileTree = { folders: [], notes: [] };
  * `invalidateAfterFileChange` call refreshes it too.
  */
 export function useFileTree(): UseFileTreeResult {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: fileQueryKeys.foldersTree(),
     queryFn: () => sdk.foldersTree(),
   });
@@ -42,6 +44,7 @@ export function useFileTree(): UseFileTreeResult {
     notes: tree.notes,
     childrenIndex,
     isLoading,
+    isFetching,
     isError,
   };
 }

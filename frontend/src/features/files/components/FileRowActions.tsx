@@ -41,7 +41,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
 
   // Delete-preview counts are only for folders, and only needed once the confirm dialog opens.
   // (For a note the query stays disabled, so its key is never used.)
-  const { data: previewRes } = useQuery({
+  const { data: previewRes, isError: isPreviewError } = useQuery({
     queryKey: fileQueryKeys.folderDeletePreview(id),
     queryFn: () => sdk.foldersDeletePreview({ path: { folder_id: id } }),
     enabled: isFolder && deleteOpen,
@@ -60,7 +60,9 @@ export function FileRowActions({ item, onStartRename }: Props) {
               folderCount: preview.folderCount,
               noteCount: preview.noteCount,
             })
-          : '…',
+          : isPreviewError
+            ? t('files.move_folder_to_trash_confirm_generic')
+            : '…',
         isTrashing: mutations.isTrashingFolder,
         trash: () => mutations.trashFolder(id),
       }

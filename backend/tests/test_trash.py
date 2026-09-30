@@ -9,7 +9,7 @@ Run:  pytest tests/test_trash.py
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -104,7 +104,6 @@ class TestCascadeSoftDelete:
             now = _ts()
             mock_dt.now.return_value = now
             mock_get.return_value = _make_folder("f1")
-            mock_crud.soft_delete_cascade.return_value = (2, 3)
 
             folder_service.delete_folder(db, folder_id="f1", current_user=user)
 
@@ -333,7 +332,7 @@ class TestTrashOwnership:
 
 
 # ---------------------------------------------------------------------------
-# trash_service._purge_expired — calls the CRUD purge helpers with the cutoff
+# trash_service._purge_expired — each expired batch is deleted like "Delete forever"
 # ---------------------------------------------------------------------------
 
 
@@ -344,16 +343,22 @@ class TestPurge:
         db = MagicMock()
         now = datetime(2026, 9, 28, 0, 0, 0, tzinfo=timezone.utc)
         expected_cutoff = now - timedelta(days=30)
+        expired = [_make_folder("f1", deleted_at=_ts(40)), _make_folder("f2", deleted_at=_ts(35))]
 
         with (
             patch("app.services.trash_service.folder_crud") as mock_crud,
+            patch("app.services.trash_service.note_crud") as mock_note_crud,
             patch("app.services.trash_service.datetime") as mock_dt,
+            patch("app.services.trash_service._hard_delete_batch") as mock_hard_delete,
         ):
             mock_dt.now.return_value = now
+            mock_crud.list_expired_top_folders.return_value = expired
             trash_service._purge_expired(db, user_id="u1")
 
-        mock_crud.purge_old_folders.assert_called_once_with(db, user_id="u1", before=expected_cutoff)
-        mock_crud.purge_old_notes.assert_called_once_with(db, user_id="u1", before=expected_cutoff)
+        mock_crud.list_expired_top_folders.assert_called_once_with(db, user_id="u1", before=expected_cutoff)
+        # Every expired batch goes through the same path as "Delete forever" (detach first).
+        assert [c.kwargs["folder"] for c in mock_hard_delete.call_args_list] == expired
+        mock_note_crud.purge_old_notes.assert_called_once_with(db, user_id="u1", before=expected_cutoff)
         db.commit.assert_called_once()
 
 
@@ -363,38 +368,30 @@ class TestPurge:
 
 
 class TestHardDeleteFolderDetach:
-    def test_service_uses_crud_hard_delete_and_commits(self) -> None:
+    def test_detach_runs_before_crud_hard_delete_then_commit(self) -> None:
+        """_detach_other_batches must run first so foreign-key CASCADE does not remove
+        items that belong to a different trash batch inside the same subtree."""
         from app.services import trash_service
 
         db = MagicMock()
         folder = _make_folder("f1", deleted_at=_ts(1))
+        call_order: list[str] = []
+        db.commit.side_effect = lambda: call_order.append("commit")
 
         with (
             patch("app.services.trash_service._get_trashed_folder_or_404", return_value=folder),
             patch("app.services.trash_service.folder_crud") as mock_crud,
+            patch(
+                "app.services.trash_service._detach_other_batches",
+                side_effect=lambda *a, **kw: call_order.append("detach"),
+            ) as mock_detach,
         ):
+            mock_crud.hard_delete.side_effect = lambda *a, **kw: call_order.append("delete")
             trash_service.hard_delete_folder(db, folder_id="f1", current_user=_make_user())
 
-        mock_crud.hard_delete.assert_called_once_with(db, folder=folder)
-        db.commit.assert_called_once()
-
-    def test_crud_detach_called_before_delete(self) -> None:
-        """detach_other_batches must run first so foreign-key CASCADE does not remove
-        items that belong to a different trash batch inside the same subtree."""
-        from app.crud import folder as folder_crud
-
-        db = MagicMock()
-        folder = _make_folder("f1", deleted_at=_ts(1))
-        call_order: list[str] = []
-        db.delete.side_effect = lambda *a: call_order.append("delete")
-
-        with patch(
-            "app.crud.folder.detach_other_batches", side_effect=lambda *a, **kw: call_order.append("detach")
-        ) as mock_detach:
-            folder_crud.hard_delete(db, folder=folder)
-
-        assert call_order == ["detach", "delete"], "detach must precede db.delete"
+        assert call_order == ["detach", "delete", "commit"]
         mock_detach.assert_called_once_with(db, folder=folder)
+        mock_crud.hard_delete.assert_called_once_with(db, folder=folder)
 
 
 # ---------------------------------------------------------------------------
@@ -444,16 +441,42 @@ class TestListTrashPaths:
             patch("app.services.trash_service._purge_expired"),
             patch("app.services.trash_service.folder_service.load_folder_map", return_value=folders) as mock_load,
             patch("app.services.trash_service.folder_crud") as mock_crud,
-            patch("app.services.trash_service.note_crud"),
+            patch("app.services.trash_service.note_crud") as mock_note_crud,
         ):
             mock_crud.list_trashed_top_folders.return_value = top_folders
-            mock_crud.list_trashed_top_notes.return_value = notes
+            mock_note_crud.list_trashed_top_notes.return_value = notes
             mock_crud.count_batch_items.return_value = (0, 0)
             items = trash_service.list_trash(db, current_user=_make_user())
 
         mock_load.assert_called_once_with(db, user_id="u1", include_trashed=True)
         assert len(items) == 6
         assert {i.original_path for i in items} == {"/P"}
+
+    def test_original_path_string_format(self) -> None:
+        # `build_folder_path` returns names; the API still sends "/A/B", None for root, "/" for an unknown parent.
+        from app.services import trash_service
+
+        db = MagicMock()
+        folders = {"p": _make_folder("p", name="P"), "a": _make_folder("a", parent_id="p", name="A/B")}
+        notes = [
+            _make_note("root", folder_id=None, deleted_at=_ts(1)),
+            _make_note("nested", folder_id="a", deleted_at=_ts(2), orphan_path=["Lost"]),
+            _make_note("unknown", folder_id="gone", deleted_at=_ts(3)),
+        ]
+        for n in notes:
+            n.title = "Note"
+
+        with (
+            patch("app.services.trash_service._purge_expired"),
+            patch("app.services.trash_service.folder_service.load_folder_map", return_value=folders),
+            patch("app.services.trash_service.folder_crud") as mock_crud,
+            patch("app.services.trash_service.note_crud") as mock_note_crud,
+        ):
+            mock_crud.list_trashed_top_folders.return_value = []
+            mock_note_crud.list_trashed_top_notes.return_value = notes
+            items = trash_service.list_trash(db, current_user=_make_user())
+
+        assert {i.id: i.original_path for i in items} == {"root": None, "nested": "/P/A/B/Lost", "unknown": "/"}
 
 
 # ---------------------------------------------------------------------------
@@ -506,83 +529,190 @@ class TestRestoreNameTruncation:
 
 
 # ---------------------------------------------------------------------------
-# build_orphan_path — pure helper for detach_other_batches
+# build_orphan_path — pure helper for trash_service._detach_other_batches
 # ---------------------------------------------------------------------------
 
 
+def _by_id(*folders: MagicMock) -> dict[str, MagicMock]:
+    return {f.id: f for f in folders}
+
+
 class TestBuildOrphanPath:
-    # top (A) -> B -> C; A is the hard-deleted folder.
-    FOLDERS: dict[str, tuple[str, str | None]] = {
-        "a": ("A", "outside"),
-        "b": ("B", "a"),
-        "c": ("C", "b"),
-    }
+    @staticmethod
+    def _folders() -> dict[str, MagicMock]:
+        # top (A) -> B -> C; A is the hard-deleted folder.
+        return _by_id(
+            _make_folder("a", parent_id="outside", name="A"),
+            _make_folder("b", parent_id="a", name="B"),
+            _make_folder("c", parent_id="b", name="C"),
+        )
 
     def test_path_from_top_to_item_parent(self) -> None:
-        from app.crud.folder import build_orphan_path
+        from app.services.folder_paths import build_orphan_path
 
-        assert build_orphan_path(self.FOLDERS, top_id="a", start_id="c", existing=None) == ["A", "B", "C"]
+        assert build_orphan_path(self._folders(), top_id="a", start_id="c", existing=None) == ["A", "B", "C"]
 
     def test_item_directly_in_top_folder(self) -> None:
-        from app.crud.folder import build_orphan_path
+        from app.services.folder_paths import build_orphan_path
 
-        assert build_orphan_path(self.FOLDERS, top_id="a", start_id="a", existing=None) == ["A"]
+        assert build_orphan_path(self._folders(), top_id="a", start_id="a", existing=None) == ["A"]
 
     def test_stops_at_top_folder(self) -> None:
-        from app.crud.folder import build_orphan_path
+        from app.services.folder_paths import build_orphan_path
 
-        # "outside" is not in the batch map and A is the top, so it is not added.
-        assert build_orphan_path(self.FOLDERS, top_id="b", start_id="c", existing=[]) == ["B", "C"]
+        folders = self._folders()
+        folders["a"].orphan_path = ["Z"]
+        # B is the top: A (and its orphan_path) is above the batch, so it is not added.
+        assert build_orphan_path(folders, top_id="b", start_id="c", existing=[]) == ["B", "C"]
 
     def test_existing_path_is_added_at_the_end(self) -> None:
-        from app.crud.folder import build_orphan_path
+        from app.services.folder_paths import build_orphan_path
 
-        assert build_orphan_path(self.FOLDERS, top_id="a", start_id="b", existing=["X", "Y"]) == ["A", "B", "X", "Y"]
+        result = build_orphan_path(self._folders(), top_id="a", start_id="b", existing=["X", "Y"])
+        assert result == ["A", "B", "X", "Y"]
+
+    def test_orphan_path_of_top_comes_first(self) -> None:
+        """The top folder lost its own parents in an earlier hard delete. Its orphan_path holds
+        their names, so they must come before the name of the top."""
+        from app.services.folder_paths import build_orphan_path
+
+        folders = self._folders()
+        folders["a"].orphan_path = ["X"]
+        assert build_orphan_path(folders, top_id="a", start_id="c", existing=["Old"]) == ["X", "A", "B", "C", "Old"]
+
+    def test_orphan_path_of_intermediate_folder_sits_above_it(self) -> None:
+        # Same rule as build_folder_path: the orphan_path of B is between A and B.
+        from app.services.folder_paths import build_orphan_path
+
+        folders = self._folders()
+        folders["b"].orphan_path = ["Y"]
+        assert build_orphan_path(folders, top_id="a", start_id="c", existing=None) == ["A", "Y", "B", "C"]
 
     def test_repeated_hard_deletes_keep_outermost_first(self) -> None:
         """Delete inner folder first, then the outer one: the outer names must come first."""
-        from app.crud.folder import build_orphan_path
+        from app.services.folder_paths import build_orphan_path
 
         # First delete: folder "mid" (parent "out") is removed; item sat in "leaf" under "mid".
-        first = build_orphan_path(
-            {"mid": ("Mid", "out"), "leaf": ("Leaf", "mid")}, top_id="mid", start_id="leaf", existing=None
-        )
+        mid = _make_folder("mid", parent_id="out", name="Mid")
+        leaf = _make_folder("leaf", parent_id="mid", name="Leaf")
+        first = build_orphan_path(_by_id(mid, leaf), top_id="mid", start_id="leaf", existing=None)
         assert first == ["Mid", "Leaf"]
         # Second delete: folder "out" is removed and the item now sits directly in it.
-        second = build_orphan_path({"out": ("Out", None)}, top_id="out", start_id="out", existing=first)
+        second = build_orphan_path(
+            _by_id(_make_folder("out", name="Out")), top_id="out", start_id="out", existing=first
+        )
         assert second == ["Out", "Mid", "Leaf"]
 
     def test_cycle_does_not_loop_forever(self) -> None:
-        from app.crud.folder import build_orphan_path
+        from app.services.folder_paths import build_orphan_path
 
-        cyclic: dict[str, tuple[str, str | None]] = {"x": ("X", "y"), "y": ("Y", "x")}
+        cyclic = _by_id(_make_folder("x", parent_id="y", name="X"), _make_folder("y", parent_id="x", name="Y"))
         assert build_orphan_path(cyclic, top_id="zzz", start_id="x", existing=None) == ["Y", "X"]
+
+
+def _run_detach(
+    top: MagicMock,
+    *,
+    batch: list[MagicMock],
+    child_folders: list[MagicMock] | None = None,
+    notes: list[MagicMock] | None = None,
+) -> tuple[MagicMock, MagicMock]:
+    """Run trash_service._detach_other_batches; the CRUD reads return the given in-memory rows.
+
+    Returns the (folder_crud, note_crud) mocks, so a test can check the query arguments.
+    """
+    from app.services import trash_service
+
+    def _reparent_folder(_db: object, *, folder: MagicMock, parent_id: str | None, orphan_path: list[str]) -> None:
+        folder.parent_id, folder.orphan_path = parent_id, orphan_path
+
+    def _reparent_note(_db: object, *, note: MagicMock, folder_id: str | None, orphan_path: list[str]) -> None:
+        note.folder_id, note.orphan_path = folder_id, orphan_path
+
+    with (
+        patch("app.services.trash_service.folder_crud") as mock_folder_crud,
+        patch("app.services.trash_service.note_crud") as mock_note_crud,
+    ):
+        mock_folder_crud.list_batch_folders.return_value = batch
+        mock_folder_crud.list_children_outside_batch.return_value = child_folders or []
+        mock_note_crud.list_in_folders_outside_batch.return_value = notes or []
+        mock_folder_crud.reparent.side_effect = _reparent_folder
+        mock_note_crud.reparent.side_effect = _reparent_note
+        trash_service._detach_other_batches(MagicMock(), folder=top)
+    return mock_folder_crud, mock_note_crud
 
 
 class TestDetachOtherBatches:
     def test_orphans_are_reparented_with_path(self) -> None:
-        from app.crud import folder as folder_crud
-
         ts = _ts(1)
         top = _make_folder("a", parent_id="gp", name="A", deleted_at=ts)
         child_batch = _make_folder("b", parent_id="a", name="B", deleted_at=ts)
         other_note = _make_note("n1", folder_id="b", deleted_at=_ts(3), orphan_path=["Old"])
         other_folder = _make_folder("f9", parent_id="a", name="F9", deleted_at=_ts(4))
 
-        db = MagicMock()
-        rows = [MagicMock(id=f.id, parent_id=f.parent_id) for f in (top, child_batch)]
-        rows[0].name, rows[1].name = "A", "B"
-        db.execute.return_value.all.return_value = rows
-        db.scalars.return_value.all.side_effect = [[other_folder], [other_note]]
+        mock_folder_crud, mock_note_crud = _run_detach(
+            top, batch=[top, child_batch], child_folders=[other_folder], notes=[other_note]
+        )
 
-        with patch("app.crud.folder.get_descendant_ids", return_value=["b"]):
-            folder_crud.detach_other_batches(db, folder=top)
-
+        # Only the direct children of batch folders that are NOT in the batch are moved.
+        mock_folder_crud.list_children_outside_batch.assert_called_once_with(ANY, parent_ids=["a", "b"], batch_ts=ts)
+        mock_note_crud.list_in_folders_outside_batch.assert_called_once_with(
+            ANY, user_id="u1", folder_ids=["a", "b"], batch_ts=ts
+        )
         # Items move to the parent of the deleted top folder.
         assert other_folder.parent_id == "gp"
         assert other_folder.orphan_path == ["A"]
         assert other_note.folder_id == "gp"
         assert other_note.orphan_path == ["A", "B", "Old"]
+
+    def test_orphan_path_of_top_is_kept(self) -> None:
+        """The top folder was detached before (orphan_path=["X"]). Its lost name X must stay in
+        the path of the items that move out, or restore puts them in the wrong place."""
+        top = _make_folder("f", parent_id="p", name="F", deleted_at=_ts(2), orphan_path=["X"])
+        note = _make_note("n", folder_id="f", deleted_at=_ts(3))
+
+        _run_detach(top, batch=[top], notes=[note])
+
+        assert note.folder_id == "p"
+        assert note.orphan_path == ["X", "F"]
+
+    def test_orphan_path_of_intermediate_batch_folder_is_kept(self) -> None:
+        ts = _ts(1)
+        top = _make_folder("a", parent_id="gp", name="A", deleted_at=ts)
+        mid = _make_folder("b", parent_id="a", name="B", deleted_at=ts, orphan_path=["Y"])
+        note = _make_note("n", folder_id="b", deleted_at=_ts(3))
+
+        _run_detach(top, batch=[top, mid], notes=[note])
+
+        assert note.orphan_path == ["A", "Y", "B"]
+
+    # P (live) > X > F > N. Trash N, then F, then X: three batches. Then delete X and F forever,
+    # in both orders. N must end up in P with orphan_path [X, F], so restore rebuilds P/X/F.
+
+    @staticmethod
+    def _nested() -> tuple[MagicMock, MagicMock, MagicMock]:
+        x = _make_folder("x", parent_id="p", name="X", deleted_at=_ts(1))
+        f = _make_folder("f", parent_id="x", name="F", deleted_at=_ts(2))
+        n = _make_note("n", folder_id="f", deleted_at=_ts(3))
+        return x, f, n
+
+    def test_nested_delete_outer_then_inner(self) -> None:
+        x, f, n = self._nested()
+
+        _run_detach(x, batch=[x], child_folders=[f])  # Delete X forever: F moves to P.
+        assert (f.parent_id, f.orphan_path) == ("p", ["X"])
+
+        _run_detach(f, batch=[f], notes=[n])  # Delete F forever: N moves to P.
+        assert (n.folder_id, n.orphan_path) == ("p", ["X", "F"])
+
+    def test_nested_delete_inner_then_outer(self) -> None:
+        x, f, n = self._nested()
+
+        _run_detach(f, batch=[f], notes=[n])  # Delete F forever: N moves to X.
+        assert (n.folder_id, n.orphan_path) == ("x", ["F"])
+
+        _run_detach(x, batch=[x], notes=[n])  # Delete X forever: N moves to P.
+        assert (n.folder_id, n.orphan_path) == ("p", ["X", "F"])
 
 
 # ---------------------------------------------------------------------------

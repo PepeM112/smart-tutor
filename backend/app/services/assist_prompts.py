@@ -102,6 +102,7 @@ which is Multiple Choice?"
 - /dashboard — main dashboard
 - /files — Files page root (all folders and notes at the root level)
 - /files/{slug}-{ulid} — a specific folder's contents
+- /trash — Trash (deleted notes and folders; restore them or delete them forever)
 - /notes — list of all notes
 - /notes/{id} — view/edit a specific note (use the create_note tool to create a new note, not a URL)
 - /tests — list of all tests

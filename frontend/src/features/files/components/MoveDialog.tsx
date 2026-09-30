@@ -68,6 +68,12 @@ function MoveDialogBody({ movingFolderId, currentParentId, isPending, onCancel, 
 
   const roots = allFolders.filter(f => f.parentId === null);
 
+  // Folders that must start open, so the current parent is visible on open.
+  const initiallyExpandedIds = useMemo(
+    () => collectAncestors(currentParentId, allFolders),
+    [currentParentId, allFolders]
+  );
+
   // Moving to the current parent does nothing, so block it.
   const isNoOp = selected === currentParentId;
 
@@ -76,16 +82,18 @@ function MoveDialogBody({ movingFolderId, currentParentId, isPending, onCancel, 
       <div className="max-h-72 overflow-y-auto border rounded-md">
         <div className="p-1">
           {/* Root entry */}
-          <div
+          <button
+            type="button"
+            aria-pressed={selected === null}
             className={cn(
-              'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm cursor-pointer select-none',
+              'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm cursor-pointer select-none',
               selected === null ? 'bg-accent text-accent-foreground font-medium' : 'hover:bg-accent/60 text-foreground'
             )}
             onClick={() => setSelected(null)}
           >
             <Folder className="size-4 shrink-0" />
             <span>{t('files.root')}</span>
-          </div>
+          </button>
 
           {roots.map(folder => (
             <TreeNode
@@ -93,6 +101,7 @@ function MoveDialogBody({ movingFolderId, currentParentId, isPending, onCancel, 
               folder={folder}
               all={allFolders}
               disabledIds={disabledIds}
+              initiallyExpandedIds={initiallyExpandedIds}
               selected={selected}
               onSelect={setSelected}
               depth={0}
@@ -117,14 +126,17 @@ type TreeNodeProps = {
   folder: FileTreeFolder;
   all: FileTreeFolder[];
   disabledIds: Set<string>;
+  /** Read only on mount: the node opens itself if it holds the current parent. */
+  initiallyExpandedIds: Set<string>;
   selected: string | null;
   onSelect: (id: string) => void;
   depth: number;
 };
 
-function TreeNode({ folder, all, disabledIds, selected, onSelect, depth }: TreeNodeProps) {
+function TreeNode({ folder, all, disabledIds, initiallyExpandedIds, selected, onSelect, depth }: TreeNodeProps) {
+  const t = useTranslations();
   const children = all.filter(f => f.parentId === folder.id);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => initiallyExpandedIds.has(folder.id));
   const isDisabled = disabledIds.has(folder.id);
   const isSelected = selected === folder.id;
 
@@ -132,9 +144,10 @@ function TreeNode({ folder, all, disabledIds, selected, onSelect, depth }: TreeN
 
   return (
     <div>
+      {/* The chevron only opens or closes. The name button only selects. Two controls, so each works alone. */}
       <div
         className={cn(
-          'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm cursor-pointer select-none',
+          'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm select-none',
           isDisabled
             ? 'opacity-40 cursor-not-allowed text-muted-foreground'
             : isSelected
@@ -142,21 +155,32 @@ function TreeNode({ folder, all, disabledIds, selected, onSelect, depth }: TreeN
               : 'hover:bg-accent/60 text-foreground'
         )}
         style={{ paddingLeft: `${8 + depth * TREE_INDENT_STEP_PX}px` }}
-        onClick={() => {
-          if (isDisabled) return;
-          if (children.length > 0) setExpanded(e => !e);
-          onSelect(folder.id);
-        }}
       >
         {children.length > 0 ? (
-          <ChevronRight
-            className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-90')}
-          />
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={expanded ? t('files.collapse_folder') : t('files.expand_folder')}
+            className="shrink-0 cursor-pointer"
+            onClick={() => setExpanded(e => !e)}
+          >
+            <ChevronRight
+              className={cn('size-3.5 text-muted-foreground transition-transform', expanded && 'rotate-90')}
+            />
+          </button>
         ) : (
           <span className="size-3.5 shrink-0" />
         )}
-        <Icon className="size-4 shrink-0" />
-        <span className="truncate flex-1">{folder.name}</span>
+        <button
+          type="button"
+          aria-pressed={isSelected}
+          disabled={isDisabled}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left cursor-pointer disabled:cursor-not-allowed"
+          onClick={() => onSelect(folder.id)}
+        >
+          <Icon className="size-4 shrink-0" />
+          <span className="truncate flex-1">{folder.name}</span>
+        </button>
       </div>
       {expanded &&
         children.map(child => (
@@ -165,6 +189,7 @@ function TreeNode({ folder, all, disabledIds, selected, onSelect, depth }: TreeN
             folder={child}
             all={all}
             disabledIds={disabledIds}
+            initiallyExpandedIds={initiallyExpandedIds}
             selected={selected}
             onSelect={onSelect}
             depth={depth + 1}
@@ -186,6 +211,19 @@ function collectDescendants(folderId: string, all: FileTreeFolder[]): Set<string
         result.add(child.id);
         queue.push(child.id);
       });
+  }
+  return result;
+}
+
+/** IDs of all folders above a folder (not the folder itself), from the flat list. */
+function collectAncestors(folderId: string | null, all: FileTreeFolder[]): Set<string> {
+  const byId = new Map(all.map(f => [f.id, f]));
+  const result = new Set<string>();
+  let parentId = folderId ? (byId.get(folderId)?.parentId ?? null) : null;
+  // The guard stops a loop if the data has a cycle.
+  while (parentId && !result.has(parentId)) {
+    result.add(parentId);
+    parentId = byId.get(parentId)?.parentId ?? null;
   }
   return result;
 }

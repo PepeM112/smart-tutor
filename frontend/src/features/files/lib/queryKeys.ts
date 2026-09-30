@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 
 /** Central query key definitions for the files feature. */
 export const fileQueryKeys = {
-  /** ['folders'] — prefix that covers both the flat list and the tree sub-key. */
+  /** ['folders'] — prefix that covers the tree and the delete-preview sub-keys. */
   folders: () => ['folders'] as const,
   /** ['folders', 'tree'] — the full non-trashed file tree. */
   foldersTree: () => ['folders', 'tree'] as const,
@@ -38,7 +38,7 @@ type InvalidateFileOpts = {
  * Invalidate the file system caches after any structural change
  * (create, rename, move, trash, restore).
  *
- * Invalidating `['folders']` covers both the flat list and the tree
+ * Invalidating `['folders']` also covers the tree
  * because `['folders', 'tree']` is a sub-key of `['folders']`.
  */
 export function invalidateAfterFileChange(queryClient: QueryClient, opts: InvalidateFileOpts = {}): void {

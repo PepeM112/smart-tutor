@@ -65,6 +65,7 @@ _ALLOWED_ROUTE_PREFIXES = (
     "/history",
     "/settings",
     "/stats",
+    "/trash",
 )
 
 
@@ -75,8 +76,7 @@ def _note_label(title: str | None) -> str:
 
 def _location_label(folders: Mapping[str, Folder], folder_id: str | None) -> str:
     """Where an item is, as the user sees it in the app: "Files" or "Files > A > B" (not "/A/B")."""
-    path = build_folder_path(folders, folder_id=folder_id)
-    return " > ".join(["Files", *(path.strip("/").split("/") if path else [])])
+    return " > ".join(["Files", *(build_folder_path(folders, folder_id=folder_id) or [])])
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +138,7 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
     # Resolve folder paths for result note IDs in one pass.
     note_ids = list({r.note_id for r in relevant})
     # `search_by_similarity` already skips trashed notes; this lookup is only for the folder id.
-    notes_map = {n.id: n for n in note_crud.list_live_by_ids(db, ids=note_ids)}
+    notes_map = {n.id: n for n in note_crud.list_live_by_ids(db, user_id=current_user.id, ids=note_ids)}
     folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
 
     lines = [f"Found {len(relevant)} relevant chunk(s):"]

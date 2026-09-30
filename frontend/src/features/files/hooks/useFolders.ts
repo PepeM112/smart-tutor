@@ -8,6 +8,7 @@ export type UseFoldersResult = {
   folders: FileTreeFolder[];
   foldersById: Map<string, FileTreeFolder>;
   isLoading: boolean;
+  isFetching: boolean;
   isError: boolean;
 };
 
@@ -16,7 +17,7 @@ export type UseFoldersResult = {
  * source, so lists, pickers and breadcrumbs never drift apart.
  */
 export function useFolders(): UseFoldersResult {
-  const { folders, isLoading, isError } = useFileTree();
+  const { folders, isLoading, isFetching, isError } = useFileTree();
   const foldersById = useMemo(() => new Map(folders.map(f => [f.id, f])), [folders]);
-  return { folders, foldersById, isLoading, isError };
+  return { folders, foldersById, isLoading, isFetching, isError };
 }

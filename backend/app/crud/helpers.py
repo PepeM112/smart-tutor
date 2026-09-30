@@ -1,6 +1,6 @@
-from typing import Any, TypeAlias, cast
+from typing import TypeAlias
 
-from sqlalchemy import ColumnElement, CursorResult, Result, and_, or_, true
+from sqlalchemy import ColumnElement, and_, or_, true
 from sqlalchemy.orm import InstrumentedAttribute
 
 _TextColumn: TypeAlias = InstrumentedAttribute[str] | InstrumentedAttribute[str | None]
@@ -28,8 +28,3 @@ def token_search(*columns: _TextColumn, search: str) -> ColumnElement[bool]:
         return true()
     escaped = [_escape_ilike(t) for t in tokens]
     return and_(*(or_(*(col.ilike(f"%{e}%", escape="\\") for col in columns)) for e in escaped))
-
-
-def rowcount(result: Result[Any]) -> int:
-    """Rows matched by a bulk UPDATE/DELETE. `Session.execute` is typed as the generic Result."""
-    return cast(CursorResult[Any], result).rowcount

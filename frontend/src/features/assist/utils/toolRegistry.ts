@@ -35,7 +35,8 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
     icon: FilePlus,
     isWrite: true,
     requiresConfirm: false,
-    queryKeysToInvalidate: [['notes']],
+    // The tree feeds the files table and sibling cards. It must show the new note.
+    queryKeysToInvalidate: [['notes'], ['folders']],
   },
   refine_note: { label: 'Refining note', icon: Pencil, isWrite: true, requiresConfirm: false },
   create_test: {
