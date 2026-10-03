@@ -9,6 +9,7 @@ import { sdk } from '@/lib/apiClient';
 
 import { useAssistAttachmentsStore } from '../store/useAssistAttachmentsStore';
 import { useAssistDiffStore } from '../store/useAssistDiffStore';
+import { buildInterruptedMessages, buildStreamMessages } from '../utils/buildStreamMessages';
 import { consumeSSEStream } from '../utils/sseStream';
 import { getQueryKeysToInvalidate, isWriteTool } from '../utils/toolRegistry';
 
@@ -216,6 +217,9 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         // handle cleanup here for the abort/error paths, where `done` never
         // arrives and any in-progress reveal must snap instantly (R6/C6).
         if (!receivedDone) {
+          // The approved tool of a resumed stream may have run already: its tool call still
+          // needs a result in the history, or the next request fails.
+          conversationRef.current.push(...buildInterruptedMessages(request.toolConfirmations ?? [], toolResults));
           queue.flush();
           setIsStreaming(false);
           abortRef.current = null;
@@ -385,19 +389,14 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
                 )
               );
 
-              const assistantMsg: AssistMessage = {
-                role: 'assistant',
-                content: accumulatedText,
-                toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-              };
-              conversationRef.current.push(assistantMsg);
-              if (toolResults.length > 0) {
-                conversationRef.current.push({
-                  role: 'tool',
-                  content: '',
+              conversationRef.current.push(
+                ...buildStreamMessages({
+                  text: accumulatedText,
+                  toolCalls,
                   toolResults,
-                });
-              }
+                  confirmations: request.toolConfirmations ?? undefined,
+                })
+              );
 
               // Turn fully revealed and finalized — safe to unlock input now (C7).
               setIsStreaming(false);

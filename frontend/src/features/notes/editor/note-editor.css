@@ -371,17 +371,29 @@
 }
 
 /* Column resize (prosemirror-tables). Only in the editable editor. The widget is in the cell
-   left of the boundary, so the line is centered on the cell's right border. */
+   left of the boundary, so the line is centered on the cell's right border.
+   Each cell of the column has its own widget. They must look like ONE line: each widget also covers the
+   cell's bottom border (`bottom: -1px`), the first row covers the top border, and only the two ends are round. */
 .note-editor-content .column-resize-handle {
   position: absolute;
   top: 0;
   right: -2px;
-  bottom: 0;
+  bottom: -1px;
   z-index: 2;
   width: 4px;
-  border-radius: 2px;
   background: var(--note-table-resize-handle);
   pointer-events: none;
+}
+
+.note-editor-content tr:first-child > :is(th, td) > .column-resize-handle {
+  top: -1px;
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+}
+
+.note-editor-content tr:last-child > :is(th, td) > .column-resize-handle {
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
 }
 
 /* The wrapper clips what is outside the table: keep the last handle inside. */

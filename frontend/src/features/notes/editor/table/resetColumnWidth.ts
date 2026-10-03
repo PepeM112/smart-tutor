@@ -2,6 +2,13 @@
 //
 // prosemirror-tables stores a dragged width as `colwidth` on every cell of the column.
 // A reset sets it back to `null` in all those cells, in one transaction (one undo step).
+//
+// Why the double-click is found from two `mousedown` events and not from `dblclick`:
+// prosemirror-tables starts a resize drag on every `mousedown` on the handle and writes the width
+// again on `mouseup`. It redraws the handle and the cell on each of these steps, so the browser
+// can drop the `click` / `dblclick` events, and a reset that runs from them also runs after the
+// extra writes. On the second `mousedown` we reset the column and stop the event: no second drag
+// starts, so nothing writes the width after the reset.
 
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
@@ -46,22 +53,53 @@ export function buildResetColumnWidthTransaction(state: EditorState, cellPos: nu
   return tr.docChanged ? tr : null;
 }
 
-/** Adds the double-click handler. Only active for editable editors, like the resize plugin itself. */
+/** A `mousedown` on a resize edge. */
+export type EdgePress = { time: number; x: number; y: number };
+
+/** Maximum time (ms) and distance (px) between the two presses of a double-click. */
+export const DOUBLE_PRESS_MS = 500;
+export const DOUBLE_PRESS_DISTANCE = 4;
+
+export const isDoublePress = (previous: EdgePress | null, next: EdgePress): boolean =>
+  previous !== null &&
+  next.time - previous.time <= DOUBLE_PRESS_MS &&
+  Math.hypot(next.x - previous.x, next.y - previous.y) <= DOUBLE_PRESS_DISTANCE;
+
+/**
+ * Adds the double-click handler. Only active for editable editors, like the resize plugin itself.
+ *
+ * `priority`: this plugin must see the `mousedown` before the resize plugin of the Table extension.
+ * The resize plugin calls `preventDefault()` on the `mousedown` that starts a drag, and ProseMirror
+ * does not call the next plugin for an event that is already prevented.
+ */
 export const ResetColumnWidthOnDoubleClick = Extension.create({
   name: 'resetColumnWidthOnDoubleClick',
+  priority: 1000,
 
   addProseMirrorPlugins() {
+    let previous: EdgePress | null = null;
+
     return [
       new Plugin({
         props: {
           handleDOMEvents: {
-            dblclick: (view, event) => {
-              if (!view.editable) return false;
+            mousedown: (view, event) => {
+              if (!view.editable || event.button !== 0) return false;
               // `activeHandle` is the position of the cell left of the handle under the mouse (-1 = none).
               const handle = columnResizingPluginKey.getState(view.state)?.activeHandle ?? -1;
-              if (handle < 0) return false;
+              if (handle < 0) {
+                previous = null;
+                return false;
+              }
 
-              // Stop the browser from selecting a word at the handle.
+              const press: EdgePress = { time: Date.now(), x: event.clientX, y: event.clientY };
+              if (!isDoublePress(previous, press)) {
+                previous = press;
+                return false;
+              }
+
+              previous = null;
+              // Stops the text selection and the second drag of prosemirror-tables.
               event.preventDefault();
               const tr = buildResetColumnWidthTransaction(view.state, handle);
               if (tr) view.dispatch(tr);

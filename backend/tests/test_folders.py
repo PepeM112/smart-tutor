@@ -1,6 +1,6 @@
 """Tests for the Folders feature.
 
-Covers: cycle check, sibling uniqueness, cascade delete preview counts,
+Covers: cycle check, sibling uniqueness,
 move_note version isolation, and ownership 404s.
 
 Run:  pytest tests/test_folders.py
@@ -112,49 +112,6 @@ class TestSiblingUniqueness:
         with patch("app.services.folder_service.folder_crud") as mock_crud:
             mock_crud.sibling_name_exists.return_value = False
             folder_service._assert_no_sibling_conflict(db, user_id="u1", parent_id=None, name="Unique")
-
-
-# ---------------------------------------------------------------------------
-# folder_service.get_delete_preview — recursive counts
-# ---------------------------------------------------------------------------
-
-
-class TestDeletePreview:
-    def test_preview_counts_include_root_folder(self) -> None:
-        from app.services import folder_service
-
-        db = MagicMock()
-        user = _make_user()
-        with (
-            patch("app.services.folder_service.folder_crud") as mock_crud,
-            patch("app.services.folder_service.get_live_folder_or_404") as mock_get,
-        ):
-            mock_get.return_value = _make_folder("f1")
-            # 2 sub-folders, 5 notes across the subtree (live only)
-            mock_crud.count_live_descendants.return_value = (2, 5)
-
-            preview = folder_service.get_delete_preview(db, folder_id="f1", current_user=user)
-
-        # folder_count includes the root folder itself
-        assert preview.folder_count == 3  # 2 descendants + 1 root
-        assert preview.note_count == 5
-
-    def test_preview_single_empty_folder(self) -> None:
-        from app.services import folder_service
-
-        db = MagicMock()
-        user = _make_user()
-        with (
-            patch("app.services.folder_service.folder_crud") as mock_crud,
-            patch("app.services.folder_service.get_live_folder_or_404") as mock_get,
-        ):
-            mock_get.return_value = _make_folder("f1")
-            mock_crud.count_live_descendants.return_value = (0, 0)
-
-            preview = folder_service.get_delete_preview(db, folder_id="f1", current_user=user)
-
-        assert preview.folder_count == 1
-        assert preview.note_count == 0
 
 
 # ---------------------------------------------------------------------------

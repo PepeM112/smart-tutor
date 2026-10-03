@@ -1,22 +1,19 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Folder, NotepadText, Trash2 } from 'lucide-react';
-import { useFormatter, useNow, useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
-import { type TrashItemRead } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { TreeChevron } from '@/features/files/components/TreeChevron';
 import { fileQueryKeys } from '@/features/files/lib/queryKeys';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { sdk } from '@/lib/apiClient';
 
 import { useTrashMutations } from '../hooks/useTrashMutations';
 
-import { TrashTree } from './TrashTree';
+import { TrashTable } from './TrashTable';
 
 export function TrashPage() {
   const t = useTranslations();
@@ -64,81 +61,9 @@ export function TrashPage() {
             <p className="text-sm text-muted-foreground">{t('trash.empty_state')}</p>
           </div>
         ) : (
-          <div className="space-y-1">
-            {items.map(item => (
-              <TrashItem key={`${item.kind}-${item.id}`} item={item} />
-            ))}
-          </div>
+          <TrashTable items={items} />
         )}
       </QueryState>
     </div>
   );
-}
-
-// ─── TrashItem ────────────────────────────────────────────────────────────────
-
-type TrashItemProps = {
-  item: TrashItemRead;
-};
-
-function TrashItem({ item }: TrashItemProps) {
-  const t = useTranslations();
-  const { restoreItem, isRestoring, hardDeleteItem, isHardDeleting } = useTrashMutations();
-  const target = { kind: item.kind, id: item.id };
-  const [expanded, setExpanded] = useState(false);
-  // Only a folder that held other items has a tree to show.
-  const hasContents = item.kind === 'folder' && item.folderCount + item.noteCount > 0;
-
-  const format = useFormatter();
-  // Explicit `now` (updates each minute): without it next-intl warns, and server and client can disagree.
-  const now = useNow({ updateInterval: 60_000 });
-  const Icon = item.kind === 'folder' ? Folder : NotepadText;
-  // next-intl gives a localized relative time ("3 days ago" / "hace 3 días").
-  const subtitle = buildSubtitle(item, format.relativeTime(new Date(item.deletedAt), now), t);
-
-  return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 shadow-card">
-      <TreeChevron hasChildren={hasContents} expanded={expanded} onToggle={() => setExpanded(open => !open)} />
-      <Icon className="size-5 shrink-0 text-muted-foreground" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-foreground">{item.name}</p>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => restoreItem(target)}
-          disabled={isRestoring || isHardDeleting}
-        >
-          {t('trash.restore')}
-        </Button>
-        <ConfirmDialog
-          trigger={
-            <Button size="sm" variant="ghost" disabled={isRestoring || isHardDeleting}>
-              {t('trash.delete_forever')}
-            </Button>
-          }
-          title={t('trash.delete_forever_title')}
-          description={t('trash.delete_forever_confirm', { name: item.name })}
-          confirmLabel={t('trash.delete_forever')}
-          confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          disableConfirm={isHardDeleting}
-          onConfirm={() => hardDeleteItem(target)}
-        />
-      </div>
-      {expanded && hasContents && (
-        <div className="basis-full">
-          <TrashTree folderId={item.id} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function buildSubtitle(item: TrashItemRead, deleted: string, t: ReturnType<typeof useTranslations>): string {
-  if (item.kind === 'folder') {
-    return `${t('trash.deleted_ago', { time: deleted })} · ${t('trash.folder_contents', { notes: item.noteCount, folders: item.folderCount })}`;
-  }
-  return t('trash.deleted_ago', { time: deleted });
 }

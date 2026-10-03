@@ -1,36 +1,32 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Folder, NotepadText } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import { type FileTreeFolder, type FileTreeNote } from '@/client';
-import { QueryState } from '@/components/shared/QueryState';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { TreeChevron } from '@/features/files/components/TreeChevron';
-import { TreeRowShell } from '@/features/files/components/TreeRowShell';
-import { buildChildrenIndex, type ChildrenIndex } from '@/features/files/lib/fileTree';
+import { buildChildrenIndex, type ChildrenIndex, hasChildItems } from '@/features/files/lib/fileTree';
 import { fileQueryKeys } from '@/features/files/lib/queryKeys';
+import { TREE_INDENT_STEP_PX, TREE_NAME_OFFSET_PX, TREE_ROW_BASE_PADDING_PX } from '@/features/files/lib/treeLayout';
 import { sdk } from '@/lib/apiClient';
-import { displayTitle } from '@/lib/displayTitle';
 
-import { type TrashTarget, useTrashMutations } from '../hooks/useTrashMutations';
+import { TrashRow } from './TrashRow';
 
 type Props = {
   /** The trashed folder at the top of the batch. */
   folderId: string;
+  /** Depth of the rows of this level (the depth of the trashed folder + 1). */
+  depth: number;
 };
 
 /**
- * The items that were trashed together with a folder, as a tree. Each item can be restored
- * or deleted forever on its own. The query runs only when this component mounts (the
- * parent mounts it when the row is expanded).
+ * The rows of the items that were trashed together with a folder. Each row can be
+ * restored or deleted forever on its own. The query runs only when this component mounts
+ * (the parent mounts it when the folder row is expanded).
  */
-export function TrashTree({ folderId }: Props) {
+export function TrashTree({ folderId, depth }: Props) {
   const t = useTranslations();
-  const { restoreItem, isRestoring, hardDeleteItem, isHardDeleting } = useTrashMutations();
 
   const {
     data: res,
@@ -43,130 +39,91 @@ export function TrashTree({ folderId }: Props) {
   const tree = res?.data;
   const childrenIndex = useMemo(() => (tree ? buildChildrenIndex(tree) : null), [tree]);
 
+  if (isLoading) {
+    return (
+      <StatusRow depth={depth}>
+        <Loader2 className="size-4 animate-spin" />
+      </StatusRow>
+    );
+  }
+  if (isError || !childrenIndex) {
+    return <StatusRow depth={depth}>{t('trash.failed_to_load_tree')}</StatusRow>;
+  }
+
+  return <TrashBranch parentId={folderId} depth={depth} childrenIndex={childrenIndex} />;
+}
+
+// ─── Status row ──────────────────────────────────────────────────────────────
+
+/** A row-shaped message under a folder row (loading or error). Its text starts at the name column. */
+function StatusRow({ depth, children }: { depth: number; children: ReactNode }) {
   return (
-    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('trash.failed_to_load_tree')}>
-      {childrenIndex && (
-        <TrashBranch
-          parentId={folderId}
-          depth={0}
-          childrenIndex={childrenIndex}
-          actions={{ restoreItem, hardDeleteItem, isBusy: isRestoring || isHardDeleting }}
-        />
-      )}
-    </QueryState>
+    <div
+      role="row"
+      className="flex items-center py-1.5 pr-2 text-sm text-muted-foreground"
+      style={{ paddingLeft: `${depth * TREE_INDENT_STEP_PX + TREE_ROW_BASE_PADDING_PX + TREE_NAME_OFFSET_PX}px` }}
+    >
+      {children}
+    </div>
   );
 }
 
 // ─── Branch ──────────────────────────────────────────────────────────────────
 
-type Actions = {
-  restoreItem: (target: TrashTarget) => void;
-  hardDeleteItem: (target: TrashTarget) => void;
-  isBusy: boolean;
-};
-
 type BranchProps = {
   parentId: string;
   depth: number;
   childrenIndex: ChildrenIndex;
-  actions: Actions;
 };
 
-function TrashBranch({ parentId, depth, childrenIndex, actions }: BranchProps) {
+function TrashBranch({ parentId, depth, childrenIndex }: BranchProps) {
   const children = childrenIndex.get(parentId);
   return (
     <>
       {children?.folders.map(folder => (
-        <TrashFolderRow key={folder.id} folder={folder} depth={depth} childrenIndex={childrenIndex} actions={actions} />
+        <TrashFolderRow key={folder.id} folder={folder} depth={depth} childrenIndex={childrenIndex} />
       ))}
       {children?.notes.map(note => (
-        <TrashNoteRow key={note.id} note={note} depth={depth} actions={actions} />
+        <TrashNoteRow key={note.id} note={note} depth={depth} />
       ))}
     </>
   );
 }
 
-function TrashFolderRow({
-  folder,
-  depth,
-  childrenIndex,
-  actions,
-}: {
+type FolderRowProps = {
   folder: FileTreeFolder;
   depth: number;
   childrenIndex: ChildrenIndex;
-  actions: Actions;
-}) {
+};
+
+function TrashFolderRow({ folder, depth, childrenIndex }: FolderRowProps) {
   const [expanded, setExpanded] = useState(false);
-  const children = childrenIndex.get(folder.id);
-  const hasChildren = (children?.folders.length ?? 0) + (children?.notes.length ?? 0) > 0;
+  const hasChildren = hasChildItems(childrenIndex, folder.id);
 
   return (
     <>
-      <TreeRowShell
+      <TrashRow
+        target={{ kind: 'folder', id: folder.id }}
+        name={folder.name}
         depth={depth}
-        expanded={hasChildren ? expanded : undefined}
-        onClick={() => hasChildren && setExpanded(open => !open)}
-      >
-        <TreeChevron hasChildren={hasChildren} expanded={expanded} onToggle={() => setExpanded(open => !open)} />
-        <Folder className="size-4 shrink-0 text-primary/70" />
-        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{folder.name}</span>
-        <TrashRowActions target={{ kind: 'folder', id: folder.id }} name={folder.name} actions={actions} />
-      </TreeRowShell>
-      {expanded && hasChildren && (
-        <TrashBranch parentId={folder.id} depth={depth + 1} childrenIndex={childrenIndex} actions={actions} />
-      )}
+        hasChildren={hasChildren}
+        expanded={expanded}
+        onToggle={() => setExpanded(open => !open)}
+      />
+      {expanded && hasChildren && <TrashBranch parentId={folder.id} depth={depth + 1} childrenIndex={childrenIndex} />}
     </>
   );
 }
 
-function TrashNoteRow({ note, depth, actions }: { note: FileTreeNote; depth: number; actions: Actions }) {
-  const t = useTranslations();
-  const title = displayTitle(note.title, t);
-
+function TrashNoteRow({ note, depth }: { note: FileTreeNote; depth: number }) {
   return (
-    <TreeRowShell depth={depth} onClick={() => undefined}>
-      <TreeChevron hasChildren={false} expanded={false} onToggle={() => undefined} />
-      <NotepadText className="size-4 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate font-medium text-foreground">{title}</span>
-      <TrashRowActions target={{ kind: 'note', id: note.id }} name={title} actions={actions} />
-    </TreeRowShell>
-  );
-}
-
-// ─── Row actions ─────────────────────────────────────────────────────────────
-
-function TrashRowActions({
-  target,
-  name,
-  actions,
-}: {
-  target: TrashTarget;
-  name: string;
-  actions: Actions;
-}): ReactNode {
-  const t = useTranslations();
-  const { restoreItem, hardDeleteItem, isBusy } = actions;
-
-  // Stops clicks (also from the dialog, which bubbles through the React tree) before they toggle the row.
-  return (
-    <div className="flex shrink-0 items-center gap-1" onClick={e => e.stopPropagation()}>
-      <Button size="sm" variant="outline" onClick={() => restoreItem(target)} disabled={isBusy}>
-        {t('trash.restore')}
-      </Button>
-      <ConfirmDialog
-        trigger={
-          <Button size="sm" variant="ghost" disabled={isBusy}>
-            {t('trash.delete_forever')}
-          </Button>
-        }
-        title={t('trash.delete_forever_title')}
-        description={t('trash.delete_forever_confirm', { name })}
-        confirmLabel={t('trash.delete_forever')}
-        confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-        disableConfirm={isBusy}
-        onConfirm={() => hardDeleteItem(target)}
-      />
-    </div>
+    <TrashRow
+      target={{ kind: 'note', id: note.id }}
+      name={note.title}
+      depth={depth}
+      hasChildren={false}
+      expanded={false}
+      onToggle={() => undefined}
+    />
   );
 }

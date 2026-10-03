@@ -23,7 +23,7 @@ from app.services.assist_tools import (
     requires_confirmation,
 )
 
-CONFIRM_TOOLS = {"edit_test", "create_folder", "move_items", "restore_from_trash"}
+CONFIRM_TOOLS = {"edit_test"}
 NEW_TOOLS = ["create_folder", "move_items", "list_trash", "restore_from_trash"]
 
 FOLDERS = "app.services.assist_tools.folders"
@@ -343,86 +343,11 @@ class TestRestoreFromTrash:
 
 
 class TestConfirmContext:
-    def _ctx(self, tool: str, arguments: dict[str, object]) -> dict[str, object] | None:
-        return build_confirm_context(MagicMock(), tool, arguments, _user())
-
     def test_tool_without_a_builder_has_no_context(self) -> None:
-        assert self._ctx("list_notes", {}) is None
-        assert self._ctx("does_not_exist", {}) is None
+        assert build_confirm_context(MagicMock(), "list_notes", {}, _user()) is None
+        assert build_confirm_context(MagicMock(), "does_not_exist", {}, _user()) is None
 
-    def test_create_folder_in_a_folder(self) -> None:
-        with patch(f"{FOLDERS}.folder_service.load_folder_map", return_value={"a": _folder("a", "A")}):
-            ctx = self._ctx("create_folder", {"name": "X", "parent_id": "a"})
-        assert ctx == {"summary": 'Create folder "X" in Files > A'}
-
-    def test_create_folder_at_the_root(self) -> None:
-        with patch(f"{FOLDERS}.folder_service.load_folder_map", return_value={}):
-            ctx = self._ctx("create_folder", {"name": "X"})
-        assert ctx == {"summary": 'Create folder "X" in Files'}
-
-    def test_create_folder_with_an_unknown_parent_does_not_claim_a_place(self) -> None:
-        with patch(f"{FOLDERS}.folder_service.load_folder_map", return_value={}):
-            ctx = self._ctx("create_folder", {"name": "X", "parent_id": "gone"})
-        assert ctx is not None and "parent folder was not found" in str(ctx["summary"])
-
-    def test_move_items_summary_and_names(self) -> None:
-        note = MagicMock()
-        note.title = "Mitosis"
-        folders = {"t": _folder("t", "X"), "f1": _folder("f1", "Old")}
-        with (
-            patch(f"{FOLDERS}.note_crud.list_live_by_ids", return_value=[note, note, note]),
-            patch(f"{FOLDERS}.folder_service.load_folder_map", return_value=folders),
-        ):
-            ctx = self._ctx(
-                "move_items", {"note_ids": ["a", "b", "c"], "folder_ids": ["f1", "foreign"], "target_folder_id": "t"}
-            )
-
-        assert ctx is not None
-        assert ctx["summary"] == "Move 3 notes and 1 folder to Files > X"
-        assert ctx["items"][-1] == {"kind": "folder", "name": "Old"}  # type: ignore[index]
-        assert ctx["more_items"] == 0
-
-    def test_move_items_to_root_with_no_owned_items_has_no_context(self) -> None:
-        with (
-            patch(f"{FOLDERS}.note_crud.list_live_by_ids", return_value=[]),
-            patch(f"{FOLDERS}.folder_service.load_folder_map", return_value={}),
-        ):
-            assert self._ctx("move_items", {"note_ids": ["foreign"], "target_folder_id": None}) is None
-
-    def test_move_items_cuts_the_item_list(self) -> None:
-        notes = [MagicMock(title=f"N{i}") for i in range(14)]
-        with (
-            patch(f"{FOLDERS}.note_crud.list_live_by_ids", return_value=notes),
-            patch(f"{FOLDERS}.folder_service.load_folder_map", return_value={}),
-        ):
-            ctx = self._ctx("move_items", {"note_ids": [f"n{i}" for i in range(14)], "target_folder_id": None})
-        assert ctx is not None
-        assert len(ctx["items"]) == 10  # type: ignore[arg-type]
-        assert ctx["more_items"] == 4
-
-    def test_restore_summary_only_shows_own_trashed_items(self) -> None:
-        trashed_folder = _folder("f1", "Cells", parent_id="a")
-        trashed_folder.deleted_at = datetime.now(timezone.utc)
-        trashed_note = MagicMock(user_id="u1", title="Mitosis", folder_id=None, orphan_path=None)
-        trashed_note.deleted_at = datetime.now(timezone.utc)
-        foreign_note = MagicMock(user_id="other", title="Secret", folder_id=None, orphan_path=None)
-        foreign_note.deleted_at = datetime.now(timezone.utc)
-        live_note = MagicMock(user_id="u1", title="Live", folder_id=None, orphan_path=None, deleted_at=None)
-        notes = {"n1": trashed_note, "n2": foreign_note, "n3": live_note}
-
-        with (
-            patch(f"{TRASH}.folder_service.load_folder_map", return_value={"a": _folder("a", "A")}),
-            patch(f"{TRASH}.folder_crud.get_by_id", return_value=trashed_folder),
-            patch(f"{TRASH}.note_crud.get_by_id", side_effect=lambda db, id: notes.get(id)),
-        ):
-            ctx = self._ctx(
-                "restore_from_trash",
-                {"items": [{"kind": "folder", "id": "f1"}] + [{"kind": "note", "id": i} for i in notes]},
-            )
-
-        assert ctx is not None
-        assert ctx["summary"] == "Restore 2 items from Trash"
-        assert ctx["items"] == [
-            {"kind": "folder", "name": "Cells", "detail": "was in Files > A"},
-            {"kind": "note", "name": "Mitosis", "detail": "was in Files"},
-        ]
+    def test_organising_tools_run_without_a_confirm_card(self) -> None:
+        for name in ("create_folder", "move_items", "restore_from_trash"):
+            assert requires_confirmation(name) is False
+            assert TOOLS[name].confirm_context is None

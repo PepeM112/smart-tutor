@@ -71,6 +71,15 @@ export function buildChildrenIndex(tree: FileTree): ChildrenIndex {
   return index;
 }
 
+/**
+ * True when the folder has at least one live child (folder or note).
+ * One place for "can this folder open?" and "is this folder empty?".
+ */
+export function hasChildItems(index: ChildrenIndex, folderId: string): boolean {
+  const children = index.get(folderId);
+  return (children?.folders.length ?? 0) + (children?.notes.length ?? 0) > 0;
+}
+
 // ─── isDescendantOrSelf ───────────────────────────────────────────────────────
 
 /**

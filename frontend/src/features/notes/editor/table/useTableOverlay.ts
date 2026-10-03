@@ -3,8 +3,8 @@
 // State of the table controls overlay: which table is active, where it is on the screen, which cell
 // the mouse is on and what the editor selection is.
 //
-// The active table is the one under the mouse (or in the zone around it), else the one that holds the
-// selection. Touch input has no hover, so on touch only the selection counts.
+// The active table is the one under the mouse (or in the zone around it, or in its row band across the
+// whole editor width, plus the table menu button left of it), else the one that holds the selection. Touch input has no hover, so on touch only the selection counts.
 // All measuring runs in `requestAnimationFrame`, at most once per frame, and the React state changes
 // only when a measured value changed.
 
@@ -12,7 +12,15 @@ import { columnResizingPluginKey } from '@tiptap/pm/tables';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
 import { readSelectedLines, type SelectedLines } from './tableCommands';
-import { hoverFromPoint, isOnTable, readTableMeasure, type CellIndex, type TableMeasure } from './tableGeometry';
+import {
+  hoverFromPoint,
+  isInTableBand,
+  isOnTable,
+  readTableMeasure,
+  TABLE_MENU_REACH,
+  type CellIndex,
+  type TableMeasure,
+} from './tableGeometry';
 
 import type { Editor } from '@tiptap/core';
 
@@ -24,8 +32,6 @@ export type OverlayState = {
   selected: SelectedLines | null;
   /** A column is being resized (drag). */
   resizing: boolean;
-  /** The mouse is on the resize edge of a column. */
-  onResizeEdge: boolean;
 };
 
 type Lock = { tablePos: number; hover: CellIndex | null };
@@ -58,7 +64,9 @@ function computeState(
   const hovered =
     point && !lock
       ? (measures.find(m => isOnTable(m, point.x, point.y)) ??
-        measures.find(m => hoverFromPoint(m, point.x, point.y) !== null))
+        measures.find(m => hoverFromPoint(m, point.x, point.y) !== null) ??
+        // Beside a narrow table: no cell is hovered, but the table menu button stays visible.
+        measures.find(m => isInTableBand(m, point.x, point.y, box.width)))
       : undefined;
   const table = lock
     ? measures.find(m => m.tablePos === lock.tablePos)
@@ -73,7 +81,6 @@ function computeState(
     hover,
     selected: selection?.tablePos === table.tablePos ? selection : null,
     resizing: !!resize?.dragging,
-    onResizeEdge: (resize?.activeHandle ?? -1) >= 0,
   };
   return next;
 }
@@ -116,19 +123,32 @@ export function useTableOverlay(editor: Editor, containerRef: RefObject<HTMLElem
     const container = containerRef.current;
     if (!container) return;
 
+    // The pointer is tracked on the window, not on the container: the table menu button sits left of
+    // the table, often outside the container (in the page padding). With container events, the gap between
+    // the table and the button fires `pointerleave` and the button disappears before the pointer reaches it.
+    // A move far from the container is ignored, so the overlay does not measure on every move on the page.
     const onPointerMove = (event: PointerEvent) => {
       // Touch has no hover: a tap changes the selection, and the selection drives the controls.
       if (event.pointerType === 'touch') return;
-      pointer.current = { x: event.clientX, y: event.clientY };
+      const box = container.getBoundingClientRect();
+      const isNear =
+        event.clientX >= box.left - TABLE_MENU_REACH &&
+        event.clientX <= box.right &&
+        event.clientY >= box.top &&
+        event.clientY <= box.bottom;
+      if (!isNear && pointer.current === null) return;
+      pointer.current = isNear ? { x: event.clientX, y: event.clientY } : null;
       schedule();
     };
-    const onPointerLeave = () => {
+    const onPointerOut = (event: PointerEvent) => {
+      // `relatedTarget` is null when the pointer leaves the window.
+      if (event.relatedTarget !== null) return;
       pointer.current = null;
       schedule();
     };
 
-    container.addEventListener('pointermove', onPointerMove);
-    container.addEventListener('pointerleave', onPointerLeave);
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    document.addEventListener('pointerout', onPointerOut);
     // `scroll` does not bubble. Capture catches the scroll of a wide table inside its wrapper.
     container.addEventListener('scroll', schedule, true);
     window.addEventListener('resize', schedule);
@@ -138,8 +158,8 @@ export function useTableOverlay(editor: Editor, containerRef: RefObject<HTMLElem
 
     schedule();
     return () => {
-      container.removeEventListener('pointermove', onPointerMove);
-      container.removeEventListener('pointerleave', onPointerLeave);
+      window.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerout', onPointerOut);
       container.removeEventListener('scroll', schedule, true);
       window.removeEventListener('resize', schedule);
       editor.off('transaction', schedule);

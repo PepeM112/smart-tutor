@@ -21,7 +21,6 @@ from app.schemas.folder import (
     FileTreeFolder,
     FileTreeNote,
     FolderCreate,
-    FolderDeletePreview,
     FolderDeleteResult,
     FolderRead,
     FolderUpdate,
@@ -178,14 +177,6 @@ def update_folder(db: Session, *, folder_id: str, current_user: User, data: Fold
         db.commit()
     db.refresh(updated)
     return updated
-
-
-def get_delete_preview(db: Session, *, folder_id: str, current_user: User) -> FolderDeletePreview:
-    get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
-    # Count only live items so the confirmation shows what will actually be trashed.
-    folder_count, note_count = folder_crud.count_live_descendants(db, user_id=current_user.id, folder_id=folder_id)
-    # Include the folder itself.
-    return FolderDeletePreview(folder_count=folder_count + 1, note_count=note_count)
 
 
 def detach_other_batches(db: Session, *, folder: Folder) -> None:

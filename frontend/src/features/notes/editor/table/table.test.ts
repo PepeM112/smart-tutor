@@ -8,14 +8,15 @@
 import { Editor } from '@tiptap/core';
 import Link from '@tiptap/extension-link';
 import { Markdown } from '@tiptap/markdown';
+import { columnResizingPluginKey } from '@tiptap/pm/tables';
 import StarterKit from '@tiptap/starter-kit';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { parseMarkdown, serializeMarkdown } from '../markdown';
 import { NoteColorMark } from '../noteColor';
 
 import { createNoteTableExtensions } from './noteTable';
-import { buildResetColumnWidthTransaction } from './resetColumnWidth';
+import { buildResetColumnWidthTransaction, isDoublePress } from './resetColumnWidth';
 
 import type { JSONContent } from '@tiptap/core';
 
@@ -310,6 +311,104 @@ describe('table: reset column width', () => {
     expect(widthsOf(firstTable())).toEqual([[120], null, [120], null]);
     editor.commands.undo();
     expect(widthsOf(firstTable())).toEqual([[120], [200], [120], [200]]);
+  });
+
+  describe('double-click on the resize edge (mouse events)', () => {
+    afterEach(() => vi.useRealTimers());
+
+    /** The mouse is on the right edge of the first column: prosemirror-tables has an active handle there. */
+    function hoverEdgeOfFirstColumn(): void {
+      const { view } = editor;
+      view.dispatch(view.state.tr.setMeta(columnResizingPluginKey, { setHandle: cellPos(0) }));
+    }
+
+    /** Mouse down on the first cell. A cell with new attributes is a new DOM element: look it up each time. */
+    const press = (): MouseEvent => {
+      const event = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 100,
+        clientY: 20,
+      });
+      (editor.view.nodeDOM(cellPos(0)) as HTMLElement).dispatchEvent(event);
+      return event;
+    };
+    const release = (): void => {
+      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: 100, clientY: 20 }));
+    };
+
+    it('resets the width and does not start a second drag', () => {
+      load(sized);
+      hoverEdgeOfFirstColumn();
+
+      press();
+      release();
+      expect(widthsOf(firstTable())).toEqual([[120], [200], [120], [200]]);
+
+      const second = press();
+      expect(second.defaultPrevented).toBe(true);
+      expect(widthsOf(firstTable())).toEqual([null, [200], null, [200]]);
+      expect(columnResizingPluginKey.getState(editor.state)?.dragging).toBeFalsy();
+
+      // The second mouse-up must not write the width again.
+      release();
+      expect(widthsOf(firstTable())).toEqual([null, [200], null, [200]]);
+    });
+
+    it('updates the <col> element: no stale inline width stays on the screen', () => {
+      load(sized);
+      hoverEdgeOfFirstColumn();
+      const cols = (): string[] => Array.from(editor.view.dom.querySelectorAll('col')).map(col => col.style.width);
+      expect(cols()).toEqual(['120px', '200px']);
+
+      press();
+      release();
+      press();
+      expect(cols()).toEqual(['', '200px']);
+    });
+
+    it('is one undo step, also when the first mouse-up writes the default width', () => {
+      load('<table>\n<tr>\n<td>a</td>\n<td>b</td>\n</tr>\n</table>');
+      hoverEdgeOfFirstColumn();
+
+      press();
+      release(); // prosemirror-tables writes a width here, even with no move
+      expect(widthsOf(firstTable())[0]).not.toBeNull();
+      press();
+      expect(widthsOf(firstTable())).toEqual([null, null]);
+
+      editor.commands.undo();
+      expect(widthsOf(firstTable())).toEqual([null, null]);
+    });
+
+    it('does nothing for two presses that are too far apart in time', () => {
+      vi.useFakeTimers();
+      load(sized);
+      hoverEdgeOfFirstColumn();
+
+      press();
+      release();
+      vi.advanceTimersByTime(800);
+      const second = press();
+      release();
+      expect(second.defaultPrevented).toBe(true); // prosemirror-tables starts a normal drag
+      expect(widthsOf(firstTable())).toEqual([[120], [200], [120], [200]]);
+    });
+  });
+
+  describe('isDoublePress', () => {
+    const first = { time: 1000, x: 100, y: 50 };
+
+    it('accepts a second press that is near in time and place', () => {
+      expect(isDoublePress(first, { time: 1300, x: 102, y: 51 })).toBe(true);
+    });
+
+    it('rejects no first press, a late press and a far press', () => {
+      expect(isDoublePress(null, first)).toBe(false);
+      expect(isDoublePress(first, { time: 1600, x: 100, y: 50 })).toBe(false);
+      expect(isDoublePress(first, { time: 1200, x: 120, y: 50 })).toBe(false);
+    });
   });
 });
 

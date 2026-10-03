@@ -29,9 +29,10 @@ import { useFileMutations } from '../hooks/useFileMutations';
 import { useFileTree } from '../hooks/useFileTree';
 import { FOLDER_DROP_PREFIX } from '../hooks/useTreeRowDnd';
 import { canDrop, type DraggedItem, isDraggedItem, isDropTargetData } from '../lib/fileTree';
-import { ACTIONS_CELL_WIDTH_CLASS, TREE_NAME_OFFSET_PX } from '../lib/treeLayout';
+import { ACTIONS_CELL_WIDTH_CLASS } from '../lib/treeLayout';
 
 import { FolderTreeRow, NoteTreeRow } from './FileTreeRow';
+import { TreeHeaderRow } from './TreeHeaderRow';
 
 /**
  * The view drop zone contains the folder rows, so the pointer is often inside both.
@@ -235,17 +236,10 @@ function ViewDropZone({ currentFolderId, folders, children }: ViewDropZoneProps)
         highlight && 'bg-primary/5 ring-1 ring-primary/40'
       )}
     >
-      {/* Header row */}
-      <div
-        role="row"
-        className="flex items-center gap-2 border-b border-border py-1 pr-2 text-xs font-medium text-muted-foreground"
-        style={{ paddingLeft: `${TREE_NAME_OFFSET_PX}px` }}
-      >
+      <TreeHeaderRow actionsWidthClass={ACTIONS_CELL_WIDTH_CLASS}>
         <span className="flex-1">{highlight ? t('files.drop_here') : t('files.col_name')}</span>
         <span className="hidden w-24 text-right sm:block">{t('notes.column_updated')}</span>
-        {/* Spacer matching the 4-button actions cell */}
-        <span className={cn(ACTIONS_CELL_WIDTH_CLASS, 'shrink-0')} />
-      </div>
+      </TreeHeaderRow>
       {children}
     </div>
   );

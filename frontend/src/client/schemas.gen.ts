@@ -577,26 +577,6 @@ export const FolderCreateSchema = {
     title: 'FolderCreate'
 } as const;
 
-export const FolderDeletePreviewSchema = {
-    properties: {
-        folderCount: {
-            type: 'integer',
-            title: 'Foldercount'
-        },
-        noteCount: {
-            type: 'integer',
-            title: 'Notecount'
-        }
-    },
-    type: 'object',
-    required: [
-        'folderCount',
-        'noteCount'
-    ],
-    title: 'FolderDeletePreview',
-    description: 'Recursive counts shown in the delete confirmation dialog.'
-} as const;
-
 export const FolderDeleteResultSchema = {
     properties: {
         outcome: {

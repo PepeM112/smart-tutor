@@ -19,12 +19,11 @@ import { useTranslations } from 'next-intl';
 import { useRef } from 'react';
 
 import {
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuPortal,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -35,7 +34,7 @@ import { ColorSwatch } from '../NoteBubbleMenu';
 import { NOTE_COLORS, type NoteColor } from '../noteColor';
 
 import { runTableCommand } from './runTableCommand';
-import { parseTableLayout, type TableLayout } from './tableAttributes';
+import { type TableLayout } from './tableAttributes';
 import {
   buildClearCellsTransaction,
   buildDeleteLineTransaction,
@@ -138,15 +137,14 @@ export function TableMenu({ editor, tablePos, layout }: TableMenuProps) {
 
   return (
     <MenuShell editor={editor} side="bottom" align="start">
-      <DropdownMenuRadioGroup
-        value={layout}
-        onValueChange={value =>
-          runTableCommand(editor, state => buildSetLayoutTransaction(state, tablePos, parseTableLayout(value)))
+      <DropdownMenuCheckboxItem
+        checked={layout === 'full'}
+        onCheckedChange={checked =>
+          runTableCommand(editor, state => buildSetLayoutTransaction(state, tablePos, checked ? 'full' : 'compact'))
         }
       >
-        <DropdownMenuRadioItem value="compact">{t('table_layout_compact')}</DropdownMenuRadioItem>
-        <DropdownMenuRadioItem value="full">{t('table_layout_full')}</DropdownMenuRadioItem>
-      </DropdownMenuRadioGroup>
+        {t('table_layout_full')}
+      </DropdownMenuCheckboxItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem
         onSelect={() =>

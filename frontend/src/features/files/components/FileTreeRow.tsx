@@ -15,6 +15,7 @@ import { folderHref, noteHref } from '@/lib/routes';
 
 import { useFilesTree } from '../context/FilesTreeContext';
 import { useTreeRowDnd } from '../hooks/useTreeRowDnd';
+import { hasChildItems } from '../lib/fileTree';
 
 import { FileRowActions } from './FileRowActions';
 import { TreeChevron } from './TreeChevron';
@@ -39,7 +40,7 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
   const childFolders = children?.folders ?? [];
   const childNotes = children?.notes ?? [];
   // A folder with nothing inside cannot open: no chevron and no toggle on a row click.
-  const hasChildren = childFolders.length + childNotes.length > 0;
+  const hasChildren = hasChildItems(childrenIndex, folder.id);
 
   // This row is both draggable and droppable.
   const dnd = useTreeRowDnd(

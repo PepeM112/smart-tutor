@@ -1,6 +1,6 @@
 """Folder tools: list folders, create a folder, move notes and folders.
 
-`create_folder` and `move_items` ask the user to confirm first. They call the same service
+`create_folder` and `move_items` run without a confirmation card. They call the same service
 functions as the Files page (`folder_service`, `note_service`), so tree locking, ownership,
 cycle and name-conflict checks are the same.
 """
@@ -9,16 +9,15 @@ from __future__ import annotations
 
 import logging
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app.crud import folder as folder_crud
-from app.crud import note as note_crud
 from app.schemas.folder import FolderCreate, FolderUpdate
 from app.services import folder_service, note_service
-from app.services.assist_tools._helpers import location_label, note_label, plural, skip_reason, string_list
+from app.services.assist_tools._helpers import location_label, plural, skip_reason, string_list
 from app.services.assist_tools.types import ToolResult, ToolSpec
 
 if TYPE_CHECKING:
@@ -30,8 +29,6 @@ logger = logging.getLogger("smarttutor.assist.tools")
 
 # One move is one commit. Cap a call so a wrong model call can not run for minutes.
 _MOVE_LIMIT = 100
-# The confirm card shows at most this many item names.
-_CONFIRM_ITEM_LIMIT = 10
 
 
 def _optional_id(value: object) -> str | None:
@@ -143,55 +140,6 @@ def move_items(db: Session, *, current_user: User, arguments: dict[str, object])
 
 
 # ---------------------------------------------------------------------------
-# Confirm cards
-# ---------------------------------------------------------------------------
-
-
-def create_folder_confirm_context(
-    db: Session, *, current_user: User, arguments: dict[str, Any]
-) -> dict[str, Any] | None:
-    name = str(arguments.get("name", "")).strip()
-    parent_id = _optional_id(arguments.get("parent_id"))
-    if not name:
-        return None
-    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
-    if parent_id is not None and parent_id not in folders:
-        return {"summary": f'Create folder "{name}" (the parent folder was not found)'}
-    return {"summary": f'Create folder "{name}" in {location_label(folders, parent_id)}'}
-
-
-def move_items_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
-    note_ids = string_list(arguments.get("note_ids"))
-    folder_ids = string_list(arguments.get("folder_ids"))
-    target_id = _optional_id(arguments.get("target_folder_id"))
-
-    # Both lookups only return items of this user, so a foreign ID shows nothing.
-    notes = note_crud.list_live_by_ids(db, user_id=current_user.id, ids=note_ids) if note_ids else []
-    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
-    moving_folders = [folders[fid] for fid in folder_ids if fid in folders]
-    if not notes and not moving_folders:
-        return None
-
-    items = [{"kind": "note", "name": note_label(n.title)} for n in notes] + [
-        {"kind": "folder", "name": f.name} for f in moving_folders
-    ]
-    counts = " and ".join(
-        text
-        for text in (
-            plural(len(notes), "note") if notes else "",
-            plural(len(moving_folders), "folder") if moving_folders else "",
-        )
-        if text
-    )
-    destination = "an unknown folder" if target_id is not None and target_id not in folders else None
-    return {
-        "summary": f"Move {counts} to {destination or location_label(folders, target_id)}",
-        "items": items[:_CONFIRM_ITEM_LIMIT],
-        "more_items": max(0, len(items) - _CONFIRM_ITEM_LIMIT),
-    }
-
-
-# ---------------------------------------------------------------------------
 # Specs
 # ---------------------------------------------------------------------------
 
@@ -212,7 +160,7 @@ LIST_FOLDERS = ToolSpec(
 CREATE_FOLDER = ToolSpec(
     name="create_folder",
     description=(
-        "Create a new, empty folder in the user's Files. Requires user confirmation before executing. "
+        "Create a new, empty folder in the user's Files. "
         "Folder names must be unique among the folders in the same place. "
         "Use list_folders first to check whether the folder already exists and to find parent_id. "
         "To put notes in a new folder: find the notes (list_notes), create the folder with this tool, "
@@ -230,15 +178,12 @@ CREATE_FOLDER = ToolSpec(
         "required": ["name"],
     },
     handler=create_folder,
-    requires_confirmation=True,
-    confirm_context=create_folder_confirm_context,
 )
 
 MOVE_ITEMS = ToolSpec(
     name="move_items",
     description=(
         "Move notes and/or folders into a target folder, or to the root of Files. "
-        "Requires user confirmation before executing. "
         "Get IDs from list_notes / search_user_notes (notes) and list_folders (folders). "
         "If the target folder does not exist yet, create it first with create_folder. "
         "A folder cannot be moved into itself or into its own subfolders, and a name that is already "
@@ -265,6 +210,4 @@ MOVE_ITEMS = ToolSpec(
         "required": ["target_folder_id"],
     },
     handler=move_items,
-    requires_confirmation=True,
-    confirm_context=move_items_confirm_context,
 )

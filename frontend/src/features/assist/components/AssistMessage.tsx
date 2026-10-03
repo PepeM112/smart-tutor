@@ -1,18 +1,6 @@
 'use client';
 
-import {
-  AlertCircle,
-  ArrowRight,
-  Check,
-  CheckCircle,
-  ExternalLink,
-  Eye,
-  FileText,
-  Folder,
-  Loader2,
-  Square,
-  X,
-} from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, Square, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -27,7 +15,7 @@ import { useAssistDiffStore } from '../store/useAssistDiffStore';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
 import { getToolIcon, getToolLabel, isWriteTool } from '../utils/toolRegistry';
 
-import type { ConfirmContext, ConfirmItem, ToolResultMetadata } from '../types';
+import type { ConfirmContext, ToolResultMetadata } from '../types';
 import type { LucideIcon } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -236,17 +224,6 @@ function ToolIconBadge({ icon: Icon }: { icon: LucideIcon }) {
   );
 }
 
-function ConfirmItemRow({ item }: { item: ConfirmItem }) {
-  const Icon = item.kind === 'folder' ? Folder : FileText;
-  return (
-    <li className="flex items-center gap-1.5 text-[11px] leading-[1.4] text-foreground">
-      <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className="truncate">{item.name}</span>
-      {item.detail && <span className="shrink-0 text-muted-foreground">· {item.detail}</span>}
-    </li>
-  );
-}
-
 export function ActionCard({
   id,
   name,
@@ -267,9 +244,7 @@ export function ActionCard({
   const questionsToRemove = context?.questions_to_remove;
   const titleChange = context?.title_change;
   const descChange = context?.description_change;
-  const contextSummary = context?.summary;
-  const contextItems = context?.items;
-  const hasContextDetails = questionsToRemove || titleChange || descChange || contextSummary;
+  const hasContextDetails = questionsToRemove || titleChange || descChange;
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
@@ -278,22 +253,6 @@ export function ActionCard({
         <span className="text-[12px] font-medium text-foreground">{label}</span>
       </div>
       {summary && !hasContextDetails && <p className="mb-2 text-[12px] text-muted-foreground">{summary}</p>}
-
-      {contextSummary && (
-        <div className="mb-2 space-y-1">
-          <p className="text-[12px] leading-[1.4] text-foreground">{contextSummary}</p>
-          {contextItems && contextItems.length > 0 && (
-            <ul className="space-y-0.5">
-              {contextItems.map((item, index) => (
-                <ConfirmItemRow key={`${item.kind}-${index}`} item={item} />
-              ))}
-              {!!context?.more_items && (
-                <li className="pl-5 text-[11px] text-muted-foreground">and {context.more_items} more</li>
-              )}
-            </ul>
-          )}
-        </div>
-      )}
 
       {titleChange && (
         <div className="mb-2 space-y-0.5">

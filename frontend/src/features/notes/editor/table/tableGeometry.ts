@@ -2,7 +2,7 @@
 // and which cell the pointer is on. All numbers are in px, relative to the editor container
 // (the element the overlay is positioned in), so the overlay does not need to know about scrolling.
 //
-// The pure functions (`bandIndexAt`, `hoverFromPoint`, `gapFromPoint`) have no DOM access.
+// The pure functions (`bandIndexAt`, `hoverFromPoint`, `isInTableBand`, `gapFromPoint`) have no DOM access.
 // `readTableMeasure` reads the DOM of one `<table>`.
 
 import { parseTableLayout, type TableLayout } from './tableAttributes';
@@ -39,6 +39,24 @@ export type TableMeasure = {
  * It lets the pointer travel from a cell to a handle that sits outside the table.
  */
 export const HOVER_ZONE = { left: 36, top: 30, right: 26, bottom: 26 } as const;
+
+/**
+ * How far left of the table the band reaches: the table menu button (32px + 12px gap) plus a margin.
+ * The button can be outside the editor container (the page padding), so the band must reach it too.
+ */
+export const TABLE_MENU_REACH = 56;
+
+/**
+ * The pointer is in the "block" of the table: its full row band, across the whole width of the editor
+ * (also the empty space left and right of a narrow table) and to the table menu button left of it, with
+ * the same margin above and below as `HOVER_ZONE`. The table menu button is shown for this zone.
+ * `containerWidth` is the right limit: the pointer is tracked on the window, not only in the container.
+ */
+export const isInTableBand = (table: TableMeasure, x: number, y: number, containerWidth: number): boolean =>
+  x >= Math.min(0, table.left - TABLE_MENU_REACH) &&
+  x <= containerWidth &&
+  y >= table.top - HOVER_ZONE.top &&
+  y <= table.top + table.height + HOVER_ZONE.bottom;
 
 /** Index of the band that holds `value`. Outside the bands it gives the first or the last one. */
 export function bandIndexAt(bands: Band[], value: number): number {

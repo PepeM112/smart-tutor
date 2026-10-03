@@ -9,7 +9,8 @@ type Props = {
   depth: number;
   /** Leave it out for a row with no drag and drop (the tree view in Trash). */
   dnd?: TreeRowDnd;
-  onClick: () => void;
+  /** Leave it out for a row that does nothing on click: it then has no pointer cursor. */
+  onClick?: () => void;
   /** Folder rows only: whether the folder is open. */
   expanded?: boolean;
   /** Note rows only: whether the note is in the preview pane. */
@@ -46,7 +47,8 @@ export function TreeRowShell({ depth, dnd, onClick, expanded, selected, children
       aria-expanded={expanded}
       aria-selected={selected}
       className={cn(
-        'group flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors cursor-pointer',
+        'group flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors',
+        onClick && 'cursor-pointer',
         isDragging ? 'opacity-50' : selected ? 'bg-muted' : 'hover:bg-accent/30',
         isOver && isValidTarget && 'bg-primary/10 ring-1 ring-primary/40'
       )}

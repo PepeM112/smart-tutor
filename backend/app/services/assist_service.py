@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, AIProvider
 from app.models.user import User
-from app.schemas.assist import AssistMessage, AssistRequest, ToolConfirmation
+from app.schemas.assist import AssistMessage, AssistRequest, ToolConfirmation, ToolResultData
 from app.services import token_usage_service
 from app.services.assist_prompts import build_system_prompt
 from app.services.assist_tools import (
@@ -57,6 +57,53 @@ def _sse(event: str, data: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _repair_tool_result_order(messages: list[AssistMessage]) -> list[AssistMessage]:
+    """Put every tool result in the tool message right after the assistant message that holds its tool call.
+
+    Both providers reject a history where a tool call has no result immediately after it. The
+    frontend builds the history, and an old client could store a result late (after a newer
+    assistant message). This repair makes the order valid again and logs a warning when it moves
+    something. A result with no matching tool call before it is dropped, because a result
+    without a call is also rejected. Tool calls that have no result yet are left alone: they
+    can be pending confirmations, which the converters add at the end.
+    """
+    owner_by_call_id: dict[str, int] = {
+        tc.id: index for index, msg in enumerate(messages) if msg.role == "assistant" for tc in msg.tool_calls or []
+    }
+    results_by_owner: dict[int, list[ToolResultData]] = {}
+    repaired = False
+
+    for index, msg in enumerate(messages):
+        if msg.role != "tool":
+            continue
+        # The assistant message right before this run of tool messages.
+        run_start = index
+        while run_start > 0 and messages[run_start - 1].role == "tool":
+            run_start -= 1
+        previous_assistant = run_start - 1
+        for result in msg.tool_results or []:
+            owner = owner_by_call_id.get(result.tool_call_id)
+            if owner is None or owner > index:
+                logger.warning("Dropping tool result without a tool call: %s", result.tool_call_id)
+                repaired = True
+                continue
+            repaired = repaired or owner != previous_assistant
+            results_by_owner.setdefault(owner, []).append(result)
+
+    if not repaired:
+        return messages
+
+    logger.warning("Repaired the order of tool results in the conversation history")
+    out: list[AssistMessage] = []
+    for index, msg in enumerate(messages):
+        if msg.role == "tool":
+            continue
+        out.append(msg)
+        if index in results_by_owner:
+            out.append(AssistMessage(role="tool", content="", tool_results=results_by_owner[index]))
+    return out
+
+
 def _to_anthropic_messages(
     messages: list[AssistMessage],
     pending_confirmations: list[ToolConfirmation] | None = None,
@@ -64,7 +111,7 @@ def _to_anthropic_messages(
     """Convert our schema messages to Anthropic's message format."""
     out: list[dict[str, Any]] = []
 
-    for msg in messages:
+    for msg in _repair_tool_result_order(messages):
         if msg.role == "user":
             out.append({"role": "user", "content": msg.content})
 
@@ -121,7 +168,7 @@ def _to_openai_messages(
     """Convert our schema messages to OpenAI's message format."""
     out: list[dict[str, Any]] = []
 
-    for msg in messages:
+    for msg in _repair_tool_result_order(messages):
         if msg.role == "user":
             out.append({"role": "user", "content": msg.content})
 

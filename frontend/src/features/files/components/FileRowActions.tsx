@@ -1,22 +1,21 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { Eye, FolderInput, Pencil, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type ReactNode, type SyntheticEvent, useState } from 'react';
+import { useState } from 'react';
 
 import { type FileTreeFolder, type FileTreeNote } from '@/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { sdk } from '@/lib/apiClient';
 import { displayTitle } from '@/lib/displayTitle';
-import { cn } from '@/lib/utils';
 
 import { useFilesTree } from '../context/FilesTreeContext';
-import { fileQueryKeys } from '../lib/queryKeys';
+import { hasChildItems } from '../lib/fileTree';
 import { ACTIONS_CELL_WIDTH_CLASS } from '../lib/treeLayout';
 
 import { MoveDialog } from './MoveDialog';
+import { RowEventBoundary } from './RowEventBoundary';
+import { TreeActionsCell } from './TreeActionsCell';
 
 type FileRowItem = { kind: 'folder'; folder: FileTreeFolder } | { kind: 'note'; note: FileTreeNote };
 
@@ -32,23 +31,16 @@ type Props = {
  */
 export function FileRowActions({ item, onStartRename }: Props) {
   const t = useTranslations();
-  const { mutations, onPreview } = useFilesTree();
+  const { mutations, onPreview, childrenIndex } = useFilesTree();
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const isFolder = item.kind === 'folder';
   const id = isFolder ? item.folder.id : item.note.id;
 
-  // Delete-preview counts are only for folders, and only needed once the confirm dialog opens.
-  // (For a note the query stays disabled, so its key is never used.)
-  const { data: previewRes, isError: isPreviewError } = useQuery({
-    queryKey: fileQueryKeys.folderDeletePreview(id),
-    queryFn: () => sdk.foldersDeletePreview({ path: { folder_id: id } }),
-    enabled: isFolder && deleteOpen,
-  });
-  const preview = previewRes?.data;
-  // The folder counts itself, so 1 folder and 0 notes = an empty folder. The server deletes it forever.
-  const isEmptyFolder = preview?.folderCount === 1 && preview.noteCount === 0;
+  // Decided from the tree on the client, so the dialog text is final when it opens (no fetch, no flicker).
+  // An empty folder is deleted forever by the server; a folder with content goes to Trash.
+  const isEmptyFolder = isFolder && !hasChildItems(childrenIndex, id);
 
   const config = isFolder
     ? {
@@ -60,14 +52,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
         deleteConfirmLabel: isEmptyFolder ? t('common.delete') : t('files.move_to_trash'),
         deleteDescription: isEmptyFolder
           ? t('files.delete_folder_permanently_confirm')
-          : preview
-            ? t('files.move_folder_to_trash_confirm', {
-                folderCount: preview.folderCount,
-                noteCount: preview.noteCount,
-              })
-            : isPreviewError
-              ? t('files.move_folder_to_trash_confirm_generic')
-              : '…',
+          : t('files.move_folder_to_trash_confirm'),
         isTrashing: mutations.isTrashingFolder,
         trash: () => mutations.trashFolder({ id, name: item.folder.name, parentId: item.folder.parentId }),
       }
@@ -85,7 +70,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
 
   return (
     <RowEventBoundary>
-      <div className={actionsClass(moveOpen || deleteOpen)}>
+      <TreeActionsCell widthClass={ACTIONS_CELL_WIDTH_CLASS} forceVisible={moveOpen || deleteOpen}>
         {item.kind === 'note' ? (
           <Button
             variant="ghost"
@@ -130,7 +115,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
         >
           <Trash2 className="size-4" />
         </Button>
-      </div>
+      </TreeActionsCell>
 
       <MoveDialog
         open={moveOpen}
@@ -157,34 +142,5 @@ export function FileRowActions({ item, onStartRename }: Props) {
         }}
       />
     </RowEventBoundary>
-  );
-}
-
-/**
- * CSS classes for the actions container.
- * Desktop: hidden until the row is hovered/focused or a dialog is open.
- * Mobile (no hover): always visible.
- */
-function actionsClass(anyOpen: boolean) {
-  return cn(
-    'flex shrink-0 items-center justify-end gap-0.5',
-    ACTIONS_CELL_WIDTH_CLASS,
-    'lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100',
-    anyOpen && 'lg:opacity-100'
-  );
-}
-
-/**
- * Stops events at the actions cell, so they do not reach the row.
- * The dialogs render in a portal, but React still sends their events up the React tree:
- * without this, a click in MoveDialog would also toggle the folder or open the note,
- * and a pointer down or Enter would start a row drag.
- */
-function RowEventBoundary({ children }: { children: ReactNode }) {
-  const stop = (e: SyntheticEvent) => e.stopPropagation();
-  return (
-    <div className="contents" onClick={stop} onPointerDown={stop} onKeyDown={stop}>
-      {children}
-    </div>
   );
 }

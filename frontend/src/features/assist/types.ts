@@ -23,17 +23,10 @@ export type SSEToolResult = {
   metadata?: ToolResultMetadata;
 };
 export type SSEToolExecuting = { id: string; name: string };
-export type ConfirmItem = { kind: 'note' | 'folder'; name: string; detail?: string };
 export type ConfirmContext = {
   questions_to_remove?: { id: string; prompt: string }[];
   title_change?: { from: string; to: string };
   description_change?: { from: string; to: string };
-  /** One line that says what will happen, e.g. `Move 3 notes to Files > X`. Used by the Files and Trash tools. */
-  summary?: string;
-  /** The notes and folders the action touches (the backend sends at most 10). */
-  items?: ConfirmItem[];
-  /** How many more items the backend did not send in `items`. */
-  more_items?: number;
 };
 export type SSEConfirmRequired = {
   id: string;

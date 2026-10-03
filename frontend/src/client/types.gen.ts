@@ -371,22 +371,6 @@ export type FolderCreate = {
 };
 
 /**
- * FolderDeletePreview
- *
- * Recursive counts shown in the delete confirmation dialog.
- */
-export type FolderDeletePreview = {
-    /**
-     * Foldercount
-     */
-    folderCount: number;
-    /**
-     * Notecount
-     */
-    noteCount: number;
-};
-
-/**
  * FolderDeleteResult
  *
  * What a folder delete did: moved to Trash, or removed at once (an empty folder).
@@ -3028,36 +3012,6 @@ export type FoldersTreeResponses = {
 };
 
 export type FoldersTreeResponse = FoldersTreeResponses[keyof FoldersTreeResponses];
-
-export type FoldersDeletePreviewData = {
-    body?: never;
-    path: {
-        /**
-         * Folder Id
-         */
-        folder_id: string;
-    };
-    query?: never;
-    url: '/api/v1/folders/{folder_id}/delete-preview';
-};
-
-export type FoldersDeletePreviewErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type FoldersDeletePreviewError = FoldersDeletePreviewErrors[keyof FoldersDeletePreviewErrors];
-
-export type FoldersDeletePreviewResponses = {
-    /**
-     * Successful Response
-     */
-    200: FolderDeletePreview;
-};
-
-export type FoldersDeletePreviewResponse = FoldersDeletePreviewResponses[keyof FoldersDeletePreviewResponses];
 
 export type FoldersDeleteData = {
     body?: never;

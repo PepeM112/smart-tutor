@@ -1,6 +1,6 @@
 """Trash tools: list the Trash and restore items from it.
 
-`restore_from_trash` asks the user to confirm first. There is no tool to delete forever:
+`restore_from_trash` runs without a confirmation card. There is no tool to delete forever:
 that stays in the UI.
 """
 
@@ -9,14 +9,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
 
-from app.crud import folder as folder_crud
-from app.crud import note as note_crud
-from app.services import folder_service, trash_service
-from app.services.assist_tools._helpers import location_label, note_label, plural, skip_reason
+from app.services import trash_service
+from app.services.assist_tools._helpers import note_label, plural, skip_reason
 from app.services.assist_tools.types import ToolResult, ToolSpec
 
 if TYPE_CHECKING:
@@ -27,7 +25,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger("smarttutor.assist.tools")
 
 _LIST_LIMIT = 50
-_CONFIRM_ITEM_LIMIT = 10
 
 
 def _deleted_ago(deleted_at: datetime, *, now: datetime) -> str:
@@ -122,44 +119,6 @@ def restore_from_trash(db: Session, *, current_user: User, arguments: dict[str, 
 
 
 # ---------------------------------------------------------------------------
-# Confirm card
-# ---------------------------------------------------------------------------
-
-
-def restore_from_trash_confirm_context(
-    db: Session, *, current_user: User, arguments: dict[str, Any]
-) -> dict[str, Any] | None:
-    pairs = _parse_items(arguments.get("items"))
-    # Folders with the trashed ones: the path of a trashed item can run through trashed folders.
-    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=True)
-
-    def describe(kind: str, item_id: str) -> dict[str, str] | None:
-        # Only trashed items of this user: a foreign or live ID shows nothing.
-        if kind == "folder":
-            folder = folder_crud.get_by_id(db, id=item_id)
-            if folder is None or folder.user_id != current_user.id or folder.deleted_at is None:
-                return None
-            where = location_label(folders, folder.parent_id, folder.orphan_path)
-            return {"kind": "folder", "name": folder.name, "detail": f"was in {where}"}
-        if kind == "note":
-            note = note_crud.get_by_id(db, id=item_id)
-            if note is None or note.user_id != current_user.id or note.deleted_at is None:
-                return None
-            where = location_label(folders, note.folder_id, note.orphan_path)
-            return {"kind": "note", "name": note_label(note.title), "detail": f"was in {where}"}
-        return None
-
-    items = [d for d in (describe(kind, item_id) for kind, item_id in pairs) if d is not None]
-    if not items:
-        return None
-    return {
-        "summary": f"Restore {plural(len(items), 'item')} from Trash",
-        "items": items[:_CONFIRM_ITEM_LIMIT],
-        "more_items": max(0, len(items) - _CONFIRM_ITEM_LIMIT),
-    }
-
-
-# ---------------------------------------------------------------------------
 # Specs
 # ---------------------------------------------------------------------------
 
@@ -184,7 +143,6 @@ RESTORE_FROM_TRASH = ToolSpec(
     name="restore_from_trash",
     description=(
         "Restore notes and/or folders from the Trash to where they were deleted from. "
-        "Requires user confirmation before executing. "
         "Use list_trash first to get the kind and ID of each item. "
         "Restoring a folder also brings back what was deleted with it. "
         "If the original place no longer exists, it is created again; if a name is taken, "
@@ -209,6 +167,4 @@ RESTORE_FROM_TRASH = ToolSpec(
         "required": ["items"],
     },
     handler=restore_from_trash,
-    requires_confirmation=True,
-    confirm_context=restore_from_trash_confirm_context,
 )

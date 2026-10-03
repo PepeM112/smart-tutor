@@ -11,7 +11,10 @@ export const TREE_ROW_BASE_PADDING_PX = 4;
 export const TREE_NAME_OFFSET_PX = 28;
 
 /**
- * Width of the actions cell (4 icon buttons). Rows and the column header use the same
+ * Width of the actions cell of a Files row (4 icon buttons). Rows and the column header use the same
  * class, so the columns line up. `w-29` = 116px.
  */
 export const ACTIONS_CELL_WIDTH_CLASS = 'w-29';
+
+/** Width of the actions cell of a Trash row (2 icon buttons: restore, delete forever). `w-14.5` = 58px. */
+export const TRASH_ACTIONS_CELL_WIDTH_CLASS = 'w-14.5';

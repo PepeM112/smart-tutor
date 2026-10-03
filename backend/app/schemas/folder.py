@@ -78,14 +78,6 @@ class FileTree(BaseSchema):
     notes: list[FileTreeNote]
 
 
-class FolderDeletePreview(BaseSchema):
-    """Recursive counts shown in the delete confirmation dialog."""
-
-    # Includes the folder itself (its descendants + 1). `TrashItemRead.folder_count` does not.
-    folder_count: int
-    note_count: int
-
-
 class FolderDeleteResult(BaseSchema):
     """What a folder delete did: moved to Trash, or removed at once (an empty folder)."""
 
