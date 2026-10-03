@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import { type FileTreeFolder, type FileTreeNote } from '@/client';
 import { InlineRename } from '@/components/shared/InlineRename';
+import { TreeChevron } from '@/components/shared/tree/TreeChevron';
+import { TreeRowShell } from '@/components/shared/tree/TreeRowShell';
 import { displayTitle } from '@/lib/displayTitle';
 import { formatShortDate } from '@/lib/format';
 import { NAME_LIMITS } from '@/lib/limits';
@@ -18,8 +20,6 @@ import { useTreeRowDnd } from '../hooks/useTreeRowDnd';
 import { hasChildItems } from '../lib/fileTree';
 
 import { FileRowActions } from './FileRowActions';
-import { TreeChevron } from './TreeChevron';
-import { TreeRowShell } from './TreeRowShell';
 
 // How long (ms) the pointer must hover a collapsed folder during a drag before it auto-expands.
 const HOVER_TO_OPEN_MS = 600;

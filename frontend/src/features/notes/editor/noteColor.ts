@@ -12,6 +12,9 @@ import { Mark, mergeAttributes, type ChainedCommands, type Editor } from '@tipta
 export const NOTE_COLORS = ['gray', 'brown', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'red'] as const;
 export type NoteColor = (typeof NOTE_COLORS)[number];
 
+/** Swatch list for color pickers: "default" (`null`) first, then every color. */
+export const NOTE_PALETTE: (NoteColor | null)[] = [null, ...NOTE_COLORS];
+
 type NoteColorAttrs = { color: NoteColor | null; bg: NoteColor | null };
 
 declare module '@tiptap/core' {

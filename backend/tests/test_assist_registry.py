@@ -107,6 +107,53 @@ class TestRegistry:
         assert result.output == "Error: Folder not found"
 
 
+class TestRollbackOnFailure:
+    """A refused tool or step rolls back at once. The services take the tree lock
+    (`pg_advisory_xact_lock`) before they refuse, and only a commit or rollback releases it."""
+
+    def test_http_error_rolls_back(self) -> None:
+        db = MagicMock()
+        with patch(f"{FOLDERS}.folder_service.create_folder", side_effect=HTTPException(404, "Folder not found")):
+            execute_tool(db, current_user=_user(), tool_name="create_folder", arguments={"name": "X", "parent_id": "p"})
+        db.rollback.assert_called_once()
+
+    def test_unexpected_error_rolls_back(self) -> None:
+        db = MagicMock()
+        with patch(f"{FOLDERS}.folder_service.create_folder", side_effect=RuntimeError("db gone")):
+            result = execute_tool(db, current_user=_user(), tool_name="create_folder", arguments={"name": "X"})
+        assert result.output == "Tool execution failed: create_folder"
+        db.rollback.assert_called_once()
+
+    def test_name_clash_rolls_back(self) -> None:
+        db = MagicMock()
+        clash = HTTPException(409, "A folder named 'X' already exists in the root")
+        with patch(f"{FOLDERS}.folder_service.create_folder", side_effect=clash):
+            execute_tool(db, current_user=_user(), tool_name="create_folder", arguments={"name": "X"})
+        db.rollback.assert_called_once()
+
+    def test_skipped_batch_step_rolls_back_and_the_batch_goes_on(self) -> None:
+        db = MagicMock()
+        with patch(f"{FOLDERS}.folder_service") as folder_svc, patch(f"{FOLDERS}.note_service") as note_svc:
+            folder_svc.load_folder_map.return_value = {}
+            note_svc.move_note.side_effect = [HTTPException(403, "Access denied"), None]
+            output = execute_tool(
+                db,
+                current_user=_user(),
+                tool_name="move_items",
+                arguments={"note_ids": ["n1", "n2"], "target_folder_id": None},
+            ).output
+        assert output.splitlines()[0] == "Moved 1 note and 0 folders to Files."
+        db.rollback.assert_called_once()
+
+    def test_successful_tool_does_not_roll_back(self) -> None:
+        db = MagicMock()
+        with patch(f"{FOLDERS}.folder_service") as folder_svc:
+            folder_svc.load_folder_map.return_value = {}
+            folder_svc.create_folder.return_value = _folder("f1", "X")
+            execute_tool(db, current_user=_user(), tool_name="create_folder", arguments={"name": "X"})
+        db.rollback.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # create_folder
 # ---------------------------------------------------------------------------

@@ -486,39 +486,15 @@
   --note-red-bg: #522e2a;
 }
 
-/* Table tokens, dark themes. Each one is a tint of the theme's own surface: the header is one step
-   lighter than the page, the border sits between the page and the muted color, and the
-   selection uses the theme's accent. */
-[data-theme='midnight'] {
-  --note-table-border: #2d3e4d;
-  --note-table-header-bg: #1d2d3d;
-  --note-table-hover-bg: #182533;
-  --note-table-selected-bg: rgb(74 158 206 / 22%);
-  --note-table-resize-handle: #4a9ece;
-}
-
-[data-theme='carbon'] {
-  --note-table-border: #2e2e2e;
-  --note-table-header-bg: #232323;
-  --note-table-hover-bg: #1a1a1a;
-  --note-table-selected-bg: rgb(160 160 160 / 20%);
-  --note-table-resize-handle: #a0a0a0;
-}
-
-[data-theme='neon'] {
-  --note-table-border: #2e2c1c;
-  --note-table-header-bg: #1c1a10;
-  --note-table-hover-bg: #131208;
-  --note-table-selected-bg: rgb(250 204 21 / 16%);
-  --note-table-resize-handle: #facc15;
-}
-
-[data-theme='noir'] {
-  --note-table-border: #2b2b2b;
-  --note-table-header-bg: #1c1c1c;
-  --note-table-hover-bg: #141414;
-  --note-table-selected-bg: rgb(240 240 240 / 14%);
-  --note-table-resize-handle: #f0f0f0;
+/* Table tokens, dark themes. Mixed from the theme colors, like the light themes, so a new dark theme
+   gets its own tint with no change here. The header and hover mix the accent (not the text color)
+   into the page, so each theme keeps its own hue (blue for midnight, yellow for neon). */
+:is([data-theme='midnight'], [data-theme='carbon'], [data-theme='neon'], [data-theme='noir']) {
+  --note-table-border: color-mix(in oklab, var(--primary) 10%, var(--border));
+  --note-table-header-bg: color-mix(in oklab, var(--primary) 8%, var(--background));
+  --note-table-hover-bg: color-mix(in oklab, var(--primary) 4%, var(--background));
+  --note-table-selected-bg: color-mix(in oklab, var(--primary) 18%, transparent);
+  --note-table-resize-handle: var(--primary);
 }
 
 .note-editor-content [data-color='gray'] {

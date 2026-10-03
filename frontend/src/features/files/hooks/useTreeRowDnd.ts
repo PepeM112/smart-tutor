@@ -1,11 +1,7 @@
-import {
-  type DraggableAttributes,
-  type DraggableSyntheticListeners,
-  useDndContext,
-  useDraggable,
-  useDroppable,
-} from '@dnd-kit/core';
+import { useDndContext, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useCallback } from 'react';
+
+import { type TreeRowDnd } from '@/components/shared/tree/treeRowDnd';
 
 import { useFilesTree } from '../context/FilesTreeContext';
 import { canDrop, type DraggedItem, isDraggedItem } from '../lib/fileTree';
@@ -21,19 +17,6 @@ type Options = {
   droppable: boolean;
   /** No drag while renaming: a space typed in the input would start a keyboard drag. */
   renaming: boolean;
-};
-
-export type TreeRowDnd = {
-  setRef: (node: HTMLElement | null) => void;
-  /** Empty on non-desktop, so no DnD props reach the DOM. */
-  attributes: DraggableAttributes | Record<string, never>;
-  listeners: DraggableSyntheticListeners;
-  isDragging: boolean;
-  isOver: boolean;
-  /** True when a drag is running and this row is a legal drop target for it. */
-  isValidTarget: boolean;
-  /** A boolean, not the drag object: dnd-kit gives a new object on renders, which would restart timers. */
-  isDragActive: boolean;
 };
 
 /**

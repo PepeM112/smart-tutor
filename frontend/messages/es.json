@@ -667,5 +667,26 @@
     "col_deleted": "Eliminado",
     "failed_to_load": "No se pudo cargar la papelera. Inténtalo de nuevo.",
     "failed_to_load_tree": "No se pudo cargar el contenido de esta carpeta."
+  },
+  "assist": {
+    "tools": {
+      "list_notes": "Listando notas",
+      "list_folders": "Listando carpetas",
+      "list_tests": "Listando tests",
+      "get_note_content": "Leyendo nota",
+      "get_test_details": "Leyendo test",
+      "search_user_notes": "Buscando notas",
+      "search_questions": "Buscando preguntas",
+      "navigate_to": "Navegando",
+      "create_note": "Creando nota",
+      "refine_note": "Mejorando nota",
+      "create_test": "Creando test",
+      "edit_test": "Editando test",
+      "refine_questions": "Mejorando preguntas",
+      "list_trash": "Revisando la papelera",
+      "create_folder": "Creando carpeta",
+      "move_items": "Moviendo elementos",
+      "restore_from_trash": "Restaurando de la papelera"
+    }
   }
 }

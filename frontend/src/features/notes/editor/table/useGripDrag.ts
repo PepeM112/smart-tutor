@@ -52,7 +52,14 @@ export type GripPointerHandlers = {
   onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void;
 };
 
-export function useGripDrag(options: Options): GripPointerHandlers {
+export type GripDrag = {
+  /** Spread on the grip button. */
+  handlers: GripPointerHandlers;
+  /** A gesture (click or drag) runs now. `onEnd` unfreezes the overlay at its end, not the caller. */
+  isActive: () => boolean;
+};
+
+export function useGripDrag(options: Options): GripDrag {
   // Latest options in a ref: the handlers keep one identity, and never read stale values.
   const optionsRef = useRef(options);
   useEffect(() => {
@@ -72,8 +79,14 @@ export function useGripDrag(options: Options): GripPointerHandlers {
     optionsRef.current.onEnd();
   }, []);
 
-  // A drag that is open when the grip unmounts (the table was deleted) must not leave a Esc listener.
-  useEffect(() => () => stopEscape.current?.(), []);
+  // The grip can unmount during a gesture: the table was deleted, or its column scrolled out of the wrapper.
+  // End the gesture, so no Esc listener, drop line or overlay lock stays behind.
+  useEffect(
+    () => () => {
+      if (session.current) finish();
+    },
+    [finish]
+  );
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0 || session.current) return;
@@ -144,5 +157,7 @@ export function useGripDrag(options: Options): GripPointerHandlers {
     if (session.current) finish();
   }, [finish]);
 
-  return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel };
+  const isActive = useCallback(() => session.current !== null, []);
+
+  return { handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel }, isActive };
 }

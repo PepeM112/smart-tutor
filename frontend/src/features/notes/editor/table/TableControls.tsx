@@ -22,7 +22,7 @@
 
 import { EllipsisVertical, GripHorizontal, GripVertical, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useState, type CSSProperties, type RefObject } from 'react';
+import { useCallback, useId, useState, type CSSProperties, type RefObject } from 'react';
 
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { HoverHint } from '@/components/ui/hover-hint';
@@ -230,11 +230,12 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
 
 // ─── table handle ────────────────────────────────────────────────────────────
 
-type MenuLockProps = { lock: () => void; unlock: () => void };
+type MenuLockProps = { lock: (owner: string) => void; unlock: (owner: string) => void };
 
 type TableHandleProps = MenuLockProps & { editor: Editor; table: TableMeasure; label: string };
 
 function TableHandle({ editor, table, lock, unlock, label }: TableHandleProps) {
+  const owner = useId();
   const [open, setOpen] = useState(false);
 
   // Left of the header row. On a narrow screen there is no room left of the table: go above it.
@@ -253,8 +254,8 @@ function TableHandle({ editor, table, lock, unlock, label }: TableHandleProps) {
       open={open}
       onOpenChange={next => {
         setOpen(next);
-        if (next) lock();
-        else unlock();
+        if (next) lock(owner);
+        else unlock(owner);
       }}
     >
       <DropdownMenuTrigger asChild>
@@ -305,26 +306,29 @@ function LineGrip({
   minGap,
   onGapChange,
 }: LineGripProps) {
+  const owner = useId();
   const [open, setOpen] = useState(false);
   const isColumn = axis === 'column';
-  const target: TableTarget = { kind: axis, tablePos, index };
   // The header row stays on top: it is the one line that cannot be dragged.
   const draggable = isColumn ? table.columns.length > 1 : table.rows.length > 1 && !(index === 0 && table.hasHeaderRow);
 
   const select = useCallback(() => {
+    // The target is built here, from primitives, so the deps are exact (an object made in render is new each time).
+    const target: TableTarget = { kind: axis, tablePos, index };
     runTableCommand(editor, state => buildSelectTransaction(state, target));
-    lock();
-    // `target` is rebuilt from `tablePos`, `axis` and `index` on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, lock, tablePos, axis, index]);
+    lock(owner);
+  }, [editor, lock, owner, tablePos, axis, index]);
 
   const changeOpen = (next: boolean) => {
     setOpen(next);
     if (next) select();
-    else unlock();
+    // A pointer down on the grip of an open menu makes Radix close the menu. If that unlocked the overlay,
+    // the hover would move during the drag and the drop would move the hovered line, not the dragged one.
+    // During a gesture, `onEnd` unlocks.
+    else if (!isGestureActive()) unlock(owner);
   };
 
-  const handlers = useGripDrag({
+  const { handlers, isActive: isGestureActive } = useGripDrag({
     axis,
     draggable,
     isOpen: open,
@@ -332,7 +336,7 @@ function LineGrip({
     minGap,
     toOffset,
     onStart: select,
-    onEnd: unlock,
+    onEnd: () => unlock(owner),
     onGapChange,
     onDrop: gap => {
       moveTableLine(editor.view, tablePos, axis, index, gap);
@@ -393,6 +397,7 @@ type CellHandleProps = MenuLockProps & {
 };
 
 function CellHandle({ editor, table, row, col, lock, unlock, label }: CellHandleProps) {
+  const owner = useId();
   const [open, setOpen] = useState(false);
   const columnBand = table.columns[col];
   const rowBand = table.rows[row];
@@ -413,8 +418,8 @@ function CellHandle({ editor, table, row, col, lock, unlock, label }: CellHandle
           runTableCommand(editor, state =>
             buildSelectTransaction(state, { kind: 'cell', tablePos: table.tablePos, row, col })
           );
-          lock();
-        } else unlock();
+          lock(owner);
+        } else unlock(owner);
       }}
     >
       <DropdownMenuTrigger asChild>
@@ -424,9 +429,9 @@ function CellHandle({ editor, table, row, col, lock, unlock, label }: CellHandle
           data-active={open}
           onMouseDown={keepEditorFocus}
           // The right half of the bar is on the next cell: freeze the hovered cell while the pointer is on the bar.
-          onPointerEnter={lock}
+          onPointerEnter={() => lock(owner)}
           onPointerLeave={() => {
-            if (!open) unlock();
+            if (!open) unlock(owner);
           }}
           className={cn(BAR_BUTTON, 'cursor-pointer')}
           style={{

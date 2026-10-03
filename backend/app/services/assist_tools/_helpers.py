@@ -11,6 +11,8 @@ from app.services.folder_paths import build_folder_path
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
+    from sqlalchemy.orm import Session
+
     from app.models.folder import Folder
 
 # Result sizes for list tools. A tool output goes back to the model, so keep it short.
@@ -43,14 +45,16 @@ def string_list(value: object) -> list[str]:
     return list(dict.fromkeys(str(v) for v in value if v))
 
 
-def skip_reason(action: Callable[[], object]) -> str | None:
+def skip_reason(db: Session, action: Callable[[], object]) -> str | None:
     """Run one step of a batch tool. Return None if it worked, or why it was skipped.
 
     A service refuses with `HTTPException` (not found, not yours, name conflict, cycle). In a
-    batch that must skip the one item and go on, not fail the whole call.
+    batch that must skip the one item and go on, not fail the whole call. The services commit
+    each step that works, so the rollback only drops the refused step and releases its tree lock.
     """
     try:
         action()
     except HTTPException as exc:
+        db.rollback()
         return str(exc.detail)
     return None

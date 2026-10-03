@@ -4,14 +4,14 @@ import { RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
+import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
+import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { RowEventBoundary } from '@/features/files/components/RowEventBoundary';
-import { TreeActionsCell } from '@/features/files/components/TreeActionsCell';
-import { TRASH_ACTIONS_CELL_WIDTH_CLASS } from '@/features/files/lib/treeLayout';
 
 import { useTrashTable } from '../context/TrashTableContext';
 import { type TrashTarget } from '../hooks/useTrashMutations';
+import { TRASH_ACTIONS_CELL_WIDTH_CLASS } from '../lib/constants';
 
 type Props = {
   target: TrashTarget;

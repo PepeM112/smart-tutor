@@ -20,6 +20,8 @@ import { useTranslations } from 'next-intl';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { QueryState } from '@/components/shared/QueryState';
+import { TreeHeaderRow } from '@/components/shared/tree/TreeHeaderRow';
+import { ACTIONS_CELL_WIDTH_CLASS } from '@/components/shared/tree/treeLayout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { displayTitle } from '@/lib/displayTitle';
 import { cn } from '@/lib/utils';
@@ -29,10 +31,8 @@ import { useFileMutations } from '../hooks/useFileMutations';
 import { useFileTree } from '../hooks/useFileTree';
 import { FOLDER_DROP_PREFIX } from '../hooks/useTreeRowDnd';
 import { canDrop, type DraggedItem, isDraggedItem, isDropTargetData } from '../lib/fileTree';
-import { ACTIONS_CELL_WIDTH_CLASS } from '../lib/treeLayout';
 
 import { FolderTreeRow, NoteTreeRow } from './FileTreeRow';
-import { TreeHeaderRow } from './TreeHeaderRow';
 
 /**
  * The view drop zone contains the folder rows, so the pointer is often inside both.

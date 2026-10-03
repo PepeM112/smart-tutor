@@ -74,6 +74,7 @@ def create_folder(db: Session, *, current_user: User, arguments: dict[str, objec
     except HTTPException as exc:
         if exc.status_code != 409:
             raise
+        db.rollback()  # Release the tree lock (see execute_tool).
         # The model can fix a name clash by using the folder that already exists.
         return ToolResult(output=f"Error: {exc.detail}. Use list_folders to find it and reuse its ID.")
 
@@ -108,13 +109,13 @@ def move_items(db: Session, *, current_user: User, arguments: dict[str, object])
     folder_update = FolderUpdate(parent_id=target_id)
     note_skips = {
         nid: skip_reason(
-            partial(note_service.move_note, db, note_id=nid, current_user=current_user, folder_id=target_id)
+            db, partial(note_service.move_note, db, note_id=nid, current_user=current_user, folder_id=target_id)
         )
         for nid in note_ids
     }
     folder_skips = {
         fid: skip_reason(
-            partial(folder_service.update_folder, db, folder_id=fid, current_user=current_user, data=folder_update)
+            db, partial(folder_service.update_folder, db, folder_id=fid, current_user=current_user, data=folder_update)
         )
         for fid in folder_ids
     }

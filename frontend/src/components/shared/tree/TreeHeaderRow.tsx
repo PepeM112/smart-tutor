@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { TREE_NAME_OFFSET_PX } from '../lib/treeLayout';
+import { TREE_NAME_OFFSET_PX } from './treeLayout';
 
 type Props = {
   /** Same class as the `TreeActionsCell` of the rows, so the columns line up. */

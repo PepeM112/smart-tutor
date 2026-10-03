@@ -30,8 +30,8 @@ import {
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { ColorSwatch } from '../NoteBubbleMenu';
-import { NOTE_COLORS, type NoteColor } from '../noteColor';
+import { ColorSwatch } from '../ColorSwatch';
+import { NOTE_PALETTE } from '../noteColor';
 
 import { runTableCommand } from './runTableCommand';
 import { type TableLayout } from './tableAttributes';
@@ -52,80 +52,6 @@ import {
 } from './tableCommands';
 
 import type { Editor } from '@tiptap/core';
-
-const PALETTE: (NoteColor | null)[] = [null, ...NOTE_COLORS];
-
-// ─── shell ──────────────────────────────────────────────────────────────────
-
-type ShellProps = {
-  editor: Editor;
-  side: 'bottom' | 'right';
-  align: 'start' | 'center';
-  children: React.ReactNode;
-};
-
-/** Menu box. When the menu closes, the focus goes back to the editor (not to the handle). */
-function MenuShell({ editor, side, align, children }: ShellProps) {
-  const closedByOutside = useRef(false);
-  return (
-    <DropdownMenuContent
-      side={side}
-      align={align}
-      sideOffset={6}
-      className="w-52"
-      onInteractOutside={() => {
-        closedByOutside.current = true;
-      }}
-      onCloseAutoFocus={event => {
-        event.preventDefault();
-        if (!closedByOutside.current) editor.view.focus();
-        closedByOutside.current = false;
-      }}
-    >
-      {children}
-    </DropdownMenuContent>
-  );
-}
-
-// ─── color ──────────────────────────────────────────────────────────────────
-
-function ColorSubmenu({ editor, target }: { editor: Editor; target: TableTarget }) {
-  const t = useTranslations('notes');
-  // The content mounts when the menu opens, so this is read from the current document.
-  const current = readCommonCellColors(editor.state, target);
-
-  const renderSection = (title: string, key: CellColorKey) => (
-    <>
-      <DropdownMenuLabel>{title}</DropdownMenuLabel>
-      {PALETTE.map(color => (
-        <DropdownMenuItem
-          key={color ?? 'default'}
-          onSelect={() => runTableCommand(editor, state => buildSetCellColorTransaction(state, target, key, color))}
-        >
-          <ColorSwatch color={key === 'color' ? color : null} bg={key === 'bg' ? color : null} />
-          {t(`color_${color ?? 'default'}`)}
-          {current[key] === color && <Check className="ml-auto" />}
-        </DropdownMenuItem>
-      ))}
-    </>
-  );
-
-  return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger>
-        <Palette />
-        {t('table_color')}
-      </DropdownMenuSubTrigger>
-      <DropdownMenuPortal>
-        <DropdownMenuSubContent className="max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))] w-48 overflow-y-auto">
-          {renderSection(t('color_text'), 'color')}
-          <DropdownMenuSeparator />
-          {renderSection(t('color_background'), 'bg')}
-        </DropdownMenuSubContent>
-      </DropdownMenuPortal>
-    </DropdownMenuSub>
-  );
-}
 
 // ─── table ──────────────────────────────────────────────────────────────────
 
@@ -231,5 +157,77 @@ export function CellMenu({ editor, tablePos, row, col }: CellMenuProps) {
         {t('table_clear')}
       </DropdownMenuItem>
     </MenuShell>
+  );
+}
+
+// ─── shell ──────────────────────────────────────────────────────────────────
+
+type ShellProps = {
+  editor: Editor;
+  side: 'bottom' | 'right';
+  align: 'start' | 'center';
+  children: React.ReactNode;
+};
+
+/** Menu box. When the menu closes, the focus goes back to the editor (not to the handle). */
+function MenuShell({ editor, side, align, children }: ShellProps) {
+  const closedByOutside = useRef(false);
+  return (
+    <DropdownMenuContent
+      side={side}
+      align={align}
+      sideOffset={6}
+      className="w-52"
+      onInteractOutside={() => {
+        closedByOutside.current = true;
+      }}
+      onCloseAutoFocus={event => {
+        event.preventDefault();
+        if (!closedByOutside.current) editor.view.focus();
+        closedByOutside.current = false;
+      }}
+    >
+      {children}
+    </DropdownMenuContent>
+  );
+}
+
+// ─── color ──────────────────────────────────────────────────────────────────
+
+function ColorSubmenu({ editor, target }: { editor: Editor; target: TableTarget }) {
+  const t = useTranslations('notes');
+  // The content mounts when the menu opens, so this is read from the current document.
+  const current = readCommonCellColors(editor.state, target);
+
+  const renderSection = (title: string, key: CellColorKey) => (
+    <>
+      <DropdownMenuLabel>{title}</DropdownMenuLabel>
+      {NOTE_PALETTE.map(color => (
+        <DropdownMenuItem
+          key={color ?? 'default'}
+          onSelect={() => runTableCommand(editor, state => buildSetCellColorTransaction(state, target, key, color))}
+        >
+          <ColorSwatch color={key === 'color' ? color : null} bg={key === 'bg' ? color : null} />
+          {t(`color_${color ?? 'default'}`)}
+          {current[key] === color && <Check className="ml-auto" />}
+        </DropdownMenuItem>
+      ))}
+    </>
+  );
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <Palette />
+        {t('table_color')}
+      </DropdownMenuSubTrigger>
+      <DropdownMenuPortal>
+        <DropdownMenuSubContent className="max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))] w-48 overflow-y-auto">
+          {renderSection(t('color_text'), 'color')}
+          <DropdownMenuSeparator />
+          {renderSection(t('color_background'), 'bg')}
+        </DropdownMenuSubContent>
+      </DropdownMenuPortal>
+    </DropdownMenuSub>
   );
 }

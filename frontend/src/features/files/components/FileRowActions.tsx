@@ -5,17 +5,17 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { type FileTreeFolder, type FileTreeNote } from '@/client';
+import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
+import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
+import { ACTIONS_CELL_WIDTH_CLASS } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { displayTitle } from '@/lib/displayTitle';
 
 import { useFilesTree } from '../context/FilesTreeContext';
 import { hasChildItems } from '../lib/fileTree';
-import { ACTIONS_CELL_WIDTH_CLASS } from '../lib/treeLayout';
 
 import { MoveDialog } from './MoveDialog';
-import { RowEventBoundary } from './RowEventBoundary';
-import { TreeActionsCell } from './TreeActionsCell';
 
 type FileRowItem = { kind: 'folder'; folder: FileTreeFolder } | { kind: 'note'; note: FileTreeNote };
 

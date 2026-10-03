@@ -63,14 +63,16 @@ def _repair_tool_result_order(messages: list[AssistMessage]) -> list[AssistMessa
     Both providers reject a history where a tool call has no result immediately after it. The
     frontend builds the history, and an old client could store a result late (after a newer
     assistant message). This repair makes the order valid again and logs a warning when it moves
-    something. A result with no matching tool call before it is dropped, because a result
-    without a call is also rejected. Tool calls that have no result yet are left alone: they
-    can be pending confirmations, which the converters add at the end.
+    something. A result stored before its call is moved too. A result with no matching tool call
+    is dropped, and so is a second result for the same call, because both providers reject them.
+    Tool calls that have no result yet are left alone: they can be pending confirmations, which
+    the converters add at the end.
     """
     owner_by_call_id: dict[str, int] = {
         tc.id: index for index, msg in enumerate(messages) if msg.role == "assistant" for tc in msg.tool_calls or []
     }
     results_by_owner: dict[int, list[ToolResultData]] = {}
+    seen_call_ids: set[str] = set()
     repaired = False
 
     for index, msg in enumerate(messages):
@@ -83,10 +85,15 @@ def _repair_tool_result_order(messages: list[AssistMessage]) -> list[AssistMessa
         previous_assistant = run_start - 1
         for result in msg.tool_results or []:
             owner = owner_by_call_id.get(result.tool_call_id)
-            if owner is None or owner > index:
+            if owner is None:
                 logger.warning("Dropping tool result without a tool call: %s", result.tool_call_id)
                 repaired = True
                 continue
+            if result.tool_call_id in seen_call_ids:
+                logger.warning("Dropping duplicate tool result: %s", result.tool_call_id)
+                repaired = True
+                continue
+            seen_call_ids.add(result.tool_call_id)
             repaired = repaired or owner != previous_assistant
             results_by_owner.setdefault(owner, []).append(result)
 

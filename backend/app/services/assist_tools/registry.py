@@ -94,9 +94,13 @@ def execute_tool(
         result = spec.handler(db, current_user=current_user, arguments=arguments)
         logger.info("Tool %s completed: %s", tool_name, result.output[:200])
         return result
+    # A service can fail after it took the tree lock (or after a DB error). Roll back so the lock
+    # is released now and the session stays usable, not at the next commit after more LLM rounds.
     except HTTPException as exc:
+        db.rollback()
         logger.warning("Tool %s raised HTTP %d: %s", tool_name, exc.status_code, exc.detail)
         return ToolResult(output=f"Error: {exc.detail}")
     except Exception:
+        db.rollback()
         logger.exception("Tool %s failed", tool_name)
         return ToolResult(output=f"Tool execution failed: {tool_name}")

@@ -105,6 +105,24 @@ class TestAnthropicConversion:
         assert [m["role"] for m in out] == ["user", "user"]
         assert all(isinstance(m["content"], str) for m in out)
 
+    def test_result_stored_before_its_call_is_moved_not_dropped(self) -> None:
+        history = [USER, _tool(cf="Created folder"), _assistant("", _call("cf", "create_folder"))]
+        out = _to_anthropic_messages(history)
+        assert _anthropic_ids(out) == [("user", []), ("assistant", ["cf"]), ("user", ["cf"])]
+
+    def test_second_result_for_the_same_call_is_dropped(self) -> None:
+        duplicate = AssistMessage(
+            role="tool",
+            content="",
+            tool_results=[
+                ToolResultData(tool_call_id="cf", output="first"),
+                ToolResultData(tool_call_id="cf", output="again"),
+            ],
+        )
+        out = _to_anthropic_messages([USER, _assistant("", _call("cf", "create_folder")), duplicate, _tool(cf="late")])
+        assert _anthropic_ids(out) == [("user", []), ("assistant", ["cf"]), ("user", ["cf"])]
+        assert out[2]["content"][0]["content"] == "first"
+
 
 class TestOpenAIConversion:
     @staticmethod

@@ -6,9 +6,13 @@ import { useTranslations } from 'next-intl';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import { type FileTreeFolder, type FileTreeNote } from '@/client';
+import {
+  TREE_INDENT_STEP_PX,
+  TREE_NAME_OFFSET_PX,
+  TREE_ROW_BASE_PADDING_PX,
+} from '@/components/shared/tree/treeLayout';
 import { buildChildrenIndex, type ChildrenIndex, hasChildItems } from '@/features/files/lib/fileTree';
 import { fileQueryKeys } from '@/features/files/lib/queryKeys';
-import { TREE_INDENT_STEP_PX, TREE_NAME_OFFSET_PX, TREE_ROW_BASE_PADDING_PX } from '@/features/files/lib/treeLayout';
 import { sdk } from '@/lib/apiClient';
 
 import { TrashRow } from './TrashRow';
@@ -116,14 +120,5 @@ function TrashFolderRow({ folder, depth, childrenIndex }: FolderRowProps) {
 }
 
 function TrashNoteRow({ note, depth }: { note: FileTreeNote; depth: number }) {
-  return (
-    <TrashRow
-      target={{ kind: 'note', id: note.id }}
-      name={note.title}
-      depth={depth}
-      hasChildren={false}
-      expanded={false}
-      onToggle={() => undefined}
-    />
-  );
+  return <TrashRow target={{ kind: 'note', id: note.id }} name={note.title} depth={depth} />;
 }

@@ -667,5 +667,26 @@
     "col_deleted": "Deleted",
     "failed_to_load": "Failed to load Trash. Please try again.",
     "failed_to_load_tree": "Failed to load the contents of this folder."
+  },
+  "assist": {
+    "tools": {
+      "list_notes": "Listing notes",
+      "list_folders": "Listing folders",
+      "list_tests": "Listing tests",
+      "get_note_content": "Reading note",
+      "get_test_details": "Reading test",
+      "search_user_notes": "Searching notes",
+      "search_questions": "Searching questions",
+      "navigate_to": "Navigating",
+      "create_note": "Creating note",
+      "refine_note": "Refining note",
+      "create_test": "Creating test",
+      "edit_test": "Editing test",
+      "refine_questions": "Refining questions",
+      "list_trash": "Checking trash",
+      "create_folder": "Creating folder",
+      "move_items": "Moving items",
+      "restore_from_trash": "Restoring from trash"
+    }
   }
 }

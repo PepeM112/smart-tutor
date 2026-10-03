@@ -15,6 +15,3 @@ export const TREE_NAME_OFFSET_PX = 28;
  * class, so the columns line up. `w-29` = 116px.
  */
 export const ACTIONS_CELL_WIDTH_CLASS = 'w-29';
-
-/** Width of the actions cell of a Trash row (2 icon buttons: restore, delete forever). `w-14.5` = 58px. */
-export const TRASH_ACTIONS_CELL_WIDTH_CLASS = 'w-14.5';

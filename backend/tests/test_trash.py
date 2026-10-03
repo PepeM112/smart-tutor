@@ -530,7 +530,7 @@ class TestRestoreNameTruncation:
 
 
 # ---------------------------------------------------------------------------
-# build_orphan_path — pure helper for trash_service._detach_other_batches
+# build_orphan_path — pure helper for folder_service.detach_other_batches
 # ---------------------------------------------------------------------------
 
 

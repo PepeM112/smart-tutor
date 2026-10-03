@@ -103,7 +103,9 @@ def restore_from_trash(db: Session, *, current_user: User, arguments: dict[str, 
 
     logger.info("restore_from_trash: user=%s items=%s", current_user.id, items)
     results = {
-        (kind, item_id): skip_reason(partial(_restore_one, db, current_user=current_user, kind=kind, item_id=item_id))
+        (kind, item_id): skip_reason(
+            db, partial(_restore_one, db, current_user=current_user, kind=kind, item_id=item_id)
+        )
         for kind, item_id in items
     }
     restored = [f"{kind} `{item_id}`" for (kind, item_id), reason in results.items() if reason is None]

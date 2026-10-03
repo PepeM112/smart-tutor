@@ -4,11 +4,11 @@ import { useNow, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import { type TrashItemRead } from '@/client';
-import { TreeHeaderRow } from '@/features/files/components/TreeHeaderRow';
-import { TRASH_ACTIONS_CELL_WIDTH_CLASS } from '@/features/files/lib/treeLayout';
+import { TreeHeaderRow } from '@/components/shared/tree/TreeHeaderRow';
 
 import { TrashTableContext, type TrashTableContextValue } from '../context/TrashTableContext';
 import { useTrashMutations } from '../hooks/useTrashMutations';
+import { TRASH_ACTIONS_CELL_WIDTH_CLASS } from '../lib/constants';
 
 import { TrashRow } from './TrashRow';
 import { TrashTree } from './TrashTree';

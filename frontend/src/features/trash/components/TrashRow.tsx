@@ -3,8 +3,8 @@
 import { Folder, NotepadText } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 
-import { TreeChevron } from '@/features/files/components/TreeChevron';
-import { TreeRowShell } from '@/features/files/components/TreeRowShell';
+import { TreeChevron } from '@/components/shared/tree/TreeChevron';
+import { TreeRowShell } from '@/components/shared/tree/TreeRowShell';
 import { displayTitle } from '@/lib/displayTitle';
 import { formatDate } from '@/lib/format';
 
@@ -18,9 +18,10 @@ type Props = {
   /** Folder name or note title. A note with an empty title shows "Untitled". */
   name: string;
   depth: number;
-  hasChildren: boolean;
-  expanded: boolean;
-  onToggle: () => void;
+  /** Leave out the three toggle props for a row that cannot open (a note). */
+  hasChildren?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
   /**
    * Top-level rows only. A string is the original path, `null` means the path is unknown.
    * Leave out for a sub-item: it was trashed with its parent, so it has no location of its own.
@@ -31,7 +32,16 @@ type Props = {
 };
 
 /** One row of the Trash table: the same row shell, chevron, icon and cells as a Files row. */
-export function TrashRow({ target, name, depth, hasChildren, expanded, onToggle, location, deletedAt }: Props) {
+export function TrashRow({
+  target,
+  name,
+  depth,
+  hasChildren = false,
+  expanded = false,
+  onToggle = noop,
+  location,
+  deletedAt,
+}: Props) {
   const t = useTranslations();
   const format = useFormatter();
   const { now } = useTrashTable();
@@ -71,3 +81,5 @@ export function TrashRow({ target, name, depth, hasChildren, expanded, onToggle,
     </TreeRowShell>
   );
 }
+
+function noop(): void {}

@@ -11,9 +11,10 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
+import { useToolLabel } from '../hooks/useToolLabel';
 import { useAssistDiffStore } from '../store/useAssistDiffStore';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
-import { getToolIcon, getToolLabel, isWriteTool } from '../utils/toolRegistry';
+import { getToolIcon, isWriteTool } from '../utils/toolRegistry';
 
 import type { ConfirmContext, ToolResultMetadata } from '../types';
 import type { LucideIcon } from 'lucide-react';
@@ -80,7 +81,7 @@ export function AssistantBubble({ content, streaming }: { content: string; strea
 // ---------------------------------------------------------------------------
 
 export function ToolIndicatorRow({ name, status }: { name: string; status: string }) {
-  const label = getToolLabel(name);
+  const label = useToolLabel(name);
 
   return (
     <div className="flex items-center gap-2 py-0.5">
@@ -239,7 +240,7 @@ export function ActionCard({
   status: 'pending' | 'approved' | 'rejected';
   onConfirm: (id: string, approved: boolean) => void;
 }) {
-  const label = getToolLabel(name);
+  const label = useToolLabel(name);
   const summary = _summarizeArgs(name, args);
   const questionsToRemove = context?.questions_to_remove;
   const titleChange = context?.title_change;

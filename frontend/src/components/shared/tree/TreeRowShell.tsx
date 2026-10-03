@@ -2,8 +2,8 @@ import { type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { type TreeRowDnd } from '../hooks/useTreeRowDnd';
-import { TREE_INDENT_STEP_PX, TREE_ROW_BASE_PADDING_PX } from '../lib/treeLayout';
+import { TREE_INDENT_STEP_PX, TREE_ROW_BASE_PADDING_PX } from './treeLayout';
+import { type TreeRowDnd } from './treeRowDnd';
 
 type Props = {
   depth: number;

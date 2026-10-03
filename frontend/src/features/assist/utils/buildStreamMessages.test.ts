@@ -15,10 +15,11 @@ const call = (id: string, name: string): ToolCallData => ({ id, name, arguments:
 function assertValidHistory(messages: AssistMessage[], pendingIds: string[] = []): void {
   messages.forEach((msg, index) => {
     if (msg.role !== 'assistant' || !msg.toolCalls) return;
-    const following: string[] = [];
-    for (let i = index + 1; i < messages.length && messages[i].role === 'tool'; i++) {
-      messages[i].toolResults?.forEach(r => following.push(r.toolCallId));
-    }
+    const after = messages.slice(index + 1);
+    const toolRun = after.findIndex(m => m.role !== 'tool');
+    const following = after
+      .slice(0, toolRun === -1 ? after.length : toolRun)
+      .flatMap(m => m.toolResults?.map(r => r.toolCallId) ?? []);
     msg.toolCalls.forEach(tc => {
       if (!pendingIds.includes(tc.id)) expect(following).toContain(tc.id);
     });
