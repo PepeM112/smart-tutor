@@ -8,8 +8,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from app.models.folder import Folder
-from app.services import assist_tools_service
-from app.services.assist_tools import NavigateMetadata
+from app.services.assist_tools import _helpers, navigation, notes
+from app.services.assist_tools.types import NavigateMetadata
 
 
 def _folder(id: str, name: str, parent_id: str | None = None) -> Folder:
@@ -25,24 +25,24 @@ def _user(id: str = "u1") -> MagicMock:
 
 class TestLocationLabel:
     def test_root_is_files(self) -> None:
-        assert assist_tools_service._location_label({}, None) == "Files"
+        assert _helpers.location_label({}, None) == "Files"
 
     def test_nested_folders_are_joined_with_arrows(self) -> None:
         folders = {f.id: f for f in (_folder("a", "A"), _folder("b", "B", "a"))}
-        assert assist_tools_service._location_label(folders, "b") == "Files > A > B"
+        assert _helpers.location_label(folders, "b") == "Files > A > B"
 
     def test_slash_in_a_name_is_not_a_separator(self) -> None:
         # Before, the path string was split on "/", so "A/B" showed as two folders.
         folders = {f.id: f for f in (_folder("p", "P"), _folder("ab", "A/B", "p"))}
-        assert assist_tools_service._location_label(folders, "ab") == "Files > P > A/B"
+        assert _helpers.location_label(folders, "ab") == "Files > P > A/B"
 
     def test_unknown_folder_gives_files(self) -> None:
-        assert assist_tools_service._location_label({}, "gone") == "Files"
+        assert _helpers.location_label({}, "gone") == "Files"
 
 
 class TestNavigateTo:
     def _route(self, path: str) -> str:
-        result = assist_tools_service.navigate_to(MagicMock(), current_user=_user(), arguments={"path": path})
+        result = navigation.navigate_to(MagicMock(), current_user=_user(), arguments={"path": path})
         assert isinstance(result.metadata, NavigateMetadata)
         return result.metadata.route
 
@@ -60,10 +60,10 @@ class TestSearchUserNotes:
 
         with (
             patch("app.services.embedding_service.search_notes", return_value=[hit]),
-            patch("app.services.assist_tools_service.note_crud") as mock_note_crud,
-            patch("app.services.assist_tools_service.folder_service.load_folder_map", return_value={}),
+            patch("app.services.assist_tools.notes.note_crud") as mock_note_crud,
+            patch("app.services.assist_tools.notes.folder_service.load_folder_map", return_value={}),
         ):
             mock_note_crud.list_live_by_ids.return_value = []
-            assist_tools_service.search_user_notes(db, current_user=_user("u1"), arguments={"query": "q"})
+            notes.search_user_notes(db, current_user=_user("u1"), arguments={"query": "q"})
 
         mock_note_crud.list_live_by_ids.assert_called_once_with(db, user_id="u1", ids=["n1"])

@@ -7,7 +7,8 @@ import { TREE_INDENT_STEP_PX, TREE_ROW_BASE_PADDING_PX } from '../lib/treeLayout
 
 type Props = {
   depth: number;
-  dnd: TreeRowDnd;
+  /** Leave it out for a row with no drag and drop (the tree view in Trash). */
+  dnd?: TreeRowDnd;
   onClick: () => void;
   /** Folder rows only: whether the folder is open. */
   expanded?: boolean;
@@ -16,12 +17,22 @@ type Props = {
   children: ReactNode;
 };
 
+const NO_DND: TreeRowDnd = {
+  setRef: () => undefined,
+  attributes: {},
+  listeners: undefined,
+  isDragging: false,
+  isOver: false,
+  isValidTarget: false,
+  isDragActive: false,
+};
+
 /**
  * The row box shared by folder and note rows: indent, drag props, highlights and tree ARIA.
  * The cells inside come from the row that uses it.
  */
 export function TreeRowShell({ depth, dnd, onClick, expanded, selected, children }: Props) {
-  const { setRef, attributes, listeners, isDragging, isOver, isValidTarget } = dnd;
+  const { setRef, attributes, listeners, isDragging, isOver, isValidTarget } = dnd ?? NO_DND;
 
   return (
     <div

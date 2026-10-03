@@ -14,6 +14,8 @@ export const fileQueryKeys = {
   note: (id: string) => ['notes', id] as const,
   /** ['trash'] — the trash list. */
   trash: () => ['trash'] as const,
+  /** ['trash', 'tree', id] — the items trashed together with a trashed folder. Under `['trash']`, so the same invalidation covers it. */
+  trashTree: (folderId: string) => ['trash', 'tree', folderId] as const,
 } as const;
 
 type InvalidateFileOpts = {

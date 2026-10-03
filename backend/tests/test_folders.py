@@ -540,15 +540,40 @@ class TestTreeLock:
         db = MagicMock()
         with patch("app.services.folder_service.folder_crud") as mock_crud:
             mock_crud.get_by_id.return_value = _make_folder("f1")
+            mock_crud.count_live_descendants.return_value = (0, 2)
             order = _ordered(folder_crud=mock_crud, db=db)
-            folder_service.delete_folder(db, folder_id="f1", current_user=_make_user())
+            result = folder_service.delete_folder(db, folder_id="f1", current_user=_make_user())
 
         assert _call_names(order) == [
             "folder_crud.lock_tree",
             "folder_crud.get_by_id",
+            "folder_crud.count_live_descendants",
             "folder_crud.soft_delete_cascade",
             "db.commit",
         ]
+        assert result.outcome == "trashed"
+
+    def test_empty_folder_delete_detaches_then_hard_deletes(self) -> None:
+        from app.services import folder_service
+
+        db = MagicMock()
+        with (
+            patch("app.services.folder_service.folder_crud") as mock_crud,
+            patch("app.services.folder_service.note_crud"),
+        ):
+            mock_crud.get_by_id.return_value = _make_folder("f1")
+            mock_crud.count_live_descendants.return_value = (0, 0)
+            mock_crud.list_batch_folders.return_value = []
+            mock_crud.list_children_outside_batch.return_value = []
+            order = _ordered(folder_crud=mock_crud, db=db)
+            result = folder_service.delete_folder(db, folder_id="f1", current_user=_make_user())
+
+        names = _call_names(order)
+        assert names[0] == "folder_crud.lock_tree"
+        assert names.index("folder_crud.list_children_outside_batch") < names.index("folder_crud.hard_delete")
+        assert names.index("folder_crud.hard_delete") < names.index("db.commit")
+        assert "folder_crud.soft_delete_cascade" not in names
+        assert result.outcome == "deleted"
 
     def test_folder_restore(self) -> None:
         from app.services import trash_service

@@ -4,8 +4,12 @@ import {
   FilePlus,
   FileText,
   Folder,
+  FolderInput,
+  FolderPlus,
   Pencil,
+  RotateCcw,
   Search,
+  Trash2,
   WandSparkles,
   type LucideIcon,
 } from 'lucide-react';
@@ -15,8 +19,9 @@ export type ToolDefinition = {
   icon: LucideIcon;
   /** Mutates user data, as opposed to a read-only lookup. */
   isWrite: boolean;
-  /** Pauses for explicit user approval before executing. Currently only `edit_test` uses this;
-   * other write tools execute directly (create tools) or via diff accept/reject (refine tools). */
+  /** Pauses for explicit user approval before executing. Mirrors `requires_confirmation` of the
+   * backend `ToolSpec` (`edit_test`, `create_folder`, `move_items`, `restore_from_trash`); other write
+   * tools execute directly (create tools) or via diff accept/reject (refine tools). */
   requiresConfirm: boolean;
   queryKeysToInvalidate?: string[][];
 };
@@ -54,6 +59,29 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
     queryKeysToInvalidate: [['tests'], ['questions']],
   },
   refine_questions: { label: 'Refining questions', icon: WandSparkles, isWrite: true, requiresConfirm: false },
+  list_trash: { label: 'Checking trash', icon: Trash2, isWrite: false, requiresConfirm: false },
+  create_folder: {
+    label: 'Creating folder',
+    icon: FolderPlus,
+    isWrite: true,
+    requiresConfirm: true,
+    queryKeysToInvalidate: [['folders']],
+  },
+  move_items: {
+    label: 'Moving items',
+    icon: FolderInput,
+    isWrite: true,
+    requiresConfirm: true,
+    // The files tree shows the new places, and the notes list shows each note's folder.
+    queryKeysToInvalidate: [['folders'], ['notes']],
+  },
+  restore_from_trash: {
+    label: 'Restoring from trash',
+    icon: RotateCcw,
+    isWrite: true,
+    requiresConfirm: true,
+    queryKeysToInvalidate: [['trash'], ['folders'], ['notes']],
+  },
 };
 
 export function getToolLabel(name: string): string {

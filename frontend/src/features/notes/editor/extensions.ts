@@ -4,7 +4,6 @@
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
-import { TableKit } from '@tiptap/extension-table';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { Markdown } from '@tiptap/markdown';
@@ -16,6 +15,7 @@ import { ChunkHighlight } from './chunkHighlight';
 import { CodeBlockView } from './CodeBlockView';
 import { NoteColorMark } from './noteColor';
 import { DEFAULT_SLASH_HINT, SlashMenuExtension } from './SlashMenu';
+import { createNoteTableExtensions } from './table/noteTable';
 
 import type { AnyExtension } from '@tiptap/core';
 
@@ -51,8 +51,8 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
       linkOnPaste: true,
     }),
 
-    // TableKit bundles Table + TableRow + TableCell + TableHeader.
-    TableKit,
+    // Table + row + cell + header: resizable, layout, cell colors, saved as HTML (see `table/`).
+    ...createNoteTableExtensions(),
 
     // Text/background color, stored as <span data-color|data-bg> in the markdown.
     NoteColorMark,

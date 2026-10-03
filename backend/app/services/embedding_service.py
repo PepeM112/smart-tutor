@@ -7,6 +7,7 @@ of the user's chat LLM provider choice.
 
 from __future__ import annotations
 
+import html
 import logging
 import re
 from dataclasses import dataclass
@@ -60,6 +61,39 @@ _COLOR_SPAN_TAG = re.compile(r"</?span(?:\s+data-(?:color|bg)=\"[a-z]+\")*\s*>")
 def strip_color_spans(text_content: str) -> str:
     """Remove the note editor's color <span> tags and keep their inner text."""
     return _COLOR_SPAN_TAG.sub("", text_content)
+
+
+# The note editor stores tables as HTML (`<table><tr><td>..</td></tr></table>`, with data-* and
+# colwidth attributes). Raw tags would add noise tokens and split rows badly, so each table
+# becomes plain text: cells separated by " | ", rows by newlines.
+_TABLE_BLOCK = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
+_TABLE_ROW = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
+_TABLE_CELL = re.compile(r"<t[hd]\b[^>]*>(.*?)</t[hd]>", re.IGNORECASE | re.DOTALL)
+_BLOCK_BREAK_TAG = re.compile(r"<br\s*/?>|</(?:p|li|pre|blockquote)>", re.IGNORECASE)
+_ANY_TAG = re.compile(r"<[^>]+>")
+
+
+def _cell_to_text(cell_html: str) -> str:
+    """Plain text of one cell: tags removed, entities decoded, whitespace collapsed to one line."""
+    spaced = _BLOCK_BREAK_TAG.sub(" ", cell_html)
+    return " ".join(html.unescape(_ANY_TAG.sub("", spaced)).split())
+
+
+def _table_to_text(table_html: str) -> str:
+    rows = [
+        " | ".join(_cell_to_text(cell) for cell in _TABLE_CELL.findall(row)) for row in _TABLE_ROW.findall(table_html)
+    ]
+    return "\n".join(rows)
+
+
+def tables_to_text(text_content: str) -> str:
+    """Replace each HTML table with readable text: cells joined by " | ", rows by newlines."""
+    return _TABLE_BLOCK.sub(lambda match: _table_to_text(match.group(0)), text_content)
+
+
+def clean_note_for_embedding(text_content: str) -> str:
+    """Note markdown -> text for embeddings. Tables first, because cells can hold color spans."""
+    return strip_color_spans(tables_to_text(text_content))
 
 
 def chunk_text(text_content: str) -> list[TextChunk]:
@@ -141,7 +175,7 @@ def index_note(db: Session, *, note_id: str) -> None:
         header_parts.append(f"Tags: {', '.join(note.tags)}")
     header = "\n".join(header_parts) + "\n\n"
 
-    chunks = chunk_text(header + strip_color_spans(note.content or ""))
+    chunks = chunk_text(header + clean_note_for_embedding(note.content or ""))
     if not chunks:
         note_crud.mark_indexed(db, note_id=note_id, version=indexed_version)
         db.commit()

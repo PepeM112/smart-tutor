@@ -7,7 +7,7 @@ from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.folder import Folder
 from app.models.user import User
-from app.schemas.folder import FileTree, FolderCreate, FolderDeletePreview, FolderRead, FolderUpdate
+from app.schemas.folder import FileTree, FolderCreate, FolderDeletePreview, FolderDeleteResult, FolderRead, FolderUpdate
 from app.services import folder_service
 
 router = APIRouter()
@@ -42,6 +42,7 @@ def update(folder_id: str, data: FolderUpdate, db: DbSession, current_user: Curr
     return folder_service.update_folder(db, folder_id=folder_id, current_user=current_user, data=data)
 
 
-@router.delete("/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(folder_id: str, db: DbSession, current_user: CurrentUser) -> None:
-    folder_service.delete_folder(db, folder_id=folder_id, current_user=current_user)
+@router.delete("/{folder_id}", response_model=FolderDeleteResult)
+def delete(folder_id: str, db: DbSession, current_user: CurrentUser) -> FolderDeleteResult:
+    """Delete a folder: an empty one is removed for good, any other goes to Trash."""
+    return folder_service.delete_folder(db, folder_id=folder_id, current_user=current_user)

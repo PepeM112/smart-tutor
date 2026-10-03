@@ -177,7 +177,7 @@ def hard_delete(db: Session, *, folder: Folder) -> None:
     """Permanently delete a folder. FK CASCADE removes ALL its sub-folders and notes.
 
     To keep the items of other trash batches, the caller must move them out of the subtree
-    first (`trash_service._detach_other_batches`).
+    first (`folder_service.detach_other_batches`).
     """
     db.delete(folder)
     db.flush()

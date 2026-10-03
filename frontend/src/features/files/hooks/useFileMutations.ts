@@ -13,6 +13,13 @@ import { getErrorDetail } from '@/lib/utils';
 import { moveInTree } from '../lib/fileTree';
 import { fileQueryKeys, invalidateAfterFileChange } from '../lib/queryKeys';
 
+/** What `trashFolder` needs: the id to delete, and the name and parent to rebuild the folder on Undo. */
+export type TrashFolderVars = {
+  id: string;
+  name: string;
+  parentId: string | null;
+};
+
 type FileMutationsOptions = {
   /**
    * Refetch the notes list after a trash. Only for pages with no open note editor
@@ -38,14 +45,33 @@ export function useFileMutations({ refetchNotes = false }: FileMutationsOptions 
   // Undo in the toasts below restores through the shared trash hook.
   const { restoreItem } = useTrashMutations({ refetchNotes });
 
+  // ── recreate folder (Undo of an empty folder that was deleted forever) ───────
+
+  const { mutate: recreateFolder } = useMutation({
+    mutationFn: ({ name, parentId }: Pick<TrashFolderVars, 'name' | 'parentId'>) =>
+      sdk.foldersCreate({ body: { name, parentId } }),
+    onSuccess: () => {
+      invalidateAfterFileChange(queryClient);
+      toast.success(t('files.folder_restored'));
+    },
+    onError: err => toast.error(getErrorDetail(err, t('files.failed_to_create_folder'))),
+  });
+
   // ── trash folder ─────────────────────────────────────────────────────────────
+  // The server decides: a folder with content goes to Trash; an empty one is deleted forever,
+  // so its Undo creates a new folder (same name, same parent) instead of a restore.
 
   const { mutate: trashFolder, isPending: isTrashingFolder } = useMutation({
-    mutationFn: (folderId: string) => sdk.foldersDelete({ path: { folder_id: folderId } }),
-    onSuccess: (_, folderId) => {
+    mutationFn: ({ id }: TrashFolderVars) => sdk.foldersDelete({ path: { folder_id: id } }),
+    onSuccess: (res, { id, name, parentId }) => {
       invalidateAfterFileChange(queryClient, { trash: true, notes: true, refetchNotes });
-      toast.success(t('files.folder_moved_to_trash'), {
-        action: { label: t('common.undo'), onClick: () => restoreItem({ kind: 'folder', id: folderId, silent: true }) },
+      const wasDeleted = res.data?.outcome === 'deleted';
+      toast.success(t(wasDeleted ? 'files.folder_deleted' : 'files.folder_moved_to_trash'), {
+        action: {
+          label: t('common.undo'),
+          onClick: () =>
+            wasDeleted ? recreateFolder({ name, parentId }) : restoreItem({ kind: 'folder', id, silent: true }),
+        },
       });
     },
     onError: err => toast.error(getErrorDetail(err, t('files.failed_to_delete_folder'))),

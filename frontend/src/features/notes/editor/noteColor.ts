@@ -25,7 +25,7 @@ declare module '@tiptap/core' {
   }
 }
 
-const isNoteColor = (value: string | null): value is NoteColor =>
+export const isNoteColor = (value: string | null): value is NoteColor =>
   value !== null && (NOTE_COLORS as readonly string[]).includes(value);
 
 export const NoteColorMark = Mark.create({

@@ -43,8 +43,9 @@
 
   /* Table */
   --note-table-size: 0.8125rem;
-  --note-table-cell-padding: 0.3rem 0.6rem;
+  --note-table-cell-padding: 12px;
   --note-table-line-height: 1.45;
+  --note-table-radius: 0.5rem;
 
   /* Divider */
   --note-hr-gap: 1.25rem;
@@ -279,31 +280,73 @@
 
 /* ── Table ──────────────────────────────────────────────────── */
 
+/* Colors come from the --note-table-* tokens (defined below, per theme).
+   Layout: `data-layout="compact"` (default) = columns keep their width, `full` = the table fills the column.
+   Rounded corners: with `border-collapse: separate` each cell draws its own right/bottom border, the first
+   row/column add the top/left border, and the four corner cells carry the radius. */
+
 .note-editor-content .tableWrapper {
   margin: 0 0 var(--note-block-gap);
   overflow-x: auto;
 }
 
 .note-editor-content table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: auto;
   font-size: var(--note-table-size);
   line-height: var(--note-table-line-height);
 }
 
+/* Inline `width`/`min-width` come from the column widths. `full` must win over the inline width. */
+.note-editor-content table[data-layout='full'] {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
 .note-editor-content th,
 .note-editor-content td {
   position: relative;
-  border: 1px solid var(--border);
+  border-right: 1px solid var(--note-table-border);
+  border-bottom: 1px solid var(--note-table-border);
   padding: var(--note-table-cell-padding);
   text-align: left;
   vertical-align: top;
   min-width: 4rem;
 }
 
+.note-editor-content tr:first-child > :is(th, td) {
+  border-top: 1px solid var(--note-table-border);
+}
+
+.note-editor-content tr > :is(th, td):first-child {
+  border-left: 1px solid var(--note-table-border);
+}
+
+.note-editor-content tr:first-child > :is(th, td):first-child {
+  border-top-left-radius: var(--note-table-radius);
+}
+
+.note-editor-content tr:first-child > :is(th, td):last-child {
+  border-top-right-radius: var(--note-table-radius);
+}
+
+.note-editor-content tr:last-child > :is(th, td):first-child {
+  border-bottom-left-radius: var(--note-table-radius);
+}
+
+.note-editor-content tr:last-child > :is(th, td):last-child {
+  border-bottom-right-radius: var(--note-table-radius);
+}
+
 .note-editor-content th {
   font-weight: 600;
-  background: var(--muted);
+  background: var(--note-table-header-bg);
+}
+
+/* Row hover. A cell with its own background color keeps it. */
+.note-editor-content tr:hover > td:not([data-bg]) {
+  background: var(--note-table-hover-bg);
 }
 
 .note-editor-content th p,
@@ -311,13 +354,48 @@
   margin: 0;
 }
 
-/* Cell selection (drag across cells). */
+/* Several blocks in one cell: keep a gap between them, none after the last. */
+.note-editor-content th > :last-child,
+.note-editor-content td > :last-child {
+  margin-bottom: 0;
+}
+
+/* Cell selection (drag across cells). Follows the corner radius of the cell. */
 .note-editor-content .selectedCell::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  border-radius: inherit;
+  background: var(--note-table-selected-bg);
   pointer-events: none;
+}
+
+/* Column resize (prosemirror-tables). Only in the editable editor. The widget is in the cell
+   left of the boundary, so the line is centered on the cell's right border. */
+.note-editor-content .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  z-index: 2;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--note-table-resize-handle);
+  pointer-events: none;
+}
+
+/* The wrapper clips what is outside the table: keep the last handle inside. */
+.note-editor-content tr > :is(th, td):last-child > .column-resize-handle {
+  right: 0;
+}
+
+.note-editor-content.resize-cursor,
+.note-editor-content.resize-cursor :is(th, td) {
+  cursor: col-resize;
+}
+
+.note-editor-content .column-resize-dragging {
+  user-select: none;
 }
 
 /* ── Divider ────────────────────────────────────────────────── */
@@ -366,6 +444,13 @@
   --note-purple-bg: #f4f0f7;
   --note-pink-bg: #faf1f5;
   --note-red-bg: #fdebec;
+
+  /* Table tokens, light themes. Mixed from the theme colors, so each light theme gets its own tint. */
+  --note-table-border: var(--border);
+  --note-table-header-bg: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --note-table-hover-bg: color-mix(in oklab, var(--foreground) 3%, var(--background));
+  --note-table-selected-bg: color-mix(in oklab, var(--primary) 14%, transparent);
+  --note-table-resize-handle: var(--primary);
 }
 
 :is([data-theme='midnight'], [data-theme='carbon'], [data-theme='neon'], [data-theme='noir']) {
@@ -387,6 +472,41 @@
   --note-purple-bg: #3c2d49;
   --note-pink-bg: #4e2c3c;
   --note-red-bg: #522e2a;
+}
+
+/* Table tokens, dark themes. Each one is a tint of the theme's own surface: the header is one step
+   lighter than the page, the border sits between the page and the muted color, and the
+   selection uses the theme's accent. */
+[data-theme='midnight'] {
+  --note-table-border: #2d3e4d;
+  --note-table-header-bg: #1d2d3d;
+  --note-table-hover-bg: #182533;
+  --note-table-selected-bg: rgb(74 158 206 / 22%);
+  --note-table-resize-handle: #4a9ece;
+}
+
+[data-theme='carbon'] {
+  --note-table-border: #2e2e2e;
+  --note-table-header-bg: #232323;
+  --note-table-hover-bg: #1a1a1a;
+  --note-table-selected-bg: rgb(160 160 160 / 20%);
+  --note-table-resize-handle: #a0a0a0;
+}
+
+[data-theme='neon'] {
+  --note-table-border: #2e2c1c;
+  --note-table-header-bg: #1c1a10;
+  --note-table-hover-bg: #131208;
+  --note-table-selected-bg: rgb(250 204 21 / 16%);
+  --note-table-resize-handle: #facc15;
+}
+
+[data-theme='noir'] {
+  --note-table-border: #2b2b2b;
+  --note-table-header-bg: #1c1c1c;
+  --note-table-hover-bg: #141414;
+  --note-table-selected-bg: rgb(240 240 240 / 14%);
+  --note-table-resize-handle: #f0f0f0;
 }
 
 .note-editor-content [data-color='gray'] {
@@ -425,7 +545,7 @@
   color: var(--note-red);
 }
 
-.note-editor-content [data-bg] {
+.note-editor-content span[data-bg] {
   border-radius: 0.2em;
   padding: 0 0.1em;
   box-decoration-break: clone;

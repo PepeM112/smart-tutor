@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field, field_validator
 
@@ -83,3 +84,9 @@ class FolderDeletePreview(BaseSchema):
     # Includes the folder itself (its descendants + 1). `TrashItemRead.folder_count` does not.
     folder_count: int
     note_count: int
+
+
+class FolderDeleteResult(BaseSchema):
+    """What a folder delete did: moved to Trash, or removed at once (an empty folder)."""
+
+    outcome: Literal["trashed", "deleted"]

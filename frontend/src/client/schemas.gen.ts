@@ -597,6 +597,25 @@ export const FolderDeletePreviewSchema = {
     description: 'Recursive counts shown in the delete confirmation dialog.'
 } as const;
 
+export const FolderDeleteResultSchema = {
+    properties: {
+        outcome: {
+            type: 'string',
+            enum: [
+                'trashed',
+                'deleted'
+            ],
+            title: 'Outcome'
+        }
+    },
+    type: 'object',
+    required: [
+        'outcome'
+    ],
+    title: 'FolderDeleteResult',
+    description: 'What a folder delete did: moved to Trash, or removed at once (an empty folder).'
+} as const;
+
 export const FolderReadSchema = {
     properties: {
         name: {

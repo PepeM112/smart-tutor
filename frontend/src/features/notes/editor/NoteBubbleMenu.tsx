@@ -297,7 +297,7 @@ function LinkPanel({ href, onHrefChange, onConfirm, onClose, addLabel }: LinkPan
 const PALETTE: (NoteColor | null)[] = [null, ...NOTE_COLORS];
 
 /** "A" glyph in the given text color on the given background, as Notion does. */
-function ColorSwatch({ color, bg }: { color: NoteColor | null; bg: NoteColor | null }) {
+export function ColorSwatch({ color, bg }: { color: NoteColor | null; bg: NoteColor | null }) {
   return (
     <span
       className="flex size-5 items-center justify-center rounded text-[13px] font-semibold leading-none"

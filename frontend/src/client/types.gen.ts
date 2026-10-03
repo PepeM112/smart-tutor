@@ -387,6 +387,18 @@ export type FolderDeletePreview = {
 };
 
 /**
+ * FolderDeleteResult
+ *
+ * What a folder delete did: moved to Trash, or removed at once (an empty folder).
+ */
+export type FolderDeleteResult = {
+    /**
+     * Outcome
+     */
+    outcome: 'trashed' | 'deleted';
+};
+
+/**
  * FolderRead
  */
 export type FolderRead = {
@@ -3072,7 +3084,7 @@ export type FoldersDeleteResponses = {
     /**
      * Successful Response
      */
-    204: void;
+    200: FolderDeleteResult;
 };
 
 export type FoldersDeleteResponse = FoldersDeleteResponses[keyof FoldersDeleteResponses];
@@ -3412,6 +3424,36 @@ export type TrashListResponses = {
 };
 
 export type TrashListResponse = TrashListResponses[keyof TrashListResponses];
+
+export type TrashFolderTreeData = {
+    body?: never;
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trash/folders/{folder_id}/tree';
+};
+
+export type TrashFolderTreeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TrashFolderTreeError = TrashFolderTreeErrors[keyof TrashFolderTreeErrors];
+
+export type TrashFolderTreeResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileTree;
+};
+
+export type TrashFolderTreeResponse = TrashFolderTreeResponses[keyof TrashFolderTreeResponses];
 
 export type TrashRestoreData = {
     body?: never;

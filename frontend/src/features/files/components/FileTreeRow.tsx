@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, Folder, NotepadText } from 'lucide-react';
+import { Folder, NotepadText } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -12,13 +12,12 @@ import { displayTitle } from '@/lib/displayTitle';
 import { formatShortDate } from '@/lib/format';
 import { NAME_LIMITS } from '@/lib/limits';
 import { folderHref, noteHref } from '@/lib/routes';
-import { cn } from '@/lib/utils';
 
 import { useFilesTree } from '../context/FilesTreeContext';
 import { useTreeRowDnd } from '../hooks/useTreeRowDnd';
-import { TREE_INDENT_STEP_PX, TREE_NAME_OFFSET_PX } from '../lib/treeLayout';
 
 import { FileRowActions } from './FileRowActions';
+import { TreeChevron } from './TreeChevron';
 import { TreeRowShell } from './TreeRowShell';
 
 // How long (ms) the pointer must hover a collapsed folder during a drag before it auto-expands.
@@ -32,10 +31,15 @@ type FolderTreeRowProps = {
 };
 
 export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
-  const t = useTranslations();
   const { expanded, onToggleExpand, childrenIndex, mutations } = useFilesTree();
   const isExpanded = expanded.has(folder.id);
   const [renaming, setRenaming] = useState(false);
+
+  const children = childrenIndex.get(folder.id);
+  const childFolders = children?.folders ?? [];
+  const childNotes = children?.notes ?? [];
+  // A folder with nothing inside cannot open: no chevron and no toggle on a row click.
+  const hasChildren = childFolders.length + childNotes.length > 0;
 
   // This row is both draggable and droppable.
   const dnd = useTreeRowDnd(
@@ -49,7 +53,7 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isOver && isDragActive && !isExpanded && isValidTarget) {
+    if (isOver && isDragActive && !isExpanded && isValidTarget && hasChildren) {
       hoverTimer.current = setTimeout(() => {
         onToggleExpand(folder.id);
       }, HOVER_TO_OPEN_MS);
@@ -62,35 +66,20 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
-  }, [isOver, isDragActive, isExpanded, isValidTarget, folder.id, onToggleExpand]);
-
-  const children = childrenIndex.get(folder.id);
-  const childFolders = children?.folders ?? [];
-  const childNotes = children?.notes ?? [];
+  }, [isOver, isDragActive, isExpanded, isValidTarget, hasChildren, folder.id, onToggleExpand]);
 
   return (
     <>
       <TreeRowShell
         depth={depth}
         dnd={dnd}
-        expanded={isExpanded}
+        expanded={hasChildren ? isExpanded : undefined}
         onClick={() => {
-          if (!renaming) onToggleExpand(folder.id);
+          if (!renaming && hasChildren) onToggleExpand(folder.id);
         }}
       >
         {/* Chevron — aria control; click also toggles but row click handles it */}
-        <button
-          type="button"
-          aria-label={isExpanded ? t('files.collapse_folder') : t('files.expand_folder')}
-          aria-expanded={isExpanded}
-          onClick={e => {
-            e.stopPropagation();
-            onToggleExpand(folder.id);
-          }}
-          className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronRight className={cn('size-3.5 transition-transform duration-150', isExpanded && 'rotate-90')} />
-        </button>
+        <TreeChevron hasChildren={hasChildren} expanded={isExpanded} onToggle={() => onToggleExpand(folder.id)} />
 
         {/* Folder icon */}
         <Folder className="size-4 shrink-0 text-primary/70" />
@@ -128,7 +117,7 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
       </TreeRowShell>
 
       {/* Expanded children */}
-      {isExpanded && (
+      {isExpanded && hasChildren && (
         <>
           {childFolders.map(child => (
             <FolderTreeRow key={child.id} folder={child} depth={depth + 1} />
@@ -136,14 +125,6 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
           {childNotes.map(note => (
             <NoteTreeRow key={note.id} note={note} depth={depth + 1} />
           ))}
-          {childFolders.length === 0 && childNotes.length === 0 && (
-            <div
-              className="py-1 text-xs text-muted-foreground"
-              style={{ paddingLeft: `${(depth + 1) * TREE_INDENT_STEP_PX + TREE_NAME_OFFSET_PX}px` }}
-            >
-              {t('files.empty_folder')}
-            </div>
-          )}
         </>
       )}
     </>

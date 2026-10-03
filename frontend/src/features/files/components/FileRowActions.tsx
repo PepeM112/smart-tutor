@@ -47,6 +47,8 @@ export function FileRowActions({ item, onStartRename }: Props) {
     enabled: isFolder && deleteOpen,
   });
   const preview = previewRes?.data;
+  // The folder counts itself, so 1 folder and 0 notes = an empty folder. The server deletes it forever.
+  const isEmptyFolder = preview?.folderCount === 1 && preview.noteCount === 0;
 
   const config = isFolder
     ? {
@@ -54,17 +56,20 @@ export function FileRowActions({ item, onStartRename }: Props) {
         movingFolderId: item.folder.id,
         isMoving: mutations.isMovingFolder,
         move: (targetId: string | null) => mutations.moveFolder({ id, targetFolderId: targetId }),
-        deleteTitle: t('files.move_folder_to_trash'),
-        deleteDescription: preview
-          ? t('files.move_folder_to_trash_confirm', {
-              folderCount: preview.folderCount,
-              noteCount: preview.noteCount,
-            })
-          : isPreviewError
-            ? t('files.move_folder_to_trash_confirm_generic')
-            : '…',
+        deleteTitle: isEmptyFolder ? t('files.delete_folder') : t('files.move_folder_to_trash'),
+        deleteConfirmLabel: isEmptyFolder ? t('common.delete') : t('files.move_to_trash'),
+        deleteDescription: isEmptyFolder
+          ? t('files.delete_folder_permanently_confirm')
+          : preview
+            ? t('files.move_folder_to_trash_confirm', {
+                folderCount: preview.folderCount,
+                noteCount: preview.noteCount,
+              })
+            : isPreviewError
+              ? t('files.move_folder_to_trash_confirm_generic')
+              : '…',
         isTrashing: mutations.isTrashingFolder,
-        trash: () => mutations.trashFolder(id),
+        trash: () => mutations.trashFolder({ id, name: item.folder.name, parentId: item.folder.parentId }),
       }
     : {
         currentParentId: item.note.folderId,
@@ -72,6 +77,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
         isMoving: mutations.isMovingNote,
         move: (targetId: string | null) => mutations.moveNote({ id, folderId: targetId }),
         deleteTitle: t('files.move_to_trash'),
+        deleteConfirmLabel: t('files.move_to_trash'),
         deleteDescription: t('notes.move_to_trash_confirm', { title: displayTitle(item.note.title, t) }),
         isTrashing: mutations.isTrashingNote,
         trash: () => mutations.trashNote(id),
@@ -143,7 +149,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
         onOpenChange={setDeleteOpen}
         title={config.deleteTitle}
         description={config.deleteDescription}
-        confirmLabel={t('files.move_to_trash')}
+        confirmLabel={config.deleteConfirmLabel}
         disableConfirm={config.isTrashing}
         onConfirm={() => {
           config.trash();

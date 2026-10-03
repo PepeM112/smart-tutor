@@ -6,7 +6,7 @@ export const TREE_ROW_BASE_PADDING_PX = 4;
 
 /**
  * Space that the toggle button (`size-5` = 20px) and the row gap (`gap-2` = 8px) use
- * before the name. The column header and the "empty folder" text start here, to line up with names.
+ * before the name. The column header starts here, to line up with names.
  */
 export const TREE_NAME_OFFSET_PX = 28;
 

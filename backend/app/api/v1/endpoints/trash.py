@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.user import User
+from app.schemas.folder import FileTree
 from app.schemas.trash import TrashItemRead, TrashKind
 from app.services import trash_service
 
@@ -21,6 +22,12 @@ CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 def list_(db: DbSession, current_user: CurrentUser) -> list[TrashItemRead]:
     """Return top-level trashed items. Lazily purges items older than 30 days first."""
     return trash_service.list_trash(db, current_user=current_user)
+
+
+@router.get("/folders/{folder_id}/tree", response_model=FileTree)
+def folder_tree(folder_id: str, db: DbSession, current_user: CurrentUser) -> FileTree:
+    """Return the items that were trashed together with this folder, as flat lists."""
+    return trash_service.get_batch_tree(db, folder_id=folder_id, current_user=current_user)
 
 
 @router.post("/{kind}/{item_id}/restore", status_code=status.HTTP_204_NO_CONTENT)

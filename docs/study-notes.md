@@ -42,7 +42,7 @@ The note editor is a Notion-style WYSIWYG editor (Tiptap). There is no Edit/View
 
 **Layout**: the title, tags, and body sit in a centered column (max 720px), as in Notion. Loading a note is not an undo step, so Cmd/Ctrl+Z after load does not clear the note.
 
-The storage format stays GFM Markdown. Colors are the only exception: GFM has no color syntax, so they are stored as inline HTML with semantic names, not hex:
+The storage format stays Markdown. Colors and tables are the exceptions: GFM has no color syntax, so they are stored as inline HTML with semantic names, not hex:
 
 ```md
 <span data-color="red">text</span>
@@ -51,6 +51,38 @@ The storage format stays GFM Markdown. Colors are the only exception: GFM has no
 ```
 
 The mark is `NoteColorMark` (`features/notes/editor/noteColor.ts`). Unknown color names are dropped on parse. The AI edit prompts keep these tags. RAG strips them before embedding.
+
+**Tables** are saved as HTML, because GFM pipe tables cannot hold column widths, cell colors or several paragraphs in a cell. Default attributes are left out:
+
+```html
+<table data-layout="full">
+<tr>
+<th colwidth="120" data-bg="gray">Name</th>
+<th>Score</th>
+</tr>
+<tr>
+<td data-color="red"><strong>Ana</strong></td>
+<td></td>
+</tr>
+</table>
+```
+
+- `data-layout`: `compact` (default, columns keep their width) or `full` (table fills the editor). Node attribute `layout` on the table.
+- `colwidth`: column width in px, on every cell of the column. Double-click on the resize handle removes it (one undo step).
+- `data-color` / `data-bg`: Notion palette names on `td`/`th`. Node attributes `color` and `bg`. Set them with `editor.commands.setCellAttribute('color' | 'bg', NoteColor | null)`.
+- Cell content is inline HTML (`<strong>`, `<em>`, `<a href>`, color `<span>`...). A cell with one paragraph has no `<p>`. Several blocks use `<p>`, lists and code blocks. A blank line ends an HTML block in Markdown, so blank lines inside a cell are written as `&#10;`.
+- Old GFM pipe tables still load. They are saved as HTML the first time the note is saved. `<`, `>` and `&` in cells are escaped.
+- Code: `features/notes/editor/table/` (`noteTable.ts` extensions, `tableHtml.ts` serializer, `noteTableView.ts`, `resetColumnWidth.ts`). Table colors come from `--note-table-*` tokens in `note-editor.css` (light, and one set per dark theme).
+- Table controls: `table/TableControls.tsx` is an overlay in the editor container. It shows only when the editor is editable. It is not part of the document, so nothing is saved or serialized. The position comes from the DOM of the table under the pointer (or the table with the selection), and updates on scroll, resize and transaction (one `requestAnimationFrame` per frame). Pointer hover counts in a zone of about 30px around the table, so the pointer can reach handles outside it. On touch there is no hover: the handles show for the table that holds the selection.
+  - Table handle (left of the header row): Compact / Full width, Add row, Add column, Delete table.
+  - "+" bars (right and bottom edge): add a column or row at the end.
+  - Column handle (center of the top border) and row handle (middle of the left border): click selects the whole column or row (`CellSelection`) and opens a menu (Color, Insert before / after, Clear, Delete). Drag with pointer events shows a drop line and moves the line on drop (`moveTableColumn` / `moveTableRow`). Esc cancels. Widths and colors move with the cells.
+  - Cell handle (inside the right border of the cell): Color, Clear. It hides while the pointer is on a column resize edge.
+  - Header row: it cannot be deleted or dragged, nothing can be inserted above it and no row can be dropped above it. The move keeps the cell type by position, so a drop above it would put `td` above `th`. The last column and the last row cannot be deleted. "Clear" removes the content and keeps the cells, widths and colors.
+  - Each action is one transaction (one undo step). A move is two dispatches (select, then move) and one undo reverts it. After an action the focus goes back to the editor.
+  - Limits: a table with merged cells shows only the table handle. There is no autoscroll during a drag. The table handle goes above the table when there is no room at the left of it.
+  - Code: `tableCommands.ts` (pure transaction builders, tested), `tableGeometry.ts` (pure hover and drop math, tested), `useTableOverlay.ts`, `useGripDrag.ts`, `TableMenus.tsx`.
+- RAG: `embedding_service.clean_note_for_embedding()` turns each table into text (cells joined by ` | `, rows by newlines) and then strips color spans. The AI edit prompts tell the model to keep `<table>` HTML and its attributes, and to write new tables as pipe tables.
 
 ### Typography
 
@@ -147,7 +179,11 @@ Folder URLs follow the same slug pattern as notes: `/files/<name-slug>-<ulid>` (
 
 Deleting a note or a folder moves it to Trash (soft delete). Deleting a folder also trashes all its subfolders and notes in one operation. The confirmation dialog shows the count of items that will be affected.
 
+**Empty folder:** a folder with no live subfolders and no live notes is deleted forever, not trashed. The dialog says so. `DELETE /folders/{id}` returns `{ outcome: "trashed" | "deleted" }`, and the toast "Undo" creates the folder again (same name, same parent) when the outcome is `deleted`. Trashed items of earlier batches inside the folder survive: they move to the parent and keep an `orphan_path` (same rule as "Delete forever", see Restore).
+
 The `/trash` page lists only the top item of each delete batch — not each descendant individually. Each item shows the delete date, a "Restore" button, and a "Delete forever" button. The page also has an "Empty Trash" action.
+
+A folder row can be expanded to show the items that were trashed with it (`GET /trash/folders/{id}/tree`, flat lists like `GET /folders/tree`, same `deleted_at` only). Each item in that tree has its own "Restore" and "Delete forever". Restore of a sub-item brings back its trashed ancestors as rows only; the remaining siblings become separate Trash entries. Delete forever of a sub-item lowers the counts of the top item.
 
 ### Restore
 

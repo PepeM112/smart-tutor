@@ -3,16 +3,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { Folder, NotepadText, Trash2 } from 'lucide-react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
+import { useState } from 'react';
 
 import { type TrashItemRead } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { TreeChevron } from '@/features/files/components/TreeChevron';
 import { fileQueryKeys } from '@/features/files/lib/queryKeys';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { sdk } from '@/lib/apiClient';
 
 import { useTrashMutations } from '../hooks/useTrashMutations';
+
+import { TrashTree } from './TrashTree';
 
 export function TrashPage() {
   const t = useTranslations();
@@ -81,6 +85,9 @@ function TrashItem({ item }: TrashItemProps) {
   const t = useTranslations();
   const { restoreItem, isRestoring, hardDeleteItem, isHardDeleting } = useTrashMutations();
   const target = { kind: item.kind, id: item.id };
+  const [expanded, setExpanded] = useState(false);
+  // Only a folder that held other items has a tree to show.
+  const hasContents = item.kind === 'folder' && item.folderCount + item.noteCount > 0;
 
   const format = useFormatter();
   // Explicit `now` (updates each minute): without it next-intl warns, and server and client can disagree.
@@ -91,6 +98,7 @@ function TrashItem({ item }: TrashItemProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 shadow-card">
+      <TreeChevron hasChildren={hasContents} expanded={expanded} onToggle={() => setExpanded(open => !open)} />
       <Icon className="size-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-foreground">{item.name}</p>
@@ -119,6 +127,11 @@ function TrashItem({ item }: TrashItemProps) {
           onConfirm={() => hardDeleteItem(target)}
         />
       </div>
+      {expanded && hasContents && (
+        <div className="basis-full">
+          <TrashTree folderId={item.id} />
+        </div>
+      )}
     </div>
   );
 }
