@@ -318,10 +318,10 @@ describe('table commands: delete', () => {
     expect(canDeleteLine(editor.state, row(0))).toBe(false);
   });
 
-  it('keeps a valid selection when the selected column is deleted', () => {
-    run(buildSelectTransaction(editor.state, column(1)));
-    run(buildDeleteLineTransaction(editor.state, column(1)));
-    expect(editor.state.selection).toBeDefined();
+  it.each([0, 1, 2])('leaves a collapsed cursor when the selected column %i is deleted', index => {
+    run(buildSelectTransaction(editor.state, column(index)));
+    run(buildDeleteLineTransaction(editor.state, column(index)));
+    expect(editor.state.selection.empty).toBe(true);
     expect(() => editor.state.doc.check()).not.toThrow();
   });
 

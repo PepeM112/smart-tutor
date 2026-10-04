@@ -169,17 +169,25 @@ type ShellProps = {
   children: React.ReactNode;
 };
 
-/** Menu box. When the menu closes, the focus goes back to the editor (not to the handle). */
+/**
+ * Menu box. When the menu closes, the focus goes back to the editor (not to the handle). A click outside
+ * leaves the focus where it lands, but a click on the menu's own handle closes it like Escape.
+ */
 function MenuShell({ editor, side, align, children }: ShellProps) {
   const closedByOutside = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   return (
     <DropdownMenuContent
+      ref={contentRef}
       side={side}
       align={align}
       sideOffset={6}
       className="w-52"
-      onInteractOutside={() => {
-        closedByOutside.current = true;
+      onInteractOutside={event => {
+        const id = contentRef.current?.id;
+        const target = event.target instanceof Element ? event.target : null;
+        const isOwnTrigger = !!id && target?.closest('[aria-controls]')?.getAttribute('aria-controls') === id;
+        closedByOutside.current = !isOwnTrigger;
       }}
       onCloseAutoFocus={event => {
         event.preventDefault();

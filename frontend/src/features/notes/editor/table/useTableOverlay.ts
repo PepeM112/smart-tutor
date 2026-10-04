@@ -42,9 +42,10 @@ export type TableOverlay = {
   state: OverlayState | null;
   /**
    * Freeze the active table and the hover while a menu is open or a drag runs. `owner` is a stable ID of
-   * the control (`useId`). A new lock replaces the lock of another control.
+   * the control (`useId`). A new lock replaces the lock of another control, except with `ifFree`: a hover lock
+   * must not take the lock of an open menu, or the menu then acts on the line under the pointer.
    */
-  lock: (owner: string) => void;
+  lock: (owner: string, options?: { ifFree?: boolean }) => void;
   /**
    * Release the lock, but only when `owner` holds it. A pointer down on a grip closes the open menu of
    * another control. That menu must not release the lock that the new drag took a moment before.
@@ -82,7 +83,8 @@ export function useTableOverlay(editor: Editor, containerRef: RefObject<HTMLElem
     if (frame.current === 0) frame.current = requestAnimationFrame(measure);
   }, [measure]);
 
-  const lock = useCallback((owner: string) => {
+  const lock = useCallback((owner: string, options?: { ifFree?: boolean }) => {
+    if (options?.ifFree && lockRef.current) return;
     const current = latest.current;
     lockRef.current = current ? { owner, tablePos: current.table.tablePos, hover: current.hover } : null;
   }, []);

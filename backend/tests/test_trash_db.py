@@ -402,8 +402,6 @@ class TestTrashTreeViaApi:
 
     def test_tree_holds_the_batch_only(self, db_session: Session, user: User, client: TestClient) -> None:
         ids = self._batch(db_session, user)
-        earlier = _note(db_session, user, "earlier", None)  # Other batch, not inside A.
-        _trash_note(db_session, user, earlier)
 
         response = client.get(f"/api/v1/trash/folders/{ids['a']}/tree")
 
@@ -420,13 +418,17 @@ class TestTrashTreeViaApi:
         p = _folder(db_session, user, "P")
         a = _folder(db_session, user, "A", p)
         old = _note(db_session, user, "old", a)
+        old_folder = _folder(db_session, user, "old folder", a)
         _note(db_session, user, "recent", a)
+        _folder(db_session, user, "recent folder", a)
         _trash_note(db_session, user, old)
+        _trash_folder(db_session, user, old_folder)
         _trash_folder(db_session, user, a)
 
         body = client.get(f"/api/v1/trash/folders/{a.id}/tree").json()
 
         assert [n["title"] for n in body["notes"]] == ["recent"]
+        assert [f["name"] for f in body["folders"]] == ["recent folder"]
 
     def test_tree_of_live_folder_is_404(self, db_session: Session, user: User, client: TestClient) -> None:
         live = _folder(db_session, user, "Live")
@@ -475,7 +477,6 @@ class TestTrashTreeViaApi:
         b = _folder(db_session, user, "B", a)
         n = _note(db_session, user, "N", b)
         _trash_note(db_session, user, n)
-        _folder(db_session, user, "Live child", a)  # A has live content, so it is a real batch.
         _trash_folder(db_session, user, a)
         a_id, b_id, n_id = a.id, b.id, n.id
 

@@ -13,6 +13,7 @@
  * and the assistant attachment flow to know what the user selected.
  */
 
+import { CellSelection } from '@tiptap/pm/tables';
 import { useEditorState } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import { Bold, ChevronDown, Code, Italic, Link2, MessageSquareQuote, Strikethrough, WandSparkles } from 'lucide-react';
@@ -134,7 +135,8 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
       // Only show the bubble menu on non-empty text selections.
       shouldShow={({ state }) => {
         const { from, to } = state.selection;
-        return from !== to;
+        // A cell selection (grips, cell drag) has the table menus for its actions.
+        return from !== to && !(state.selection instanceof CellSelection);
       }}
     >
       <div

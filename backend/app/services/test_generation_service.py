@@ -17,7 +17,7 @@ from app.schemas.test_generation import (
 )
 from app.services import token_usage_service
 from app.services.grading_prompts import strip_code_fences
-from app.services.llm import complete_for_user
+from app.services.llm import CompletionResult, complete_for_user
 from app.services.note_service import get_live_note
 from app.services.test_generation_prompts import (
     TEST_GENERATION_SYSTEM_PROMPT,
@@ -433,7 +433,7 @@ def _call_and_validate(
     result = complete_for_user(
         user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=max_tokens
     )
-    token_usage_service.record_usage(db, user_id=user.id, result=result, feature=AIFeature.TEST_GENERATION)
+    _record_usage(db, user=user, result=result)
     questions, errors = _validate_generated_questions(result.text, requested_types)
 
     # Some questions parsed successfully despite others failing — keep the valid subset
@@ -445,7 +445,7 @@ def _call_and_validate(
         result = complete_for_user(
             user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=retry_prompt, max_tokens=max_tokens
         )
-        token_usage_service.record_usage(db, user_id=user.id, result=result, feature=AIFeature.TEST_GENERATION)
+        _record_usage(db, user=user, result=result)
         questions, retry_errors = _validate_generated_questions(result.text, requested_types)
 
         if retry_errors and not questions:
@@ -461,3 +461,10 @@ def _call_and_validate(
         logger.warning(warning)
 
     return _GenerationResult(questions=questions, warning=warning)
+
+
+def _record_usage(db: Session, *, user: User, result: CompletionResult) -> None:
+    """Record and commit at once. Nothing else commits the session of a generation request, and a 422 after
+    the retry (or the rollback of a failed AI tool) would drop the row, but the LLM call was paid for."""
+    token_usage_service.record_usage(db, user_id=user.id, result=result, feature=AIFeature.TEST_GENERATION)
+    db.commit()

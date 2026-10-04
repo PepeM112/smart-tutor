@@ -23,7 +23,6 @@ import { gapFromPoint, type Band } from './tableGeometry';
 export const DRAG_THRESHOLD = 4;
 
 type Session = {
-  pointerId: number;
   start: number;
   dragging: boolean;
   cancelled: boolean;
@@ -52,13 +51,9 @@ type Options = {
   onClick: (wasOpen: boolean) => void;
 };
 
-export type GripPointerHandlers = {
-  onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
-};
-
 export type GripDrag = {
   /** Spread on the grip button. */
-  handlers: GripPointerHandlers;
+  handlers: { onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void };
   /** A gesture (click or drag) runs now. `onEnd` unfreezes the overlay at its end, not the caller. */
   isActive: () => boolean;
 };
@@ -95,14 +90,14 @@ export function useGripDrag(options: Options): GripDrag {
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       // Ctrl + click is the right click of macOS: the context menu opens and takes the release.
-      if (event.button !== 0 || event.ctrlKey || session.current) return;
+      // No check for an old session: the window `pointerdown` listener (capture) ended it before this handler.
+      if (event.button !== 0 || event.ctrlKey) return;
       // Keeps the editor focus and stops Radix from opening the menu on pointer down: the menu opens on click.
       event.preventDefault();
       const o = optionsRef.current;
       const { pointerId } = event;
       event.currentTarget.setPointerCapture(pointerId);
       session.current = {
-        pointerId,
         start: o.axis === 'column' ? event.clientX : event.clientY,
         dragging: false,
         cancelled: false,

@@ -240,9 +240,9 @@ export function buildDeleteLineTransaction(state: EditorState, target: TableTarg
 
   const tr = state.tr;
   (target.kind === 'column' ? removeColumn : removeRow)(tr, toRect(info), target.index);
-  // A selection on the deleted cells would be moved to a random place. Put the cursor in the table.
-  const mapped = tr.selection;
-  if (mapped instanceof CellSelection && !tr.doc.nodeAt(mapped.$anchorCell.pos)) {
+  // A selection on the deleted cells is mapped onto the next column or across rows, and the next keystroke
+  // would replace that content. Put a collapsed cursor in the table.
+  if (!tr.selection.empty) {
     tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(info.start + 1, tr.doc.content.size))));
   }
   return tr;

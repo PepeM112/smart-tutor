@@ -72,11 +72,7 @@ beforeEach(() => {
     }
   );
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(geometry);
-  Object.assign(HTMLElement.prototype, {
-    setPointerCapture: () => undefined,
-    releasePointerCapture: () => undefined,
-    hasPointerCapture: () => true,
-  });
+  Object.assign(HTMLElement.prototype, { setPointerCapture: () => undefined });
 });
 
 afterEach(() => {
@@ -87,7 +83,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mount() {
+function mount(content = TABLE_HTML) {
   const container = document.createElement('div');
   const editorHost = document.createElement('div');
   const overlayHost = document.createElement('div');
@@ -97,7 +93,7 @@ function mount() {
   editor = new Editor({
     element: editorHost,
     extensions: [StarterKit, ...createNoteTableExtensions()],
-    content: TABLE_HTML,
+    content,
   });
   render(
     <Tooltip.Provider>
@@ -186,5 +182,90 @@ describe('TableControls: drag a grip', () => {
     await drag('table_row_handle', { x: 45, y: 115 }, { x: 45, y: 75 });
     expect(rowText(1)).toEqual(['4', '5', '6']);
     expect(rowText(2)).toEqual(['1', '2', '3']);
+  });
+});
+
+describe('TableControls: lock', () => {
+  // Regression: the hover lock of the cell bar replaced the lock of an open grip menu. On leave it released the
+  // lock, the grip followed the hover, and the menu deleted the column under the pointer.
+  it('deletes the column of the open menu after the pointer crosses the cell bar', async () => {
+    mount();
+    fireEvent.pointerMove(window, pointer(90, 45));
+    await frame();
+    const grip = screen.getByRole('button', { name: 'table_column_handle' });
+    fireEvent.pointerDown(grip, pointer(90, 45));
+    fireEvent.pointerUp(grip, pointer(90, 45));
+    await frame();
+
+    const cellBar = screen.getByRole('button', { name: 'table_cell_handle' });
+    fireEvent.pointerEnter(cellBar);
+    fireEvent.pointerLeave(cellBar);
+    fireEvent.pointerMove(window, pointer(290, 45));
+    await frame();
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'table_delete_column' }));
+    await frame();
+    expect(rowText(0)).toEqual(['B', 'C']);
+  });
+
+  // Regression: a cell bar that disappears under the pointer gets no `pointerleave`, so its lock stayed and
+  // the controls stopped following the pointer.
+  it('releases the lock of the cell bar when its column is deleted', async () => {
+    mount();
+    // Cell (0, 2): its bar is on the right border of the table.
+    fireEvent.pointerMove(window, pointer(290, 45));
+    await frame();
+    fireEvent.pointerEnter(screen.getByRole('button', { name: 'table_cell_handle' }));
+
+    const lastHeader = editor.view.dom.querySelectorAll('th')[2];
+    act(() => {
+      editor.chain().setTextSelection(editor.view.posAtDOM(lastHeader, 0)).deleteColumn().run();
+    });
+    await frame();
+    fireEvent.pointerMove(window, pointer(90, 75));
+    await frame();
+
+    expect(rowText(0)).toEqual(['A', 'B']);
+    expect(screen.queryByRole('button', { name: 'table_cell_handle' })).not.toBeNull();
+  });
+});
+
+describe('TableControls: focus', () => {
+  // Regression: the click on the grip that closes its own menu counted as a click outside, so the focus did
+  // not go back to the editor.
+  it('gives the focus back to the editor when the grip closes its own menu', async () => {
+    mount();
+    fireEvent.pointerMove(window, pointer(90, 45));
+    await frame();
+    const grip = screen.getByRole('button', { name: 'table_column_handle' });
+    fireEvent.pointerDown(grip, pointer(90, 45));
+    fireEvent.pointerUp(grip, pointer(90, 45));
+    await frame();
+    expect(grip.getAttribute('aria-expanded')).toBe('true');
+
+    fireEvent.pointerDown(grip, pointer(90, 45));
+    fireEvent.pointerUp(grip, pointer(90, 45));
+    await frame();
+
+    expect(grip.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(editor.view.dom);
+  });
+});
+
+describe('TableControls: add bar', () => {
+  // Regression: the add bar counted the DOM cells of row 0. A merged cell there gave fewer columns than the
+  // table has, so the new column was inserted inside the table.
+  it('adds the column at the end when row 0 has a merged cell', async () => {
+    mount(
+      '<p>Intro</p><table>' +
+        '<tr><th colspan="2"><p>AB</p></th><th><p>C</p></th></tr>' +
+        '<tr><td><p>1</p></td><td><p>2</p></td><td><p>3</p></td></tr>' +
+        '</table>'
+    );
+    fireEvent.pointerMove(window, pointer(90, 75));
+    await frame();
+    fireEvent.click(screen.getByRole('button', { name: 'table_add_column' }));
+    await frame();
+    expect(rowText(1)).toEqual(['1', '2', '3', '']);
   });
 });

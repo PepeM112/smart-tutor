@@ -22,7 +22,7 @@
 
 import { EllipsisVertical, GripHorizontal, GripVertical, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useId, useState, type CSSProperties, type RefObject } from 'react';
+import { useCallback, useEffect, useId, useState, type CSSProperties, type RefObject } from 'react';
 
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { HoverHint } from '@/components/ui/hover-hint';
@@ -34,13 +34,14 @@ import {
   buildSelectTransaction,
   minRowGap,
   moveTableLine,
+  tableSize,
   type TableAxis,
   type TableTarget,
 } from './tableCommands';
 import { gapOffset, type Band, type TableMeasure } from './tableGeometry';
 import { CellMenu, LineMenu, TableMenu } from './TableMenus';
 import { useGripDrag } from './useGripDrag';
-import { useTableOverlay } from './useTableOverlay';
+import { useTableOverlay, type TableOverlay } from './useTableOverlay';
 
 import type { Editor } from '@tiptap/core';
 
@@ -109,9 +110,13 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
   const { state, lock, unlock } = useTableOverlay(editor, containerRef);
   const [drag, setDrag] = useState<DragIndicator | null>(null);
 
+  // The size comes from the table map, not from the DOM bands: a merged cell in row 0 gives fewer bands than columns.
   const addAtEnd = useCallback(
-    (tablePos: number, axis: TableAxis, count: number) => {
-      runTableCommand(editor, s => buildInsertTransaction(s, tablePos, axis, count));
+    (tablePos: number, axis: TableAxis) => {
+      runTableCommand(editor, s => {
+        const size = tableSize(s, tablePos);
+        return size && buildInsertTransaction(s, tablePos, axis, axis === 'column' ? size.columns : size.rows);
+      });
       editor.view.focus();
     },
     [editor]
@@ -160,7 +165,7 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
           type="button"
           aria-label={t('table_add_column')}
           onMouseDown={keepEditorFocus}
-          onClick={() => addAtEnd(table.tablePos, 'column', table.columns.length)}
+          onClick={() => addAtEnd(table.tablePos, 'column')}
           className={BAR_BASE}
           style={{
             left: Math.min(table.left + table.width, table.clipRight) + BAR_GAP,
@@ -178,7 +183,7 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
           type="button"
           aria-label={t('table_add_row')}
           onMouseDown={keepEditorFocus}
-          onClick={() => addAtEnd(table.tablePos, 'row', table.rows.length)}
+          onClick={() => addAtEnd(table.tablePos, 'row')}
           className={BAR_BASE}
           style={{
             left: table.clipLeft,
@@ -230,7 +235,7 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
 
 // ─── table handle ────────────────────────────────────────────────────────────
 
-type MenuLockProps = { lock: (owner: string) => void; unlock: (owner: string) => void };
+type MenuLockProps = Pick<TableOverlay, 'lock' | 'unlock'>;
 
 type TableHandleProps = MenuLockProps & { editor: Editor; table: TableMeasure; label: string };
 
@@ -401,11 +406,16 @@ function CellHandle({ editor, table, row, col, lock, unlock, label }: CellHandle
   const [open, setOpen] = useState(false);
   const columnBand = table.columns[col];
   const rowBand = table.rows[row];
-  if (!columnBand || !rowBand) return null;
-
   // Centered on the right border of the cell. Hidden when that border is scrolled out of the wrapper.
-  const border = columnBand.start + columnBand.size;
-  if (border < table.clipLeft || border > table.clipRight + 1) return null;
+  const border = columnBand ? columnBand.start + columnBand.size : 0;
+  const visible = !!columnBand && !!rowBand && border >= table.clipLeft && border <= table.clipRight + 1;
+
+  // A hidden bar gets no `pointerleave` (undo removed its column, the table scrolled), so release its lock here.
+  useEffect(() => {
+    if (!visible) unlock(owner);
+  }, [visible, owner, unlock]);
+
+  if (!visible) return null;
 
   return (
     <DropdownMenu
@@ -429,7 +439,7 @@ function CellHandle({ editor, table, row, col, lock, unlock, label }: CellHandle
           data-active={open}
           onMouseDown={keepEditorFocus}
           // The right half of the bar is on the next cell: freeze the hovered cell while the pointer is on the bar.
-          onPointerEnter={() => lock(owner)}
+          onPointerEnter={() => lock(owner, { ifFree: true })}
           onPointerLeave={() => {
             if (!open) unlock(owner);
           }}
