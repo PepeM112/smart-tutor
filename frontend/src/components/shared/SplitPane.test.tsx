@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SplitPane } from './SplitPane';
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => `common.${key}` }));
+
 const KEY = 'split-pane-test';
 
 beforeEach(() => {
@@ -26,6 +28,11 @@ const renderPane = (side: React.ReactNode = <p>side</p>) =>
   render(<SplitPane storageKey={KEY} main={<p>main</p>} side={side} dividerLabel="Resize panels" />);
 
 describe('SplitPane divider', () => {
+  it('has a default accessible name when no label is given', () => {
+    render(<SplitPane storageKey={KEY} main={<p>main</p>} side={<p>side</p>} />);
+    expect(screen.getByRole('separator', { name: 'common.resize_panel' })).toBeTruthy();
+  });
+
   it('is a focusable vertical separator with the split as its value', () => {
     renderPane();
     const divider = screen.getByRole('separator', { name: 'Resize panels' });

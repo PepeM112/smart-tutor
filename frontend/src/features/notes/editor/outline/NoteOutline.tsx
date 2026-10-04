@@ -30,12 +30,13 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { toast } from 'sonner';
 
 import { HoverHint } from '@/components/ui/hover-hint';
 import { PANEL_FADE_DURATION, PANEL_SPRING } from '@/lib/panelMotion';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
+
+import { copyText } from '../copyText';
 
 import { prefersReducedMotion, scrollToHeading } from './scroll';
 import { useHeadingOutline } from './useHeadingOutline';
@@ -55,9 +56,6 @@ const CARD_SLIDE_PX = 16;
 const INSTANT = { duration: 0 };
 /** Item indent by heading level (index = level - 1). */
 const ITEM_INDENT = ['pl-2', 'pl-5', 'pl-8'] as const;
-
-const levelClass = (classes: readonly string[], level: number): string =>
-  classes[Math.min(Math.max(level, 1), classes.length) - 1];
 
 export type NoteOutlineProps = {
   editor: Editor;
@@ -124,10 +122,7 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
 
   const copyLink = (heading: OutlineHeading) => {
     const url = `${window.location.origin}${Routes.NOTE_DETAIL(noteId)}#${encodeURIComponent(heading.id)}`;
-    navigator.clipboard
-      .writeText(url)
-      .then(() => toast.success(t('outline_link_copied')))
-      .catch(() => toast.error(t('outline_link_copy_failed')));
+    void copyText(url, { copied: t('outline_link_copied'), failed: t('outline_link_copy_failed') });
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -135,6 +130,12 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
     event.stopPropagation();
     setOpen(false);
     triggerRef.current?.focus();
+  };
+
+  // Open when the focus comes from outside the rail. Esc moves the focus to the trigger, which is inside the
+  // rail: opening on that focus would open the card again at once.
+  const handleFocus = (event: FocusEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) openRail();
   };
 
   // Close when the focus leaves the whole rail (not when it moves between its buttons).
@@ -160,7 +161,7 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
         ref={navRef}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
-        onFocus={openRail}
+        onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         className="pointer-events-auto relative flex min-h-0 flex-col"
@@ -272,3 +273,6 @@ function OutlineItem({ heading, isActive, copyLabel, onGo, onCopy }: OutlineItem
     </li>
   );
 }
+
+const levelClass = (classes: readonly string[], level: number): string =>
+  classes[Math.min(Math.max(level, 1), classes.length) - 1];

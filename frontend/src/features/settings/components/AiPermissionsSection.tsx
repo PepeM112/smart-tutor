@@ -49,7 +49,7 @@ export function AiPermissionsSection({
       {isLoading && <p className="text-sm text-muted-foreground">{t('common.loading')}</p>}
       {isError && <p className="text-sm text-destructive">{t('settings.ai_permissions_load_failed')}</p>}
       {permissions && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {GROUPS.map(group => (
             <PermissionGroup
               key={group.kind}
@@ -90,8 +90,8 @@ function PermissionGroup({ title, description, tools, disabled, onChange }: Perm
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
-      <div className="flex items-start gap-3 border-b border-border px-4 py-3">
+    <div className="divide-y divide-border">
+      <div className="flex items-start gap-3 py-3">
         <Checkbox
           className="mt-0.5"
           checked={masterState}
@@ -130,7 +130,7 @@ function PermissionRow({ tool, disabled, onChange }: PermissionRowProps) {
   const descriptionKey = `assist.tool_descriptions.${tool.name}`;
 
   return (
-    <li className="flex items-center justify-between gap-3 px-4 py-3">
+    <li className="flex items-center justify-between gap-3 py-3">
       <div className="min-w-0">
         <p className="text-sm text-foreground">{label}</p>
         {t.has(descriptionKey) && <p className="text-xs text-muted-foreground">{t(descriptionKey)}</p>}

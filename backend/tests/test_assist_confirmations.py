@@ -139,6 +139,16 @@ class TestReplayedConfirmation:
 
 
 class TestPartialConfirmation:
+    def test_no_confirmations_at_all_still_gives_every_pending_call_a_result(self) -> None:
+        # Pending calls of an earlier turn, and the client sends no decision: the provider would reject the history.
+        llm = _FakeLLM(_end())
+        _, execute, _ = _run(llm, [USER_MSG, _assistant("a", "b")])
+        execute.assert_not_called()
+        assert _last_tool_results(llm.calls[0]) == [
+            ("a", NOT_CONFIRMED_OUTPUT, True),
+            ("b", NOT_CONFIRMED_OUTPUT, True),
+        ]
+
     def test_every_pending_call_gets_a_result_in_call_order(self) -> None:
         llm = _FakeLLM(_end())
         # Only "b" is confirmed; "a" and "c" got no decision.
@@ -204,3 +214,26 @@ class TestDoneAndUsage:
             usage_service.record_usage.side_effect = RuntimeError("db down")
             chunks = list(stream_assist(MagicMock(), current_user=_user(), request=request))
         assert chunks[-1].startswith("event: done")
+
+    def test_a_client_that_disconnects_keeps_the_usage_of_the_finished_rounds(self) -> None:
+        read_round = StreamResult(
+            stop_reason="tool_use",
+            text="",
+            tool_calls=[ToolCallDelta(id="r", name="list_notes", arguments={})],
+            input_tokens=7,
+            output_tokens=3,
+        )
+        request = AssistRequest(messages=[USER_MSG])
+        with (
+            patch(f"{ASSIST}.get_user_llm_client", return_value=_FakeLLM(read_round, _end())),
+            patch(f"{ASSIST}.execute_tool") as execute,
+            patch(f"{ASSIST}.token_usage_service") as usage_service,
+        ):
+            execute.return_value = MagicMock(output="notes", metadata=None)
+            stream = stream_assist(MagicMock(), current_user=_user(), request=request)
+            # Read until the first round is over, then close the stream as Starlette does on a disconnect.
+            while "event: tool_result" not in next(stream):
+                pass
+            stream.close()
+        result = usage_service.record_usage.call_args.kwargs["result"]
+        assert (result.input_tokens, result.output_tokens) == (7, 3)

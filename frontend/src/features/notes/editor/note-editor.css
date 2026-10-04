@@ -255,7 +255,7 @@
   flex: 1;
 }
 
-.note-editor-content .note-callout-body > :last-child {
+.note-editor-content .note-callout-body > [data-node-view-content-react] > :last-child {
   margin-bottom: 0;
 }
 
@@ -282,7 +282,8 @@
 
 /* ── Toggle (collapsible section) ───────────────────────────── */
 
-/* Open or closed is view-only: the NodeView sets data-open. The first child is the summary. */
+/* Open or closed is view-only: the NodeView sets data-open. The first child is the summary.
+   Tiptap puts the blocks in a `[data-node-view-content-react]` element inside the body, so the rules need it. */
 
 .note-editor-content .note-toggle {
   position: relative;
@@ -308,19 +309,23 @@
   color: var(--foreground);
 }
 
-.note-editor-content .note-toggle-body > [data-toggle-summary] {
+.note-editor-content .note-toggle-body > [data-node-view-content-react] > [data-toggle-summary] {
   font-weight: 600;
 }
 
-.note-editor-content .note-toggle-body > :not(:first-child) {
+.note-editor-content .note-toggle-body > [data-node-view-content-react] > :not(:first-child) {
   margin-top: 0.25rem;
 }
 
-.note-editor-content .note-toggle[data-open='false'] .note-toggle-body > :not(:first-child) {
+.note-editor-content
+  .note-toggle[data-open='false']
+  .note-toggle-body
+  > [data-node-view-content-react]
+  > :not(:first-child) {
   display: none;
 }
 
-.note-editor-content .note-toggle-body > :last-child {
+.note-editor-content .note-toggle-body > [data-node-view-content-react] > :last-child {
   margin-bottom: 0;
 }
 

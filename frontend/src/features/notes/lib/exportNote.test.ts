@@ -27,6 +27,8 @@ describe('exportNote', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    // In afterEach, so a failed assertion does not leave the stubbed `URL` for the next test.
+    vi.unstubAllGlobals();
   });
 
   it('revokes the object URL after the click, not before', () => {
@@ -42,6 +44,5 @@ describe('exportNote', () => {
     expect(revokeUrl).not.toHaveBeenCalled();
     vi.runAllTimers();
     expect(revokeUrl).toHaveBeenCalledWith('blob:test');
-    vi.unstubAllGlobals();
   });
 });

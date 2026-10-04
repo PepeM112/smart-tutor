@@ -3,11 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { type TestRead } from '@/client';
 import { sdk } from '@/lib/apiClient';
 
+import type { UseQueryResult } from '@tanstack/react-query';
+
 // The backend allows at most 100 items per page.
 const PAGE_SIZE = 100;
 
 /** Fetches every test (all pages), for pickers and filter options. */
-export function useAllTests(enabled = true) {
+export function useAllTests(enabled = true): UseQueryResult<TestRead[]> {
   return useQuery({
     // Starts with 'tests', so the existing `invalidateQueries(['tests'])` calls refresh it too.
     queryKey: ['tests', 'all'],

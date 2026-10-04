@@ -14,6 +14,22 @@ const QUERIES = [
   `(min-width: ${XL_MIN}px)`,
 ];
 
+export function useBreakpoint() {
+  // `useSyncExternalStore` reads the width during render. A component that mounts after hydration (a client
+  // navigation) gets the real value in its first render, so it does not show the desktop layout for one frame.
+  // On the server and during hydration the value is the desktop one, as before.
+  const breakpoint = useSyncExternalStore(subscribe, getBreakpoint, (): Breakpoint => 'desktop');
+  const isXl = useSyncExternalStore(subscribe, getIsXl, () => true);
+
+  return {
+    breakpoint,
+    isMobile: breakpoint === 'mobile',
+    isTablet: breakpoint === 'tablet',
+    isDesktop: breakpoint === 'desktop',
+    isXl,
+  };
+}
+
 /** Calls `onChange` when the width crosses a breakpoint. */
 function subscribe(onChange: () => void): () => void {
   const queries = QUERIES.map(query => window.matchMedia(query));
@@ -30,20 +46,4 @@ function getBreakpoint(): Breakpoint {
 
 function getIsXl(): boolean {
   return window.innerWidth >= XL_MIN;
-}
-
-export function useBreakpoint() {
-  // `useSyncExternalStore` reads the width during render. A component that mounts after hydration (a client
-  // navigation) gets the real value in its first render, so it does not show the desktop layout for one frame.
-  // On the server and during hydration the value is the desktop one, as before.
-  const breakpoint = useSyncExternalStore(subscribe, getBreakpoint, (): Breakpoint => 'desktop');
-  const isXl = useSyncExternalStore(subscribe, getIsXl, () => true);
-
-  return {
-    breakpoint,
-    isMobile: breakpoint === 'mobile',
-    isTablet: breakpoint === 'tablet',
-    isDesktop: breakpoint === 'desktop',
-    isXl,
-  };
 }

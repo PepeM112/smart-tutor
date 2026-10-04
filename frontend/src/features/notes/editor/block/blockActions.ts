@@ -15,7 +15,7 @@ import { buildSetCalloutTypeTransaction } from '../callout/calloutCommands';
 import { CALLOUT_ICONS } from '../callout/calloutIcons';
 import { CALLOUT_TYPES, toCalloutType } from '../callout/calloutTypes';
 import { buildToggleCodeWrapTransaction, isCodeWrapped } from '../codeBlockWrap';
-import { copyCode } from '../copyCode';
+import { copyText } from '../copyText';
 import { parseTableLayout } from '../table/tableAttributes';
 import { buildInsertTransaction, buildSetLayoutTransaction, tableSize } from '../table/tableCommands';
 
@@ -70,7 +70,7 @@ type SectionBuilder = (ctx: BlockActionContext) => BlockSection;
 // ─── table ───────────────────────────────────────────────────────────────────
 
 const tableSection: SectionBuilder = ({ node, pos, run }) => {
-  const layout = parseTableLayout(node.attrs.layout as string | null);
+  const layout = parseTableLayout(node.attrs.layout);
   // Add at the end: the gap after the last row / column. The size comes from the table map (merged cells).
   const addAtEnd = (axis: 'row' | 'column') =>
     run(state => {
@@ -106,7 +106,7 @@ const codeSection: SectionBuilder = ({ editor, node, pos, t }) => ({
       id: 'copy',
       labelKey: 'code_copy',
       icon: Copy,
-      onSelect: () => void copyCode(node.textContent, { copied: t('code_copied'), failed: t('code_copy_failed') }),
+      onSelect: () => void copyText(node.textContent, { copied: t('code_copied'), failed: t('code_copy_failed') }),
     },
     {
       type: 'toggle',

@@ -12,6 +12,7 @@
 // (state of the NodeView), so it is never stored. No React here: the NodeView is in `extensions.ts`.
 
 import { mergeAttributes, Node } from '@tiptap/core';
+import { TextSelection } from '@tiptap/pm/state';
 
 import type { JSONContent, MarkdownToken } from '@tiptap/core';
 
@@ -88,9 +89,14 @@ export const NoteToggleSummary = Node.create({
       Enter: ({ editor }) => {
         const { $from } = editor.state.selection;
         if ($from.parent.type.name !== this.name) return false;
+        // `near` finds the first text position after the summary. The first block of the content can be a
+        // list, a table or a callout, so "after + 1" is not always a text position.
         return editor
           .chain()
-          .setTextSelection($from.after() + 1)
+          .command(({ tr }) => {
+            tr.setSelection(TextSelection.near(tr.doc.resolve($from.after())));
+            return true;
+          })
           .run();
       },
     };

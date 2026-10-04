@@ -48,15 +48,6 @@ def _validate_stored_content(new_type: QuestionType, raw_content: dict[str, obje
         ) from exc
 
 
-def _resolve_owning_test(db: Session, *, question: Question) -> Test | None:
-    """Resolve the test that owns a question, either directly or through its group."""
-    if question.test_id:
-        return test_crud.get_by_id(db, id=question.test_id)
-    if question.group_id and question.question_group:
-        return question.question_group.test
-    return None
-
-
 def get_question(db: Session, *, question_id: str, current_user: User) -> Question:
     # A deleted question is treated as missing: it must not be updated, assigned or checked.
     return get_owned_or_404(
@@ -141,7 +132,7 @@ def _delete_one_question(db: Session, *, question: Question, force_soft_delete: 
 
     Does not commit — callers own the transaction boundary.
     """
-    test = _resolve_owning_test(db, question=question)
+    test = question.owning_test
     if test:
         version_test_if_needed(db, test=test)
     if force_soft_delete or question_crud.has_references(db, question_id=question.id):
@@ -219,7 +210,7 @@ def _to_question_list_read(question: Question) -> QuestionListRead:
 
 def update_question(db: Session, *, question_id: str, current_user: User, data: QuestionUpdate) -> Question:
     question = get_question(db, question_id=question_id, current_user=current_user)
-    test = _resolve_owning_test(db, question=question)
+    test = question.owning_test
     if test:
         version_test_if_needed(db, test=test)
     if data.content is not None and data.question_type is None:

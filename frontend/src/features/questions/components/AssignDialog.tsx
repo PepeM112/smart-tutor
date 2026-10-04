@@ -55,9 +55,12 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
       sdk.questionsBulkAssign({
         body: { questionIds, testId: selectedTestId },
       }),
-    onSuccess: () => {
+    onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success(t('questions.bulk_assigned'));
+      const skipped = res.data?.skipped ?? 0;
+      toast.success(t('questions.bulk_assigned', { count: res.data?.assigned ?? questionIds.length }), {
+        description: skipped > 0 ? t('questions.bulk_skipped', { count: skipped }) : undefined,
+      });
       onOpenChange(false);
       setSelectedTestId('');
       onSuccess?.();

@@ -1,6 +1,8 @@
 // Scroll helpers for the outline. The note page scrolls an inner element (the pane of the split view),
 // not the window, so the scroll container must be found from the editor DOM.
 
+import { flushSync } from 'react-dom';
+
 const HEADING_SELECTOR = 'h1[id],h2[id],h3[id]';
 
 /** The nearest ancestor that scrolls vertically, or `null` when the page (window) scrolls. */
@@ -30,9 +32,30 @@ export function findHeadingElement(root: HTMLElement, id: string): HTMLElement |
 /** A hidden heading (for example in a closed toggle) has no box and cannot be scrolled to. */
 export const isRendered = (element: HTMLElement): boolean => element.getClientRects().length > 0;
 
+/** The closed toggles that hold the element, from the nearest one to the outermost one. */
+const closedTogglesAround = (element: HTMLElement, root: HTMLElement): HTMLElement[] => {
+  const toggle = element.parentElement?.closest<HTMLElement>(".note-toggle[data-open='false']");
+  return toggle && root.contains(toggle) ? [toggle, ...closedTogglesAround(toggle, root)] : [];
+};
+
+/**
+ * Open the closed toggles around the element, with the chevron button. The open state is local state of the
+ * toggle view, so the button click is the only way in. `flushSync` renders the new state before it returns,
+ * because the caller measures the heading (is it shown?) and scrolls to it in the same call.
+ */
+const openTogglesAround = (element: HTMLElement, root: HTMLElement): void =>
+  flushSync(() =>
+    closedTogglesAround(element, root).forEach(toggle =>
+      toggle.querySelector<HTMLElement>(':scope > .note-toggle-chevron')?.click()
+    )
+  );
+
 export function scrollToHeading(root: HTMLElement, id: string, behavior: ScrollBehavior): boolean {
   const element = findHeadingElement(root, id);
-  if (!element || !isRendered(element)) return false;
+  if (!element) return false;
+  // A heading in a closed toggle has no box: open the toggle first.
+  if (!isRendered(element)) openTogglesAround(element, root);
+  if (!isRendered(element)) return false;
   // scrollIntoView scrolls the right container and uses `scroll-margin-top` of the heading.
   element.scrollIntoView({ behavior, block: 'start' });
   return true;

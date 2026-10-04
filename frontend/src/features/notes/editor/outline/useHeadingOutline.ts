@@ -25,16 +25,6 @@ export type HeadingOutline = {
   activeId: string | null;
 };
 
-const sameHeadings = (a: OutlineHeading[], b: OutlineHeading[]): boolean =>
-  a.length === b.length && a.every((h, i) => h.id === b[i].id && h.level === b[i].level && h.text === b[i].text);
-
-/** Pure part of the active-heading rule: the last heading above the threshold, else the first one. */
-export function pickActiveId(tops: readonly { id: string; top: number }[], threshold: number): string | null {
-  if (tops.length === 0) return null;
-  const passed = tops.filter(entry => entry.top <= threshold);
-  return (passed.length > 0 ? passed[passed.length - 1] : tops[0]).id;
-}
-
 export function useHeadingOutline(editor: Editor): HeadingOutline {
   const [headings, setHeadings] = useState<OutlineHeading[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -106,4 +96,14 @@ export function useHeadingOutline(editor: Editor): HeadingOutline {
   }, [editor, headings]);
 
   return { headings, activeId };
+}
+
+const sameHeadings = (a: OutlineHeading[], b: OutlineHeading[]): boolean =>
+  a.length === b.length && a.every((h, i) => h.id === b[i].id && h.level === b[i].level && h.text === b[i].text);
+
+/** Pure part of the active-heading rule: the last heading above the threshold, else the first one. */
+export function pickActiveId(tops: readonly { id: string; top: number }[], threshold: number): string | null {
+  if (tops.length === 0) return null;
+  const passed = tops.filter(entry => entry.top <= threshold);
+  return (passed.length > 0 ? passed[passed.length - 1] : tops[0]).id;
 }

@@ -101,4 +101,32 @@ describe('LongTextQuestionBlock category autocomplete', () => {
     });
     expect(input.value).toBe('Grammar');
   });
+
+  it('opens the list again when the user types after Escape', () => {
+    render(<Harness />);
+    const input = openCategoryList();
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+
+    fireEvent.change(input, { target: { value: 'L' } });
+    expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual(['Logic']);
+  });
+
+  it('resets the highlight when the suggestions change, so Enter never picks a missing item', () => {
+    render(<Harness />);
+    const input = openCategoryList();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input.getAttribute('aria-activedescendant')).toBe(screen.getAllByRole('option')[1].id);
+
+    // Another criterion takes the category 'Logic': the list of this input shrinks to one item.
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'Logic' } });
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(input.getAttribute('aria-activedescendant')).toBeNull();
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input.value).toBe('');
+  });
 });

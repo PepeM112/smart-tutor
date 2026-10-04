@@ -72,8 +72,8 @@ def _repair_tool_result_order(messages: list[AssistMessage]) -> list[AssistMessa
     assistant message). This repair makes the order valid again and logs a warning when it moves
     something. A result stored before its call is moved too. A result with no matching tool call
     is dropped, and so is a second result for the same call, because both providers reject them.
-    Tool calls that have no result yet are left alone: they can be pending confirmations, which
-    the converters add at the end.
+    Tool calls that have no result yet are left alone: they can be pending confirmations.
+    `_resolve_pending_calls` gives them a result.
     """
     owner_by_call_id: dict[str, int] = {
         tc.id: index for index, msg in enumerate(messages) if msg.role == "assistant" for tc in msg.tool_calls or []
@@ -232,14 +232,13 @@ def _resolve_pending_calls(
     """Run the approved pending calls and give a result to every pending call, in call order.
 
     The decisions come from the client, so they are not trusted as they are:
-    - A decision for a call that is not pending (a replayed or duplicated request, or a call that
-      already has a result) is ignored. Without this, a retry runs a write tool a second time.
+    - A decision for a call that is not pending is ignored, for example a call that already has a
+      result in the history. This stops a retry from running a write tool a second time, but only
+      when the history shows the call as done. A replayed request with the old history cannot be
+      detected here.
     - A pending call with no decision gets a "not confirmed" result. Both providers reject a tool
       call that has no result right after it.
     """
-    if not confirmations:
-        return []
-
     pending = _pending_tool_calls(messages)
     decisions = {c.tool_call_id: c.approved for c in confirmations}
     ignored = decisions.keys() - {tc.id for tc in pending}
@@ -307,8 +306,12 @@ def stream_assist(
         else:
             logger.exception("Unhandled error in stream_assist")
             yield _sse("error", {"message": "An unexpected error occurred."})
+    finally:
+        # Also runs when the client disconnects: Starlette closes the generator (`GeneratorExit`,
+        # which `except Exception` does not catch). The tokens of the finished rounds are already
+        # paid for. No `yield` here: a `yield` in `finally` raises an error on `GeneratorExit`.
+        _record_usage(db, current_user=current_user, usage=usage)
 
-    _record_usage(db, current_user=current_user, usage=usage)
     yield _sse("done", {"usage": usage.as_event(), **done_extra})
 
 

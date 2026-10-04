@@ -9,30 +9,6 @@ export const MAX_SPLIT_RATIO = 0.8;
 /** Ratio change for one arrow key press. */
 const KEY_STEP = 0.02;
 
-const clampRatio = (ratio: number): number => Math.max(MIN_SPLIT_RATIO, Math.min(MAX_SPLIT_RATIO, ratio));
-
-function saveSplitRatio(storageKey: string, ratio: number): void {
-  try {
-    localStorage.setItem(storageKey, ratio.toString());
-  } catch {
-    /* storage unavailable */
-  }
-}
-
-function loadSplitRatio(storageKey: string, defaultRatio: number): number {
-  if (typeof window === 'undefined') return defaultRatio;
-  try {
-    const stored = localStorage.getItem(storageKey);
-    if (stored) {
-      const parsed = parseFloat(stored);
-      if (!isNaN(parsed) && parsed >= MIN_SPLIT_RATIO && parsed <= MAX_SPLIT_RATIO) return parsed;
-    }
-  } catch {
-    /* storage unavailable */
-  }
-  return defaultRatio;
-}
-
 /**
  * `dividerWidth` is the width in px of the divider between the panes. The ratio splits
  * the container width minus the divider, so the drag math removes it too.
@@ -104,4 +80,28 @@ export function useResizableSplit(storageKey: string, defaultRatio: number, divi
   );
 
   return { containerRef, splitRatio, handleDividerPointerDown, handleDividerKeyDown, resetRatio, isDragging };
+}
+
+const clampRatio = (ratio: number): number => Math.max(MIN_SPLIT_RATIO, Math.min(MAX_SPLIT_RATIO, ratio));
+
+function saveSplitRatio(storageKey: string, ratio: number): void {
+  try {
+    localStorage.setItem(storageKey, ratio.toString());
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function loadSplitRatio(storageKey: string, defaultRatio: number): number {
+  if (typeof window === 'undefined') return defaultRatio;
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      const parsed = parseFloat(stored);
+      if (!isNaN(parsed) && parsed >= MIN_SPLIT_RATIO && parsed <= MAX_SPLIT_RATIO) return parsed;
+    }
+  } catch {
+    /* storage unavailable */
+  }
+  return defaultRatio;
 }

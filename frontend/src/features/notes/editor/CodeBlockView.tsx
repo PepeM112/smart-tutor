@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 
 import { buildToggleCodeWrapTransaction, isCodeWrapped } from './codeBlockWrap';
 import { codeLanguageLabel, normalizeCodeLanguage, searchCodeLanguages } from './codeLanguages';
-import { copyCode } from './copyCode';
+import { copyText } from './copyText';
 
 import type { createLowlight } from 'lowlight';
 
@@ -78,7 +78,7 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
   }, [copied]);
 
   const copyToClipboard = () => {
-    void copyCode(node.textContent, { copied: t('code_copied'), failed: t('code_copy_failed') }).then(ok => {
+    void copyText(node.textContent, { copied: t('code_copied'), failed: t('code_copy_failed') }).then(ok => {
       if (ok) setCopied(true);
     });
   };

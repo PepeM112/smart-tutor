@@ -30,6 +30,7 @@ import { getToolIcon, isWriteTool } from '../utils/toolRegistry';
 
 import type { ConfirmContext, ConfirmHandler, ToolResultMetadata } from '../types';
 import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 // ---------------------------------------------------------------------------
 // User bubble
@@ -63,28 +64,53 @@ export function AssistantBubble({ content, streaming }: { content: string; strea
 
   return (
     <div className="max-w-[92%] text-left">
-      <div
-        className={cn(
-          'markdown-body text-[13px] leading-[1.35] text-foreground',
-          '[&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0',
-          '[&_ul]:pl-4 [&_ol]:pl-4',
-          '[&_strong]:font-semibold',
-          '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs',
-          '[&_pre]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre]:text-xs',
-          '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
-          '[&_h1]:text-[1.25rem] [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-0.5',
-          '[&_h2]:text-[1rem] [&_h2]:font-bold [&_h2]:mt-1.5 [&_h2]:mb-0.5',
-          '[&_h3]:text-[0.875rem] [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0',
-          '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
-          '[&_a]:text-primary [&_a]:underline',
-          '[&_table]:w-full [&_table]:text-xs [&_table]:my-1.5',
-          '[&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-0.5 [&_th]:text-left [&_th]:font-medium',
-          '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5'
-        )}
+      <AssistMarkdown
+        className="text-[13px] leading-[1.35] text-foreground"
+        trailing={
+          streaming && <span className="ml-0.5 inline-block size-1.5 animate-pulse rounded-full bg-foreground/50" />
+        }
       >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-        {streaming && <span className="ml-0.5 inline-block size-1.5 animate-pulse rounded-full bg-foreground/50" />}
-      </div>
+        {content}
+      </AssistMarkdown>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared markdown renderer
+// ---------------------------------------------------------------------------
+
+/** Element styles for markdown in the chat. The caller sets the base text size and color with `className`. */
+const MARKDOWN_STYLES = cn(
+  'markdown-body',
+  '[&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0',
+  '[&_ul]:pl-4 [&_ol]:pl-4',
+  '[&_strong]:font-semibold',
+  '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs',
+  '[&_pre]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre]:text-xs',
+  '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
+  '[&_h1]:text-[1.25rem] [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-0.5',
+  '[&_h2]:text-[1rem] [&_h2]:font-bold [&_h2]:mt-1.5 [&_h2]:mb-0.5',
+  '[&_h3]:text-[0.875rem] [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0',
+  '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
+  '[&_a]:text-primary [&_a]:underline',
+  '[&_table]:w-full [&_table]:text-xs [&_table]:my-1.5',
+  '[&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-0.5 [&_th]:text-left [&_th]:font-medium',
+  '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5'
+);
+
+type AssistMarkdownProps = {
+  children: string;
+  className?: string;
+  /** Extra node after the markdown, for example the streaming dot. */
+  trailing?: ReactNode;
+};
+
+function AssistMarkdown({ children, className, trailing }: AssistMarkdownProps) {
+  return (
+    <div className={cn(MARKDOWN_STYLES, className)}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+      {trailing}
     </div>
   );
 }
@@ -149,7 +175,7 @@ export function ToolResultRow({
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
-      <p className="text-[12px] leading-[1.4] text-muted-foreground whitespace-pre-wrap">{output}</p>
+      <AssistMarkdown className="text-[12px] leading-[1.4] text-muted-foreground">{output}</AssistMarkdown>
       {viewPath && (
         <div className="mt-2 flex items-center gap-3">
           <Link
@@ -259,6 +285,7 @@ export function ActionCard({
   disabled: boolean;
 }) {
   const t = useTranslations('assist.confirm');
+  const tRoot = useTranslations();
   const label = useToolLabel(name);
   const summary = _summarizeArgs(name, args, t);
   const summaryRows = context?.summary;
@@ -282,7 +309,7 @@ export function ActionCard({
               <dt className="shrink-0 font-medium text-muted-foreground sm:w-24">
                 {t.has(`fields.${row.key}`) ? t(`fields.${row.key}`) : row.key}
               </dt>
-              <dd className="min-w-0 break-words text-foreground">{row.value}</dd>
+              <dd className="min-w-0 break-words text-foreground">{_summaryValue(row, tRoot)}</dd>
             </div>
           ))}
         </dl>
@@ -411,6 +438,48 @@ export function StoppedRow() {
 // ---------------------------------------------------------------------------
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+type RootTranslator = ReturnType<typeof useTranslations>;
+
+/** Existing label keys of the enums that the backend sends as raw values in a confirm card. */
+const DIFFICULTY_LABEL_PREFIX = 'test_generation.difficulty_';
+const QUESTION_TYPE_LABEL_PREFIX = 'questions.type_';
+const NOTE_LENGTH_LABEL_PREFIX = 'notes_ai.length_';
+const FILES_ROOT_LABEL_KEY = 'files.title';
+const LOCATION_SEPARATOR = ' > ';
+
+/**
+ * The backend sends `difficulty` ("easy"), `question_types` ("SIMPLE,MULTIPLE_CHOICE") and
+ * `length` ("short") as raw values. Show them in the user's language. Any other row, or a value without a label, shows as it is.
+ */
+function _summaryValue(row: { key: string; value: string }, t: RootTranslator): string {
+  const translate = (prefix: string, raw: string): string => {
+    const labelKey = `${prefix}${raw.trim().toLowerCase()}`;
+    return t.has(labelKey) ? t(labelKey) : raw;
+  };
+
+  switch (row.key) {
+    case 'difficulty':
+      return translate(DIFFICULTY_LABEL_PREFIX, row.value);
+    case 'length':
+      return translate(NOTE_LENGTH_LABEL_PREFIX, row.value);
+    case 'question_types':
+      return row.value
+        .split(',')
+        .map(type => translate(QUESTION_TYPE_LABEL_PREFIX, type))
+        .join(', ');
+    // Location paths start with the backend's fixed root label ("Files > A > B"). Translate only that
+    // first segment: a user folder can also be named "Files".
+    case 'folder':
+    case 'location':
+    case 'destination': {
+      const [, ...path] = row.value.split(LOCATION_SEPARATOR);
+      return [t(FILES_ROOT_LABEL_KEY), ...path].join(LOCATION_SEPARATOR);
+    }
+    default:
+      return row.value;
+  }
+}
 
 function _argStr(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;

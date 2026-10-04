@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 from app.core.enums import QuestionType
 from app.crud import note as note_crud
@@ -19,12 +19,22 @@ from app.services.assist_tools.types import TestCreatedMetadata, TestEditMetadat
 from app.services.service_helpers import get_owned_or_404
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sqlalchemy.orm import Session
 
     from app.models.test import Test
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.assist.tools")
+
+_MIN_QUESTION_COUNT = 5
+_MAX_QUESTION_COUNT = 30
+_DEFAULT_QUESTION_COUNT = 10
+_DEFAULT_QUESTION_TYPES = (QuestionType.SIMPLE, QuestionType.MULTIPLE_CHOICE)
+_Difficulty = Literal["easy", "medium", "hard"]
+_DIFFICULTIES: tuple[_Difficulty, ...] = ("easy", "medium", "hard")
+_DEFAULT_DIFFICULTY: _Difficulty = "medium"
 
 
 # ---------------------------------------------------------------------------
@@ -70,28 +80,43 @@ def get_test_details(db: Session, *, current_user: User, arguments: dict[str, ob
 # ---------------------------------------------------------------------------
 
 
-def create_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
-    note_id = str(arguments.get("note_id", ""))
-    raw_count = arguments.get("question_count", 10)
-    try:
-        question_count = int(raw_count) if isinstance(raw_count, (int, str)) else 10
-    except (TypeError, ValueError):
-        question_count = 10
-    question_count = max(5, min(30, question_count))
+class _CreateTestArgs(NamedTuple):
+    """The arguments of `create_test` after defaults and limits."""
 
-    raw_types = arguments.get("question_types", ["SIMPLE", "MULTIPLE_CHOICE"])
-    if not isinstance(raw_types, list):
-        raw_types = ["SIMPLE", "MULTIPLE_CHOICE"]
-    q_types = []
-    for t in raw_types:
+    note_id: str
+    question_count: int
+    question_types: list[QuestionType]
+    difficulty: _Difficulty
+
+
+def _parse_create_test_args(arguments: Mapping[str, object]) -> _CreateTestArgs:
+    """Clean the model's arguments for `create_test`.
+
+    The handler and the confirm card both use this function. So the card shows the values that
+    will run, not the raw values of the model (for example "50 questions" runs as 30).
+    """
+    raw_count = arguments.get("question_count", _DEFAULT_QUESTION_COUNT)
+    try:
+        question_count = int(raw_count) if isinstance(raw_count, (int, str)) else _DEFAULT_QUESTION_COUNT
+    except ValueError:
+        question_count = _DEFAULT_QUESTION_COUNT
+    question_count = max(_MIN_QUESTION_COUNT, min(_MAX_QUESTION_COUNT, question_count))
+
+    raw_types = arguments.get("question_types")
+    q_types: list[QuestionType] = []
+    for t in raw_types if isinstance(raw_types, list) else []:
         with contextlib.suppress(KeyError):
             q_types.append(QuestionType[str(t)])
-    if not q_types:
-        q_types = [QuestionType.SIMPLE, QuestionType.MULTIPLE_CHOICE]
+    q_types = q_types or list(_DEFAULT_QUESTION_TYPES)
 
-    difficulty = str(arguments.get("difficulty", "medium"))
-    if difficulty not in ("easy", "medium", "hard"):
-        difficulty = "medium"
+    raw_difficulty = arguments.get("difficulty")
+    difficulty: _Difficulty = raw_difficulty if raw_difficulty in _DIFFICULTIES else _DEFAULT_DIFFICULTY
+
+    return _CreateTestArgs(str(arguments.get("note_id", "")), question_count, q_types, difficulty)
+
+
+def create_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
+    note_id, question_count, q_types, difficulty = _parse_create_test_args(arguments)
 
     logger.info("create_test: user=%s note=%s count=%d types=%s", current_user.id, note_id, question_count, q_types)
     gen_request = TestGenerationRequest(
@@ -220,17 +245,18 @@ def edit_test_confirm_context(db: Session, *, current_user: User, arguments: dic
 
 
 def create_test_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
-    note_id = arguments.get("note_id")
-    note = note_crud.get_by_id(db, id=str(note_id)) if note_id else None
-    types = arguments.get("question_types")
+    """Card data for `create_test`: the values that will run, as raw values.
+
+    `difficulty` is "easy", "medium" or "hard". `question_types` is the enum names joined with
+    a comma and no space (for example "SIMPLE,MULTIPLE_CHOICE"). The client translates both.
+    """
+    args = _parse_create_test_args(arguments)
+    note = note_crud.get_by_id(db, id=args.note_id) if args.note_id else None
     return confirm_summary(
         ("note", note_label(note.title) if note and note.user_id == current_user.id else None),
-        ("question_count", str(arguments.get("question_count") or 10)),
-        ("difficulty", str(arguments.get("difficulty") or "medium")),
-        (
-            "question_types",
-            ", ".join(str(t).replace("_", " ").capitalize() for t in types) if isinstance(types, list) else None,
-        ),
+        ("question_count", str(args.question_count)),
+        ("difficulty", args.difficulty),
+        ("question_types", ",".join(t.name for t in args.question_types)),
     )
 
 

@@ -16,7 +16,7 @@ export function ToggleView({ node, editor, getPos }: NodeViewProps) {
   const t = useTranslations('notes');
   const [open, setOpen] = useState(false);
 
-  // Open when the selection is in the content (after the summary).
+  // Open when the selection is in the content (after the summary). `pos + node.nodeSize` is already after the toggle.
   useEffect(() => {
     const openIfCursorInContent = (): void => {
       const pos = getPos();
@@ -24,7 +24,7 @@ export function ToggleView({ node, editor, getPos }: NodeViewProps) {
       if (typeof pos !== 'number' || !summary) return;
       const contentStart = pos + 1 + summary.nodeSize;
       const { from } = editor.state.selection;
-      if (from >= contentStart && from <= pos + node.nodeSize) setOpen(true);
+      if (from >= contentStart && from < pos + node.nodeSize) setOpen(true);
     };
     editor.on('selectionUpdate', openIfCursorInContent);
     return () => {

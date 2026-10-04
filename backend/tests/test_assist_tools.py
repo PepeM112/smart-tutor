@@ -40,6 +40,43 @@ class TestLocationLabel:
         assert _helpers.location_label({}, "gone") == "Files"
 
 
+class TestMarkdownPreview:
+    def test_short_text_is_kept_whole_with_no_ellipsis(self) -> None:
+        assert _helpers.markdown_preview("## Title\n\nText.", 300) == "## Title\n\nText."
+
+    def test_block_that_does_not_fit_is_left_out(self) -> None:
+        # The code block goes past the limit, so only the text before it is shown.
+        text = "Intro.\n\n```python\nx = 1\n\ny = 2\n```\n\nAfter."
+        assert _helpers.markdown_preview(text, 20) == "Intro.\n\n…"
+
+    def test_blank_line_inside_a_code_fence_does_not_split_it(self) -> None:
+        text = "```\na\n\nb\n```\n\nAfter."
+        assert _helpers.markdown_blocks(text) == ["```\na\n\nb\n```", "After."]
+
+    def test_toggle_with_blank_lines_is_one_block(self) -> None:
+        text = "<details>\n<summary>S</summary>\n\nBody.\n\n</details>\n\nAfter."
+        assert _helpers.markdown_blocks(text) == ["<details>\n<summary>S</summary>\n\nBody.\n\n</details>", "After."]
+
+    def test_first_block_too_long_gives_empty_preview(self) -> None:
+        assert _helpers.markdown_preview("x" * 400, 300) == ""
+
+
+class TestCreateNotePreview:
+    def _output(self, content: str) -> str:
+        note = MagicMock(id="n1", title="Cells", content=content)
+        with patch.object(notes.note_service, "generate_note", return_value=note):
+            result = notes.create_note(MagicMock(), current_user=_user(), arguments={"topic": "Cells"})
+        return result.output
+
+    def test_preview_is_a_separate_block(self) -> None:
+        assert self._output("## Cells\n\nText.") == (
+            "Note created successfully!\n- **Title:** Cells\n\n**Preview:**\n\n## Cells\n\nText."
+        )
+
+    def test_no_preview_when_first_block_is_too_long(self) -> None:
+        assert self._output("```\n" + "x" * 400 + "\n```") == "Note created successfully!\n- **Title:** Cells"
+
+
 class TestNavigateTo:
     def _route(self, path: str) -> str:
         result = navigation.navigate_to(MagicMock(), current_user=_user(), arguments={"path": path})

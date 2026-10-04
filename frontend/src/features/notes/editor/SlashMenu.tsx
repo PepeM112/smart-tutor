@@ -126,8 +126,7 @@ export type SlashMenuPopupHandle = {
 
 type SlashMenuPopupProps = SuggestionProps<SlashItem> & { ref?: Ref<SlashMenuPopupHandle> };
 
-// eslint-disable-next-line react-refresh/only-export-components -- intentional: extension + popup are co-located by design.
-function SlashMenuPopup({ ref, ...props }: SlashMenuPopupProps) {
+export function SlashMenuPopup({ ref, ...props }: SlashMenuPopupProps) {
   const t = useTranslations('notes');
   // The choice belongs to one query: a new query starts at the first item (no effect needed to reset it).
   const [choice, setChoice] = useState({ query: '', index: 0 });
@@ -150,6 +149,8 @@ function SlashMenuPopup({ ref, ...props }: SlashMenuPopupProps) {
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }: SuggestionKeyDownProps): boolean => {
+      // No item matches: the popup shows nothing, so the keys go to the editor (`% 0` would give `NaN`).
+      if (items.length === 0) return false;
       if (event.key === 'ArrowUp') {
         setSelectedIndex(i => (i - 1 + items.length) % items.length);
         return true;
@@ -204,6 +205,7 @@ function SlashMenuPopup({ ref, ...props }: SlashMenuPopupProps) {
 
 // ─── Tiptap Extension ────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components -- intentional: extension + popup are co-located by design.
 export const SlashMenuExtension = Extension.create({
   name: 'slashMenu',
 

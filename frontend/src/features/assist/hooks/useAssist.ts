@@ -232,7 +232,9 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         // the last text segment's reveal, see the 'done' case below) — only
         // handle cleanup here for the abort/error paths, where `done` never
         // arrives and any in-progress reveal must snap instantly (R6/C6).
-        if (!receivedDone) {
+        // Only the stream that owns `abortRef` may tear down. After "Clear chat" a new stream can
+        // already own it, and an old stream must not reset the new one.
+        if (!receivedDone && abortRef.current === controller) {
           // The approved tool of a resumed stream may have run already: its tool call still
           // needs a result in the history, or the next request fails.
           conversationRef.current.push(...buildInterruptedMessages(request.toolConfirmations ?? [], toolResults));
@@ -417,9 +419,12 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               );
 
               // Turn fully revealed and finalized — safe to unlock input now (C7).
-              setIsStreaming(false);
-              abortRef.current = null;
-              queueRef.current = null;
+              // Same owner check as in `finally`: an old stream must not reset a new one.
+              if (abortRef.current === controller) {
+                setIsStreaming(false);
+                abortRef.current = null;
+                queueRef.current = null;
+              }
             });
             break;
           }
@@ -565,6 +570,9 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     abortRef.current?.abort();
     queueRef.current?.destroy();
     queueRef.current = null;
+    // Destroy drops a queued `done` item, which is the only code that frees the stream lock.
+    // Free it here, or `send` and `confirm` stay blocked.
+    abortRef.current = null;
     conversationRef.current = [];
     pendingToolIdsRef.current.clear();
     setTurns([]);

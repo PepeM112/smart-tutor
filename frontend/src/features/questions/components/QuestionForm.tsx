@@ -39,47 +39,6 @@ type MCFormData = {
   points: number;
 };
 
-function initSimpleData(q?: QuestionRead): SimpleFormData {
-  if (q && q.questionType === QuestionType.SIMPLE) {
-    const content = q.content as { answers?: string[] };
-    return {
-      prompt: q.prompt,
-      answers: content.answers ?? [''],
-      hint: q.hint ?? '',
-      explanation: q.explanation ?? '',
-      points: q.points ?? 1,
-    };
-  }
-  return { prompt: '', answers: [''], hint: '', explanation: '', points: 1 };
-}
-
-function initMCData(q?: QuestionRead): MCFormData {
-  if (q && q.questionType === QuestionType.MULTIPLE_CHOICE) {
-    const content = q.content as { options?: string[]; correctIndices?: number[] };
-    const choices = (content.options ?? ['', '']).map((text, i) => ({
-      text,
-      isCorrect: content.correctIndices?.includes(i) ?? false,
-    }));
-    return {
-      prompt: q.prompt,
-      choices,
-      hint: q.hint ?? '',
-      explanation: q.explanation ?? '',
-      points: q.points ?? 1,
-    };
-  }
-  return {
-    prompt: '',
-    choices: [
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false },
-    ],
-    hint: '',
-    explanation: '',
-    points: 1,
-  };
-}
-
 export function QuestionForm({ question }: Props) {
   const t = useTranslations();
   const router = useRouter();
@@ -306,4 +265,45 @@ function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: M
       )}
     </div>
   );
+}
+
+function initSimpleData(q?: QuestionRead): SimpleFormData {
+  if (q && q.questionType === QuestionType.SIMPLE) {
+    const content = q.content as { answers?: string[] };
+    return {
+      prompt: q.prompt,
+      answers: content.answers ?? [''],
+      hint: q.hint ?? '',
+      explanation: q.explanation ?? '',
+      points: q.points ?? 1,
+    };
+  }
+  return { prompt: '', answers: [''], hint: '', explanation: '', points: 1 };
+}
+
+function initMCData(q?: QuestionRead): MCFormData {
+  if (q && q.questionType === QuestionType.MULTIPLE_CHOICE) {
+    const content = q.content as { options?: string[]; correctIndices?: number[] };
+    const choices = (content.options ?? ['', '']).map((text, i) => ({
+      text,
+      isCorrect: content.correctIndices?.includes(i) ?? false,
+    }));
+    return {
+      prompt: q.prompt,
+      choices,
+      hint: q.hint ?? '',
+      explanation: q.explanation ?? '',
+      points: q.points ?? 1,
+    };
+  }
+  return {
+    prompt: '',
+    choices: [
+      { text: '', isCorrect: false },
+      { text: '', isCorrect: false },
+    ],
+    hint: '',
+    explanation: '',
+    points: 1,
+  };
 }

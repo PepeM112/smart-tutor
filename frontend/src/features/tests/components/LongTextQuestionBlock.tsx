@@ -250,6 +250,15 @@ function CategoryInput({
     return suggestions.filter(s => s.toLowerCase().includes(lower) && s !== value).slice(0, 5);
   }, [value, suggestions]);
 
+  // When the suggestions change (here or in another criterion), the old index can point past the end
+  // of the new list. Reset it during render, as React advises, so Enter never picks a missing item.
+  const listKey = filtered.join('\u0000');
+  const [prevListKey, setPrevListKey] = useState(listKey);
+  if (prevListKey !== listKey) {
+    setPrevListKey(listKey);
+    setActiveIndex(-1);
+  }
+
   const showDropdown = open && filtered.length > 0;
   const optionId = (i: number): string => `${listboxId}-option-${i}`;
 
@@ -299,6 +308,8 @@ function CategoryInput({
         onChange={e => {
           onChange(e.target.value);
           setActiveIndex(-1);
+          // Typing after Esc opens the list again.
+          setOpen(true);
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => {

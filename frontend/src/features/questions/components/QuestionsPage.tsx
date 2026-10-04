@@ -146,9 +146,12 @@ export function QuestionsPage() {
 
   const { mutate: bulkDelete, isPending: isBulkDeleting } = useMutation({
     mutationFn: (ids: string[]) => sdk.questionsBulkDelete({ body: { questionIds: ids } }),
-    onSuccess: () => {
+    onSuccess: (res, ids) => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success(t('questions.bulk_deleted'));
+      const skipped = res.data?.skipped ?? 0;
+      toast.success(t('questions.bulk_deleted', { count: res.data?.deleted ?? ids.length }), {
+        description: skipped > 0 ? t('questions.bulk_skipped', { count: skipped }) : undefined,
+      });
       setSelectedIds(new Set());
     },
     onError: () => toast.error(t('questions.failed_to_delete')),

@@ -176,6 +176,9 @@ export function useBlockOverlay(editor: Editor, containerRef: RefObject<HTMLElem
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     document.addEventListener('pointerout', onPointerOut);
     window.addEventListener('resize', schedule);
+    // The pointer stays still while the note scrolls, but the block under it changes. `scroll` does not bubble.
+    // Capture on the window catches the scroll pane of the note (an ancestor of the container) and inner scrolls.
+    window.addEventListener('scroll', schedule, { capture: true, passive: true });
     editor.on('transaction', onTransaction);
     const observer = new ResizeObserver(schedule);
     observer.observe(container);
@@ -184,6 +187,7 @@ export function useBlockOverlay(editor: Editor, containerRef: RefObject<HTMLElem
       window.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerout', onPointerOut);
       window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule, true);
       editor.off('transaction', onTransaction);
       observer.disconnect();
       cancelAnimationFrame(frame.current);

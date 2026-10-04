@@ -477,3 +477,52 @@ class TestConfirmContext:
                 _user(),
             )
         assert context == {"summary": [{"key": "items", "value": "Old note"}]}
+
+
+class TestCreateToolCards:
+    """The confirm card shows the values that will run, as the handler sees them."""
+
+    NOTE = MagicMock(user_id="u1", title="Cells")
+    TESTS = "app.services.assist_tools.tests"
+
+    def _card(self, arguments: dict[str, object]) -> dict[str, str]:
+        with patch(f"{self.TESTS}.note_crud.get_by_id", return_value=self.NOTE):
+            context = build_confirm_context(MagicMock(), "create_test", {"note_id": "n1", **arguments}, _user())
+        assert context is not None
+        return {row["key"]: row["value"] for row in context["summary"]}
+
+    def test_question_count_is_limited_like_the_handler(self) -> None:
+        assert self._card({"question_count": 50})["question_count"] == "30"
+        assert self._card({"question_count": 1})["question_count"] == "5"
+        assert self._card({"question_count": "12"})["question_count"] == "12"
+
+    def test_bad_values_fall_back_to_the_defaults(self) -> None:
+        card = self._card({"question_count": "many", "difficulty": "impossible", "question_types": ["ESSAY", 7]})
+        assert card == {
+            "note": "Cells",
+            "question_count": "10",
+            "difficulty": "medium",
+            "question_types": "SIMPLE,MULTIPLE_CHOICE",
+        }
+
+    def test_card_sends_raw_enum_values(self) -> None:
+        card = self._card({"difficulty": "hard", "question_types": ["MULTIPLE_CHOICE", "ESSAY"]})
+        assert card["difficulty"] == "hard"
+        assert card["question_types"] == "MULTIPLE_CHOICE"
+
+    def test_handler_runs_with_the_values_of_the_card(self) -> None:
+        arguments: dict[str, object] = {"note_id": "n1", "question_count": 50, "difficulty": "x"}
+        generated = MagicMock(questions=[], source_note_title="Cells", source_note_id="n1")
+        with (
+            patch(f"{self.TESTS}.test_generation_service.generate_test_questions", return_value=generated) as generate,
+            patch(f"{self.TESTS}.test_service.create_test", return_value=MagicMock(title="Cells")),
+        ):
+            execute_tool(MagicMock(), current_user=_user(), tool_name="create_test", arguments=arguments)
+        request = generate.call_args.kwargs["data"]
+        assert (request.question_count, request.difficulty) == (30, "medium")
+
+    def test_note_length_in_the_card_is_the_one_that_runs(self) -> None:
+        with patch("app.services.assist_tools.notes.folder_service.load_folder_map", return_value={}):
+            context = build_confirm_context(MagicMock(), "create_note", {"topic": "T", "length": "huge"}, _user())
+        assert context is not None
+        assert {"key": "length", "value": "medium"} in context["summary"]

@@ -140,16 +140,17 @@ export const TURN_INTO_KINDS: readonly TurnIntoKind[] = [
   'toggle',
 ];
 
+const HEADING_KINDS: readonly TurnIntoKind[] = ['heading1', 'heading2', 'heading3'];
+
 /**
  * What a block is now, in the terms of "turn into". `null` = the block cannot be converted (a table, a divider):
  * it has no plain text to carry over.
  */
 export function blockKind(node: PMNode): TurnIntoKind | null {
   switch (node.type.name) {
-    case 'heading': {
-      const level = Number(node.attrs.level);
-      return level >= 1 && level <= 3 ? (`heading${level}` as TurnIntoKind) : null;
-    }
+    case 'heading':
+      // Index = level - 1. A level that is not 1 to 3 gives `undefined`, so the block cannot be converted.
+      return HEADING_KINDS[Number(node.attrs.level) - 1] ?? null;
     case 'paragraph':
     case 'bulletList':
     case 'orderedList':

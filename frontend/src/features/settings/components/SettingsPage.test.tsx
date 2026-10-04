@@ -2,22 +2,25 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type UserRead } from '@/client';
+import { type AiToolPermissionRead, type UserRead } from '@/client';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 
 import { SettingsPage } from './SettingsPage';
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+vi.mock('next-intl', () => ({ useTranslations: () => Object.assign((key: string) => key, { has: () => false }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/apiClient', () => ({
   sdk: { usersUpdateMe: vi.fn(), usersUpdateAiToolPermissions: vi.fn() },
 }));
+// The permissions the mocked query returns. A test can set its own list.
+const serverPermissions = vi.hoisted((): { current: AiToolPermissionRead[] } => ({ current: [] }));
 vi.mock('@/features/assist/hooks/useAiToolPermissions', () => ({
   AI_PERMISSIONS_QUERY_KEY: ['ai-tool-permissions'],
-  useAiToolPermissions: () => ({ data: [], isLoading: false, isError: false }),
+  useAiToolPermissions: () => ({ data: serverPermissions.current, isLoading: false, isError: false }),
 }));
 // These sections save on their own (theme, locale) and are not part of the form.
 vi.mock('./AppearanceSection', () => ({ AppearanceSection: () => null }));
@@ -32,8 +35,16 @@ const USER = {
   dailyReviewLimit: null,
 } as UserRead;
 
+const permission = (name: string, autoApprove: boolean): AiToolPermissionRead => ({
+  name,
+  kind: 'read',
+  defaultAutoApprove: false,
+  autoApprove,
+});
+
 beforeEach(() => {
   useAuthStore.setState({ user: USER });
+  serverPermissions.current = [];
 });
 
 afterEach(() => {
@@ -88,5 +99,67 @@ describe('SettingsPage', () => {
     await waitFor(() => expect(isDisabled(nameInput())).toBe(false));
     expect(nameInput().value).toBe('Pepe');
     expect(isDisabled(saveButton())).toBe(true);
+  });
+
+  describe('AI permissions', () => {
+    const switches = () => screen.getAllByRole('switch');
+    const groupCheckbox = () => screen.getByRole('checkbox');
+
+    beforeEach(() => {
+      serverPermissions.current = [permission('list_tests', true), permission('get_test_details', false)];
+    });
+
+    // The group checkbox is the only control with a native mixed state.
+    it('shows the mixed state, then allows all tools, then turns all tools off', () => {
+      mount();
+      expect(groupCheckbox().getAttribute('aria-checked')).toBe('mixed');
+
+      fireEvent.click(groupCheckbox());
+      expect(switches().map(s => s.getAttribute('aria-checked'))).toEqual(['true', 'true']);
+      expect(groupCheckbox().getAttribute('aria-checked')).toBe('true');
+
+      fireEvent.click(groupCheckbox());
+      expect(switches().map(s => s.getAttribute('aria-checked'))).toEqual(['false', 'false']);
+      expect(groupCheckbox().getAttribute('aria-checked')).toBe('false');
+    });
+
+    it('enables Save for a changed tool, and disables it again when the change is undone', () => {
+      mount();
+      expect(isDisabled(saveButton())).toBe(true);
+
+      fireEvent.click(switches()[1]);
+      expect(isDisabled(saveButton())).toBe(false);
+
+      fireEvent.click(switches()[1]);
+      expect(isDisabled(saveButton())).toBe(true);
+    });
+
+    it('sends only the changed tools when the user selects all', async () => {
+      vi.mocked(sdk.usersUpdateAiToolPermissions).mockResolvedValue({ data: [] } as never);
+      mount();
+
+      fireEvent.click(groupCheckbox());
+      fireEvent.click(saveButton());
+
+      await waitFor(() =>
+        expect(sdk.usersUpdateAiToolPermissions).toHaveBeenCalledWith({
+          body: { permissions: { get_test_details: true } },
+        })
+      );
+    });
+
+    it('shows an error toast and keeps the change when the save fails', async () => {
+      vi.mocked(sdk.usersUpdateAiToolPermissions).mockRejectedValue(new Error('network'));
+      mount();
+
+      fireEvent.click(switches()[1]);
+      fireEvent.click(saveButton());
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.failed_to_save'));
+      expect(toast.success).not.toHaveBeenCalled();
+      // The draft stays, so the user can try again.
+      await waitFor(() => expect(isDisabled(saveButton())).toBe(false));
+      expect(switches()[1].getAttribute('aria-checked')).toBe('true');
+    });
   });
 });

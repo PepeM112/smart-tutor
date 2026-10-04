@@ -1,6 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useTranslations } from 'next-intl';
 import { type ReactNode } from 'react';
 
 import { MAX_SPLIT_RATIO, MIN_SPLIT_RATIO, useResizableSplit } from '@/hooks/useResizableSplit';
@@ -17,7 +18,7 @@ export type SplitPaneProps = {
   /** Right pane. `null` hides it and the divider, and the main pane uses the full width. */
   side: ReactNode | null;
   className?: string;
-  /** Accessible name of the divider (screen readers only). */
+  /** Accessible name of the divider (screen readers only). Default: `common.resize_panel`. */
   dividerLabel?: string;
   /** Classes for the main pane scroll box (padding, scrollbar style). */
   mainClassName?: string;
@@ -75,6 +76,7 @@ export function SplitPane({
   sideClassName,
   bleed = false,
 }: SplitPaneProps) {
+  const t = useTranslations('common');
   const { containerRef, splitRatio, handleDividerPointerDown, handleDividerKeyDown, resetRatio, isDragging } =
     useResizableSplit(storageKey, defaultRatio, DIVIDER_WIDTH);
   const prefersReduced = useReducedMotion();
@@ -124,7 +126,7 @@ export function SplitPane({
             data-slot="split-pane-divider"
             role="separator"
             aria-orientation="vertical"
-            aria-label={dividerLabel}
+            aria-label={dividerLabel ?? t('resize_panel')}
             // Value = share of the main pane, in percent.
             aria-valuenow={Math.round(splitRatio * 100)}
             aria-valuemin={MIN_SPLIT_RATIO * 100}

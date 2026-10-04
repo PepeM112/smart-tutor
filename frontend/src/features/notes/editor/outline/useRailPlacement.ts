@@ -35,17 +35,6 @@ export const MIN_RAIL_SPACE = RAIL_INSET + RAIL_WIDTH + TEXT_GAP;
 
 type Area = { top: number; right: number; height: number };
 
-/** Visible box of a scroll element: inside its borders, without the scrollbar. */
-function areaOf(element: HTMLElement | null): Area {
-  if (!element) return { top: 0, right: document.documentElement.clientWidth, height: window.innerHeight };
-  const rect = element.getBoundingClientRect();
-  return {
-    top: rect.top + element.clientTop,
-    right: rect.left + element.clientLeft + element.clientWidth,
-    height: element.clientHeight,
-  };
-}
-
 export type RailPlacement = {
   /** Free space (px) right of the text. */
   space: number;
@@ -97,4 +86,15 @@ export function useRailPlacement(editor: Editor, containerRef: RefObject<HTMLEle
   }, [editor, containerRef, measure]);
 
   return { space, layerRef };
+}
+
+/** Visible box of a scroll element: inside its borders, without the scrollbar. */
+function areaOf(element: HTMLElement | null): Area {
+  if (!element) return { top: 0, right: document.documentElement.clientWidth, height: window.innerHeight };
+  const rect = element.getBoundingClientRect();
+  return {
+    top: rect.top + element.clientTop,
+    right: rect.left + element.clientLeft + element.clientWidth,
+    height: element.clientHeight,
+  };
 }

@@ -28,6 +28,9 @@ export const codeWrapKey = new PluginKey<readonly number[]>('noteCodeWrap');
 /** Meta of a transaction that flips the wrap of the block at this position. */
 type ToggleMeta = { toggle: number };
 
+const isToggleMeta = (value: unknown): value is ToggleMeta =>
+  typeof value === 'object' && value !== null && 'toggle' in value && typeof value.toggle === 'number';
+
 const uniqueSorted = (positions: readonly number[]): number[] => [...new Set(positions)].sort((a, b) => a - b);
 
 /** The positions after a transaction: mapped through the changes, and only those that are still code blocks. */
@@ -59,8 +62,8 @@ const createCodeWrapPlugin = (): Plugin<readonly number[]> =>
       init: () => [],
       apply: (tr, positions) => {
         const mapped = mapWrapPositions(positions, tr);
-        const meta = tr.getMeta(codeWrapKey) as ToggleMeta | undefined;
-        return meta ? toggleWrapPosition(mapped, meta.toggle) : mapped;
+        const meta: unknown = tr.getMeta(codeWrapKey);
+        return isToggleMeta(meta) ? toggleWrapPosition(mapped, meta.toggle) : mapped;
       },
     },
     props: {

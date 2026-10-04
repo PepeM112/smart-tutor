@@ -13,6 +13,8 @@ import { getMarkRange } from '@tiptap/core';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
 import type { Editor } from '@tiptap/core';
+import type { Transaction } from '@tiptap/pm/state';
+import type { Mappable } from '@tiptap/pm/transform';
 
 export type LinkTarget = {
   href: string;
@@ -116,7 +118,7 @@ export function useLinkTarget(editor: Editor, containerRef: RefObject<HTMLElemen
 
     const onPointerOver = (event: PointerEvent) => {
       if (event.pointerType === 'touch') return;
-      const anchor = (event.target as HTMLElement | null)?.closest('a[href]');
+      const anchor = closestLink(event.target);
       if (!(anchor instanceof HTMLAnchorElement) || !dom.contains(anchor)) return;
       window.clearTimeout(closeTimer.current);
       window.clearTimeout(openTimer.current);
@@ -127,7 +129,7 @@ export function useLinkTarget(editor: Editor, containerRef: RefObject<HTMLElemen
       }, HOVER_OPEN_MS);
     };
     const onPointerOut = (event: PointerEvent) => {
-      const anchor = (event.target as HTMLElement | null)?.closest('a[href]');
+      const anchor = closestLink(event.target);
       if (!anchor) return;
       // Moving inside the same link (text → inline code) is not a leave.
       const to = event.relatedTarget instanceof Element ? event.relatedTarget.closest('a[href]') : null;
@@ -143,7 +145,14 @@ export function useLinkTarget(editor: Editor, containerRef: RefObject<HTMLElemen
 
     dom.addEventListener('pointerover', onPointerOver);
     dom.addEventListener('pointerout', onPointerOut);
-    editor.on('transaction', schedule);
+    // The held range follows the document: an edit while the URL input has focus (an AI edit, a new content)
+    // must not make Save or Remove act on other text.
+    const onTransaction = ({ transaction }: { transaction: Transaction }) => {
+      const current = held.current;
+      if (current && transaction.docChanged) held.current = mapHeld(current, transaction.mapping);
+      schedule();
+    };
+    editor.on('transaction', onTransaction);
     editor.on('focus', schedule);
     editor.on('blur', schedule);
     window.addEventListener('resize', schedule);
@@ -156,7 +165,7 @@ export function useLinkTarget(editor: Editor, containerRef: RefObject<HTMLElemen
     return () => {
       dom.removeEventListener('pointerover', onPointerOver);
       dom.removeEventListener('pointerout', onPointerOut);
-      editor.off('transaction', schedule);
+      editor.off('transaction', onTransaction);
       editor.off('focus', schedule);
       editor.off('blur', schedule);
       window.removeEventListener('resize', schedule);
@@ -173,6 +182,17 @@ export function useLinkTarget(editor: Editor, containerRef: RefObject<HTMLElemen
 }
 
 const rangeKey = (target: LinkTarget): string => `${target.from}:${target.to}`;
+
+const closestLink = (target: EventTarget | null): Element | null =>
+  target instanceof Element ? target.closest('a[href]') : null;
+
+/** The held target after a change of the document. `null` when its text was deleted: the hold ends. */
+export function mapHeld(held: LinkTarget, mapping: Mappable): LinkTarget | null {
+  // The start moves forward and the end moves back, so text typed at an edge is not part of the range.
+  const from = mapping.map(held.from, 1);
+  const to = mapping.map(held.to, -1);
+  return from < to ? { ...held, from, to } : null;
+}
 
 // ─── measuring ───────────────────────────────────────────────────────────────
 
@@ -198,7 +218,7 @@ function computeTarget(editor: Editor, container: HTMLElement, hovered: Hovered 
   return anchor instanceof HTMLAnchorElement ? fromAnchor(anchor, range.from, range.to, box) : null;
 }
 
-/** A held target keeps its range (mapped by the editor), only the position is measured again. */
+/** A held target keeps its range (mapped through each transaction, see `mapHeld`), only the position is measured again. */
 function remeasure(editor: Editor, container: HTMLElement, held: LinkTarget): LinkTarget | null {
   const { view } = editor;
   const { node } = view.domAtPos(Math.min(held.from + 1, view.state.doc.content.size));

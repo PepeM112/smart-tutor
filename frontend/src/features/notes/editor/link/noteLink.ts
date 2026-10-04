@@ -15,7 +15,7 @@ export const NoteLink = Link.extend({
         key: new PluginKey('noteLinkOpen'),
         props: {
           handleClick: (view, _pos, event) => {
-            const anchor = (event.target as HTMLElement | null)?.closest('a[href]');
+            const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
             if (!anchor || !view.dom.contains(anchor)) return false;
             const wantsOpen = event.metaKey || event.ctrlKey || !view.editable;
             if (!wantsOpen) return false;

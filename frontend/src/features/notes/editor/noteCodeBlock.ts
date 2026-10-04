@@ -59,7 +59,7 @@ export const NoteCodeBlock = CodeBlockLowlight.extend({
     }
     return helpers.createNode(
       'codeBlock',
-      { language: normalizeCodeLanguage(token.lang as string | undefined) },
+      { language: normalizeCodeLanguage(typeof token.lang === 'string' ? token.lang : undefined) },
       token.text ? [helpers.createTextNode(token.text)] : []
     );
   },

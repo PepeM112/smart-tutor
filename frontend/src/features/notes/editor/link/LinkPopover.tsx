@@ -18,9 +18,10 @@
 import { Check, Copy, ExternalLink, Pencil, Unlink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from 'react';
-import { toast } from 'sonner';
 
 import { HoverHint } from '@/components/ui/hover-hint';
+
+import { copyText } from '../copyText';
 
 import { normalizeLinkHref, openLink } from './linkHref';
 import { useLinkTarget, type LinkTarget } from './useLinkTarget';
@@ -92,7 +93,12 @@ export function LinkPopover({ editor, containerRef }: LinkPopoverProps) {
     if (editing) inputRef.current?.select();
   }, [editing]);
 
-  if (!target) return null;
+  if (!target) {
+    // The hold can end without stopEdit (the link text was deleted). Reset during render, so the
+    // next link does not open in edit mode with the old draft.
+    if (editing) setEditing(false);
+    return null;
+  }
 
   const selectLink = () => editor.chain().setTextSelection({ from: target.from, to: target.to });
 
@@ -117,10 +123,7 @@ export function LinkPopover({ editor, containerRef }: LinkPopoverProps) {
   };
 
   const handleCopy = () => {
-    navigator.clipboard
-      .writeText(target.href)
-      .then(() => toast.success(t('link_copied')))
-      .catch(() => toast.error(t('link_copy_failed')));
+    void copyText(target.href, { copied: t('link_copied'), failed: t('link_copy_failed') });
   };
 
   // A click outside ends the edit and drops the draft. Focus that stays inside the popover (the save button) does not.
