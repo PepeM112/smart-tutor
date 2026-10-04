@@ -10,14 +10,15 @@
 // Architecture:
 //   SlashMenuExtension — Tiptap Extension wrapping @tiptap/suggestion.
 //   SlashMenuPopup     — React component rendered via ReactRenderer.
-//     The popup renders into document.body (outside the React tree), so
-//     next-intl context is unavailable. Translated labels are passed via
-//     extension options from RichNoteEditor (which can call useTranslations).
+//     ReactRenderer renders through a portal of the editor content, so the popup is inside the
+//     React tree (next-intl context works) even though its DOM element is moved to document.body.
+//     It translates the labels and filters the items (the extension has no translations).
 
 import { Extension } from '@tiptap/core';
 import { ReactRenderer } from '@tiptap/react';
 import { Suggestion } from '@tiptap/suggestion';
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -26,18 +27,16 @@ import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion
 
 // ─── Slash command items ─────────────────────────────────────────────────────
 
-export type SlashItem = {
+type SlashItem = {
+  /** Key of the label in the `notes` messages. */
   labelKey: string;
-  /** English fallback + filter text. */
+  /** English label. Also matched by the filter, so "/head" works in every locale. */
   label: string;
-  /** Translated display label (set at extension configure time). */
-  displayLabel: string;
   icon: string;
   execute: (props: { editor: Editor; range: Range }) => void;
 };
 
-/** Base item definitions — `displayLabel` is filled from extension options at runtime. */
-const BASE_ITEMS: Omit<SlashItem, 'displayLabel'>[] = [
+const SLASH_ITEMS: SlashItem[] = [
   {
     labelKey: 'slash_text',
     label: 'Text',
@@ -99,6 +98,18 @@ const BASE_ITEMS: Omit<SlashItem, 'displayLabel'>[] = [
     execute: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
   },
   {
+    labelKey: 'slash_callout',
+    label: 'Callout',
+    icon: 'ⓘ',
+    execute: ({ editor, range }) => editor.chain().focus().deleteRange(range).setCallout('note').run(),
+  },
+  {
+    labelKey: 'slash_toggle',
+    label: 'Toggle',
+    icon: '▸',
+    execute: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertToggle().run(),
+  },
+  {
     labelKey: 'slash_table',
     label: 'Table',
     icon: '⊞',
@@ -113,102 +124,92 @@ export type SlashMenuPopupHandle = {
   onKeyDown: (props: SuggestionKeyDownProps) => boolean;
 };
 
-type SlashMenuPopupProps = SuggestionProps<SlashItem> & { hint: string };
+type SlashMenuPopupProps = SuggestionProps<SlashItem> & { ref?: Ref<SlashMenuPopupHandle> };
 
-export const SlashMenuPopup = forwardRef<SlashMenuPopupHandle, SlashMenuPopupProps>(
-  function SlashMenuPopup(props, ref) {
-    const [selectedIndex, setSelectedIndex] = useState(0);
-    const listRef = useRef<HTMLDivElement>(null);
+export function SlashMenuPopup({ ref, ...props }: SlashMenuPopupProps) {
+  const t = useTranslations('notes');
+  // The choice belongs to one query: a new query starts at the first item (no effect needed to reset it).
+  const [choice, setChoice] = useState({ query: '', index: 0 });
+  const listRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-      setSelectedIndex(0);
-    }, [props.items]);
+  const query = props.query.toLowerCase();
+  const items = query
+    ? props.items.filter(
+        item => item.label.toLowerCase().includes(query) || t(item.labelKey).toLowerCase().includes(query)
+      )
+    : props.items;
 
-    const execute = (item: SlashItem) => {
-      props.command(item);
-    };
+  const selectedIndex = choice.query === props.query ? choice.index : 0;
+  const setSelectedIndex = (update: (index: number) => number) =>
+    setChoice({ query: props.query, index: update(selectedIndex) });
 
-    useImperativeHandle(ref, () => ({
-      onKeyDown: ({ event }: SuggestionKeyDownProps): boolean => {
-        if (event.key === 'ArrowUp') {
-          setSelectedIndex(i => (i - 1 + props.items.length) % props.items.length);
-          return true;
-        }
-        if (event.key === 'ArrowDown') {
-          setSelectedIndex(i => (i + 1) % props.items.length);
-          return true;
-        }
-        if (event.key === 'Enter') {
-          const item = props.items[selectedIndex];
-          if (item) execute(item);
-          return true;
-        }
-        return false;
-      },
-    }));
+  const execute = (item: SlashItem) => {
+    props.command(item);
+  };
 
-    // The list scrolls on short screens: keep the item chosen with the arrow keys visible.
-    useEffect(() => {
-      listRef.current?.children[selectedIndex]?.scrollIntoView({ block: 'nearest' });
-    }, [selectedIndex]);
+  useImperativeHandle(ref, () => ({
+    onKeyDown: ({ event }: SuggestionKeyDownProps): boolean => {
+      // No item matches: the popup shows nothing, so the keys go to the editor (`% 0` would give `NaN`).
+      if (items.length === 0) return false;
+      if (event.key === 'ArrowUp') {
+        setSelectedIndex(i => (i - 1 + items.length) % items.length);
+        return true;
+      }
+      if (event.key === 'ArrowDown') {
+        setSelectedIndex(i => (i + 1) % items.length);
+        return true;
+      }
+      if (event.key === 'Enter') {
+        const item = items[selectedIndex];
+        if (item) execute(item);
+        return true;
+      }
+      return false;
+    },
+  }));
 
-    if (props.items.length === 0) return null;
+  // The list scrolls on short screens: keep the item chosen with the arrow keys visible.
+  useEffect(() => {
+    listRef.current?.children[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [selectedIndex]);
 
-    return (
-      <div
-        ref={listRef}
-        data-slot="slash-menu"
-        className="max-h-[min(20rem,50dvh)] min-w-48 overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground ring-1 ring-foreground/10"
-      >
-        {props.items.map((item, index) => (
-          <button
-            key={item.labelKey}
-            type="button"
-            onMouseDown={e => e.preventDefault()}
-            onClick={() => execute(item)}
-            className={cn(
-              'flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-75',
-              index === selectedIndex ? 'bg-muted text-foreground' : 'text-foreground/80 hover:bg-muted/60'
-            )}
-          >
-            <span className="w-6 shrink-0 text-center text-xs font-mono text-muted-foreground">{item.icon}</span>
-            <span className="font-medium">{item.displayLabel}</span>
-          </button>
-        ))}
-        <div className="mt-0.5 border-t border-foreground/10 px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
-          {props.hint}
-        </div>
+  if (items.length === 0) return null;
+
+  return (
+    <div
+      ref={listRef}
+      data-slot="slash-menu"
+      className="max-h-[min(20rem,50dvh)] min-w-48 overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground ring-1 ring-foreground/10"
+    >
+      {items.map((item, index) => (
+        <button
+          key={item.labelKey}
+          type="button"
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => execute(item)}
+          className={cn(
+            'flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-75',
+            index === selectedIndex ? 'bg-muted text-foreground' : 'text-foreground/80 hover:bg-muted/60'
+          )}
+        >
+          <span className="w-6 shrink-0 text-center text-xs font-mono text-muted-foreground">{item.icon}</span>
+          <span className="font-medium">{t(item.labelKey)}</span>
+        </button>
+      ))}
+      <div className="mt-0.5 border-t border-foreground/10 px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
+        {t('slash_menu_hint')}
       </div>
-    );
-  }
-);
+    </div>
+  );
+}
 
 // ─── Tiptap Extension ────────────────────────────────────────────────────────
 
-export type SlashMenuOptions = {
-  /** Translated labels keyed by labelKey (e.g. slash_text → "Texto"). Falls back to English label. */
-  translations: Record<string, string>;
-  /** Translated footer hint. */
-  hint: string;
-};
-
-export const DEFAULT_SLASH_HINT = 'Type to filter · ↑↓ to navigate · Enter to insert · Esc to close';
-
 // eslint-disable-next-line react-refresh/only-export-components -- intentional: extension + popup are co-located by design.
-export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
+export const SlashMenuExtension = Extension.create({
   name: 'slashMenu',
 
-  addOptions() {
-    return { translations: {}, hint: DEFAULT_SLASH_HINT };
-  },
-
   addProseMirrorPlugins() {
-    const { translations, hint } = this.options;
-    const SLASH_ITEMS: SlashItem[] = BASE_ITEMS.map(item => ({
-      ...item,
-      displayLabel: translations[item.labelKey] ?? item.label,
-    }));
-
     return [
       Suggestion<SlashItem>({
         editor: this.editor,
@@ -223,15 +224,8 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
           return !inCodeBlock && !inInlineCode;
         },
 
-        items: ({ query }: { query: string }) => {
-          const q = query.toLowerCase();
-          // Match the English label too, so "/head" works in every locale.
-          return q
-            ? SLASH_ITEMS.filter(
-                item => item.label.toLowerCase().includes(q) || item.displayLabel.toLowerCase().includes(q)
-              )
-            : SLASH_ITEMS;
-        },
+        // The popup filters them: only it has the translated labels.
+        items: () => SLASH_ITEMS,
 
         command: ({ editor, range, props: item }) => {
           // SAFETY: Suggestion<SlashItem> guarantees props is SlashItem.
@@ -269,13 +263,13 @@ export const SlashMenuExtension = Extension.create<SlashMenuOptions>({
             onStart: (props: SuggestionProps<SlashItem>) => {
               popup = document.createElement('div');
               document.body.appendChild(popup);
-              renderer = new ReactRenderer(SlashMenuPopup, { props: { ...props, hint }, editor: props.editor });
+              renderer = new ReactRenderer(SlashMenuPopup, { props, editor: props.editor });
               popup.appendChild(renderer.element);
               position(props.clientRect ?? null);
             },
 
             onUpdate: (props: SuggestionProps<SlashItem>) => {
-              renderer?.updateProps({ ...props, hint });
+              renderer?.updateProps(props);
               position(props.clientRect ?? null);
             },
 

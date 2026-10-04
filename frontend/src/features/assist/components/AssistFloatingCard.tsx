@@ -2,6 +2,7 @@
 
 import { Minus, PanelRight, RotateCw, WandSparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import { useAssistPanelStore } from '../store/useAssistPanelStore';
 import { AssistChatBody } from './AssistChatBody';
 import { AssistInput } from './AssistInput';
 
-import type { AssistTurn } from '../types';
+import type { AssistTurn, ConfirmHandler } from '../types';
 
 const FAB_SIZE = 56;
 const DEFAULT_OFFSET = 16;
@@ -29,11 +30,12 @@ type Props = {
   isStreaming: boolean;
   onSend: (text: string, displayText?: string) => void;
   onStop: () => void;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
   onClear: () => void;
 };
 
 export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
+  const t = useTranslations('assist.panel');
   const { isMobile, isXl } = useBreakpoint();
   const [closing, setClosing] = useState(false);
 
@@ -169,8 +171,8 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
       size="icon"
       icon={PanelRight}
       onClick={toggleMode}
-      aria-label="Dock to side"
-      tooltip="Dock to side"
+      aria-label={t('dock')}
+      tooltip={t('dock')}
     />
   ) : null;
 
@@ -181,16 +183,16 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
         size="icon"
         icon={RotateCw}
         onClick={onClear}
-        aria-label="Clear chat"
-        tooltip="Clear chat"
+        aria-label={t('clear_chat')}
+        tooltip={t('clear_chat')}
       />
       <Button
         variant="ghost"
         size="icon"
         icon={Minus}
         onClick={variant === 'desktop' ? handleMinimize : () => storeSetOpen(false)}
-        aria-label={variant === 'desktop' ? 'Minimize' : 'Close'}
-        tooltip={variant === 'desktop' ? 'Minimize' : 'Close'}
+        aria-label={variant === 'desktop' ? t('minimize') : t('close')}
+        tooltip={variant === 'desktop' ? t('minimize') : t('close')}
       />
     </div>
   );
@@ -202,7 +204,7 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
           <button
             type="button"
             onClick={() => storeSetOpen(true)}
-            aria-label="Open AI Assistant"
+            aria-label={t('open')}
             className="fixed right-5 bottom-5 z-40 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform duration-150 hover:scale-105 active:scale-95"
           >
             <WandSparkles className="size-6" />
@@ -212,12 +214,17 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
         {/* Bottom drawer: drag down or tap the backdrop to close. vaul moves it above the
         on-screen keyboard while the composer has focus (`repositionInputs`, on by default). */}
         <Drawer open={isOpen} onOpenChange={storeSetOpen}>
-          <DrawerContent title="AI Assistant" className="h-[85dvh]">
+          <DrawerContent title={t('title')} className="h-[85dvh]">
             <div className="-mt-2 flex shrink-0 items-center justify-end border-b border-border px-2 pb-1.5">
               {headerRight('mobile')}
             </div>
             {/* No drag from the composer: selecting typed text must not move the drawer. */}
-            <AssistChatBody turns={turns} onConfirm={onConfirm} footer={<div data-vaul-no-drag>{composer}</div>} />
+            <AssistChatBody
+              turns={turns}
+              onConfirm={onConfirm}
+              isStreaming={isStreaming}
+              footer={<div data-vaul-no-drag>{composer}</div>}
+            />
           </DrawerContent>
         </Drawer>
       </>
@@ -262,13 +269,13 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.7 }}
             transition={{ duration: 0.12 }}
-            className="absolute inset-0 flex items-center justify-center"
-            onMouseDown={fab.handleMouseDown}
+            className="absolute inset-0 flex touch-none items-center justify-center"
+            onPointerDown={fab.handleMouseDown}
           >
             <button
               type="button"
               onClick={handleOpen}
-              aria-label="Open AI Assistant"
+              aria-label={t('open')}
               className="flex size-14 items-center justify-center bg-primary text-primary-foreground transition-transform duration-150 hover:scale-105 active:scale-95"
             >
               <WandSparkles className="size-6" />
@@ -287,49 +294,49 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
               <div className="flex flex-1 items-center">
                 {dockButton}
                 <div
-                  onMouseDown={card.handleMouseDown}
+                  onPointerDown={card.handleMouseDown}
                   onDoubleClick={handleResetPositionAndSize}
-                  className="flex flex-1 cursor-grab items-center self-stretch rounded-md px-2 active:cursor-grabbing"
+                  className="flex flex-1 cursor-grab touch-none items-center self-stretch rounded-md px-2 active:cursor-grabbing"
                 />
               </div>
               {headerRight('desktop')}
             </div>
 
-            <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
+            <AssistChatBody turns={turns} onConfirm={onConfirm} isStreaming={isStreaming} footer={composer} />
 
             {/* Resize handles — edges */}
             <div
-              onMouseDown={e => onResizeStart(e, 'top')}
-              className="absolute inset-x-1.5 top-0 h-1 cursor-n-resize"
+              onPointerDown={e => onResizeStart(e, 'top')}
+              className="absolute touch-none inset-x-1.5 top-0 h-1 cursor-n-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'bottom')}
-              className="absolute inset-x-1.5 bottom-0 h-1 cursor-s-resize"
+              onPointerDown={e => onResizeStart(e, 'bottom')}
+              className="absolute touch-none inset-x-1.5 bottom-0 h-1 cursor-s-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'left')}
-              className="absolute inset-y-1.5 left-0 w-1 cursor-w-resize"
+              onPointerDown={e => onResizeStart(e, 'left')}
+              className="absolute touch-none inset-y-1.5 left-0 w-1 cursor-w-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'right')}
-              className="absolute inset-y-1.5 right-0 w-1 cursor-e-resize"
+              onPointerDown={e => onResizeStart(e, 'right')}
+              className="absolute touch-none inset-y-1.5 right-0 w-1 cursor-e-resize"
             />
             {/* Resize handles — corners */}
             <div
-              onMouseDown={e => onResizeStart(e, 'top-left')}
-              className="absolute top-0 left-0 size-2.5 cursor-nw-resize"
+              onPointerDown={e => onResizeStart(e, 'top-left')}
+              className="absolute touch-none top-0 left-0 size-2.5 cursor-nw-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'top-right')}
-              className="absolute top-0 right-0 size-2.5 cursor-ne-resize"
+              onPointerDown={e => onResizeStart(e, 'top-right')}
+              className="absolute touch-none top-0 right-0 size-2.5 cursor-ne-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'bottom-left')}
-              className="absolute bottom-0 left-0 size-2.5 cursor-sw-resize"
+              onPointerDown={e => onResizeStart(e, 'bottom-left')}
+              className="absolute touch-none bottom-0 left-0 size-2.5 cursor-sw-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'bottom-right')}
-              className="absolute bottom-0 right-0 size-2.5 cursor-se-resize"
+              onPointerDown={e => onResizeStart(e, 'bottom-right')}
+              className="absolute touch-none bottom-0 right-0 size-2.5 cursor-se-resize"
             />
           </motion.div>
         )}

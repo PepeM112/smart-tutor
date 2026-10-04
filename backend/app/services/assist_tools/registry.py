@@ -5,8 +5,9 @@ A tool lives in its domain module (`notes.py`, `tests.py`, ...): the handler and
 offers the lookups the assistant loop needs.
 
 To add a tool: write the handler and a `ToolSpec` in the domain module, then add the spec to
-`_SPECS` below. `requires_confirmation=True` pauses the stream until the user approves;
-add a `confirm_context` builder so the confirm card shows what will happen.
+`_SPECS` below. Set `kind` ("read" runs at once, "write" waits for the user by default; the user
+can override it per tool, see `ai_permission_service`). A write tool needs a `confirm_context`
+builder so the confirm card shows what will happen.
 """
 
 from __future__ import annotations
@@ -60,12 +61,6 @@ def get_tool_definitions_anthropic() -> list[dict[str, Any]]:
 def get_tool_definitions_openai() -> list[dict[str, Any]]:
     """Convert the Anthropic-style tool defs to OpenAI function-calling format."""
     return [{"name": t.name, "description": t.description, "parameters": t.input_schema} for t in TOOLS.values()]
-
-
-def requires_confirmation(name: str) -> bool:
-    """True when the tool must wait for the user to approve it. Unknown names never run, so False."""
-    spec = TOOLS.get(name)
-    return spec is not None and spec.requires_confirmation
 
 
 def build_confirm_context(

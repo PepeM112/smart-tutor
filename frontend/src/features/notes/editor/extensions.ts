@@ -1,8 +1,6 @@
 // Note editor extension factory.
 // Returns the Tiptap extension list for the rich note editor.
 
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
@@ -11,11 +9,19 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
 
+import { CalloutView } from './callout/CalloutView';
+import { NoteCallout } from './callout/noteCallout';
 import { ChunkHighlight } from './chunkHighlight';
 import { CodeBlockView } from './CodeBlockView';
+import { NoteCodeWrap } from './codeBlockWrap';
+import { NoteLink } from './link/noteLink';
+import { NoteCodeBlock } from './noteCodeBlock';
 import { NoteColorMark } from './noteColor';
-import { DEFAULT_SLASH_HINT, SlashMenuExtension } from './SlashMenu';
+import { HeadingAnchors } from './outline/headingAnchors';
+import { SlashMenuExtension } from './SlashMenu';
 import { createNoteTableExtensions } from './table/noteTable';
+import { NoteToggle, NoteToggleSummary } from './toggle/noteToggle';
+import { ToggleView } from './toggle/ToggleView';
 
 import type { AnyExtension } from '@tiptap/core';
 
@@ -25,10 +31,11 @@ const lowlight = createLowlight(common);
 export type NoteExtensionOptions = {
   /** Placeholder shown when the editor is empty. */
   placeholder?: string;
-  /** Translated labels for slash menu items, keyed by labelKey. */
-  slashLabels?: Record<string, string>;
-  /** Translated key hint in the slash menu footer. */
-  slashHint?: string;
+  /**
+   * Give each heading a slug `id` (render only, not saved). Off by default: two editors on one page
+   * (the diff panes) would repeat the same ids.
+   */
+  headingAnchors?: boolean;
 };
 
 export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExtension[] {
@@ -45,7 +52,8 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
     // Official @tiptap/markdown — parses GFM on load, serializes on save.
     Markdown,
 
-    Link.configure({
+    // Cmd/Ctrl+click opens the link; the popover (`link/LinkPopover.tsx`) edits it.
+    NoteLink.configure({
       openOnClick: false,
       autolink: true,
       linkOnPaste: true,
@@ -58,25 +66,41 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
     NoteColorMark,
 
     TaskList,
-    TaskItem.configure({ nested: false }),
+    // nested: Tab / Shift+Tab indent and outdent a to-do. An indented `- [ ]` is saved with 2 spaces per level.
+    TaskItem.configure({ nested: true }),
 
     // Syntax-highlighted code blocks, with a language chip (React NodeView).
-    CodeBlockLowlight.extend({
+    NoteCodeBlock.extend({
       addNodeView() {
         return ReactNodeViewRenderer(CodeBlockView);
       },
     }).configure({ lowlight }),
+    // "Wrap lines" of a code block (view only, not saved). Not inside `NoteCodeBlock`: see `codeBlockWrap.ts`.
+    NoteCodeWrap,
+
+    // Callout (`> [!TIP]`) and toggle (`<details>`): see `callout/` and `toggle/`.
+    NoteCallout.extend({
+      addNodeView() {
+        return ReactNodeViewRenderer(CalloutView);
+      },
+    }),
+    NoteToggleSummary,
+    NoteToggle.extend({
+      addNodeView() {
+        return ReactNodeViewRenderer(ToggleView);
+      },
+    }),
 
     Placeholder.configure({
       placeholder: options.placeholder ?? "Type '/' for commands",
     }),
 
-    SlashMenuExtension.configure({
-      translations: options.slashLabels ?? {},
-      hint: options.slashHint ?? DEFAULT_SLASH_HINT,
-    }),
+    SlashMenuExtension,
 
     // Highlight on the text of an AI chunk edit (decoration only, not saved).
     ChunkHighlight,
+
+    // Slug ids on headings for `#slug` links and the outline (decoration only, not saved).
+    ...(options.headingAnchors ? [HeadingAnchors] : []),
   ];
 }

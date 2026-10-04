@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type UserRead, type UserUpdate } from '@/client';
@@ -10,8 +10,11 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 
+import { usePermissionDraft } from '../hooks/usePermissionDraft';
+import { useSettingsSave } from '../hooks/useSettingsSave';
 import { buildSettingsPayload, DEFAULT_EASE_FACTOR } from '../utils';
 
+import { AiPermissionsSection } from './AiPermissionsSection';
 import { AiSection } from './AiSection';
 import { AppearanceSection } from './AppearanceSection';
 import { LanguageSection } from './LanguageSection';
@@ -27,39 +30,27 @@ export function SettingsPage() {
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState<SettingsForm>(() => formFromUser(user));
-  const [dirty, setDirty] = useState(false);
+  // Derived from the form, so a value changed and then changed back does not count as a change.
+  const settingsPayload = useMemo(() => buildSettingsPayload(form, user), [form, user]);
+
+  const permissionDraft = usePermissionDraft();
+  const dirty = Object.keys(settingsPayload).length > 0 || Object.keys(permissionDraft.payload).length > 0;
 
   const hasAnthropicKey = user?.hasAnthropicKey ?? false;
   const hasOpenaiKey = user?.hasOpenaiKey ?? false;
 
   const updateField = useCallback(<K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
-    setDirty(true);
   }, []);
 
-  const { mutate: saveSettings, isPending: isSaving } = useMutation({
-    mutationFn: async () => {
-      const payload = buildSettingsPayload(form, user);
-
-      if (Object.keys(payload).length === 0) return null;
-
-      const result = await sdk.usersUpdateMe({ body: payload });
-      return result.data!;
-    },
-    onSuccess: (updatedUser: UserRead | null) => {
-      if (!updatedUser) {
-        setDirty(false);
-        return;
-      }
+  const { saveSettings, isSaving } = useSettingsSave({
+    settingsPayload,
+    permissionsPayload: permissionDraft.payload,
+    onUserSaved: updatedUser => {
       setUser(updatedUser);
       setForm(formFromUser(updatedUser));
-      setDirty(false);
-      void queryClient.invalidateQueries({ queryKey: ['me'] });
-      toast.success(t('settings.settings_saved'));
     },
-    onError: () => {
-      toast.error(t('settings.failed_to_save'));
-    },
+    onPermissionsSaved: permissionDraft.reset,
   });
 
   const { mutate: removeKey, isPending: isRemovingKey } = useMutation({
@@ -82,7 +73,9 @@ export function SettingsPage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-2xl divide-y divide-border">
+    // While the save runs, the form is read-only: a change made then is not in the request, and the
+    // response would overwrite it. A disabled `fieldset` disables every control inside it.
+    <fieldset disabled={isSaving} className="mx-auto max-w-2xl min-w-0 divide-y divide-border">
       <div className="pb-6">
         <ProfileSection user={user} form={form} updateField={updateField} />
       </div>
@@ -94,6 +87,15 @@ export function SettingsPage() {
           hasOpenaiKey={hasOpenaiKey}
           removeKey={removeKey}
           isRemovingKey={isRemovingKey}
+        />
+      </div>
+      <div className="py-6">
+        <AiPermissionsSection
+          permissions={permissionDraft.permissions}
+          isLoading={permissionDraft.isLoading}
+          isError={permissionDraft.isError}
+          disabled={isSaving}
+          onChange={permissionDraft.change}
         />
       </div>
       <div className="py-6">
@@ -111,7 +113,7 @@ export function SettingsPage() {
           {isSaving ? t('common.saving') : t('common.save')}
         </Button>
       </div>
-    </div>
+    </fieldset>
   );
 }
 

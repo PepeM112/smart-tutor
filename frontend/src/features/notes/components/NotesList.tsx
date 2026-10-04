@@ -5,7 +5,6 @@ import { Bot, Download, Pencil, Trash2, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { NoteSource, type FileTreeFolder, type NoteRead } from '@/client';
@@ -19,17 +18,13 @@ import { displayTitle } from '@/lib/displayTitle';
 import { formatShortDate } from '@/lib/format';
 import { folderHref, noteHref } from '@/lib/routes';
 
+import { exportNote } from '../lib/exportNote';
+
 type Props = {
   data: NoteRead[];
   sort?: SortState;
   onSort?: (column: string | null, order: SortDirection) => void;
 };
-
-/** A new note has an empty title (the editor shows "Untitled" only as a placeholder). */
-function useNoteTitle(): (note: NoteRead) => string {
-  const t = useTranslations();
-  return note => displayTitle(note.title, t);
-}
 
 export function NotesList({ data, sort, onSort }: Props) {
   const t = useTranslations();
@@ -41,44 +36,41 @@ export function NotesList({ data, sort, onSort }: Props) {
   // No note editor is open on the notes list, so it is safe to refetch the list now.
   const { trashNote: deleteNote, isTrashingNote: isDeleting } = useFileMutations({ refetchNotes: true });
 
-  const columns = useNotesColumns({ deleteNote, isDeleting, foldersById });
+  const handleExport = (note: NoteRead) => {
+    exportNote(noteTitle(note), note.content ?? '');
+    toast.success(t('common.downloaded'));
+  };
 
-  const renderPreview = useCallback(
-    (note: NoteRead) => (
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{noteTitle(note)}</p>
-      </div>
-    ),
-    [noteTitle]
+  const columns = useNotesColumns({ deleteNote, isDeleting, foldersById, onExport: handleExport });
+
+  // No memoization: `noteTitle` is a new function on every render, so it would never hold.
+  const renderPreview = (note: NoteRead) => (
+    <div className="min-w-0">
+      <p className="text-sm font-medium text-foreground truncate">{noteTitle(note)}</p>
+    </div>
   );
 
-  const renderActions = useCallback(
-    (note: NoteRead): MobileAction[] => [
-      {
-        label: t('common.edit'),
-        icon: Pencil,
-        onClick: () => router.push(noteHref(note)),
+  const renderActions = (note: NoteRead): MobileAction[] => [
+    {
+      label: t('common.edit'),
+      icon: Pencil,
+      onClick: () => router.push(noteHref(note)),
+    },
+    {
+      label: t('common.export'),
+      icon: Download,
+      onClick: () => handleExport(note),
+    },
+    {
+      label: t('files.move_to_trash'),
+      icon: Trash2,
+      onClick: () => deleteNote(note.id),
+      confirm: {
+        title: t('files.move_to_trash'),
+        description: t('notes.move_to_trash_confirm', { title: noteTitle(note) }),
       },
-      {
-        label: t('common.export'),
-        icon: Download,
-        onClick: () => {
-          downloadMarkdown(noteTitle(note), note.content ?? '');
-          toast.success(t('common.downloaded'));
-        },
-      },
-      {
-        label: t('files.move_to_trash'),
-        icon: Trash2,
-        onClick: () => deleteNote(note.id),
-        confirm: {
-          title: t('files.move_to_trash'),
-          description: t('notes.move_to_trash_confirm', { title: noteTitle(note) }),
-        },
-      },
-    ],
-    [t, router, deleteNote, noteTitle]
-  );
+    },
+  ];
 
   return (
     <DataTable
@@ -95,14 +87,10 @@ export function NotesList({ data, sort, onSort }: Props) {
   );
 }
 
-function downloadMarkdown(title: string, content: string) {
-  const blob = new Blob([content], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title.replace(/[^a-zA-Z0-9-_ ]/g, '')}.md`;
-  a.click();
-  URL.revokeObjectURL(url);
+/** A new note has an empty title (the editor shows "Untitled" only as a placeholder). */
+function useNoteTitle(): (note: NoteRead) => string {
+  const t = useTranslations();
+  return note => displayTitle(note.title, t);
 }
 
 function SourceBadge({ source }: { source: NoteSource }) {
@@ -123,9 +111,15 @@ type ColumnDeps = {
   deleteNote: (id: string) => void;
   isDeleting: boolean;
   foldersById: Map<string, FileTreeFolder>;
+  onExport: (note: NoteRead) => void;
 };
 
-function useNotesColumns({ deleteNote, isDeleting, foldersById }: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
+function useNotesColumns({
+  deleteNote,
+  isDeleting,
+  foldersById,
+  onExport,
+}: ColumnDeps): ColumnDef<NoteRead, unknown>[] {
   const t = useTranslations();
   const noteTitle = useNoteTitle();
   const router = useRouter();
@@ -194,8 +188,7 @@ function useNotesColumns({ deleteNote, isDeleting, foldersById }: ColumnDeps): C
             tooltip={t('common.export')}
             onClick={e => {
               e.stopPropagation();
-              downloadMarkdown(noteTitle(row.original), row.original.content ?? '');
-              toast.success(t('common.downloaded'));
+              onExport(row.original);
             }}
             aria-label={t('common.export')}
           >

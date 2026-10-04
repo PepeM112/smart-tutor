@@ -57,6 +57,40 @@ export enum AiProvider {
 }
 
 /**
+ * AiToolPermissionRead
+ */
+export type AiToolPermissionRead = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Kind
+     */
+    kind: 'read' | 'write';
+    /**
+     * Defaultautoapprove
+     */
+    defaultAutoApprove: boolean;
+    /**
+     * Autoapprove
+     */
+    autoApprove: boolean;
+};
+
+/**
+ * AiToolPermissionsUpdate
+ */
+export type AiToolPermissionsUpdate = {
+    /**
+     * Permissions
+     */
+    permissions?: {
+        [key: string]: boolean;
+    } | null;
+};
+
+/**
  * AnswerRead
  */
 export type AnswerRead = {
@@ -208,6 +242,10 @@ export type BulkAssignQuestionsResponse = {
      * Assigned
      */
     assigned: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
 };
 
 /**
@@ -228,6 +266,10 @@ export type BulkDeleteQuestionsResponse = {
      * Deleted
      */
     deleted: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
 };
 
 /**
@@ -248,6 +290,10 @@ export type BulkRestoreQuestionsResponse = {
      * Restored
      */
     restored: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
 };
 
 /**
@@ -2133,6 +2179,60 @@ export type UsersUpdateMeResponses = {
 };
 
 export type UsersUpdateMeResponse = UsersUpdateMeResponses[keyof UsersUpdateMeResponses];
+
+export type UsersGetAiToolPermissionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/users/me/ai-tool-permissions';
+};
+
+export type UsersGetAiToolPermissionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UsersGetAiToolPermissionsError = UsersGetAiToolPermissionsErrors[keyof UsersGetAiToolPermissionsErrors];
+
+export type UsersGetAiToolPermissionsResponses = {
+    /**
+     * Response Usersgetaitoolpermissions
+     *
+     * Successful Response
+     */
+    200: Array<AiToolPermissionRead>;
+};
+
+export type UsersGetAiToolPermissionsResponse = UsersGetAiToolPermissionsResponses[keyof UsersGetAiToolPermissionsResponses];
+
+export type UsersUpdateAiToolPermissionsData = {
+    body: AiToolPermissionsUpdate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/users/me/ai-tool-permissions';
+};
+
+export type UsersUpdateAiToolPermissionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UsersUpdateAiToolPermissionsError = UsersUpdateAiToolPermissionsErrors[keyof UsersUpdateAiToolPermissionsErrors];
+
+export type UsersUpdateAiToolPermissionsResponses = {
+    /**
+     * Response Usersupdateaitoolpermissions
+     *
+     * Successful Response
+     */
+    200: Array<AiToolPermissionRead>;
+};
+
+export type UsersUpdateAiToolPermissionsResponse = UsersUpdateAiToolPermissionsResponses[keyof UsersUpdateAiToolPermissionsResponses];
 
 export type TestsListData = {
     body?: never;

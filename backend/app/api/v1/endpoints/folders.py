@@ -4,16 +4,14 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import CurrentUser
 from app.models.folder import Folder
-from app.models.user import User
 from app.schemas.folder import FileTree, FolderCreate, FolderDeleteResult, FolderRead, FolderUpdate
 from app.services import folder_service
 
 router = APIRouter()
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
-CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("", response_model=list[FolderRead])

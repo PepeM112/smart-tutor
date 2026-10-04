@@ -5,9 +5,7 @@ import {
   gapFromPoint,
   gapOffset,
   hoverFromPoint,
-  isInTableBand,
   isOnTable,
-  TABLE_MENU_REACH,
   type Band,
   type TableMeasure,
 } from './tableGeometry';
@@ -33,8 +31,6 @@ const table: TableMeasure = {
   rows,
   clipLeft: 50,
   clipRight: 350,
-  viewportLeft: 50,
-  layout: 'compact',
   hasHeaderRow: true,
   hasMergedCells: false,
 };
@@ -79,35 +75,6 @@ describe('isOnTable / hoverFromPoint', () => {
 
   it('gives null for a table without cells', () => {
     expect(hoverFromPoint({ ...table, rows: [], columns: [] }, 200, 80)).toBeNull();
-  });
-});
-
-describe('isInTableBand', () => {
-  const width = 800;
-
-  it('holds the whole row band of the table, across the container width', () => {
-    expect(isInTableBand(table, 0, 20, width)).toBe(true);
-    expect(isInTableBand(table, 400, 80, width)).toBe(true);
-    expect(isInTableBand(table, width, 140, width)).toBe(true);
-    expect(isInTableBand(table, width + 1, 80, width)).toBe(false);
-  });
-
-  it('keeps the margin above and below, like the hover zone', () => {
-    expect(isInTableBand(table, 100, 20 - 30, width)).toBe(true);
-    expect(isInTableBand(table, 100, 20 - 31, width)).toBe(false);
-    expect(isInTableBand(table, 100, 140 + 26, width)).toBe(true);
-    expect(isInTableBand(table, 100, 140 + 27, width)).toBe(false);
-  });
-
-  it('is wider than the hover zone: far to the left, hoverFromPoint has no cell but the band holds', () => {
-    expect(hoverFromPoint(table, 0, 80)).toBeNull();
-    expect(isInTableBand(table, 0, 80, width)).toBe(true);
-  });
-
-  it('reaches left of the container, to the table menu button (negative x)', () => {
-    // The table starts at x=50: the band reaches 50 - TABLE_MENU_REACH (-6).
-    expect(isInTableBand(table, 50 - TABLE_MENU_REACH, 80, width)).toBe(true);
-    expect(isInTableBand(table, 50 - TABLE_MENU_REACH - 1, 80, width)).toBe(false);
   });
 });
 

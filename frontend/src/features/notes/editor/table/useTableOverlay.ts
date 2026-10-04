@@ -3,8 +3,8 @@
 // State of the table controls overlay: which table is active, where it is on the screen, which cell
 // the mouse is on and what the editor selection is.
 //
-// The active table is the one under the mouse (or in the zone around it, or in its row band across the
-// whole editor width, plus the table menu button left of it), else the one that holds the selection. Touch input has no hover, so on touch only the selection counts.
+// The active table is the one under the mouse (or in the zone around it), else the one that holds the
+// selection. Touch input has no hover, so on touch only the selection counts.
 // All measuring runs in `requestAnimationFrame`, at most once per frame, and the React state changes
 // only when a measured value changed.
 
@@ -13,11 +13,10 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import { readSelectedLines, type SelectedLines } from './tableCommands';
 import {
+  HOVER_ZONE,
   hoverFromPoint,
-  isInTableBand,
   isOnTable,
   readTableMeasure,
-  TABLE_MENU_REACH,
   type CellIndex,
   type TableMeasure,
 } from './tableGeometry';
@@ -102,16 +101,17 @@ export function useTableOverlay(editor: Editor, containerRef: RefObject<HTMLElem
     const container = containerRef.current;
     if (!container) return;
 
-    // The pointer is tracked on the window, not on the container: the table menu button sits left of
-    // the table, often outside the container (in the page padding). With container events, the gap between
-    // the table and the button fires `pointerleave` and the button disappears before the pointer reaches it.
+    // The pointer is tracked on the window, not on the container: the row handle and the cell handle sit on the
+    // border of the table, and the first one can be outside the container (a table at the left edge). With
+    // container events, the gap between the table and a handle fires `pointerleave` and the handle disappears
+    // before the pointer reaches it.
     // A move far from the container is ignored, so the overlay does not measure on every move on the page.
     const onPointerMove = (event: PointerEvent) => {
       // Touch has no hover: a tap changes the selection, and the selection drives the controls.
       if (event.pointerType === 'touch') return;
       const box = container.getBoundingClientRect();
       const isNear =
-        event.clientX >= box.left - TABLE_MENU_REACH &&
+        event.clientX >= box.left - HOVER_ZONE.left &&
         event.clientX <= box.right &&
         event.clientY >= box.top &&
         event.clientY <= box.bottom;
@@ -181,9 +181,7 @@ function computeState(
   const hovered =
     point && !lock
       ? (measures.find(m => isOnTable(m, point.x, point.y)) ??
-        measures.find(m => hoverFromPoint(m, point.x, point.y) !== null) ??
-        // Beside a narrow table: no cell is hovered, but the table menu button stays visible.
-        measures.find(m => isInTableBand(m, point.x, point.y, box.width)))
+        measures.find(m => hoverFromPoint(m, point.x, point.y) !== null))
       : undefined;
   const table = lock
     ? measures.find(m => m.tablePos === lock.tablePos)

@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent 
 import { gapFromPoint, type Band } from './tableGeometry';
 
 /** Distance in px that turns a click into a drag. */
-export const DRAG_THRESHOLD = 4;
+const DRAG_THRESHOLD = 4;
 
 type Session = {
   start: number;

@@ -4,9 +4,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import CurrentUser
 from app.models.note import Note
-from app.models.user import User
 from app.schemas.note import (
     NoteChunkEdit,
     NoteChunkEditResponse,
@@ -24,7 +23,6 @@ from app.services import note_service
 router = APIRouter()
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
-CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("", response_model=PaginatedNoteRead)

@@ -8,7 +8,7 @@
 
 import { isNoteColor, type NoteColor } from '../noteColor';
 
-export const TABLE_LAYOUTS = ['compact', 'full'] as const;
+const TABLE_LAYOUTS = ['compact', 'full'] as const;
 export type TableLayout = (typeof TABLE_LAYOUTS)[number];
 export const DEFAULT_TABLE_LAYOUT: TableLayout = 'compact';
 
@@ -18,7 +18,7 @@ export const TABLE_CELL_MIN_WIDTH = 64;
 export type TableCellColorAttrs = { color: NoteColor | null; bg: NoteColor | null };
 
 /** Unknown values fall back to the default layout. */
-export function parseTableLayout(value: string | null | undefined): TableLayout {
+export function parseTableLayout(value: unknown): TableLayout {
   return TABLE_LAYOUTS.find(layout => layout === value) ?? DEFAULT_TABLE_LAYOUT;
 }
 

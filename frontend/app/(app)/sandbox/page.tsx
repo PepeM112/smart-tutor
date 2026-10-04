@@ -569,7 +569,7 @@ function AssistChatSandbox() {
   return (
     <div className="mx-auto max-w-md space-y-3 rounded-xl border border-border bg-background p-4">
       {MOCK_TURNS.map(turn => (
-        <AssistTurnRow key={turn.id} turn={turn} onConfirm={() => {}} />
+        <AssistTurnRow key={turn.id} turn={turn} onConfirm={() => {}} isStreaming={false} />
       ))}
     </div>
   );

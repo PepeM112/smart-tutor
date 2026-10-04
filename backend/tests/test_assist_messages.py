@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from app.schemas.assist import AssistMessage, ToolCallData, ToolConfirmation, ToolResultData
+from app.schemas.assist import AssistMessage, ToolCallData, ToolResultData
 from app.services.assist_service import _to_anthropic_messages, _to_openai_messages
 
 
@@ -61,13 +61,12 @@ def _anthropic_ids(out: list[dict[str, Any]]) -> list[tuple[str, list[str]]]:
 
 class TestAnthropicConversion:
     def test_valid_history_keeps_the_result_right_after_the_call(self) -> None:
-        out = _to_anthropic_messages(FIXED_HISTORY, [ToolConfirmation(tool_call_id="mv", approved=False)])
+        out = _to_anthropic_messages(FIXED_HISTORY)
         assert _anthropic_ids(out) == [
             ("user", []),
             ("assistant", ["cf"]),
             ("user", ["cf"]),
-            ("assistant", ["mv"]),
-            ("user", ["mv"]),  # the decline of the pending call is added at the end
+            ("assistant", ["mv"]),  # pending: its result comes from the confirm step (test_assist_confirmations.py)
         ]
 
     def test_late_result_is_moved_right_after_its_call(self, caplog: pytest.LogCaptureFixture) -> None:
@@ -136,13 +135,12 @@ class TestOpenAIConversion:
         ]
 
     def test_valid_history(self) -> None:
-        out = _to_openai_messages(FIXED_HISTORY, [ToolConfirmation(tool_call_id="mv", approved=False)])
+        out = _to_openai_messages(FIXED_HISTORY)
         assert self._rows(out) == [
             ("user", []),
             ("assistant", ["cf"]),
             ("tool", ["cf"]),
             ("assistant", ["mv"]),
-            ("tool", ["mv"]),
         ]
 
     def test_late_result_is_moved_right_after_its_call(self) -> None:

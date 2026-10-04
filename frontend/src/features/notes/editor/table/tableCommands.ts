@@ -65,7 +65,7 @@ const isHeaderRow = (info: TableInfo, row: number): boolean => {
 };
 
 /** Does the first row hold header cells? Controls the header row rule above. */
-export function tableHasHeaderRow(state: EditorState, tablePos: number): boolean {
+function tableHasHeaderRow(state: EditorState, tablePos: number): boolean {
   const info = readTable(state, tablePos);
   return !!info && isHeaderRow(info, 0);
 }
@@ -246,11 +246,6 @@ export function buildDeleteLineTransaction(state: EditorState, target: TableTarg
     tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(info.start + 1, tr.doc.content.size))));
   }
   return tr;
-}
-
-export function buildDeleteTableTransaction(state: EditorState, tablePos: number): Transaction | null {
-  const info = readTable(state, tablePos);
-  return info ? state.tr.delete(info.pos, info.pos + info.node.nodeSize) : null;
 }
 
 export function buildSetLayoutTransaction(

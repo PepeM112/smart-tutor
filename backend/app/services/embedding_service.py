@@ -91,9 +91,29 @@ def tables_to_text(text_content: str) -> str:
     return _TABLE_BLOCK.sub(lambda match: _table_to_text(match.group(0)), text_content)
 
 
+# Callouts are GitHub alerts: a quote whose first line is only a marker, `> [!TIP]`. The marker line
+# is dropped (the callout text on the next lines stays). Toggles are `<details><summary>..</summary>..</details>`:
+# the tags are dropped and the title and the content stay.
+_CALLOUT_MARKER_LINE = re.compile(
+    r"^(?:[ \t]*>)+[ \t]*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*(?:\n|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+_DETAILS_TAG = re.compile(r"</?(?:details|summary)\b[^>]*>[ \t]*\n?", re.IGNORECASE)
+
+
+def _details_tag_replacement(match: re.Match[str]) -> str:
+    # A title must not run into the first word of the content: the closing summary tag becomes a newline.
+    return "\n" if match.group(0).lower().startswith("</summary") else ""
+
+
+def strip_callouts_and_toggles(text_content: str) -> str:
+    """Remove callout marker lines and toggle tags. The text inside them is kept."""
+    return _DETAILS_TAG.sub(_details_tag_replacement, _CALLOUT_MARKER_LINE.sub("", text_content))
+
+
 def clean_note_for_embedding(text_content: str) -> str:
     """Note markdown -> text for embeddings. Tables first, because cells can hold color spans."""
-    return strip_color_spans(tables_to_text(text_content))
+    return strip_callouts_and_toggles(strip_color_spans(tables_to_text(text_content)))
 
 
 def chunk_text(text_content: str) -> list[TextChunk]:

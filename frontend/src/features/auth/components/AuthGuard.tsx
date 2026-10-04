@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
 
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
@@ -67,7 +68,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isLoading || !user) return null;
+  if (isLoading || !user) {
+    return (
+      <div role="status" aria-label={t('common.loading')} className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }

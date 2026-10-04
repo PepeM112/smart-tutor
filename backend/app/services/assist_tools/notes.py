@@ -3,17 +3,27 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.core.enums import NoteLength
 from app.crud import note as note_crud
 from app.schemas.note import NoteGenerate
 from app.services import folder_service, note_service
-from app.services.assist_tools._helpers import LIST_LIMIT, location_label, note_label
+from app.services.assist_tools._helpers import (
+    LIST_LIMIT,
+    ROOT_LOCATION_LABEL,
+    clip,
+    confirm_summary,
+    location_label,
+    markdown_preview,
+    note_label,
+)
 from app.services.assist_tools.types import NoteCreatedMetadata, NoteRefineMetadata, ToolResult, ToolSpec
 from app.services.service_helpers import get_owned_or_404
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sqlalchemy.orm import Session
 
     from app.models.user import User
@@ -21,12 +31,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger("smarttutor.assist.tools")
 
 _SIMILARITY_THRESHOLD = 0.15
+NOTE_PREVIEW_LIMIT = 300
 
 _LENGTH_MAP: dict[str, NoteLength] = {
     "short": NoteLength.SHORT,
     "medium": NoteLength.MEDIUM,
     "long": NoteLength.LONG,
 }
+
+
+def _parse_note_length(arguments: Mapping[str, object]) -> NoteLength:
+    """The note length of `create_note`. An unknown value gives MEDIUM. The handler and the confirm card both use it."""
+    return _LENGTH_MAP.get(str(arguments.get("length", "medium")), NoteLength.MEDIUM)
 
 
 # ---------------------------------------------------------------------------
@@ -113,11 +129,10 @@ def get_note_content(db: Session, *, current_user: User, arguments: dict[str, ob
 def create_note(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     topic = str(arguments.get("topic", ""))
     guidance = str(arguments.get("guidance", "")) or None
-    length_str = str(arguments.get("length", "medium"))
-    length = _LENGTH_MAP.get(length_str, NoteLength.MEDIUM)
+    length = _parse_note_length(arguments)
     folder_id = str(arguments["folder_id"]) if arguments.get("folder_id") else None
 
-    logger.info("create_note: user=%s topic=%r length=%s folder=%s", current_user.id, topic, length_str, folder_id)
+    logger.info("create_note: user=%s topic=%r length=%s folder=%s", current_user.id, topic, length.name, folder_id)
     note = note_service.generate_note(
         db,
         current_user=current_user,
@@ -126,11 +141,11 @@ def create_note(db: Session, *, current_user: User, arguments: dict[str, object]
     # Not indexed here: the tool runs inside the chat stream, and the embedding call would
     # hold it. `search_notes` indexes stale notes (is_indexed = False) before each search.
     logger.info("create_note: created note=%s", note.id)
+    # The preview is its own block, not a list item: note markdown inside a list item renders broken.
+    preview = markdown_preview(note.content or "", NOTE_PREVIEW_LIMIT)
+    output = f"Note created successfully!\n- **Title:** {note_label(note.title)}"
     return ToolResult(
-        output=(
-            f"Note created successfully!\n- **Title:** {note_label(note.title)}\n"
-            f"- **Preview:** {(note.content or '')[:300]}…"
-        ),
+        output=f"{output}\n\n**Preview:**\n\n{preview}" if preview else output,
         metadata=NoteCreatedMetadata(note_id=note.id),
     )
 
@@ -153,6 +168,31 @@ def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]
             old_content=old_content,
             new_content=refined_text,
         ),
+    )
+
+
+def _owned_note_title(db: Session, *, current_user: User, note_id: object) -> str | None:
+    note = note_crud.get_by_id(db, id=str(note_id)) if note_id else None
+    return note_label(note.title) if note and note.user_id == current_user.id else None
+
+
+def create_note_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    folder_id = arguments.get("folder_id")
+    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
+    # A folder ID that is not the user's (or is trashed) is not in the map: show nothing for it.
+    folder = location_label(folders, str(folder_id)) if folder_id and str(folder_id) in folders else None
+    return confirm_summary(
+        ("topic", clip(arguments.get("topic"))),
+        ("guidance", clip(arguments.get("guidance"))),
+        ("length", _parse_note_length(arguments).name.lower()),
+        ("folder", folder or (ROOT_LOCATION_LABEL if not folder_id else None)),
+    )
+
+
+def refine_note_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    return confirm_summary(
+        ("note", _owned_note_title(db, current_user=current_user, note_id=arguments.get("note_id"))),
+        ("instructions", clip(arguments.get("instructions"))),
     )
 
 
@@ -179,6 +219,7 @@ LIST_NOTES = ToolSpec(
         "required": [],
     },
     handler=list_notes,
+    kind="read",
 )
 
 SEARCH_USER_NOTES = ToolSpec(
@@ -206,6 +247,7 @@ SEARCH_USER_NOTES = ToolSpec(
         "required": ["query"],
     },
     handler=search_user_notes,
+    kind="read",
 )
 
 GET_NOTE_CONTENT = ToolSpec(
@@ -219,6 +261,7 @@ GET_NOTE_CONTENT = ToolSpec(
         "required": ["note_id"],
     },
     handler=get_note_content,
+    kind="read",
 )
 
 CREATE_NOTE = ToolSpec(
@@ -253,13 +296,16 @@ CREATE_NOTE = ToolSpec(
         "required": ["topic"],
     },
     handler=create_note,
+    confirm_context=create_note_confirm_context,
+    kind="write",
 )
 
 REFINE_NOTE = ToolSpec(
     name="refine_note",
     description=(
         "Refine an existing note with AI based on instructions. "
-        "Executes directly — the user reviews the proposed changes in a diff view before accepting."
+        "The user may be asked to approve the call first; after it runs, the user reviews the proposed "
+        "changes in a diff view before accepting."
     ),
     input_schema={
         "type": "object",
@@ -273,4 +319,6 @@ REFINE_NOTE = ToolSpec(
         "required": ["note_id", "instructions"],
     },
     handler=refine_note,
+    confirm_context=refine_note_confirm_context,
+    kind="write",
 )

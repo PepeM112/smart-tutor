@@ -117,8 +117,8 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
     replacing_groups = "question_groups" in data.model_fields_set
 
     _validate_order_space(
-        data.questions or [] if replacing_questions else [],
-        data.question_groups or [] if replacing_groups else [],
+        (data.questions or []) if replacing_questions else [],
+        (data.question_groups or []) if replacing_groups else [],
     )
 
     if replacing_questions:

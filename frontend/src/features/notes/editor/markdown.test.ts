@@ -18,8 +18,6 @@
 import { readFileSync } from 'node:fs';
 
 import { Editor } from '@tiptap/core';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-import Link from '@tiptap/extension-link';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { Markdown } from '@tiptap/markdown';
@@ -27,9 +25,13 @@ import StarterKit from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { NoteCallout } from './callout/noteCallout';
+import { NoteLink } from './link/noteLink';
 import { parseMarkdown, serializeMarkdown, selectionToMarkdown, replaceSelectionWithMarkdown } from './markdown';
+import { NoteCodeBlock } from './noteCodeBlock';
 import { NoteColorMark } from './noteColor';
 import { createNoteTableExtensions } from './table/noteTable';
+import { NoteToggle, NoteToggleSummary } from './toggle/noteToggle';
 
 // ─── test editor setup ───────────────────────────────────────────────────────
 
@@ -46,12 +48,15 @@ beforeAll(() => {
         heading: { levels: [1, 2, 3] },
       }),
       Markdown,
-      Link.configure({ openOnClick: false, autolink: true }),
+      NoteLink.configure({ openOnClick: false, autolink: true }),
       ...createNoteTableExtensions(),
       TaskList,
-      TaskItem.configure({ nested: false }),
-      CodeBlockLowlight.configure({ lowlight }),
+      TaskItem.configure({ nested: true }),
+      NoteCodeBlock.configure({ lowlight }),
       NoteColorMark,
+      NoteCallout,
+      NoteToggle,
+      NoteToggleSummary,
     ],
     content: '',
   });
@@ -421,6 +426,118 @@ describe('code block language', () => {
     roundTrip('```python\nprint(1)\n```');
     setFirstCodeBlockLanguage(null);
     expect(serializeMarkdown(editor)).toMatch(/^```\n/);
+  });
+});
+
+describe('code block language aliases', () => {
+  it('a parsed alias is stored as the canonical name', () => {
+    expect(roundTrip('```python\nprint(1)\n```').trim()).toBe('```python\nprint(1)\n```');
+    expect(roundTrip('```js\nlet a = 1;\n```').trim()).toBe('```javascript\nlet a = 1;\n```');
+    expect(roundTrip('~~~yml\na: 1\n~~~').trim()).toBe('```yaml\na: 1\n```');
+  });
+
+  it('an unknown language is kept', () => {
+    expect(roundTrip('```dockerfile\nFROM node\n```').trim()).toBe('```dockerfile\nFROM node\n```');
+  });
+
+  it('the fence input rule stores the canonical name', () => {
+    editor.commands.setContent('<p>```py</p>', { emitUpdate: false });
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    const { from, to } = editor.state.selection;
+    // Typing a space after the fence runs the input rules.
+    editor.view.someProp('handleTextInput', handler => handler(editor.view, from, to, ' ', () => editor.state.tr));
+    expect(serializeMarkdown(editor)).toContain('```python');
+  });
+});
+
+describe('callouts', () => {
+  it.each(['NOTE', 'TIP', 'IMPORTANT', 'WARNING', 'CAUTION'])('round-trips a %s callout', marker => {
+    const md = `> [!${marker}]\n> Remember **this**.`;
+    expect(roundTrip(md).trim()).toBe(md);
+    assertStable(md);
+  });
+
+  it('keeps several blocks and a list inside a callout', () => {
+    const md = '> [!TIP]\n> First paragraph.\n>\n> - one\n> - two\n>\n> Last paragraph.';
+    expect(roundTrip(md).trim()).toBe(md);
+  });
+
+  it('keeps a code block inside a callout', () => {
+    const md = '> [!WARNING]\n> Careful:\n>\n> ```javascript\n> const a = 1;\n> ```';
+    expect(roundTrip(md).trim()).toBe(md);
+  });
+
+  it('accepts a lower-case marker and writes it back in upper case', () => {
+    expect(roundTrip('> [!tip]\n> Text').trim()).toBe('> [!TIP]\n> Text');
+  });
+
+  it('keeps an empty callout', () => {
+    // The schema needs one block, so an empty paragraph shows as a bare `>` line.
+    const output = roundTrip('> [!NOTE]').trim();
+    expect(output).toBe('> [!NOTE]\n>');
+    assertStable(output);
+  });
+
+  it('keeps a normal quote as a quote', () => {
+    const md = '> Just a quote.';
+    expect(roundTrip(md).trim()).toBe(md);
+    expect(editor.getJSON().content?.[0]?.type).toBe('blockquote');
+  });
+
+  it('parses a callout between other blocks', () => {
+    const output = roundTrip('Before.\n\n> [!NOTE]\n> Inside.\n\nAfter.');
+    expect(editor.getJSON().content?.map(node => node.type)).toEqual(['paragraph', 'callout', 'paragraph']);
+    assertContains(output, 'Before.', '> [!NOTE]', 'After.');
+  });
+
+  it('keeps a callout inside a callout', () => {
+    const md = '> [!NOTE]\n> Outer.\n>\n> > [!TIP]\n> > Inner.';
+    expect(roundTrip(md).trim()).toBe(md);
+  });
+});
+
+describe('toggles', () => {
+  const canonical = '<details>\n<summary>Title</summary>\n\nHidden **text**.\n\n</details>';
+
+  it('round-trips the canonical form', () => {
+    expect(roundTrip(canonical).trim()).toBe(canonical);
+    assertStable(canonical);
+  });
+
+  it('accepts details without blank lines', () => {
+    const md = '<details>\n<summary>Title</summary>\nHidden **text**.\n</details>';
+    expect(roundTrip(md).trim()).toBe(canonical);
+  });
+
+  it('accepts details on one line', () => {
+    expect(roundTrip('<details><summary>Title</summary>Hidden **text**.</details>').trim()).toBe(canonical);
+  });
+
+  it('keeps lists, code and several blocks inside a toggle', () => {
+    const md = '<details>\n<summary>More</summary>\n\nIntro.\n\n- one\n- two\n\n```python\nprint(1)\n```\n\n</details>';
+    expect(roundTrip(md).trim()).toBe(md);
+  });
+
+  it('keeps inline formatting in the title', () => {
+    const md = '<details>\n<summary>A **bold** title</summary>\n\nBody.\n\n</details>';
+    expect(roundTrip(md).trim()).toBe(md);
+  });
+
+  it('keeps a toggle inside a toggle', () => {
+    const md =
+      '<details>\n<summary>Outer</summary>\n\n<details>\n<summary>Inner</summary>\n\nDeep.\n\n</details>\n\n</details>';
+    expect(roundTrip(md).trim()).toBe(md);
+  });
+
+  it('parses a toggle between other blocks', () => {
+    roundTrip(`Before.\n\n${canonical}\n\nAfter.`);
+    expect(editor.getJSON().content?.map(node => node.type)).toEqual(['paragraph', 'toggle', 'paragraph']);
+  });
+
+  it('keeps a toggle with an empty body', () => {
+    const output = roundTrip('<details>\n<summary>Empty</summary>\n</details>');
+    expect(output).toContain('<summary>Empty</summary>');
+    assertStable(output);
   });
 });
 

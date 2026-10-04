@@ -53,6 +53,7 @@
   --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-destructive: var(--sidebar-destructive);
 
   /* Code blocks */
   --color-code-bg: var(--code-bg);
@@ -145,6 +146,7 @@
     --sidebar-muted: #94a3b8;
     --sidebar-accent: #264a73;
     --sidebar-border: #2d4f7a;
+    --sidebar-destructive: #fecaca;
     --radius: 1rem;
 
     /* Chart colors — provider */
@@ -206,6 +208,7 @@
     --sidebar-muted: #7a95b0;
     --sidebar-accent: #d6e4f0;
     --sidebar-border: #c8d9ea;
+    --sidebar-destructive: #b91c1c;
   }
 
   /* ── Slate Minimal ── */
@@ -222,6 +225,7 @@
     --sidebar-muted: #94a3b8;
     --sidebar-accent: #e2e8f0;
     --sidebar-border: #e2e8f0;
+    --sidebar-destructive: #b91c1c;
   }
 
   /* ── Sunset ── */
@@ -238,6 +242,7 @@
     --sidebar-muted: #fb923c;
     --sidebar-accent: #9a3412;
     --sidebar-border: #a83b14;
+    --sidebar-destructive: #fecaca;
   }
 
   /* ── Coral (warm coral, tinted bg) ── */
@@ -265,6 +270,7 @@
     --sidebar-muted: #b8907e;
     --sidebar-accent: #f5ddd2;
     --sidebar-border: #e8d5cc;
+    --sidebar-destructive: #b91c1c;
   }
 
   /* ── Forest ── */
@@ -281,6 +287,7 @@
     --sidebar-muted: #6ee7b7;
     --sidebar-accent: #065f46;
     --sidebar-border: #047857;
+    --sidebar-destructive: #fecaca;
   }
 
   /* ── Mint (fresh mint, tinted bg) ── */
@@ -308,6 +315,7 @@
     --sidebar-muted: #7a9e98;
     --sidebar-accent: #d0ebe6;
     --sidebar-border: #c2ddd8;
+    --sidebar-destructive: #b91c1c;
   }
 
   /* ── Sage (earthy green-gray, tinted bg) ── */
@@ -335,6 +343,7 @@
     --sidebar-muted: #8aa390;
     --sidebar-accent: #dce8df;
     --sidebar-border: #ced9d1;
+    --sidebar-destructive: #b91c1c;
   }
 
   /* ── Dark themes ────────────────────────────────────────────── */
@@ -379,6 +388,7 @@
     --sidebar-muted: #8899a6;
     --sidebar-accent: #1e2732;
     --sidebar-border: #192734;
+    --sidebar-destructive: #fecaca;
   }
 
   /* ── Carbon (neutral dark, gray accents) ── */
@@ -421,6 +431,7 @@
     --sidebar-muted: #525252;
     --sidebar-accent: #171717;
     --sidebar-border: #262626;
+    --sidebar-destructive: #fecaca;
   }
 
   /* ── Neon (black + electric yellow) ── */
@@ -463,6 +474,7 @@
     --sidebar-muted: #525252;
     --sidebar-accent: #1a1700;
     --sidebar-border: #262626;
+    --sidebar-destructive: #fecaca;
   }
 
   /* ── Noir (black + white primary) ── */
@@ -505,6 +517,7 @@
     --sidebar-muted: #525252;
     --sidebar-accent: #1a1a1a;
     --sidebar-border: #1e1e1e;
+    --sidebar-destructive: #fecaca;
   }
 
   /* ── Dark themes: AI Assistant floating panel shadow (lighter base, subtle glow) ── */
@@ -670,6 +683,11 @@
   text-align: left;
 }
 
+.markdown-body th {
+  font-weight: 600;
+  background: var(--muted);
+}
+
 .markdown-body th:last-child,
 .markdown-body td:last-child {
   border-right: none;
@@ -677,11 +695,6 @@
 
 .markdown-body tr:last-child td {
   border-bottom: none;
-}
-
-.markdown-body th {
-  font-weight: 600;
-  background: var(--muted);
 }
 
 .markdown-body hr {

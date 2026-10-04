@@ -1,8 +1,8 @@
 from typing import Annotated, TypeAlias
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from jose import JWTError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -11,14 +11,12 @@ from app.core.security import (
     REFRESH_TOKEN_EXPIRE_DAYS,
     create_access_token,
     create_refresh_token,
-    decode_refresh_token,
 )
-from app.crud import user as user_crud
 from app.database import get_session
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import CurrentUser
 from app.models.user import User
-from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.services import user_service
+from app.schemas.user import AiToolPermissionRead, AiToolPermissionsUpdate, UserCreate, UserRead, UserUpdate
+from app.services import ai_permission_service, user_service
 
 router = APIRouter()
 
@@ -74,18 +72,15 @@ def refresh(
     response: Response,
     db: DbSession,
     refresh_token: Annotated[str | None, Cookie()] = None,
-) -> User:
-    if not refresh_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token")
+) -> User | JSONResponse:
     try:
-        user_id = decode_refresh_token(refresh_token)
-    except JWTError as e:
-        _clear_auth_cookies(response)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from e
-    user = user_crud.get_by_id(db, id=user_id)
-    if user is None:
-        _clear_auth_cookies(response)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        user = user_service.get_user_from_refresh_token(db, refresh_token=refresh_token)
+    except HTTPException as e:
+        # FastAPI drops headers set on the injected `response` when an exception is raised.
+        # So build the error response here and clear the bad cookies on it.
+        error_response = JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+        _clear_auth_cookies(error_response)
+        return error_response
     _set_auth_cookies(response, str(user.id))
     return user
 
@@ -96,7 +91,7 @@ def logout(response: Response) -> None:
 
 
 @router.get("/me", response_model=UserRead)
-def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+def me(current_user: CurrentUser) -> User:
     return current_user
 
 
@@ -104,6 +99,20 @@ def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
 def update_me(
     data: UserUpdate,
     db: DbSession,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
 ) -> User:
     return user_service.update_user(db, current_user=current_user, data=data)
+
+
+@router.get("/me/ai-tool-permissions", response_model=list[AiToolPermissionRead])
+def get_ai_tool_permissions(current_user: CurrentUser) -> list[AiToolPermissionRead]:
+    return ai_permission_service.list_permissions(current_user)
+
+
+@router.patch("/me/ai-tool-permissions", response_model=list[AiToolPermissionRead])
+def update_ai_tool_permissions(
+    data: AiToolPermissionsUpdate,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> list[AiToolPermissionRead]:
+    return ai_permission_service.update_permissions(db, current_user=current_user, data=data)

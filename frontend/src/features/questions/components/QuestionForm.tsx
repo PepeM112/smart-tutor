@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
@@ -37,47 +38,6 @@ type MCFormData = {
   explanation: string;
   points: number;
 };
-
-function initSimpleData(q?: QuestionRead): SimpleFormData {
-  if (q && q.questionType === QuestionType.SIMPLE) {
-    const content = q.content as { answers?: string[] };
-    return {
-      prompt: q.prompt,
-      answers: content.answers ?? [''],
-      hint: q.hint ?? '',
-      explanation: q.explanation ?? '',
-      points: q.points ?? 1,
-    };
-  }
-  return { prompt: '', answers: [''], hint: '', explanation: '', points: 1 };
-}
-
-function initMCData(q?: QuestionRead): MCFormData {
-  if (q && q.questionType === QuestionType.MULTIPLE_CHOICE) {
-    const content = q.content as { options?: string[]; correctIndices?: number[] };
-    const choices = (content.options ?? ['', '']).map((text, i) => ({
-      text,
-      isCorrect: content.correctIndices?.includes(i) ?? false,
-    }));
-    return {
-      prompt: q.prompt,
-      choices,
-      hint: q.hint ?? '',
-      explanation: q.explanation ?? '',
-      points: q.points ?? 1,
-    };
-  }
-  return {
-    prompt: '',
-    choices: [
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false },
-    ],
-    hint: '',
-    explanation: '',
-    points: 1,
-  };
-}
 
 export function QuestionForm({ question }: Props) {
   const t = useTranslations();
@@ -144,14 +104,10 @@ export function QuestionForm({ question }: Props) {
       {!isEditing && (
         <div className="space-y-2">
           <Label>{t('questions.column_type')}</Label>
-          <select
-            value={String(questionType)}
-            onChange={e => setQuestionType(Number(e.target.value))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
+          <NativeSelect value={String(questionType)} onChange={e => setQuestionType(Number(e.target.value))}>
             <option value={String(QuestionType.SIMPLE)}>{t('test_editor.simple')}</option>
             <option value={String(QuestionType.MULTIPLE_CHOICE)}>{t('questions.type_multiple_choice')}</option>
-          </select>
+          </NativeSelect>
         </div>
       )}
 
@@ -309,4 +265,45 @@ function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: M
       )}
     </div>
   );
+}
+
+function initSimpleData(q?: QuestionRead): SimpleFormData {
+  if (q && q.questionType === QuestionType.SIMPLE) {
+    const content = q.content as { answers?: string[] };
+    return {
+      prompt: q.prompt,
+      answers: content.answers ?? [''],
+      hint: q.hint ?? '',
+      explanation: q.explanation ?? '',
+      points: q.points ?? 1,
+    };
+  }
+  return { prompt: '', answers: [''], hint: '', explanation: '', points: 1 };
+}
+
+function initMCData(q?: QuestionRead): MCFormData {
+  if (q && q.questionType === QuestionType.MULTIPLE_CHOICE) {
+    const content = q.content as { options?: string[]; correctIndices?: number[] };
+    const choices = (content.options ?? ['', '']).map((text, i) => ({
+      text,
+      isCorrect: content.correctIndices?.includes(i) ?? false,
+    }));
+    return {
+      prompt: q.prompt,
+      choices,
+      hint: q.hint ?? '',
+      explanation: q.explanation ?? '',
+      points: q.points ?? 1,
+    };
+  }
+  return {
+    prompt: '',
+    choices: [
+      { text: '', isCorrect: false },
+      { text: '', isCorrect: false },
+    ],
+    hint: '',
+    explanation: '',
+    points: 1,
+  };
 }

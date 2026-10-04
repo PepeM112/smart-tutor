@@ -38,6 +38,60 @@ export const AIProviderSchema = {
     ]
 } as const;
 
+export const AiToolPermissionReadSchema = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'read',
+                'write'
+            ],
+            title: 'Kind'
+        },
+        defaultAutoApprove: {
+            type: 'boolean',
+            title: 'Defaultautoapprove'
+        },
+        autoApprove: {
+            type: 'boolean',
+            title: 'Autoapprove'
+        }
+    },
+    type: 'object',
+    required: [
+        'name',
+        'kind',
+        'defaultAutoApprove',
+        'autoApprove'
+    ],
+    title: 'AiToolPermissionRead'
+} as const;
+
+export const AiToolPermissionsUpdateSchema = {
+    properties: {
+        permissions: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'boolean'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Permissions'
+        }
+    },
+    type: 'object',
+    title: 'AiToolPermissionsUpdate'
+} as const;
+
 export const AnswerReadSchema = {
     properties: {
         testResultId: {
@@ -305,11 +359,16 @@ export const BulkAssignQuestionsResponseSchema = {
         assigned: {
             type: 'integer',
             title: 'Assigned'
+        },
+        skipped: {
+            type: 'integer',
+            title: 'Skipped'
         }
     },
     type: 'object',
     required: [
-        'assigned'
+        'assigned',
+        'skipped'
     ],
     title: 'BulkAssignQuestionsResponse'
 } as const;
@@ -337,11 +396,16 @@ export const BulkDeleteQuestionsResponseSchema = {
         deleted: {
             type: 'integer',
             title: 'Deleted'
+        },
+        skipped: {
+            type: 'integer',
+            title: 'Skipped'
         }
     },
     type: 'object',
     required: [
-        'deleted'
+        'deleted',
+        'skipped'
     ],
     title: 'BulkDeleteQuestionsResponse'
 } as const;
@@ -369,11 +433,16 @@ export const BulkRestoreQuestionsResponseSchema = {
         restored: {
             type: 'integer',
             title: 'Restored'
+        },
+        skipped: {
+            type: 'integer',
+            title: 'Skipped'
         }
     },
     type: 'object',
     required: [
-        'restored'
+        'restored',
+        'skipped'
     ],
     title: 'BulkRestoreQuestionsResponse'
 } as const;

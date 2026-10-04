@@ -3,7 +3,6 @@
 /**
  * Overlay with the controls of the active table (editable editor only):
  *
- *   - table handle   left of the header row         → layout, add row / column, delete table
  *   - "+" bars       right and bottom edge          → add a column / row at the end
  *   - column handle  center of the top border       → click: select + menu, drag: move the column
  *   - row handle     middle of the left border      → click: select + menu, drag: move the row
@@ -28,7 +27,8 @@ import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu
 import { HoverHint } from '@/components/ui/hover-hint';
 import { cn } from '@/lib/utils';
 
-import { runTableCommand } from './runTableCommand';
+import { keepEditorFocus, runEditorCommand } from '../editorCommand';
+
 import {
   buildInsertTransaction,
   buildSelectTransaction,
@@ -39,7 +39,7 @@ import {
   type TableTarget,
 } from './tableCommands';
 import { gapOffset, type Band, type TableMeasure } from './tableGeometry';
-import { CellMenu, LineMenu, TableMenu } from './TableMenus';
+import { CellMenu, LineMenu } from './TableMenus';
 import { useGripDrag } from './useGripDrag';
 import { useTableOverlay, type TableOverlay } from './useTableOverlay';
 
@@ -47,8 +47,6 @@ import type { Editor } from '@tiptap/core';
 
 // ─── sizes (px) ──────────────────────────────────────────────────────────────
 
-const TABLE_HANDLE = 32;
-const TABLE_HANDLE_GAP = 12; // between the handle and the table
 // Size of the button (the hit area) of the bar handles: bigger than the bar that is drawn.
 const GRIP_HIT_LONG = 32;
 const GRIP_HIT_SHORT = 18;
@@ -63,10 +61,6 @@ const BAR = 14;
 const BAR_GAP = 4;
 
 // ─── styles ──────────────────────────────────────────────────────────────────
-
-/** Ghost look (the `ghost` variant of `Button`): no background and no ring at rest, muted background on hover and while the menu is open. */
-const HANDLE_BASE =
-  'pointer-events-auto absolute flex items-center justify-center rounded-md text-muted-foreground transition-colors duration-75 hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-primary data-[active=true]:bg-muted data-[active=true]:text-foreground select-none touch-none';
 
 /**
  * The three bar handles share one look. The button is the (transparent) hit area. Inside it, the `span`
@@ -93,8 +87,6 @@ const BAR_CELL_SIZE =
 const BAR_BASE =
   'pointer-events-auto absolute flex items-center justify-center rounded-md bg-muted/70 text-muted-foreground opacity-0 transition-opacity duration-100 hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:opacity-100';
 
-const keepEditorFocus = (event: React.MouseEvent) => event.preventDefault();
-
 // ─── component ───────────────────────────────────────────────────────────────
 
 type TableControlsProps = {
@@ -113,7 +105,7 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
   // The size comes from the table map, not from the DOM bands: a merged cell in row 0 gives fewer bands than columns.
   const addAtEnd = useCallback(
     (tablePos: number, axis: TableAxis) => {
-      runTableCommand(editor, s => {
+      runEditorCommand(editor, s => {
         const size = tableSize(s, tablePos);
         return size && buildInsertTransaction(s, tablePos, axis, axis === 'column' ? size.columns : size.rows);
       });
@@ -158,8 +150,6 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
 
   return (
     <div data-slot="table-controls" className="pointer-events-none absolute inset-0 z-20" contentEditable={false}>
-      <TableHandle editor={editor} table={table} lock={lock} unlock={unlock} label={t('table_handle')} />
-
       <HoverHint label={t('table_add_column')} side="right">
         <button
           type="button"
@@ -233,52 +223,7 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
   );
 }
 
-// ─── table handle ────────────────────────────────────────────────────────────
-
 type MenuLockProps = Pick<TableOverlay, 'lock' | 'unlock'>;
-
-type TableHandleProps = MenuLockProps & { editor: Editor; table: TableMeasure; label: string };
-
-function TableHandle({ editor, table, lock, unlock, label }: TableHandleProps) {
-  const owner = useId();
-  const [open, setOpen] = useState(false);
-
-  // Left of the header row. On a narrow screen there is no room left of the table: go above it.
-  const hasRoomLeft = table.viewportLeft - TABLE_HANDLE - TABLE_HANDLE_GAP >= 4;
-  const header = table.rows[0];
-  const style: CSSProperties = hasRoomLeft
-    ? {
-        left: table.left - TABLE_HANDLE - TABLE_HANDLE_GAP,
-        top: (header?.start ?? table.top) + ((header?.size ?? TABLE_HANDLE) - TABLE_HANDLE) / 2,
-      }
-    : { left: table.left, top: table.top - TABLE_HANDLE - TABLE_HANDLE_GAP / 2 };
-
-  return (
-    <DropdownMenu
-      modal={false}
-      open={open}
-      onOpenChange={next => {
-        setOpen(next);
-        if (next) lock(owner);
-        else unlock(owner);
-      }}
-    >
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={label}
-          data-active={open}
-          onMouseDown={keepEditorFocus}
-          className={HANDLE_BASE}
-          style={{ ...style, width: TABLE_HANDLE, height: TABLE_HANDLE }}
-        >
-          <GripVertical className="size-5" />
-        </button>
-      </DropdownMenuTrigger>
-      <TableMenu editor={editor} tablePos={table.tablePos} layout={table.layout} />
-    </DropdownMenu>
-  );
-}
 
 // ─── column / row grip ───────────────────────────────────────────────────────
 
@@ -320,7 +265,7 @@ function LineGrip({
   const select = useCallback(() => {
     // The target is built here, from primitives, so the deps are exact (an object made in render is new each time).
     const target: TableTarget = { kind: axis, tablePos, index };
-    runTableCommand(editor, state => buildSelectTransaction(state, target));
+    runEditorCommand(editor, state => buildSelectTransaction(state, target));
     lock(owner);
   }, [editor, lock, owner, tablePos, axis, index]);
 
@@ -351,6 +296,10 @@ function LineGrip({
       if (!wasOpen) changeOpen(true);
     },
   });
+
+  // The grip unmounts when its line goes away under an open menu (undo, a delete from the keyboard). It gets no
+  // close event then, so release its lock here, as `CellHandle` does.
+  useEffect(() => () => unlock(owner), [owner, unlock]);
 
   const band = (isColumn ? table.columns : table.rows)[index];
   const long = GRIP_HIT_LONG;
@@ -425,7 +374,7 @@ function CellHandle({ editor, table, row, col, lock, unlock, label }: CellHandle
         setOpen(next);
         if (next) {
           // Select the cell, so it is highlighted like the column and the row of their handles.
-          runTableCommand(editor, state =>
+          runEditorCommand(editor, state =>
             buildSelectTransaction(state, { kind: 'cell', tablePos: table.tablePos, row, col })
           );
           lock(owner);

@@ -45,7 +45,7 @@ export function DialogLoading({ title, messages }: DialogLoadingProps) {
       </div>
       <div className="text-center space-y-2">
         <p className="text-sm font-medium text-foreground">{title}</p>
-        {messages?.length && (
+        {messages && messages.length > 0 && (
           <p
             className={cn(
               'text-sm text-muted-foreground transition-opacity duration-200',

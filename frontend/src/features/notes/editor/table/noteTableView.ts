@@ -49,6 +49,6 @@ export class NoteTableView extends TableView {
   }
 
   private syncLayout(node: ProseMirrorNode): void {
-    this.table.setAttribute('data-layout', parseTableLayout(node.attrs.layout as string | null));
+    this.table.setAttribute('data-layout', parseTableLayout(node.attrs.layout));
   }
 }

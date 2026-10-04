@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 import { RichNoteEditor, type RichNoteEditorRef } from '../editor/RichNoteEditor';
 import { type AutosaveStatus } from '../editor/useAutosave';
+import { noteColumnClass } from '../hooks/useNoteColumn';
 
 import { ConflictBanner } from './ConflictBanner';
 import { TagInput } from './TagInput';
@@ -15,6 +16,7 @@ import { TagInput } from './TagInput';
 import type { SelectionContext } from '../editor/NoteBubbleMenu';
 
 type Props = {
+  noteId: string;
   title: string;
   onTitleChange: (title: string) => void;
   tags: string[];
@@ -33,6 +35,7 @@ type Props = {
 
 /** Centered text column of an editable note: title, tags, conflict banner and body scroll together. */
 export function NoteEditorBody({
+  noteId,
   title,
   onTitleChange,
   tags,
@@ -51,9 +54,7 @@ export function NoteEditorBody({
   const t = useTranslations();
 
   return (
-    <div
-      className={cn('mx-auto w-full px-4 pt-20 pb-24 md:px-6', isFullWidth ? 'max-w-none md:px-12' : 'max-w-[720px]')}
-    >
+    <div className={cn(noteColumnClass(isFullWidth), 'pt-20 pb-24')}>
       <input
         type="text"
         // Same limit as the backend (`NoteBase.title`), so a long title cannot cause a 422.
@@ -71,6 +72,7 @@ export function NoteEditorBody({
 
       <RichNoteEditor
         editorRef={editorRef}
+        noteId={noteId}
         initialContent={initialContent}
         onChange={onContentChange}
         onBlur={onBlur}

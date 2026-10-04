@@ -22,10 +22,10 @@ export function LanguageSection() {
   const t = useTranslations();
   const router = useRouter();
   const currentLocale = useLocale();
-  const [isPending, startTransition] = useTransition();
+  const [isRefreshing, startTransition] = useTransition();
   const setUser = useAuthStore(s => s.setUser);
 
-  const { mutate: updateLocale } = useMutation({
+  const { mutate: updateLocale, isPending: isUpdating } = useMutation({
     mutationFn: async (locale: string) => {
       const result = await sdk.usersUpdateMe({ body: { locale } });
       return result.data!;
@@ -34,6 +34,7 @@ export function LanguageSection() {
       // Server components read locale from this cookie, so it must be set before router.refresh()
       document.cookie = `locale=${updatedUser.locale};path=/;max-age=31536000`;
       setUser(updatedUser);
+      toast.success(t('settings.settings_saved'));
       startTransition(() => {
         router.refresh();
       });
@@ -42,6 +43,9 @@ export function LanguageSection() {
       toast.error(t('settings.failed_to_save'));
     },
   });
+
+  // Cover the request and the refresh, so a second click cannot start another request.
+  const isPending = isUpdating || isRefreshing;
 
   return (
     <SettingsSection title={t('settings.language')} description={t('settings.language_description')}>
@@ -52,6 +56,7 @@ export function LanguageSection() {
             <button
               key={value}
               onClick={() => updateLocale(value)}
+              disabled={isPending}
               className={cn(
                 'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
                 currentLocale === value

@@ -1,8 +1,10 @@
 import bcrypt as bcrypt_lib
 from fastapi import HTTPException, status
+from jose import JWTError
 from sqlalchemy.orm import Session
 
 from app.core.enums import UserStatus
+from app.core.security import decode_refresh_token
 from app.crud import user as user_crud
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
@@ -29,6 +31,20 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
         )
+    return user
+
+
+def get_user_from_refresh_token(db: Session, *, refresh_token: str | None) -> User:
+    """Return the user that a valid refresh token belongs to. Raises 401 when the token cannot be used."""
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token")
+    try:
+        user_id = decode_refresh_token(refresh_token)
+    except JWTError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from e
+    user = user_crud.get_by_id(db, id=user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
 
 

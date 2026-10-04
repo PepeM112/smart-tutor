@@ -6,8 +6,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.dependencies.auth import get_current_user
-from app.models.user import User
+from app.dependencies.auth import CurrentUser
 from app.schemas.folder import FileTree
 from app.schemas.trash import TrashItemRead, TrashKind
 from app.services import trash_service
@@ -15,7 +14,6 @@ from app.services import trash_service
 router = APIRouter()
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
-CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("", response_model=list[TrashItemRead])

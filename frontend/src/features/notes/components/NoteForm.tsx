@@ -16,13 +16,12 @@ import { MoveDialog } from '@/features/files/components/MoveDialog';
 import { useFileMutations } from '@/features/files/hooks/useFileMutations';
 import { useFolderPath } from '@/features/files/hooks/useFolderPath';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 import { type RichNoteEditorRef } from '../editor/RichNoteEditor';
 import { useChunkAiEdit } from '../editor/useChunkAiEdit';
 import { useCanonicalNoteUrl } from '../hooks/useCanonicalNoteUrl';
+import { useNoteColumn } from '../hooks/useNoteColumn';
 import { useNoteDraft } from '../hooks/useNoteDraft';
-import { useNoteWidth } from '../hooks/useNoteWidth';
 
 import { InstructionPopover } from './InstructionPopover';
 import { NoteEditorBody } from './NoteEditorBody';
@@ -35,10 +34,7 @@ const ASSIST_DIFF_SPLIT_KEY = 'assist-diff-split-ratio';
 /** The editable note page: autosaved draft, AI chunk edit, Assistant diff, move. */
 export function NoteForm({ note }: { note: NoteRead }) {
   const t = useTranslations();
-  const { isDesktop } = useBreakpoint();
-  const { width, toggleWidth } = useNoteWidth();
-  // Only desktop has room for a full-width column; smaller screens always fill the page.
-  const isFullWidth = isDesktop && width === 'full';
+  const { isDesktop, isFullWidth, toggleWidth } = useNoteColumn();
 
   const editorRef = useRef<RichNoteEditorRef>(null);
   const { title, tags, initialContent, status, setTitle, setTags, setContent, flush, reload, keepMine } = useNoteDraft({
@@ -172,10 +168,13 @@ export function NoteForm({ note }: { note: NoteRead }) {
 
       <ResponsiveSplitPane
         storageKey={ASSIST_DIFF_SPLIT_KEY}
+        // The note scrolls at the page edge (the layout padding moves inside the pane).
+        bleed
         side={diffPanel}
         onSideClose={handleDiffClose}
         main={
           <NoteEditorBody
+            noteId={note.id}
             title={title}
             onTitleChange={setTitle}
             tags={tags}
@@ -197,6 +196,8 @@ export function NoteForm({ note }: { note: NoteRead }) {
       {/* Instruction popover — anchored below the selection rect */}
       {pendingSelection && (
         <InstructionPopover
+          // The anchor is created once per mount: a new selection needs a new popover.
+          key={`${pendingSelection.from}:${pendingSelection.to}`}
           selection={pendingSelection}
           getView={() => editorRef.current?.editor?.view ?? null}
           isPending={isChunkPending}

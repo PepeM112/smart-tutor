@@ -90,7 +90,7 @@ function cellAttributesToHtml(attrs: Attrs): string {
  * `schema` is the editor schema. It is only used to render the cell content.
  */
 export function renderTableAsHtml(table: JSONContent, schema: Schema | null): string {
-  const layout = parseTableLayout((table.attrs?.layout as string | undefined) ?? null);
+  const layout = parseTableLayout(table.attrs?.layout);
   const open = layout === DEFAULT_TABLE_LAYOUT ? '<table>' : `<table data-layout="${layout}">`;
 
   const rows = (table.content ?? []).map(row => {

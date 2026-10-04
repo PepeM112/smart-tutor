@@ -1,8 +1,20 @@
 'use client';
 
-import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, Square, X } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  CheckCircle,
+  ExternalLink,
+  Eye,
+  Loader2,
+  ShieldCheck,
+  Square,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -16,8 +28,9 @@ import { useAssistDiffStore } from '../store/useAssistDiffStore';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
 import { getToolIcon, isWriteTool } from '../utils/toolRegistry';
 
-import type { ConfirmContext, ToolResultMetadata } from '../types';
+import type { ConfirmContext, ConfirmHandler, ToolResultMetadata } from '../types';
 import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 // ---------------------------------------------------------------------------
 // User bubble
@@ -36,6 +49,7 @@ export function UserBubble({ content }: { content: string }) {
 // ---------------------------------------------------------------------------
 
 export function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
+  const t = useTranslations('assist');
   // `content` already holds the queue's currently-revealed slice — the
   // reveal/pacing loop lives centrally in useStreamQueue.ts now, so this
   // component just renders precomputed state instead of animating locally.
@@ -43,35 +57,60 @@ export function AssistantBubble({ content, streaming }: { content: string; strea
     return (
       <div className="flex items-center gap-2 py-1">
         <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Thinking...</span>
+        <span className="text-xs text-muted-foreground">{t('thinking')}</span>
       </div>
     );
   }
 
   return (
     <div className="max-w-[92%] text-left">
-      <div
-        className={cn(
-          'markdown-body text-[13px] leading-[1.35] text-foreground',
-          '[&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0',
-          '[&_ul]:pl-4 [&_ol]:pl-4',
-          '[&_strong]:font-semibold',
-          '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs',
-          '[&_pre]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre]:text-xs',
-          '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
-          '[&_h1]:text-[1.25rem] [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-0.5',
-          '[&_h2]:text-[1rem] [&_h2]:font-bold [&_h2]:mt-1.5 [&_h2]:mb-0.5',
-          '[&_h3]:text-[0.875rem] [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0',
-          '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
-          '[&_a]:text-primary [&_a]:underline',
-          '[&_table]:w-full [&_table]:text-xs [&_table]:my-1.5',
-          '[&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-0.5 [&_th]:text-left [&_th]:font-medium',
-          '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5'
-        )}
+      <AssistMarkdown
+        className="text-[13px] leading-[1.35] text-foreground"
+        trailing={
+          streaming && <span className="ml-0.5 inline-block size-1.5 animate-pulse rounded-full bg-foreground/50" />
+        }
       >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-        {streaming && <span className="ml-0.5 inline-block size-1.5 animate-pulse rounded-full bg-foreground/50" />}
-      </div>
+        {content}
+      </AssistMarkdown>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared markdown renderer
+// ---------------------------------------------------------------------------
+
+/** Element styles for markdown in the chat. The caller sets the base text size and color with `className`. */
+const MARKDOWN_STYLES = cn(
+  'markdown-body',
+  '[&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0',
+  '[&_ul]:pl-4 [&_ol]:pl-4',
+  '[&_strong]:font-semibold',
+  '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs',
+  '[&_pre]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre]:text-xs',
+  '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
+  '[&_h1]:text-[1.25rem] [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-0.5',
+  '[&_h2]:text-[1rem] [&_h2]:font-bold [&_h2]:mt-1.5 [&_h2]:mb-0.5',
+  '[&_h3]:text-[0.875rem] [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0',
+  '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
+  '[&_a]:text-primary [&_a]:underline',
+  '[&_table]:w-full [&_table]:text-xs [&_table]:my-1.5',
+  '[&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-0.5 [&_th]:text-left [&_th]:font-medium',
+  '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5'
+);
+
+type AssistMarkdownProps = {
+  children: string;
+  className?: string;
+  /** Extra node after the markdown, for example the streaming dot. */
+  trailing?: ReactNode;
+};
+
+function AssistMarkdown({ children, className, trailing }: AssistMarkdownProps) {
+  return (
+    <div className={cn(MARKDOWN_STYLES, className)}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+      {trailing}
     </div>
   );
 }
@@ -112,6 +151,7 @@ export function ToolResultRow({
   output: string;
   metadata?: ToolResultMetadata;
 }) {
+  const t = useTranslations('assist');
   if (name === 'navigate_to') return null;
 
   if (name === 'refine_note' && metadata?.noteId && metadata.oldContent != null) {
@@ -135,14 +175,14 @@ export function ToolResultRow({
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
-      <p className="text-[12px] leading-[1.4] text-muted-foreground whitespace-pre-wrap">{output}</p>
+      <AssistMarkdown className="text-[12px] leading-[1.4] text-muted-foreground">{output}</AssistMarkdown>
       {viewPath && (
         <div className="mt-2 flex items-center gap-3">
           <Link
             href={viewPath}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
           >
-            View <ExternalLink className="size-3" />
+            {t('view')} <ExternalLink className="size-3" />
           </Link>
         </div>
       )}
@@ -151,6 +191,7 @@ export function ToolResultRow({
 }
 
 function RefineNoteResult({ noteId }: { noteId: string }) {
+  const t = useTranslations('assist');
   const pendingDiff = useAssistDiffStore(s => s.pendingNoteDiff);
   const hasDiff = pendingDiff?.noteId === noteId;
   const closeOnMobile = useCloseAssistOnMobile();
@@ -161,7 +202,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
     <div className="flex items-center gap-2 py-0.5">
       <CheckCircle className="size-3.5 text-feedback-correct" />
       <span className="text-[12px] text-muted-foreground">
-        {hasDiff ? 'Refinement ready — review the changes before applying.' : 'Refinement applied.'}
+        {hasDiff ? t('note_refinement_ready') : t('refinement_applied')}
       </span>
       {hasDiff && !isOnNote && (
         <Link
@@ -169,7 +210,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
           onClick={closeOnMobile}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
-          View changes <Eye className="size-3.5" />
+          {t('view_changes')} <Eye className="size-3.5" />
         </Link>
       )}
     </div>
@@ -177,6 +218,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
 }
 
 function RefineQuestionsResult({ testId }: { testId: string }) {
+  const t = useTranslations('assist');
   const pendingDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const hasDiff = pendingDiff?.testId === testId;
   const closeOnMobile = useCloseAssistOnMobile();
@@ -186,7 +228,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
     <div className="flex items-center gap-2 py-0.5">
       <CheckCircle className="size-3.5 text-feedback-correct" />
       <span className="text-[12px] text-muted-foreground">
-        {hasDiff ? 'Question refinement ready — review the changes before applying.' : 'Refinement applied.'}
+        {hasDiff ? t('questions_refinement_ready') : t('refinement_applied')}
       </span>
       {hasDiff && !isOnTest && (
         <Link
@@ -194,7 +236,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
           onClick={closeOnMobile}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
-          View changes <Eye className="size-3.5" />
+          {t('view_changes')} <Eye className="size-3.5" />
         </Link>
       )}
     </div>
@@ -232,20 +274,25 @@ export function ActionCard({
   context,
   status,
   onConfirm,
+  disabled,
 }: {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
   context?: ConfirmContext;
   status: 'pending' | 'approved' | 'rejected';
-  onConfirm: (id: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
+  disabled: boolean;
 }) {
+  const t = useTranslations('assist.confirm');
+  const tRoot = useTranslations();
   const label = useToolLabel(name);
-  const summary = _summarizeArgs(name, args);
+  const summary = _summarizeArgs(name, args, t);
+  const summaryRows = context?.summary;
   const questionsToRemove = context?.questions_to_remove;
   const titleChange = context?.title_change;
   const descChange = context?.description_change;
-  const hasContextDetails = questionsToRemove || titleChange || descChange;
+  const hasContextDetails = questionsToRemove || titleChange || descChange || (summaryRows && summaryRows.length > 0);
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
@@ -255,9 +302,22 @@ export function ActionCard({
       </div>
       {summary && !hasContextDetails && <p className="mb-2 text-[12px] text-muted-foreground">{summary}</p>}
 
+      {summaryRows && summaryRows.length > 0 && (
+        <dl className="mb-2 space-y-1 text-[12px] leading-[1.4]">
+          {summaryRows.map(row => (
+            <div key={row.key} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+              <dt className="shrink-0 font-medium text-muted-foreground sm:w-24">
+                {t.has(`fields.${row.key}`) ? t(`fields.${row.key}`) : row.key}
+              </dt>
+              <dd className="min-w-0 break-words text-foreground">{_summaryValue(row, tRoot)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
       {titleChange && (
         <div className="mb-2 space-y-0.5">
-          <p className="text-[12px] font-medium text-muted-foreground">Title:</p>
+          <p className="text-[12px] font-medium text-muted-foreground">{t('title_label')}</p>
           <div className="flex items-center gap-1.5 text-[11px]">
             <span className="rounded border border-destructive/20 bg-destructive/5 px-1.5 py-0.5 text-foreground line-through">
               {titleChange.from}
@@ -272,10 +332,10 @@ export function ActionCard({
 
       {descChange && (
         <div className="mb-2 space-y-0.5">
-          <p className="text-[12px] font-medium text-muted-foreground">Description:</p>
+          <p className="text-[12px] font-medium text-muted-foreground">{t('description_label')}</p>
           <div className="space-y-0.5 text-[11px]">
             <div className="rounded border border-destructive/20 bg-destructive/5 px-1.5 py-0.5 text-foreground line-through">
-              {descChange.from || '(empty)'}
+              {descChange.from || t('empty')}
             </div>
             <div className="rounded border border-feedback-correct-border bg-feedback-correct-bg px-1.5 py-0.5 text-foreground">
               {descChange.to}
@@ -287,7 +347,7 @@ export function ActionCard({
       {questionsToRemove && questionsToRemove.length > 0 && (
         <div className="mb-2 space-y-1">
           <p className="text-[12px] font-medium text-muted-foreground">
-            {questionsToRemove.length === 1 ? 'Question to remove:' : 'Questions to remove:'}
+            {t('question_to_remove', { count: questionsToRemove.length })}
           </p>
           {questionsToRemove.map(q => (
             <div
@@ -301,27 +361,49 @@ export function ActionCard({
       )}
 
       {status === 'pending' && (
-        <div className="flex gap-2">
-          <Button variant="default" size="sm" className="flex-1" onClick={() => onConfirm(id, true)}>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => onConfirm(id, true)}
+          >
             <Check className="size-3" />
-            Approve
+            {t('allow')}
           </Button>
-          <Button variant="outline" size="sm" className="flex-1" onClick={() => onConfirm(id, false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => onConfirm(id, true, { alwaysAllow: true })}
+          >
+            <ShieldCheck className="size-3" />
+            {t('always_allow')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => onConfirm(id, false)}
+          >
             <X className="size-3" />
-            Reject
+            {t('cancel')}
           </Button>
         </div>
       )}
       {status === 'approved' && (
         <div className="flex items-center gap-1.5 text-[12px] text-feedback-correct">
           <CheckCircle className="size-3" />
-          Approved — executing...
+          {t('approved')}
         </div>
       )}
       {status === 'rejected' && (
         <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
           <X className="size-3" />
-          Rejected
+          {t('rejected')}
         </div>
       )}
     </div>
@@ -342,10 +424,11 @@ export function ErrorRow({ message }: { message: string }) {
 }
 
 export function StoppedRow() {
+  const t = useTranslations('assist');
   return (
     <div className="flex items-center gap-1.5 py-1">
       <Square className="size-2.5 fill-muted-foreground text-muted-foreground" />
-      <span className="text-xs text-muted-foreground">Response stopped</span>
+      <span className="text-xs text-muted-foreground">{t('stopped')}</span>
     </div>
   );
 }
@@ -354,18 +437,63 @@ export function StoppedRow() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function _argStr(value: unknown, fallback = 'Unknown'): string {
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+type RootTranslator = ReturnType<typeof useTranslations>;
+
+/** Existing label keys of the enums that the backend sends as raw values in a confirm card. */
+const DIFFICULTY_LABEL_PREFIX = 'test_generation.difficulty_';
+const QUESTION_TYPE_LABEL_PREFIX = 'questions.type_';
+const NOTE_LENGTH_LABEL_PREFIX = 'notes_ai.length_';
+const FILES_ROOT_LABEL_KEY = 'files.title';
+const LOCATION_SEPARATOR = ' > ';
+
+/**
+ * The backend sends `difficulty` ("easy"), `question_types` ("SIMPLE,MULTIPLE_CHOICE") and
+ * `length` ("short") as raw values. Show them in the user's language. Any other row, or a value without a label, shows as it is.
+ */
+function _summaryValue(row: { key: string; value: string }, t: RootTranslator): string {
+  const translate = (prefix: string, raw: string): string => {
+    const labelKey = `${prefix}${raw.trim().toLowerCase()}`;
+    return t.has(labelKey) ? t(labelKey) : raw;
+  };
+
+  switch (row.key) {
+    case 'difficulty':
+      return translate(DIFFICULTY_LABEL_PREFIX, row.value);
+    case 'length':
+      return translate(NOTE_LENGTH_LABEL_PREFIX, row.value);
+    case 'question_types':
+      return row.value
+        .split(',')
+        .map(type => translate(QUESTION_TYPE_LABEL_PREFIX, type))
+        .join(', ');
+    // Location paths start with the backend's fixed root label ("Files > A > B"). Translate only that
+    // first segment: a user folder can also be named "Files".
+    case 'folder':
+    case 'location':
+    case 'destination': {
+      const [, ...path] = row.value.split(LOCATION_SEPARATOR);
+      return [t(FILES_ROOT_LABEL_KEY), ...path].join(LOCATION_SEPARATOR);
+    }
+    default:
+      return row.value;
+  }
+}
+
+function _argStr(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
 }
 
-function _summarizeArgs(name: string, args: Record<string, unknown>): string {
+function _summarizeArgs(name: string, args: Record<string, unknown>, t: Translate): string {
   switch (name) {
     case 'edit_test': {
       const parts: string[] = [];
-      if (args.title) parts.push(`Rename to "${_argStr(args.title)}"`);
-      if (args.description) parts.push('Update description');
-      if (Array.isArray(args.remove_question_ids)) parts.push(`Remove ${args.remove_question_ids.length} question(s)`);
-      return parts.join(', ') || 'No changes';
+      if (args.title) parts.push(t('summary_rename', { title: _argStr(args.title, t('unknown')) }));
+      if (args.description) parts.push(t('summary_update_description'));
+      if (Array.isArray(args.remove_question_ids))
+        parts.push(t('summary_remove_questions', { count: args.remove_question_ids.length }));
+      return parts.join(', ') || t('summary_no_changes');
     }
     default:
       return JSON.stringify(args);

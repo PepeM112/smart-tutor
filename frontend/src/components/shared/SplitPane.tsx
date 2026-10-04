@@ -1,9 +1,12 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useTranslations } from 'next-intl';
 import { type ReactNode } from 'react';
 
-import { useResizableSplit } from '@/hooks/useResizableSplit';
+import { MAX_SPLIT_RATIO, MIN_SPLIT_RATIO, useResizableSplit } from '@/hooks/useResizableSplit';
+import { pageBleed } from '@/lib/pageBleed';
+import { PANEL_FADE_DURATION, PANEL_SPRING } from '@/lib/panelMotion';
 import { cn } from '@/lib/utils';
 
 export type SplitPaneProps = {
@@ -15,15 +18,25 @@ export type SplitPaneProps = {
   /** Right pane. `null` hides it and the divider, and the main pane uses the full width. */
   side: ReactNode | null;
   className?: string;
+  /** Accessible name of the divider (screen readers only). Default: `common.resize_panel`. */
+  dividerLabel?: string;
   /** Classes for the main pane scroll box (padding, scrollbar style). */
   mainClassName?: string;
   /** Frame of the side content. Default: a card. The side pane clips its content; the content scrolls by itself. */
   sideClassName?: string;
+  /**
+   * For a full-height page: the scrollbar of the main pane is at the page edge, not inside the layout
+   * padding (see `pageBleed`). The container keeps the same content box (negative margin + padding), so
+   * the ratio and the side pane are where they were. Only the main pane grows into the padding, on the
+   * right while there is no side pane, and at the bottom.
+   */
+  bleed?: boolean;
 };
 
-// Spring feel ≈ 250ms, damping ratio ≈ 0.87 → barely perceptible overshoot.
-const SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
+const SPRING = PANEL_SPRING;
 const INSTANT = { duration: 0 };
+/** Divider width in px (the grip is centered in it). */
+const DIVIDER_WIDTH = 36;
 
 /**
  * Seconds between the start of the pane motion and the start of the content fade.
@@ -32,11 +45,11 @@ const INSTANT = { duration: 0 };
  * 0 = the fade and the pane motion start together.
  */
 const CONTENT_FADE_DELAY = 0.15;
-/** Seconds the content fade takes. */
-const CONTENT_FADE_DURATION = 0.15;
+const CONTENT_FADE_DURATION = PANEL_FADE_DURATION;
 
 /**
  * Two panes side by side with a draggable divider (double-click resets the ratio).
+ * The divider takes pointer (mouse, touch, pen) and keyboard input: arrows move it, Home / End go to the limits.
  * Use it for every "list + detail panel on the right" page, so all of them get the same motion.
  *
  * Tiling grow: when `side` changes from null to a node, the side pane springs from
@@ -58,13 +71,14 @@ export function SplitPane({
   main,
   side,
   className,
+  dividerLabel,
   mainClassName,
   sideClassName,
+  bleed = false,
 }: SplitPaneProps) {
-  const { containerRef, splitRatio, handleDividerMouseDown, resetRatio, isDragging } = useResizableSplit(
-    storageKey,
-    defaultRatio
-  );
+  const t = useTranslations('common');
+  const { containerRef, splitRatio, handleDividerPointerDown, handleDividerKeyDown, resetRatio, isDragging } =
+    useResizableSplit(storageKey, defaultRatio, DIVIDER_WIDTH);
   const prefersReduced = useReducedMotion();
   const instant = prefersReduced || isDragging;
 
@@ -78,11 +92,18 @@ export function SplitPane({
     <div
       ref={containerRef}
       data-slot="split-pane"
-      className={cn('flex min-h-0 flex-1 overflow-hidden [contain:size]', className)}
+      className={cn('flex min-h-0 flex-1 overflow-hidden [contain:size]', bleed && pageBleed.all, className)}
     >
       {/* Main pane — shrinks when the side pane opens. */}
       <motion.div
-        className={cn('min-w-0 overflow-y-auto', mainClassName)}
+        className={cn(
+          'min-w-0 overflow-y-auto',
+          bleed && [pageBleed.marginBottom, pageBleed.paddingBottom],
+          // With a side pane the main pane ends at the divider. The change eases with the pane motion.
+          bleed && !side && [pageBleed.marginRight, pageBleed.paddingRight],
+          bleed && 'transition-[margin,padding] duration-200 motion-reduce:transition-none',
+          mainClassName
+        )}
         style={{ flexShrink: 1, flexBasis: 0 }}
         initial={false}
         animate={{ flexGrow: side ? splitRatio : 1 }}
@@ -91,33 +112,54 @@ export function SplitPane({
         {main}
       </motion.div>
 
-      {/* Side pane + divider animate in/out as one flex unit. */}
+      {/*
+        The divider is its own flex item between the two panes. It has a fixed width, so the
+        browser takes its width from the container first. Then the ratio splits the rest.
+        If the divider were inside the side pane, the side pane would lose its width and the
+        divider would not be at the true center. The divider and the side pane animate
+        together with the same transition.
+      */}
       <AnimatePresence initial={false}>
         {side && (
           <motion.div
+            key="divider"
+            data-slot="split-pane-divider"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={dividerLabel ?? t('resize_panel')}
+            // Value = share of the main pane, in percent.
+            aria-valuenow={Math.round(splitRatio * 100)}
+            aria-valuemin={MIN_SPLIT_RATIO * 100}
+            aria-valuemax={MAX_SPLIT_RATIO * 100}
+            tabIndex={0}
+            // touch-none: a touch drag moves the divider, it does not scroll the page.
+            className="group relative flex shrink-0 cursor-col-resize touch-none items-center justify-center overflow-hidden outline-none"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: DIVIDER_WIDTH, opacity: 1, transition: openTransition }}
+            exit={{ width: 0, opacity: 0, transition: closeTransition }}
+            onPointerDown={handleDividerPointerDown}
+            onKeyDown={handleDividerKeyDown}
+            onDoubleClick={resetRatio}
+          >
+            <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
+            {/* Focus ring is on the grip: the divider box clips (overflow-hidden). */}
+            <div className="relative z-10 h-7 w-3 rounded-full border border-border bg-background group-focus-visible:border-ring group-focus-visible:ring-2 group-focus-visible:ring-ring" />
+          </motion.div>
+        )}
+
+        {side && (
+          <motion.div
             key="side-pane"
-            className="flex min-w-0"
+            className="min-w-0"
             style={{ flexShrink: 1, flexBasis: 0, overflow: 'hidden' }}
             initial={{ flexGrow: 0 }}
             animate={{ flexGrow: 1 - splitRatio, transition: openTransition }}
             exit={{ flexGrow: 0, transition: closeTransition }}
           >
-            {/* Divider */}
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              className="relative mx-2 flex w-5 shrink-0 cursor-col-resize items-center justify-center"
-              onMouseDown={handleDividerMouseDown}
-              onDoubleClick={resetRatio}
-            >
-              <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-              <div className="relative z-10 h-7 w-3 rounded-full border border-border bg-background" />
-            </div>
-
             {/* Side content — fades in after the pane starts to grow. */}
             <motion.div
               className={cn(
-                'min-w-0 flex-1',
+                'h-full min-w-0',
                 sideClassName ?? 'overflow-hidden rounded-xl border border-border bg-card'
               )}
               initial={{ opacity: 0 }}

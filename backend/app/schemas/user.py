@@ -1,7 +1,11 @@
+from typing import Literal
+
 from pydantic import field_validator, model_validator
 
 from app.core.enums import AIProvider, UserRole, UserStatus
 from app.schemas.base import BaseSchema
+
+ToolKind = Literal["read", "write"]
 
 VALID_LOCALES = {"en", "es"}
 VALID_THEMES = {
@@ -70,6 +74,9 @@ class UserUpdate(BaseSchema):
         return v
 
 
+_MISSING = object()
+
+
 class UserRead(UserBase):
     id: str
     status: UserStatus
@@ -85,9 +92,25 @@ class UserRead(UserBase):
 
     @model_validator(mode="before")
     @classmethod
-    def _compute_key_flags(cls, data: dict[str, object]) -> dict[str, object]:
-        if not isinstance(data, dict):
-            data = {k: v for k, v in vars(data).items() if not k.startswith("_")}
-        data["has_anthropic_key"] = bool(data.get("encrypted_anthropic_key"))
-        data["has_openai_key"] = bool(data.get("encrypted_openai_key"))
-        return data
+    def _compute_key_flags(cls, data: object) -> dict[str, object]:
+        if isinstance(data, dict):
+            values = dict(data)  # copy: the caller's dict must stay as it is
+        else:
+            # `getattr` and not `vars()`: `vars()` misses attributes that are expired or not loaded yet.
+            names = [*cls.model_fields, "encrypted_anthropic_key", "encrypted_openai_key"]
+            values = {name: value for name in names if (value := getattr(data, name, _MISSING)) is not _MISSING}
+        values["has_anthropic_key"] = bool(values.get("encrypted_anthropic_key"))
+        values["has_openai_key"] = bool(values.get("encrypted_openai_key"))
+        return values
+
+
+class AiToolPermissionRead(BaseSchema):
+    name: str
+    kind: ToolKind
+    default_auto_approve: bool
+    auto_approve: bool
+
+
+class AiToolPermissionsUpdate(BaseSchema):
+    # Partial map: tool names that are not in it keep their current value.
+    permissions: dict[str, bool] | None = None

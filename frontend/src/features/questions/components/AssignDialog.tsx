@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
+import { useAllTests } from '@/features/tests/hooks/useAllTests';
 import { sdk } from '@/lib/apiClient';
 
 type Props = {
@@ -30,13 +32,7 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
   const [selectedTestId, setSelectedTestId] = useState('');
   const isBulk = questionIds.length > 1;
 
-  const { data: testsResponse } = useQuery({
-    queryKey: ['tests'],
-    queryFn: () => sdk.testsList({ query: { per_page: 100 } }),
-    enabled: open,
-  });
-
-  const tests = testsResponse?.data?.items ?? [];
+  const { data: tests = [] } = useAllTests(open);
 
   const { mutate: assignSingle, isPending: isSinglePending } = useMutation({
     mutationFn: () =>
@@ -59,9 +55,12 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
       sdk.questionsBulkAssign({
         body: { questionIds, testId: selectedTestId },
       }),
-    onSuccess: () => {
+    onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success(t('questions.bulk_assigned'));
+      const skipped = res.data?.skipped ?? 0;
+      toast.success(t('questions.bulk_assigned', { count: res.data?.assigned ?? questionIds.length }), {
+        description: skipped > 0 ? t('questions.bulk_skipped', { count: skipped }) : undefined,
+      });
       onOpenChange(false);
       setSelectedTestId('');
       onSuccess?.();
@@ -90,18 +89,14 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
 
         <div className="space-y-2 py-4">
           <Label>{t('questions.filter_test')}</Label>
-          <select
-            value={selectedTestId}
-            onChange={e => setSelectedTestId(e.target.value)}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
+          <NativeSelect value={selectedTestId} onChange={e => setSelectedTestId(e.target.value)}>
             <option value="">{t('common.select')}</option>
             {tests.map(test => (
               <option key={test.id} value={test.id}>
                 {test.title}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
 
         <DialogFooter>

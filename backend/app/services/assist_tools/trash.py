@@ -1,7 +1,7 @@
 """Trash tools: list the Trash and restore items from it.
 
-`restore_from_trash` runs without a confirmation card. There is no tool to delete forever:
-that stays in the UI.
+`restore_from_trash` is a write tool: it asks for confirmation by default, and the user can change
+that in Settings. There is no tool to delete forever: that stays in the UI.
 """
 
 from __future__ import annotations
@@ -9,17 +9,21 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, status
 
+from app.crud import folder as folder_crud
+from app.crud import note as note_crud
+from app.models.folder import Folder
 from app.services import trash_service
-from app.services.assist_tools._helpers import note_label, plural, skip_reason
+from app.services.assist_tools._helpers import confirm_summary, names_label, note_label, plural, skip_reason
 from app.services.assist_tools.types import ToolResult, ToolSpec
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from app.models.note import Note
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.assist.tools")
@@ -120,6 +124,28 @@ def restore_from_trash(db: Session, *, current_user: User, arguments: dict[str, 
     return ToolResult(output="\n".join([head, *skipped_lines]))
 
 
+def _item_name(db: Session, *, current_user: User, kind: str, item_id: str) -> str | None:
+    owned: Folder | Note | None = None
+    if kind == "folder":
+        owned = folder_crud.get_by_id(db, id=item_id)
+    elif kind == "note":
+        owned = note_crud.get_by_id(db, id=item_id)
+    if owned is None or owned.user_id != current_user.id:
+        return None
+    return note_label(owned.name if isinstance(owned, Folder) else owned.title)
+
+
+def restore_from_trash_confirm_context(
+    db: Session, *, current_user: User, arguments: dict[str, Any]
+) -> dict[str, Any] | None:
+    # Direct lookups: `list_trash` would also purge expired items, which a preview must not do.
+    names = [
+        _item_name(db, current_user=current_user, kind=kind, item_id=item_id)
+        for kind, item_id in _parse_items(arguments.get("items"))
+    ]
+    return confirm_summary(("items", names_label([n for n in names if n])))
+
+
 # ---------------------------------------------------------------------------
 # Specs
 # ---------------------------------------------------------------------------
@@ -139,6 +165,7 @@ LIST_TRASH = ToolSpec(
         "required": [],
     },
     handler=list_trash,
+    kind="read",
 )
 
 RESTORE_FROM_TRASH = ToolSpec(
@@ -169,4 +196,6 @@ RESTORE_FROM_TRASH = ToolSpec(
         "required": ["items"],
     },
     handler=restore_from_trash,
+    confirm_context=restore_from_trash_confirm_context,
+    kind="write",
 )

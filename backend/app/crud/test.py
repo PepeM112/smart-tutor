@@ -2,10 +2,10 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
 
-from sqlalchemy import UnaryExpression, exists, func, select
+from sqlalchemy import UnaryExpression, exists, func, or_, select
 from sqlalchemy.orm import InstrumentedAttribute, Session, selectinload
 
-from app.core.enums import QuestionStatus, TestStatus
+from app.core.enums import GroupStatus, QuestionStatus, TestStatus
 from app.crud.helpers import token_search
 from app.models.question import Question
 from app.models.test import Test
@@ -18,7 +18,7 @@ def _active_load_options() -> list[selectinload]:  # type: ignore[type-arg]
     active_q = int(QuestionStatus.ACTIVE)
     return [
         selectinload(Test.questions.and_(Question.status == active_q)),
-        selectinload(Test.question_groups.and_(TestQuestionGroup.status == active_q)).selectinload(
+        selectinload(Test.question_groups.and_(TestQuestionGroup.status == int(GroupStatus.ACTIVE))).selectinload(
             TestQuestionGroup.questions.and_(Question.status == active_q)
         ),
     ]
@@ -65,10 +65,12 @@ def list_by_user(
     if search:
         stmt = stmt.where(token_search(Test.title, Test.description, search=search))
     if question_type:
+        # Standalone questions point at the test; grouped ones (`test_id = NULL`) reach it through their group.
+        group_ids_of_test = select(TestQuestionGroup.id).where(TestQuestionGroup.test_id == Test.id)
         stmt = stmt.where(
             exists(
                 select(Question.id).where(
-                    Question.test_id == Test.id,
+                    or_(Question.test_id == Test.id, Question.group_id.in_(group_ids_of_test)),
                     Question.status == int(QuestionStatus.ACTIVE),
                     Question.question_type.in_(question_type),
                 )

@@ -4,6 +4,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { ArrowUp, Square } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePageData, type MentionCandidate } from '../context/PageDataContext';
@@ -21,13 +22,14 @@ import type { Node as PmNode } from '@tiptap/pm/model';
 
 type SlashCommand = {
   name: string;
-  description: string;
+  /** Key under `assist.input.commands` — resolved with `t()` at render time. */
+  descriptionKey: string;
 };
 
 const COMMANDS: SlashCommand[] = [
-  { name: '/clear', description: 'Clear the conversation' },
-  { name: '/refine-notes', description: 'Refine this note with AI' },
-  { name: '/generate-test', description: 'Generate a test from this note' },
+  { name: '/clear', descriptionKey: 'clear' },
+  { name: '/refine-notes', descriptionKey: 'refine_notes' },
+  { name: '/generate-test', descriptionKey: 'generate_test' },
 ];
 
 // Commands that only make sense while viewing a specific note — hidden from
@@ -39,11 +41,12 @@ const ATTACHMENT_HEADINGS: Record<ChatAttachment['type'], string> = {
   test_questions: '[Selected questions from test]',
 };
 
-const COMMAND_PLACEHOLDERS: Record<AssistCommand, string> = {
-  '/edit-note': 'Describe how the selected text should change...',
-  '/edit-test': 'Describe how the selected question(s) should change...',
-  '/refine-notes': 'Describe how the note should change...',
-  '/generate-test': 'Describe the test you want (count, types, difficulty)... or leave blank for defaults',
+// Message keys under `assist.input.command_placeholders`.
+const COMMAND_PLACEHOLDER_KEYS: Record<AssistCommand, string> = {
+  '/edit-note': 'edit_note',
+  '/edit-test': 'edit_test',
+  '/refine-notes': 'refine_notes',
+  '/generate-test': 'generate_test',
 };
 
 /* ─── component ─── */
@@ -56,6 +59,7 @@ type AssistInputProps = {
 };
 
 export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistInputProps) {
+  const t = useTranslations('assist.input');
   const [draft, setDraft] = useState('');
   const [dismissed, setDismissed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -75,7 +79,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   const draftRef = useRef(draft);
   const handleSendRef = useRef<() => void>(() => {});
   const resetInputRef = useRef<() => void>(() => {});
-  const placeholderRef = useRef('Ask anything... (/ for commands)');
+  const placeholderRef = useRef(t('placeholder'));
   const mentionMenuOpenRef = useRef(false);
   const insertMentionFromMenuRef = useRef<() => void>(() => {});
   const commandMenuOpenRef = useRef(false);
@@ -86,8 +90,10 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   }, [draft]);
 
   useEffect(() => {
-    placeholderRef.current = activeCommand ? COMMAND_PLACEHOLDERS[activeCommand] : 'Ask anything... (/ for commands)';
-  }, [activeCommand]);
+    placeholderRef.current = activeCommand
+      ? t(`command_placeholders.${COMMAND_PLACEHOLDER_KEYS[activeCommand]}`)
+      : t('placeholder');
+  }, [activeCommand, t]);
 
   /* ─── mention state ─── */
 
@@ -360,7 +366,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
     if (cmd === '/generate-test') {
       const noteId = pageContext.resourceType === 'note' ? pageContext.resourceId : undefined;
-      const display = buildDisplayText(cmd, atts, instructions || 'Use defaults');
+      const display = buildDisplayText(cmd, atts, instructions || t('use_defaults'));
       onSend(buildGenerateTestMessage(noteId, instructions), display);
       resetInput();
       return;
@@ -370,7 +376,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     const displayText = mentions.length > 0 && editor ? buildDisplayFromDoc(editor.state.doc) : undefined;
     onSend(messageText, displayText);
     resetInput();
-  }, [isStreaming, onSend, resetInput, editor, pageContext]);
+  }, [isStreaming, onSend, resetInput, editor, pageContext, t]);
 
   useEffect(() => {
     handleSendRef.current = handleSend;
@@ -506,11 +512,11 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
               }`}
             >
               <span className="text-[12px] font-medium text-foreground">{cmd.name}</span>
-              <span className="text-[11px] text-muted-foreground">{cmd.description}</span>
+              <span className="text-[11px] text-muted-foreground">{t(`commands.${cmd.descriptionKey}`)}</span>
             </button>
           ))}
           <div className="mt-0.5 border-t border-border px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
-            Type to filter commands
+            {t('filter_hint')}
           </div>
         </div>
       )}
@@ -556,7 +562,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
           <button
             type="button"
-            aria-label={isStreaming ? 'Stop' : 'Send'}
+            aria-label={isStreaming ? t('stop') : t('send')}
             disabled={!canSend && !isStreaming}
             onClick={isStreaming ? onStop : handleSend}
             className="mb-px flex size-7 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-200 enabled:active:scale-95"

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
+import { getErrorDetail } from '@/lib/utils';
 
 type ImportNoteButtonProps = {
   compact?: boolean;
@@ -32,7 +33,7 @@ export function ImportNoteButton({ compact = false, folderId }: ImportNoteButton
       if (!res.data) return;
       router.push(noteHref(res.data));
     },
-    onError: () => toast.error(t('notes.failed_to_import')),
+    onError: err => toast.error(getErrorDetail(err, t('notes.failed_to_import'))),
   });
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -46,6 +47,7 @@ export function ImportNoteButton({ compact = false, folderId }: ImportNoteButton
       const title = file.name.replace(/\.md$/i, '');
       createNote({ title, content });
     };
+    reader.onerror = () => toast.error(t('notes.failed_to_read_file'));
     reader.readAsText(file);
 
     if (fileRef.current) fileRef.current.value = '';

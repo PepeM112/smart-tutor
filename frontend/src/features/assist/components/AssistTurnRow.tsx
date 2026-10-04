@@ -10,14 +10,15 @@ import {
   UserBubble,
 } from './AssistMessage';
 
-import type { AssistTurn, TurnSegment } from '../types';
+import type { AssistTurn, ConfirmHandler, TurnSegment } from '../types';
 
 type AssistTurnRowProps = {
   turn: AssistTurn;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
+  isStreaming: boolean;
 };
 
-export function AssistTurnRow({ turn, onConfirm }: AssistTurnRowProps) {
+export function AssistTurnRow({ turn, onConfirm, isStreaming }: AssistTurnRowProps) {
   if (turn.role === 'user') {
     const seg = turn.segments[0];
     if (seg?.type === 'text') {
@@ -31,7 +32,12 @@ export function AssistTurnRow({ turn, onConfirm }: AssistTurnRowProps) {
   return (
     <div className="space-y-1">
       {turn.segments.map(segment => (
-        <SegmentView key={`${segment.type}-${segment.id}`} segment={segment} onConfirm={onConfirm} />
+        <SegmentView
+          key={`${segment.type}-${segment.id}`}
+          segment={segment}
+          onConfirm={onConfirm}
+          isStreaming={isStreaming}
+        />
       ))}
     </div>
   );
@@ -40,9 +46,11 @@ export function AssistTurnRow({ turn, onConfirm }: AssistTurnRowProps) {
 function SegmentView({
   segment,
   onConfirm,
+  isStreaming,
 }: {
   segment: TurnSegment;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
+  isStreaming: boolean;
 }) {
   switch (segment.type) {
     case 'text':
@@ -60,6 +68,7 @@ function SegmentView({
           context={segment.context}
           status={segment.status}
           onConfirm={onConfirm}
+          disabled={isStreaming}
         />
       );
     case 'error':

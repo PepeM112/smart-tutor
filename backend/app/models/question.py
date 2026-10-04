@@ -31,9 +31,11 @@ class Question(Base):
     hint: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown before answering
     explanation: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown after answering
     user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"), index=True)
-    test_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test.id"))
+    test_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test.id"), index=True)
     # Organizational grouping within a test (e.g. a "Vocabulary" section with a shared title)
-    group_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test_question_group.id"), nullable=True)
+    group_id: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("test_question_group.id"), nullable=True, index=True
+    )
     order: Mapped[int] = mapped_column(Integer, default=0)
     points: Mapped[float] = mapped_column(Float, default=1.0, server_default="1.0")
     status: Mapped[int] = mapped_column(Integer, default=int(QuestionStatus.ACTIVE), server_default="1")
@@ -45,6 +47,16 @@ class Question(Base):
     user: Mapped["User"] = relationship()
     test: Mapped["Test"] = relationship(back_populates="questions")
     question_group: Mapped["TestQuestionGroup | None"] = relationship(back_populates="questions")
+
+    @property
+    def owning_test(self) -> "Test | None":
+        """The test of a standalone question, or the test of the group of a grouped question.
+
+        Grouped questions keep `test_id = NULL`, so `self.test` alone is not enough. None for a bank question.
+        """
+        if self.question_group is not None:
+            return self.question_group.test
+        return self.test
 
     __table_args__ = (
         Index(

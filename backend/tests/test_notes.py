@@ -17,7 +17,12 @@ from pydantic import ValidationError
 
 from app.core.enums import NoteLength, NoteSource
 from app.schemas.note import NoteBase, NoteChunkEdit, NoteCreate, NoteGenerate, NoteUpdate
-from app.services.embedding_service import clean_note_for_embedding, strip_color_spans, tables_to_text
+from app.services.embedding_service import (
+    clean_note_for_embedding,
+    strip_callouts_and_toggles,
+    strip_color_spans,
+    tables_to_text,
+)
 from app.services.llm import AnthropicLLMClient, CompletionResult, OpenAILLMClient
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
@@ -568,6 +573,44 @@ class TestTablesToText:
     def test_clean_note_strips_spans_inside_cells(self) -> None:
         html = '<table><tr><td><span data-color="red">hot</span></td><td>cold</td></tr></table>'
         assert clean_note_for_embedding(html) == "hot | cold"
+
+
+class TestCalloutsAndToggles:
+    def test_callout_marker_line_is_removed_and_text_kept(self) -> None:
+        md = "> [!TIP]\n> Drink water.\n\nNext."
+        assert strip_callouts_and_toggles(md) == "> Drink water.\n\nNext."
+
+    @pytest.mark.parametrize("kind", ["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION", "warning"])
+    def test_all_callout_types(self, kind: str) -> None:
+        assert strip_callouts_and_toggles(f"> [!{kind}]\n> body") == "> body"
+
+    def test_marker_inside_a_normal_line_is_kept(self) -> None:
+        md = "Use [!TIP] syntax."
+        assert strip_callouts_and_toggles(md) == md
+
+    def test_plain_quote_is_unchanged(self) -> None:
+        md = "> A quote."
+        assert strip_callouts_and_toggles(md) == md
+
+    def test_toggle_tags_are_removed_and_text_kept(self) -> None:
+        md = "<details>\n<summary>Title</summary>\n\nHidden text.\n\n</details>"
+        cleaned = strip_callouts_and_toggles(md)
+        assert "<" not in cleaned
+        assert "Title" in cleaned
+        assert "Hidden text." in cleaned
+
+    def test_toggle_on_one_line_keeps_title_and_content_apart(self) -> None:
+        cleaned = strip_callouts_and_toggles("<details><summary>Title</summary>Body</details>")
+        assert cleaned.split() == ["Title", "Body"]
+
+    def test_clean_note_handles_all_note_syntaxes(self) -> None:
+        md = (
+            '> [!NOTE]\n> <span data-color="red">hot</span>\n\n<details>\n<summary>More</summary>\n\ncold\n\n</details>'
+        )
+        cleaned = clean_note_for_embedding(md)
+        assert "[!NOTE]" not in cleaned
+        assert "<" not in cleaned
+        assert "hot" in cleaned and "More" in cleaned and "cold" in cleaned
 
 
 # ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ from typing import cast
 
 import sqlalchemy as sa
 from sqlalchemy import Select, UnaryExpression, func, select
-from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, joinedload
+from sqlalchemy.orm import InstrumentedAttribute, Session, aliased, contains_eager, joinedload, selectinload
 
 from app.core.enums import QuestionStatus, QuestionType, TestStatus
 from app.crud.helpers import token_search
@@ -24,18 +24,25 @@ from app.schemas.question import (
 )
 
 
-def get_by_id(db: Session, *, id: str) -> Question | None:
+def get_by_id(db: Session, *, id: str, active_only: bool = False) -> Question | None:
+    """Fetch one question. Deleted ones are included, because old answers can still point to them.
+
+    Pass `active_only=True` to treat a deleted question as missing.
+    """
     stmt = select(Question).options(joinedload(Question.question_group)).where(Question.id == id)
+    if active_only:
+        stmt = stmt.where(Question.status == int(QuestionStatus.ACTIVE))
     return db.execute(stmt).scalar_one_or_none()
 
 
-def list_by_test(db: Session, *, test_id: str) -> Sequence[Question]:
-    return db.scalars(select(Question).where(Question.test_id == test_id)).all()
+def list_by_ids(db: Session, *, ids: list[str], active_only: bool = True) -> Sequence[Question]:
+    """Fetch questions by id, unordered. Used by bulk operations to resolve ownership.
 
-
-def list_by_ids(db: Session, *, ids: list[str]) -> Sequence[Question]:
-    """Fetch questions by id, unordered. Used by bulk operations to resolve ownership."""
+    Only active questions by default. Restore passes `active_only=False` because it needs the deleted rows.
+    """
     stmt = select(Question).options(joinedload(Question.question_group)).where(Question.id.in_(ids))
+    if active_only:
+        stmt = stmt.where(Question.status == int(QuestionStatus.ACTIVE))
     return db.scalars(stmt).all()
 
 
@@ -76,16 +83,29 @@ def list_by_user(
 
     Returns (questions, total_count).
     """
+    # A question reaches its test directly (standalone, `test_id`) or through its group (grouped questions
+    # keep `test_id = NULL`). The aliased join is for filtering only: `Question.test` must stay the direct
+    # relationship, so the titles are loaded with `selectinload` (see `Question.owning_test`).
+    owning_test = aliased(Test)
+    resolved_test_id = func.coalesce(Question.test_id, TestQuestionGroup.test_id)
+    is_bank = sa.and_(Question.test_id.is_(None), Question.group_id.is_(None))
     stmt = (
         select(Question)
-        .outerjoin(Test, Question.test_id == Test.id)
         .outerjoin(TestQuestionGroup, Question.group_id == TestQuestionGroup.id)
-        .options(contains_eager(Question.test), contains_eager(Question.question_group))
+        .outerjoin(owning_test, resolved_test_id == owning_test.id)
+        .options(
+            selectinload(Question.test),
+            contains_eager(Question.question_group).selectinload(TestQuestionGroup.test),
+        )
         .where(
             Question.user_id == user_id,
             Question.status == int(QuestionStatus.ACTIVE),
-            # Exclude frozen version snapshots (parent_id set); keep bank questions and current versions only
-            sa.or_(Question.test_id.is_(None), Test.parent_id.is_(None)),
+            # Bank questions, or questions of a live test: no frozen version snapshot (parent_id set)
+            # and no deleted test.
+            sa.or_(
+                is_bank,
+                sa.and_(owning_test.parent_id.is_(None), owning_test.status == int(TestStatus.ACTIVE)),
+            ),
         )
     )
 
@@ -96,11 +116,11 @@ def list_by_user(
         bank_requested = "bank" in test_id
         real_ids = [t for t in test_id if t != "bank"]
         if bank_requested and real_ids:
-            stmt = stmt.where(sa.or_(Question.test_id.is_(None), Question.test_id.in_(real_ids)))
+            stmt = stmt.where(sa.or_(is_bank, resolved_test_id.in_(real_ids)))
         elif bank_requested:
-            stmt = stmt.where(Question.test_id.is_(None))
+            stmt = stmt.where(is_bank)
         elif real_ids:
-            stmt = stmt.where(Question.test_id.in_(real_ids))
+            stmt = stmt.where(resolved_test_id.in_(real_ids))
     if grouping == "grouped":
         stmt = stmt.where(Question.group_id.is_not(None))
     elif grouping == "ungrouped":
@@ -150,6 +170,7 @@ def create_many(
             hint=q.hint,
             explanation=q.explanation,
             order=q.order,
+            points=q.points,
         )
         for q in questions
     ]

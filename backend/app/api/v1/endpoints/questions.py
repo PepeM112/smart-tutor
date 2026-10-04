@@ -4,9 +4,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import CurrentUser
 from app.models.question import Question
-from app.models.user import User
 from app.schemas.correction import QuestionCheckRequest, QuestionCheckResponse
 from app.schemas.question import (
     AssignQuestionRequest,
@@ -29,7 +28,11 @@ from app.services import question_service
 router = APIRouter()
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
-CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
+
+
+def _count_skipped(requested_ids: list[str], processed: int) -> int:
+    """Ids the bulk call did not process. Repeated ids count once."""
+    return len(set(requested_ids)) - processed
 
 
 @router.get("", response_model=PaginatedQuestionListRead)
@@ -109,7 +112,9 @@ def bulk_delete(
 ) -> BulkDeleteQuestionsResponse:
     """Delete every owned question in the batch. Questions the user doesn't own are skipped, not failed."""
     deleted_ids = question_service.bulk_delete_questions(db, question_ids=data.question_ids, current_user=current_user)
-    return BulkDeleteQuestionsResponse(deleted=len(deleted_ids))
+    return BulkDeleteQuestionsResponse(
+        deleted=len(deleted_ids), skipped=_count_skipped(data.question_ids, len(deleted_ids))
+    )
 
 
 @router.post("/bulk-restore", response_model=BulkRestoreQuestionsResponse)
@@ -117,7 +122,7 @@ def bulk_restore(
     data: BulkRestoreQuestionsRequest, db: DbSession, current_user: CurrentUser
 ) -> BulkRestoreQuestionsResponse:
     restored = question_service.restore_questions(db, question_ids=data.question_ids, current_user=current_user)
-    return BulkRestoreQuestionsResponse(restored=restored)
+    return BulkRestoreQuestionsResponse(restored=restored, skipped=_count_skipped(data.question_ids, restored))
 
 
 @router.post("/bulk-assign", response_model=BulkAssignQuestionsResponse)
@@ -128,4 +133,4 @@ def bulk_assign(
     assigned = question_service.bulk_assign_questions(
         db, question_ids=data.question_ids, test_id=data.test_id, current_user=current_user
     )
-    return BulkAssignQuestionsResponse(assigned=assigned)
+    return BulkAssignQuestionsResponse(assigned=assigned, skipped=_count_skipped(data.question_ids, assigned))

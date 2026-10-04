@@ -12,6 +12,7 @@ type Props = {
  * Standard frame for a page of an item in the file tree (note or folder).
  * One place for the top bar padding and height, so every file page looks the same.
  * It fills the content area of the app layout; `children` get the remaining height.
+ * `children` that scroll should bleed to the page edge (`pageBleed`), so the scrollbar is not inset.
  */
 export function FilePageShell({ breadcrumb, actions, children }: Props) {
   return (

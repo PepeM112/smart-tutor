@@ -24,8 +24,18 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
+}));
+
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: toastError, success: vi.fn() }) }));
+
+const updatePermissions = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/apiClient', () => ({
+  sdk: { usersUpdateAiToolPermissions: updatePermissions, questionsBulkRestore: vi.fn() },
 }));
 
 const PAGE_CONTEXT: PageContext = {
@@ -186,5 +196,284 @@ describe('useAssist — tool history after an approval (tool_use without tool_re
     expect(thirdBody.messages[1].toolCalls?.map(tc => tc.id)).toEqual(['cf']);
     expect(thirdBody.messages[2].toolResults?.map(r => r.toolCallId)).toEqual(['cf']);
     expect(thirdBody.messages[3].toolCalls?.map(tc => tc.id)).toEqual(['mv']);
+  });
+});
+
+describe('useAssist — always allow', () => {
+  const usage = { usage: { inputTokens: 1, outputTokens: 1 } };
+
+  it('saves the permission, then approves every pending card of the same tool and rejects the others', async () => {
+    updatePermissions.mockResolvedValue({ data: [] });
+    const call = (id: string, name: string) => [
+      { event: 'tool_call', data: { id, name, arguments: {} } },
+      { event: 'confirm_required', data: { id, name, arguments: {} } },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: {
+          getReader: () =>
+            makeSSEReader([
+              ...call('f1', 'create_folder'),
+              ...call('f2', 'create_folder'),
+              ...call('m1', 'move_items'),
+              { event: 'done', data: { ...usage, pendingConfirmations: ['f1', 'f2', 'm1'] } },
+            ]),
+        },
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        body: { getReader: () => makeSSEReader([{ event: 'done', data: usage }]) },
+        json: () => Promise.resolve({}),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+
+    act(() => result.current.send('organise'));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    act(() => result.current.confirm('f1', true, { alwaysAllow: true }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(updatePermissions).toHaveBeenCalledWith({ body: { permissions: { create_folder: true } } });
+
+    const body = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body) as {
+      toolConfirmations: { toolCallId: string; approved: boolean }[];
+    };
+    expect(body.toolConfirmations).toEqual([
+      { toolCallId: 'f1', approved: true },
+      { toolCallId: 'f2', approved: true },
+      { toolCallId: 'm1', approved: false },
+    ]);
+  });
+});
+
+describe('useAssist — confirm safety', () => {
+  const usage = { usage: { inputTokens: 1, outputTokens: 1 } };
+  const encoder = new TextEncoder();
+  const chunk = ({ event, data }: MockSSEEvent) => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  const pausedRound: MockSSEEvent[] = [
+    { event: 'tool_call', data: { id: 'f1', name: 'create_folder', arguments: {} } },
+    { event: 'confirm_required', data: { id: 'f1', name: 'create_folder', arguments: {} } },
+  ];
+  const doneStream = () => ({
+    ok: true,
+    body: { getReader: () => makeSSEReader([{ event: 'done', data: usage }]) },
+    json: () => Promise.resolve({}),
+  });
+
+  it('ignores a confirm that comes before the `done` of the stream that asked', async () => {
+    // The backend sends `confirm_required`, saves the usage, then sends `done`: hold `done` back.
+    let releaseDone: () => void = () => {};
+    const doneHeld = new Promise<void>(resolve => (releaseDone = resolve));
+    const events = [...pausedRound];
+    let doneSent = false;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: {
+          getReader: () => ({
+            read: async () => {
+              const next = events.shift();
+              if (next) return { done: false, value: chunk(next) };
+              if (doneSent) return { done: true, value: undefined };
+              await doneHeld;
+              doneSent = true;
+              return { done: false, value: chunk({ event: 'done', data: usage }) };
+            },
+          }),
+        },
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce(doneStream());
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+    act(() => result.current.send('make a folder'));
+    await waitFor(() => expect(result.current.turns.at(-1)?.segments.some(s => s.type === 'action_card')).toBe(true));
+
+    act(() => result.current.confirm('f1', true));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const card = result.current.turns.at(-1)?.segments.find(s => s.type === 'action_card');
+    expect(card).toMatchObject({ status: 'pending' });
+
+    act(() => releaseDone());
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    act(() => result.current.confirm('f1', true));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const body = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body) as {
+      messages: { role: string }[];
+    };
+    expect(body.messages.map(m => m.role)).toEqual(['user', 'assistant']);
+  });
+
+  it('stays busy while "Always allow" saves the permission, so a new message cannot start a 2nd stream', async () => {
+    let finishSave: () => void = () => {};
+    updatePermissions.mockReturnValue(new Promise(resolve => (finishSave = () => resolve({ data: [] }))));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: {
+          getReader: () =>
+            makeSSEReader([...pausedRound, { event: 'done', data: { ...usage, pendingConfirmations: ['f1'] } }]),
+        },
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce(doneStream());
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+    act(() => result.current.send('make a folder'));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+
+    act(() => result.current.confirm('f1', true, { alwaysAllow: true }));
+    expect(result.current.isStreaming).toBe(true);
+    act(() => result.current.send('something else'));
+
+    await act(() => Promise.resolve(finishSave()));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const body = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body) as {
+      messages: { role: string }[];
+    };
+    expect(body.messages.map(m => m.role)).toEqual(['user', 'assistant']);
+  });
+
+  it('aborts the request when the panel unmounts', async () => {
+    const fetchMock = vi.fn().mockReturnValue(new Promise(() => {}));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result, unmount } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+    act(() => result.current.send('hi'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const { signal } = fetchMock.mock.calls[0][1] as { signal: AbortSignal };
+
+    unmount();
+    expect(signal.aborted).toBe(true);
+  });
+});
+
+describe('useAssist — clear during the reveal', () => {
+  const usage = { usage: { inputTokens: 1, outputTokens: 1 } };
+  const streamOf = (events: MockSSEEvent[]) => ({
+    ok: true,
+    body: { getReader: () => makeSSEReader(events) },
+    json: () => Promise.resolve({}),
+  });
+
+  it('lets the user send again after "Clear chat" dropped the queued `done`', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        streamOf([
+          { event: 'text_delta', data: { content: 'A long answer that is still revealing' } },
+          { event: 'done', data: usage },
+        ])
+      )
+      .mockResolvedValueOnce(streamOf([{ event: 'done', data: usage }]));
+    vi.stubGlobal('fetch', fetchMock);
+    // Stall the reveal loop: the `done` item stays in the queue behind the text.
+    const realRaf = globalThis.requestAnimationFrame;
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+    act(() => result.current.send('first'));
+    // The whole stream is read (`done` included), but the reveal has not finished.
+    await act(() => new Promise(resolve => setTimeout(resolve, 20)));
+    expect(result.current.isStreaming).toBe(true);
+
+    act(() => result.current.clear());
+    expect(result.current.turns).toEqual([]);
+    expect(result.current.isStreaming).toBe(false);
+
+    vi.stubGlobal('requestAnimationFrame', realRaf);
+    act(() => result.current.send('second'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+  });
+
+  it('does not let an aborted old stream reset a new stream', async () => {
+    let releaseOld: () => void = () => {};
+    const oldHeld = new Promise<void>(resolve => (releaseOld = resolve));
+    let newReads = 0;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: {
+          getReader: () => ({
+            read: async () => {
+              await oldHeld;
+              throw new DOMException('aborted', 'AbortError');
+            },
+          }),
+        },
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        // The new stream stays open (never ends), so it must stay the owner of the lock.
+        body: { getReader: () => ({ read: () => (newReads++, new Promise(() => {})) }) },
+        json: () => Promise.resolve({}),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+    act(() => result.current.send('first'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.clear());
+    act(() => result.current.send('second'));
+    await waitFor(() => expect(newReads).toBe(1));
+
+    // The old stream ends only now. Its cleanup must not touch the new stream.
+    await act(() => Promise.resolve(releaseOld()));
+    expect(result.current.isStreaming).toBe(true);
+  });
+});
+
+describe('useAssist — always allow save failure', () => {
+  const usage = { usage: { inputTokens: 1, outputTokens: 1 } };
+
+  it('shows an error toast and still runs the approved tool', async () => {
+    updatePermissions.mockRejectedValue(new Error('network'));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: {
+          getReader: () =>
+            makeSSEReader([
+              { event: 'tool_call', data: { id: 'f1', name: 'create_folder', arguments: {} } },
+              { event: 'confirm_required', data: { id: 'f1', name: 'create_folder', arguments: {} } },
+              { event: 'done', data: { ...usage, pendingConfirmations: ['f1'] } },
+            ]),
+        },
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        body: { getReader: () => makeSSEReader([{ event: 'done', data: usage }]) },
+        json: () => Promise.resolve({}),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+    act(() => result.current.send('make a folder'));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    act(() => result.current.confirm('f1', true, { alwaysAllow: true }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('ai_permissions_save_failed'));
+    // The user approved this call, so the resumed request still goes out with the approval.
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const body = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body) as {
+      toolConfirmations: { toolCallId: string; approved: boolean }[];
+    };
+    expect(body.toolConfirmations).toEqual([{ toolCallId: 'f1', approved: true }]);
   });
 });

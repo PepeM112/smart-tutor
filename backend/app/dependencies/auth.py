@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, TypeAlias
 
 from fastapi import Cookie, Depends, HTTPException, status
 from jose import JWTError
@@ -24,3 +24,6 @@ def get_current_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
+
+
+CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]

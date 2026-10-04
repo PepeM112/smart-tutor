@@ -1,6 +1,6 @@
 'use client';
 
-// Menus of the table controls: table, column / row, and cell.
+// Menus of the table controls: column / row, and cell. (The table-level actions are in the block handle menu.)
 // Each menu runs commands from `tableCommands.ts` (one transaction each). The commands get a
 // `TableTarget`, not the selection, so they act on the line the handle belongs to.
 
@@ -12,14 +12,12 @@ import {
   Check,
   Eraser,
   Palette,
-  Plus,
   Trash2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRef } from 'react';
 
 import {
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -31,74 +29,23 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { ColorSwatch } from '../ColorSwatch';
+import { runEditorCommand } from '../editorCommand';
 import { NOTE_PALETTE } from '../noteColor';
 
-import { runTableCommand } from './runTableCommand';
-import { type TableLayout } from './tableAttributes';
 import {
   buildClearCellsTransaction,
   buildDeleteLineTransaction,
-  buildDeleteTableTransaction,
   buildInsertTransaction,
   buildSetCellColorTransaction,
-  buildSetLayoutTransaction,
   canDeleteLine,
   canInsertAt,
   readCommonCellColors,
-  tableSize,
   type CellColorKey,
   type TableAxis,
   type TableTarget,
 } from './tableCommands';
 
 import type { Editor } from '@tiptap/core';
-
-// ─── table ──────────────────────────────────────────────────────────────────
-
-type TableMenuProps = { editor: Editor; tablePos: number; layout: TableLayout };
-
-export function TableMenu({ editor, tablePos, layout }: TableMenuProps) {
-  const t = useTranslations('notes');
-  const size = tableSize(editor.state, tablePos);
-
-  return (
-    <MenuShell editor={editor} side="bottom" align="start">
-      <DropdownMenuCheckboxItem
-        checked={layout === 'full'}
-        onCheckedChange={checked =>
-          runTableCommand(editor, state => buildSetLayoutTransaction(state, tablePos, checked ? 'full' : 'compact'))
-        }
-      >
-        {t('table_layout_full')}
-      </DropdownMenuCheckboxItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        onSelect={() =>
-          runTableCommand(editor, state => buildInsertTransaction(state, tablePos, 'row', size?.rows ?? 0))
-        }
-      >
-        <Plus />
-        {t('table_add_row')}
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onSelect={() =>
-          runTableCommand(editor, state => buildInsertTransaction(state, tablePos, 'column', size?.columns ?? 0))
-        }
-      >
-        <Plus />
-        {t('table_add_column')}
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        variant="destructive"
-        onSelect={() => runTableCommand(editor, state => buildDeleteTableTransaction(state, tablePos))}
-      >
-        <Trash2 />
-        {t('table_delete')}
-      </DropdownMenuItem>
-    </MenuShell>
-  );
-}
 
 // ─── column / row ───────────────────────────────────────────────────────────
 
@@ -109,7 +56,7 @@ export function LineMenu({ editor, axis, tablePos, index }: LineMenuProps) {
   const target: TableTarget = { kind: axis, tablePos, index };
   const isColumn = axis === 'column';
 
-  const insert = (gap: number) => runTableCommand(editor, state => buildInsertTransaction(state, tablePos, axis, gap));
+  const insert = (gap: number) => runEditorCommand(editor, state => buildInsertTransaction(state, tablePos, axis, gap));
   const canInsert = (gap: number) => canInsertAt(editor.state, tablePos, axis, gap);
 
   return (
@@ -125,14 +72,14 @@ export function LineMenu({ editor, axis, tablePos, index }: LineMenuProps) {
         {t(isColumn ? 'table_insert_right' : 'table_insert_below')}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onSelect={() => runTableCommand(editor, state => buildClearCellsTransaction(state, target))}>
+      <DropdownMenuItem onSelect={() => runEditorCommand(editor, state => buildClearCellsTransaction(state, target))}>
         <Eraser />
         {t('table_clear')}
       </DropdownMenuItem>
       <DropdownMenuItem
         variant="destructive"
         disabled={!canDeleteLine(editor.state, target)}
-        onSelect={() => runTableCommand(editor, state => buildDeleteLineTransaction(state, target))}
+        onSelect={() => runEditorCommand(editor, state => buildDeleteLineTransaction(state, target))}
       >
         <Trash2 />
         {t(isColumn ? 'table_delete_column' : 'table_delete_row')}
@@ -152,7 +99,7 @@ export function CellMenu({ editor, tablePos, row, col }: CellMenuProps) {
   return (
     <MenuShell editor={editor} side="bottom" align="start">
       <ColorSubmenu editor={editor} target={target} />
-      <DropdownMenuItem onSelect={() => runTableCommand(editor, state => buildClearCellsTransaction(state, target))}>
+      <DropdownMenuItem onSelect={() => runEditorCommand(editor, state => buildClearCellsTransaction(state, target))}>
         <Eraser />
         {t('table_clear')}
       </DropdownMenuItem>
@@ -213,7 +160,7 @@ function ColorSubmenu({ editor, target }: { editor: Editor; target: TableTarget 
       {NOTE_PALETTE.map(color => (
         <DropdownMenuItem
           key={color ?? 'default'}
-          onSelect={() => runTableCommand(editor, state => buildSetCellColorTransaction(state, target, key, color))}
+          onSelect={() => runEditorCommand(editor, state => buildSetCellColorTransaction(state, target, key, color))}
         >
           <ColorSwatch color={key === 'color' ? color : null} bg={key === 'bg' ? color : null} />
           {t(`color_${color ?? 'default'}`)}

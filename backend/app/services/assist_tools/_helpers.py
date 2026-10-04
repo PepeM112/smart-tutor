@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import logging
+import re
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
 
@@ -15,9 +17,18 @@ if TYPE_CHECKING:
 
     from app.models.folder import Folder
 
+logger = logging.getLogger("smarttutor.assist.tools")
+
 # Result sizes for list tools. A tool output goes back to the model, so keep it short.
 LIST_LIMIT = 20
 SEARCH_LIMIT = 15
+
+# First segment of every location path. The frontend translates it on confirm cards, so keep it stable.
+ROOT_LOCATION_LABEL = "Files"
+
+_FENCE_MARKERS = ("```", "~~~")
+_DETAILS_OPEN = re.compile(r"<details\b", re.IGNORECASE)
+_DETAILS_CLOSE = re.compile(r"</details\s*>", re.IGNORECASE)
 
 
 def note_label(title: str | None) -> str:
@@ -30,7 +41,56 @@ def location_label(folders: Mapping[str, Folder], folder_id: str | None, orphan_
 
     `orphan_path` is for trashed items: names of folders that were deleted forever below `folder_id`.
     """
-    return " > ".join(["Files", *(build_folder_path(folders, folder_id=folder_id, orphan_path=orphan_path) or [])])
+    path = build_folder_path(folders, folder_id=folder_id, orphan_path=orphan_path) or []
+    return " > ".join([ROOT_LOCATION_LABEL, *path])
+
+
+def markdown_blocks(text: str) -> list[str]:
+    """Split markdown into top-level blocks at blank lines.
+
+    A blank line inside a code fence or a `<details>` toggle does not end a block, so each block
+    renders correctly alone. Callouts, tables and lists have no blank lines, so they stay whole.
+    """
+    blocks: list[str] = []
+    current: list[str] = []
+    fence: str | None = None
+    details_depth = 0
+    for line in text.splitlines():
+        stripped = line.strip()
+        if fence is not None:
+            if stripped.startswith(fence):
+                fence = None
+        elif stripped.startswith(_FENCE_MARKERS):
+            fence = stripped[:3]
+        else:
+            details_depth = max(0, details_depth + len(_DETAILS_OPEN.findall(line)) - len(_DETAILS_CLOSE.findall(line)))
+            if not stripped and details_depth == 0:
+                if current:
+                    blocks.append("\n".join(current))
+                    current = []
+                continue
+        current.append(line)
+    if current:
+        blocks.append("\n".join(current))
+    return blocks
+
+
+def markdown_preview(text: str, limit: int) -> str:
+    """The first whole blocks of `text` that fit in `limit` characters, with "…" if blocks were left out.
+
+    A block is never cut: a cut code fence, table or toggle would render broken. If the first
+    block alone is too long, the result is empty.
+    """
+    blocks = markdown_blocks(text)
+    kept: list[str] = []
+    for block in blocks:
+        if len("\n\n".join([*kept, block])) > limit:
+            break
+        kept.append(block)
+    if not kept:
+        return ""
+    preview = "\n\n".join(kept)
+    return preview if len(kept) == len(blocks) else f"{preview}\n\n…"
 
 
 def plural(count: int, noun: str) -> str:
@@ -45,16 +105,47 @@ def string_list(value: object) -> list[str]:
     return list(dict.fromkeys(str(v) for v in value if v))
 
 
+def confirm_summary(*lines: tuple[str, str | None]) -> dict[str, Any] | None:
+    """Confirm card data for a tool without a special layout: `{key, value}` lines.
+
+    The frontend translates `key` (`assist.confirm.fields.<key>`), so keys are stable ids and
+    `value` is the data. Empty values are dropped. No lines gives None (no card details).
+    """
+    items = [{"key": key, "value": value} for key, value in lines if value]
+    return {"summary": items} if items else None
+
+
+def clip(text: object, limit: int = 160) -> str:
+    """Free text of the model (instructions, guidance) cut to one short line for a confirm card."""
+    flat = " ".join(str(text or "").split())
+    return flat if len(flat) <= limit else f"{flat[: limit - 1]}…"
+
+
+def names_label(names: list[str], limit: int = 5) -> str | None:
+    """ "A, B, C" or "A, B, C +4". None for an empty list."""
+    if not names:
+        return None
+    shown = ", ".join(names[:limit])
+    return shown if len(names) <= limit else f"{shown} +{len(names) - limit}"
+
+
 def skip_reason(db: Session, action: Callable[[], object]) -> str | None:
     """Run one step of a batch tool. Return None if it worked, or why it was skipped.
 
     A service refuses with `HTTPException` (not found, not yours, name conflict, cycle). In a
     batch that must skip the one item and go on, not fail the whole call. The services commit
     each step that works, so the rollback only drops the refused step and releases its tree lock.
+
+    An unexpected error (for example a DB error) is also reported per item. Steps that ran before
+    it are already committed. If the error went up, the call would say "failed" for work that is done.
     """
     try:
         action()
     except HTTPException as exc:
         db.rollback()
         return str(exc.detail)
+    except Exception:
+        db.rollback()
+        logger.exception("Batch tool step failed")
+        return "unexpected error"
     return None
