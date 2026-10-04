@@ -3,7 +3,6 @@
 /**
  * Overlay with the controls of the active table (editable editor only):
  *
- *   - table handle   left of the header row         → layout, add row / column, delete table
  *   - "+" bars       right and bottom edge          → add a column / row at the end
  *   - column handle  center of the top border       → click: select + menu, drag: move the column
  *   - row handle     middle of the left border      → click: select + menu, drag: move the row
@@ -38,15 +37,8 @@ import {
   type TableAxis,
   type TableTarget,
 } from './tableCommands';
-import {
-  gapOffset,
-  hasTableHandleRoom,
-  TABLE_HANDLE_GAP,
-  TABLE_HANDLE_SIZE as TABLE_HANDLE,
-  type Band,
-  type TableMeasure,
-} from './tableGeometry';
-import { CellMenu, LineMenu, TableMenu } from './TableMenus';
+import { gapOffset, type Band, type TableMeasure } from './tableGeometry';
+import { CellMenu, LineMenu } from './TableMenus';
 import { useGripDrag } from './useGripDrag';
 import { useTableOverlay, type TableOverlay } from './useTableOverlay';
 
@@ -68,10 +60,6 @@ const BAR = 14;
 const BAR_GAP = 4;
 
 // ─── styles ──────────────────────────────────────────────────────────────────
-
-/** Ghost look (the `ghost` variant of `Button`): no background and no ring at rest, muted background on hover and while the menu is open. */
-const HANDLE_BASE =
-  'pointer-events-auto absolute flex items-center justify-center rounded-md text-muted-foreground transition-colors duration-75 hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-primary data-[active=true]:bg-muted data-[active=true]:text-foreground select-none touch-none';
 
 /**
  * The three bar handles share one look. The button is the (transparent) hit area. Inside it, the `span`
@@ -163,8 +151,6 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
 
   return (
     <div data-slot="table-controls" className="pointer-events-none absolute inset-0 z-20" contentEditable={false}>
-      <TableHandle editor={editor} table={table} lock={lock} unlock={unlock} label={t('table_handle')} />
-
       <HoverHint label={t('table_add_column')} side="right">
         <button
           type="button"
@@ -238,52 +224,7 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
   );
 }
 
-// ─── table handle ────────────────────────────────────────────────────────────
-
 type MenuLockProps = Pick<TableOverlay, 'lock' | 'unlock'>;
-
-type TableHandleProps = MenuLockProps & { editor: Editor; table: TableMeasure; label: string };
-
-function TableHandle({ editor, table, lock, unlock, label }: TableHandleProps) {
-  const owner = useId();
-  const [open, setOpen] = useState(false);
-
-  // Left of the header row. On a narrow screen there is no room left of the table: go above it.
-  const hasRoomLeft = hasTableHandleRoom(table.viewportLeft);
-  const header = table.rows[0];
-  const style: CSSProperties = hasRoomLeft
-    ? {
-        left: table.left - TABLE_HANDLE - TABLE_HANDLE_GAP,
-        top: (header?.start ?? table.top) + ((header?.size ?? TABLE_HANDLE) - TABLE_HANDLE) / 2,
-      }
-    : { left: table.left, top: table.top - TABLE_HANDLE - TABLE_HANDLE_GAP / 2 };
-
-  return (
-    <DropdownMenu
-      modal={false}
-      open={open}
-      onOpenChange={next => {
-        setOpen(next);
-        if (next) lock(owner);
-        else unlock(owner);
-      }}
-    >
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={label}
-          data-active={open}
-          onMouseDown={keepEditorFocus}
-          className={HANDLE_BASE}
-          style={{ ...style, width: TABLE_HANDLE, height: TABLE_HANDLE }}
-        >
-          <GripVertical className="size-5" />
-        </button>
-      </DropdownMenuTrigger>
-      <TableMenu editor={editor} tablePos={table.tablePos} layout={table.layout} />
-    </DropdownMenu>
-  );
-}
 
 // ─── column / row grip ───────────────────────────────────────────────────────
 

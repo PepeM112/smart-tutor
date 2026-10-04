@@ -67,7 +67,9 @@ export function FilesPage({ folderId }: Props) {
   const contentArea = (
     <ResponsiveSplitPane
       storageKey="files-preview-split-ratio"
-      defaultRatio={0.55}
+      defaultRatio={0.6}
+      // The list scrolls at the page edge (the layout padding moves inside the pane).
+      bleed
       main={table}
       side={previewPanel}
       onSideClose={() => setPreviewId(null)}

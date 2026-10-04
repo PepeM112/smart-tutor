@@ -4,6 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { type ReactNode } from 'react';
 
 import { useResizableSplit } from '@/hooks/useResizableSplit';
+import { pageBleed } from '@/lib/pageBleed';
+import { PANEL_FADE_DURATION, PANEL_SPRING } from '@/lib/panelMotion';
 import { cn } from '@/lib/utils';
 
 export type SplitPaneProps = {
@@ -19,10 +21,16 @@ export type SplitPaneProps = {
   mainClassName?: string;
   /** Frame of the side content. Default: a card. The side pane clips its content; the content scrolls by itself. */
   sideClassName?: string;
+  /**
+   * For a full-height page: the scrollbar of the main pane is at the page edge, not inside the layout
+   * padding (see `pageBleed`). The container keeps the same content box (negative margin + padding), so
+   * the ratio and the side pane are where they were. Only the main pane grows into the padding, on the
+   * right while there is no side pane, and at the bottom.
+   */
+  bleed?: boolean;
 };
 
-// Spring feel ≈ 250ms, damping ratio ≈ 0.87 → barely perceptible overshoot.
-const SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
+const SPRING = PANEL_SPRING;
 const INSTANT = { duration: 0 };
 /** Divider width in px (the grip is centered in it). */
 const DIVIDER_WIDTH = 36;
@@ -34,8 +42,7 @@ const DIVIDER_WIDTH = 36;
  * 0 = the fade and the pane motion start together.
  */
 const CONTENT_FADE_DELAY = 0.15;
-/** Seconds the content fade takes. */
-const CONTENT_FADE_DURATION = 0.15;
+const CONTENT_FADE_DURATION = PANEL_FADE_DURATION;
 
 /**
  * Two panes side by side with a draggable divider (double-click resets the ratio).
@@ -62,6 +69,7 @@ export function SplitPane({
   className,
   mainClassName,
   sideClassName,
+  bleed = false,
 }: SplitPaneProps) {
   const { containerRef, splitRatio, handleDividerMouseDown, resetRatio, isDragging } = useResizableSplit(
     storageKey,
@@ -81,11 +89,18 @@ export function SplitPane({
     <div
       ref={containerRef}
       data-slot="split-pane"
-      className={cn('flex min-h-0 flex-1 overflow-hidden [contain:size]', className)}
+      className={cn('flex min-h-0 flex-1 overflow-hidden [contain:size]', bleed && pageBleed.all, className)}
     >
       {/* Main pane — shrinks when the side pane opens. */}
       <motion.div
-        className={cn('min-w-0 overflow-y-auto', mainClassName)}
+        className={cn(
+          'min-w-0 overflow-y-auto',
+          bleed && [pageBleed.marginBottom, pageBleed.paddingBottom],
+          // With a side pane the main pane ends at the divider. The change eases with the pane motion.
+          bleed && !side && [pageBleed.marginRight, pageBleed.paddingRight],
+          bleed && 'transition-[margin,padding] duration-200 motion-reduce:transition-none',
+          mainClassName
+        )}
         style={{ flexShrink: 1, flexBasis: 0 }}
         initial={false}
         animate={{ flexGrow: side ? splitRatio : 1 }}

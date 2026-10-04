@@ -1,4 +1,4 @@
-import { type UserRead, type UserUpdate } from '@/client';
+import { type AiToolPermissionRead, type UserRead, type UserUpdate } from '@/client';
 
 import type { SettingsForm } from './types';
 
@@ -39,4 +39,42 @@ export function buildSettingsPayload(form: SettingsForm, user: UserRead | null):
   }
 
   return payload;
+}
+
+/** Draft of the AI tool permissions: only the tools the user changed, as `tool name -> autoApprove`. */
+export type PermissionDraft = Record<string, boolean>;
+
+/**
+ * Adds new changes to the draft. A change that equals the server value is removed,
+ * so the draft holds only real differences. Pure — no side effects.
+ */
+export function mergePermissionDraft(
+  server: readonly AiToolPermissionRead[],
+  draft: PermissionDraft,
+  changes: PermissionDraft
+): PermissionDraft {
+  const serverByName = new Map(server.map(tool => [tool.name, tool.autoApprove]));
+  return Object.fromEntries(
+    Object.entries({ ...draft, ...changes }).filter(([name, value]) => serverByName.get(name) !== value)
+  );
+}
+
+/** Shows the server permissions with the draft applied on top. */
+export function applyPermissionDraft(
+  server: readonly AiToolPermissionRead[],
+  draft: PermissionDraft
+): AiToolPermissionRead[] {
+  return server.map(tool => ({ ...tool, autoApprove: draft[tool.name] ?? tool.autoApprove }));
+}
+
+/**
+ * Returns only the keys that differ from the server data, as the PATCH payload.
+ * An empty object means there is nothing to save.
+ */
+export function buildPermissionsPayload(
+  server: readonly AiToolPermissionRead[],
+  draft: PermissionDraft
+): Record<string, boolean> {
+  const serverByName = new Map(server.map(tool => [tool.name, tool.autoApprove]));
+  return Object.fromEntries(Object.entries(draft).filter(([name, value]) => serverByName.get(name) !== value));
 }

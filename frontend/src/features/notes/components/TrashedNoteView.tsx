@@ -13,6 +13,7 @@ import { TrashedBanner } from '@/features/trash/components/TrashedBanner';
 import { useTrashMutations } from '@/features/trash/hooks/useTrashMutations';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { displayTitle } from '@/lib/displayTitle';
+import { pageBleed } from '@/lib/pageBleed';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
@@ -72,7 +73,8 @@ export function TrashedNoteView({ note }: { note: NoteRead }) {
       }
       actions={isDesktop && <NoteWidthToggle isFullWidth={isFullWidth} onToggle={toggleWidth} />}
     >
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      {/* Scrolls at the page edge: the layout padding moves inside (see `pageBleed`). */}
+      <div className={cn('min-h-0 flex-1 overflow-y-auto', pageBleed.all)}>
         <div className={cn('mx-auto w-full px-4 pb-24 md:px-6', isFullWidth ? 'max-w-none md:px-12' : 'max-w-[720px]')}>
           <p className="note-title w-full text-foreground/60 p-0">{title}</p>
 

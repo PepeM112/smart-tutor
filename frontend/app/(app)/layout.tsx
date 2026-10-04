@@ -20,7 +20,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <MobileHeader />
             </div>
             {/* Flex column: the content area gets a definite height, so full-height pages
-                (FilePageShell) can use h-full. Normal pages grow and <main> scrolls. */}
+                (FilePageShell) can use h-full. Normal pages grow and <main> scrolls, so their
+                scrollbar is at the page edge. A full-height page scrolls an inner element, which
+                cancels the padding below with `pageBleed` (src/lib/pageBleed.ts). */}
             <main className="flex min-w-0 flex-1 flex-col overflow-auto">
               <PageHeader />
               <div className="flex-1 px-4 pb-4 lg:px-8 lg:pb-8">{children}</div>

@@ -1,6 +1,6 @@
 'use client';
 
-// Menus of the table controls: table, column / row, and cell.
+// Menus of the table controls: column / row, and cell. (The table-level actions are in the block handle menu.)
 // Each menu runs commands from `tableCommands.ts` (one transaction each). The commands get a
 // `TableTarget`, not the selection, so they act on the line the handle belongs to.
 
@@ -12,14 +12,12 @@ import {
   Check,
   Eraser,
   Palette,
-  Plus,
   Trash2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRef } from 'react';
 
 import {
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -34,71 +32,20 @@ import { ColorSwatch } from '../ColorSwatch';
 import { NOTE_PALETTE } from '../noteColor';
 
 import { runTableCommand } from './runTableCommand';
-import { type TableLayout } from './tableAttributes';
 import {
   buildClearCellsTransaction,
   buildDeleteLineTransaction,
-  buildDeleteTableTransaction,
   buildInsertTransaction,
   buildSetCellColorTransaction,
-  buildSetLayoutTransaction,
   canDeleteLine,
   canInsertAt,
   readCommonCellColors,
-  tableSize,
   type CellColorKey,
   type TableAxis,
   type TableTarget,
 } from './tableCommands';
 
 import type { Editor } from '@tiptap/core';
-
-// ─── table ──────────────────────────────────────────────────────────────────
-
-type TableMenuProps = { editor: Editor; tablePos: number; layout: TableLayout };
-
-export function TableMenu({ editor, tablePos, layout }: TableMenuProps) {
-  const t = useTranslations('notes');
-  const size = tableSize(editor.state, tablePos);
-
-  return (
-    <MenuShell editor={editor} side="bottom" align="start">
-      <DropdownMenuCheckboxItem
-        checked={layout === 'full'}
-        onCheckedChange={checked =>
-          runTableCommand(editor, state => buildSetLayoutTransaction(state, tablePos, checked ? 'full' : 'compact'))
-        }
-      >
-        {t('table_layout_full')}
-      </DropdownMenuCheckboxItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        onSelect={() =>
-          runTableCommand(editor, state => buildInsertTransaction(state, tablePos, 'row', size?.rows ?? 0))
-        }
-      >
-        <Plus />
-        {t('table_add_row')}
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onSelect={() =>
-          runTableCommand(editor, state => buildInsertTransaction(state, tablePos, 'column', size?.columns ?? 0))
-        }
-      >
-        <Plus />
-        {t('table_add_column')}
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        variant="destructive"
-        onSelect={() => runTableCommand(editor, state => buildDeleteTableTransaction(state, tablePos))}
-      >
-        <Trash2 />
-        {t('table_delete')}
-      </DropdownMenuItem>
-    </MenuShell>
-  );
-}
 
 // ─── column / row ───────────────────────────────────────────────────────────
 

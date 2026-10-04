@@ -1,16 +1,14 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { toast } from 'sonner';
 
 import type { AiToolPermissionRead } from '@/client';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { AI_PERMISSIONS_QUERY_KEY, useAiToolPermissions } from '@/features/assist/hooks/useAiToolPermissions';
-import { sdk } from '@/lib/apiClient';
 
 import { SettingsSection } from './SettingsSection';
+
+import type { PermissionDraft } from '../utils';
 
 type ToolKind = AiToolPermissionRead['kind'];
 
@@ -27,24 +25,24 @@ const GROUPS: { kind: ToolKind; titleKey: string; descriptionKey: string }[] = [
   },
 ];
 
-export function AiPermissionsSection() {
-  const t = useTranslations();
-  const queryClient = useQueryClient();
-  const { data: permissions, isLoading, isError } = useAiToolPermissions();
+type AiPermissionsSectionProps = {
+  /** Server permissions with the unsaved draft already applied. */
+  permissions: AiToolPermissionRead[] | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  disabled: boolean;
+  /** Reports changed tools as `tool name -> autoApprove`. The page owns the draft and the save. */
+  onChange: (changes: PermissionDraft) => void;
+};
 
-  const { mutate: savePermissions, isPending: isSaving } = useMutation({
-    mutationFn: async (overrides: Record<string, boolean>) => {
-      const result = await sdk.usersUpdateAiToolPermissions({ body: { permissions: overrides } });
-      return result.data ?? [];
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: AI_PERMISSIONS_QUERY_KEY });
-      toast.success(t('settings.settings_saved'));
-    },
-    onError: () => {
-      toast.error(t('settings.ai_permissions_save_failed'));
-    },
-  });
+export function AiPermissionsSection({
+  permissions,
+  isLoading,
+  isError,
+  disabled,
+  onChange,
+}: AiPermissionsSectionProps) {
+  const t = useTranslations();
 
   return (
     <SettingsSection title={t('settings.ai_permissions')} description={t('settings.ai_permissions_description')}>
@@ -58,8 +56,8 @@ export function AiPermissionsSection() {
               title={t(group.titleKey)}
               description={t(group.descriptionKey)}
               tools={permissions.filter(p => p.kind === group.kind)}
-              disabled={isSaving}
-              onChange={savePermissions}
+              disabled={disabled}
+              onChange={onChange}
             />
           ))}
         </div>
@@ -73,7 +71,7 @@ type PermissionGroupProps = {
   description: string;
   tools: AiToolPermissionRead[];
   disabled: boolean;
-  onChange: (overrides: Record<string, boolean>) => void;
+  onChange: (changes: PermissionDraft) => void;
 };
 
 function PermissionGroup({ title, description, tools, disabled, onChange }: PermissionGroupProps) {

@@ -20,8 +20,6 @@ import type { Transaction } from '@tiptap/pm/state';
 export type BlockState = {
   /** Position of the block node in the document. */
   pos: number;
-  /** The block is a table: it has its own handle, so the block handle makes room for it. */
-  isTable: boolean;
   /** Left edge of the block, relative to the container. */
   left: number;
   /** Left edge of the block in the viewport. */
@@ -81,11 +79,9 @@ function computeState(
   const active = lock ? boxes.find(b => b.pos === lock.pos) : hovered === null ? undefined : boxes[hovered];
   if (!active) return null;
 
-  const node = editor.state.doc.nodeAt(active.pos);
   const center = firstLineCenter(editor, active.pos);
   return {
     pos: active.pos,
-    isTable: node?.type.name === 'table',
     left: active.left,
     viewportLeft: active.viewportLeft,
     // No text to measure (a divider, an empty table): use the middle of the block, at most one line down.

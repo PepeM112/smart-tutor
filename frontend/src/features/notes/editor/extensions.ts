@@ -13,6 +13,7 @@ import { CalloutView } from './callout/CalloutView';
 import { NoteCallout } from './callout/noteCallout';
 import { ChunkHighlight } from './chunkHighlight';
 import { CodeBlockView } from './CodeBlockView';
+import { NoteCodeWrap } from './codeBlockWrap';
 import { NoteLink } from './link/noteLink';
 import { NoteCodeBlock } from './noteCodeBlock';
 import { NoteColorMark } from './noteColor';
@@ -78,6 +79,8 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
         return ReactNodeViewRenderer(CodeBlockView);
       },
     }).configure({ lowlight }),
+    // "Wrap lines" of a code block (view only, not saved). Not inside `NoteCodeBlock`: see `codeBlockWrap.ts`.
+    NoteCodeWrap,
 
     // Callout (`> [!TIP]`) and toggle (`<details>`): see `callout/` and `toggle/`.
     NoteCallout.extend({

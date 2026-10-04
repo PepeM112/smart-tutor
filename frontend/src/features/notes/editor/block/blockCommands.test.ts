@@ -174,6 +174,16 @@ describe('duplicate and delete', () => {
     expect(serializeMarkdown(editor)).toBe(DOC);
   });
 
+  it('delete removes a table (the menu has no separate "Delete table"), and undo brings it back', () => {
+    load(DOC);
+    const tableIndex = blockTexts().indexOf('table');
+    editor.view.dispatch(buildDeleteBlockTransaction(editor.state, posOf(tableIndex))!);
+    expect(blockTexts()).not.toContain('table');
+    expect(() => editor.state.doc.check()).not.toThrow();
+    editor.commands.undo();
+    expect(serializeMarkdown(editor)).toBe(DOC);
+  });
+
   it('delete of the last block of the document leaves an empty paragraph', () => {
     load('Only block');
     editor.view.dispatch(buildDeleteBlockTransaction(editor.state, posOf(0))!);

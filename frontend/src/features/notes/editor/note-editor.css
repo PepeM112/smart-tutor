@@ -345,7 +345,7 @@
 }
 
 /* Soft wrap toggle of the code toolbar (view only, not saved). */
-.note-editor-content pre[data-wrap] code {
+.note-editor-content [data-wrap] pre code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

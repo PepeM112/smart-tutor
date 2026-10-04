@@ -5,13 +5,13 @@
  * top-level block under the pointer.
  *
  *   - "+"    adds an empty paragraph below the block and opens the slash menu in it
- *   - grip   click: menu (Turn into, Duplicate, Delete). Drag: move the block, a line shows where it drops.
+ *   - grip   click: menu. Drag: move the block, a line shows where it drops.
+ *
+ * The menu has two groups: the actions of this kind of block (a table, a code block, a callout: see
+ * `blockActions.ts`), then the common ones (Turn into, Duplicate, Delete).
  *
  * "Top-level" = a direct child of the document. A list, a quote, a callout, a toggle or a table is one block:
  * it moves as a whole.
- *
- * Tables have their own handle (`TableControls`) left of the header row. For a table block, this handle moves
- * left of the table handle, so the two never overlap. The block handle is the way to move a whole table.
  *
  * The overlay is positioned from the DOM (`useBlockOverlay`) and lives next to the editor, so nothing here is part
  * of the document or of the saved Markdown. Every action is one transaction, and the focus goes back to the editor.
@@ -53,11 +53,11 @@ import {
 import { HoverHint } from '@/components/ui/hover-hint';
 import { cn } from '@/lib/utils';
 
-import { hasTableHandleRoom, TABLE_HANDLE_GAP, TABLE_HANDLE_SIZE } from '../table/tableGeometry';
 import { useGripDrag } from '../table/useGripDrag';
 
+import { BlockActionMenuItems } from './BlockActionMenuItems';
+import { getBlockSections, hasTurnInto } from './blockActions';
 import {
-  blockKind,
   buildDeleteBlockTransaction,
   buildDuplicateBlockTransaction,
   buildInsertSlashBelowTransaction,
@@ -172,10 +172,8 @@ function HandleControls({ editor, containerRef, overlay, state, onDropLineChange
   const [menuOpen, setMenuOpen] = useState(false);
   const gestureActive = useRef(false);
 
-  // A table block moves its handle left of the table menu button, but only when that button is on the left.
-  const tableShift = state.isTable && hasTableHandleRoom(state.viewportLeft) ? TABLE_HANDLE_SIZE + TABLE_HANDLE_GAP : 0;
   const containerViewportLeft = state.viewportLeft - state.left;
-  const left = Math.max(state.left - HANDLE_GAP - HANDLE_WIDTH - tableShift, VIEWPORT_MARGIN - containerViewportLeft);
+  const left = Math.max(state.left - HANDLE_GAP - HANDLE_WIDTH, VIEWPORT_MARGIN - containerViewportLeft);
   const style: CSSProperties = { left, top: state.centerY - BUTTON / 2, width: HANDLE_WIDTH, height: BUTTON };
 
   return (
@@ -348,12 +346,14 @@ function BlockMenu({ editor, pos, onAction }: BlockMenuProps) {
   const closedByOutside = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const node = editor.state.doc.nodeAt(pos);
-  const convertible = !!node && blockKind(node) !== null;
 
   const run = (build: (state: EditorState) => Transaction | null) => {
     onAction();
     runBlockCommand(editor, build);
   };
+
+  // Group 1: the actions of this kind of block. Group 2: the common ones.
+  const sections = node ? getBlockSections({ editor, node, pos, run, t }) : [];
 
   return (
     <DropdownMenuContent
@@ -374,24 +374,32 @@ function BlockMenu({ editor, pos, onAction }: BlockMenuProps) {
         closedByOutside.current = false;
       }}
     >
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger disabled={!convertible}>
-          <Repeat2 />
-          {t('block_turn_into')}
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          {TURN_INTO_ITEMS.map(({ kind, labelKey, icon: Icon }) => (
-            <DropdownMenuItem
-              key={kind}
-              disabled={!node || !canTurnInto(node, kind)}
-              onSelect={() => run(s => buildTurnIntoTransaction(s, pos, kind))}
-            >
-              <Icon />
-              {t(labelKey)}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+      {sections.length > 0 && (
+        <>
+          <BlockActionMenuItems sections={sections} />
+          <DropdownMenuSeparator />
+        </>
+      )}
+      {node && hasTurnInto(node) && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Repeat2 />
+            {t('block_turn_into')}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {TURN_INTO_ITEMS.map(({ kind, labelKey, icon: Icon }) => (
+              <DropdownMenuItem
+                key={kind}
+                disabled={!canTurnInto(node, kind)}
+                onSelect={() => run(s => buildTurnIntoTransaction(s, pos, kind))}
+              >
+                <Icon />
+                {t(labelKey)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
       <DropdownMenuItem onSelect={() => run(s => buildDuplicateBlockTransaction(s, pos))}>
         <Copy />
         {t('block_duplicate')}

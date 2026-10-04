@@ -19,7 +19,6 @@ import { createNoteTableExtensions } from './noteTable';
 import {
   buildClearCellsTransaction,
   buildDeleteLineTransaction,
-  buildDeleteTableTransaction,
   buildInsertTransaction,
   buildSelectTransaction,
   buildSetCellColorTransaction,
@@ -323,16 +322,6 @@ describe('table commands: delete', () => {
     run(buildDeleteLineTransaction(editor.state, column(index)));
     expect(editor.state.selection.empty).toBe(true);
     expect(() => editor.state.doc.check()).not.toThrow();
-  });
-
-  it('deletes the table and undo brings it back', () => {
-    run(buildDeleteTableTransaction(editor.state, tablePos()));
-    expect(editor.getJSON().content?.some(n => n.type === 'table')).toBe(false);
-    expect(() => editor.state.doc.check()).not.toThrow();
-
-    editor.commands.undo();
-    expect(texts()).toHaveLength(3);
-    expect(widths()[0]).toEqual([[100], [200], [300]]);
   });
 });
 

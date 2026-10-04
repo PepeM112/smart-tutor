@@ -3,41 +3,47 @@
 /**
  * Outline rail of a note (editable editor only).
  *
- * Collapsed: short dashes to the right of the note column, one per heading. The dash is longer for a
- * higher level (H1 > H2 > H3) and the active section is highlighted by the scroll position.
- * Hover or keyboard focus opens a floating card with the headings, indented by level. A click scrolls
- * to the heading. Each heading has a "copy link" button (`/notes/{id}#slug`).
+ * Collapsed: short dashes at the top right of the note scroll area, one per heading. The dash is longer
+ * for a higher level (H1 > H2 > H3), and the active section is the dark one (scroll position).
+ * Hover or keyboard focus opens a floating card with the headings, indented by level. The card slides in
+ * from the right and fades, with the same motion as the side panel of `SplitPane`. A click scrolls to
+ * the heading. Each heading has a "copy link" button (`/notes/{id}#slug`).
  *
- * Like `TableControls`, it is an overlay in the editor container and takes no layout space. The wrapper
- * is as high as the column, and the rail is `sticky` in it, so it stays near the top while the note scrolls.
- * It is hidden below `lg`, with fewer than 2 headings and when the space right of the column is too small
- * (full width mode on a narrow window, or the diff panel is open).
+ * The rail takes no layout space. It is a fixed layer in a portal, placed by `useRailPlacement` at a
+ * fixed distance from the top and right edge of the note scroll area. So it does not move when the note
+ * scrolls, or when the column changes between reading and full width. It is hidden below `lg`, with
+ * fewer than 2 headings and when the text is too close to the right edge of the area.
+ * Keyboard: the portal puts the rail at the end of the tab order. Esc closes the card.
  */
 
 import { Link2 } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
 import { HoverHint } from '@/components/ui/hover-hint';
+import { PANEL_FADE_DURATION, PANEL_SPRING } from '@/lib/panelMotion';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 import { prefersReducedMotion, scrollToHeading } from './scroll';
 import { useHeadingOutline } from './useHeadingOutline';
-import { useRailSpace } from './useRailSpace';
+import { MIN_RAIL_SPACE, RAIL_WIDTH, useRailPlacement } from './useRailPlacement';
 import { useScrollToHash } from './useScrollToHash';
 
 import type { OutlineHeading } from './headings';
 import type { Editor } from '@tiptap/core';
 
-/** Least free space (px) right of the column for the rail (gap + dashes) to fit without overlap. */
-export const MIN_RAIL_SPACE = 40;
 const MIN_HEADINGS = 2;
 const CLOSE_DELAY_MS = 150;
 
 /** Dash width by heading level (index = level - 1). */
-const DASH_WIDTH = ['w-4', 'w-3', 'w-2'] as const;
+const DASH_WIDTH = ['w-5', 'w-4', 'w-3'] as const;
+/** The card starts this far (px) to the right and slides to its place. On close it goes half of it. */
+const CARD_SLIDE_PX = 16;
+const INSTANT = { duration: 0 };
 /** Item indent by heading level (index = level - 1). */
 const ITEM_INDENT = ['pl-2', 'pl-5', 'pl-8'] as const;
 
@@ -46,7 +52,7 @@ const levelClass = (classes: readonly string[], level: number): string =>
 
 export type NoteOutlineProps = {
   editor: Editor;
-  /** The element the editor is rendered in. The rail is positioned relative to it. */
+  /** The element the editor is rendered in. The free space for the rail is measured from it. */
   containerRef: RefObject<HTMLElement | null>;
   noteId: string;
 };
@@ -54,7 +60,8 @@ export type NoteOutlineProps = {
 export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) {
   const t = useTranslations('notes');
   const { headings, activeId } = useHeadingOutline(editor);
-  const space = useRailSpace(editor, containerRef);
+  const { space, layerRef } = useRailPlacement(editor, containerRef);
+  const prefersReduced = useReducedMotion();
   useScrollToHash(editor);
 
   const [open, setOpen] = useState(false);
@@ -107,11 +114,15 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
 
   if (headings.length < MIN_HEADINGS || space < MIN_RAIL_SPACE) return null;
 
-  return (
+  const slide = prefersReduced ? 0 : CARD_SLIDE_PX;
+
+  return createPortal(
     <div
+      ref={layerRef}
       data-slot="note-outline-layer"
-      className="pointer-events-none absolute top-0 bottom-0 left-full z-20 hidden w-0 lg:block"
-      contentEditable={false}
+      // Position (top, right, max-height) is set by `useRailPlacement`.
+      className="pointer-events-none fixed z-20 hidden flex-col lg:flex"
+      style={{ width: RAIL_WIDTH }}
     >
       <nav
         data-slot="note-outline"
@@ -121,51 +132,70 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
         onFocus={openRail}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        className="pointer-events-auto sticky top-24 ml-2 w-7"
+        className="pointer-events-auto relative flex min-h-0 flex-col"
       >
-        {/* Collapsed: the dashes. They stay in place under the card, which hides them. */}
+        {/* Collapsed: the dashes, right-aligned. The wide padding is the hit area. The dashes stay in
+            place under the card, which hides them. */}
         <button
           ref={triggerRef}
           type="button"
           aria-expanded={open}
           aria-label={t('outline_label')}
-          className="flex max-h-[calc(100dvh-14rem)] w-full flex-col items-start gap-2 overflow-hidden rounded-md py-1 focus-visible:outline-2 focus-visible:outline-primary"
+          className="flex w-full flex-col items-end gap-3 overflow-hidden rounded-md py-4 pr-3 focus-visible:outline-2 focus-visible:outline-primary"
         >
           {headings.map(heading => (
             <span
               key={heading.id}
               aria-hidden
               className={cn(
-                'h-0.5 shrink-0 rounded-full transition-colors duration-150',
+                'h-[3px] shrink-0 rounded-full transition-colors duration-150',
                 levelClass(DASH_WIDTH, heading.level),
-                heading.id === activeId ? 'bg-foreground' : 'bg-muted-foreground/40'
+                heading.id === activeId ? 'bg-foreground' : 'bg-muted-foreground/50'
               )}
             />
           ))}
         </button>
 
-        {open && (
-          <div
-            data-slot="note-outline-card"
-            // Right edge of the card on the right edge of the rail: it opens over the text, to the left.
-            className="absolute top-0 right-0 w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-popover p-1 text-popover-foreground ring-1 ring-foreground/10"
-          >
-            <ul ref={listRef} className="relative max-h-[min(24rem,60dvh)] overflow-y-auto">
-              {headings.map(heading => (
-                <OutlineItem
-                  key={heading.id}
-                  heading={heading}
-                  isActive={heading.id === activeId}
-                  copyLabel={t('outline_copy_link')}
-                  onGo={() => goTo(heading)}
-                  onCopy={() => copyLink(heading)}
-                />
-              ))}
-            </ul>
-          </div>
-        )}
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              key="card"
+              data-slot="note-outline-card"
+              // Right edge of the card on the right edge of the rail. It opens down from the top of the
+              // rail, over the text, to the left.
+              className="absolute top-0 right-0 w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-popover p-1 text-popover-foreground ring-1 ring-foreground/10"
+              initial={{ opacity: 0, x: slide }}
+              // Same feel as the `SplitPane` side panel: spring for the slide, short fade for the opacity.
+              animate={{
+                opacity: 1,
+                x: 0,
+                transition: prefersReduced ? INSTANT : { x: PANEL_SPRING, opacity: { duration: PANEL_FADE_DURATION } },
+              }}
+              // Out: a fade with a small slide. No spring, so it leaves at once.
+              exit={{
+                opacity: 0,
+                x: slide / 2,
+                transition: prefersReduced ? INSTANT : { duration: PANEL_FADE_DURATION },
+              }}
+            >
+              <ul ref={listRef} className="relative max-h-[min(24rem,60dvh)] overflow-y-auto">
+                {headings.map(heading => (
+                  <OutlineItem
+                    key={heading.id}
+                    heading={heading}
+                    isActive={heading.id === activeId}
+                    copyLabel={t('outline_copy_link')}
+                    onGo={() => goTo(heading)}
+                    onCopy={() => copyLink(heading)}
+                  />
+                ))}
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
-    </div>
+    </div>,
+    document.body
   );
 }
 

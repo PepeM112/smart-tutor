@@ -248,11 +248,6 @@ export function buildDeleteLineTransaction(state: EditorState, target: TableTarg
   return tr;
 }
 
-export function buildDeleteTableTransaction(state: EditorState, tablePos: number): Transaction | null {
-  const info = readTable(state, tablePos);
-  return info ? state.tr.delete(info.pos, info.pos + info.node.nodeSize) : null;
-}
-
 export function buildSetLayoutTransaction(
   state: EditorState,
   tablePos: number,

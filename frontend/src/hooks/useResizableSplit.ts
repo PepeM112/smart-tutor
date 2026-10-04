@@ -57,9 +57,13 @@ export function useResizableSplit(storageKey: string, defaultRatio: number, divi
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
+      // Content box of the container: its padding is not part of the split (a `bleed` split has some).
+      const container = containerRef.current;
+      const style = getComputedStyle(container);
+      const left = container.getBoundingClientRect().left + container.clientLeft + parseFloat(style.paddingLeft);
+      const width = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
       // The divider center must stay under the cursor: main width = (W - divider) * ratio.
-      const ratio = (e.clientX - rect.left - dividerWidth / 2) / (rect.width - dividerWidth);
+      const ratio = (e.clientX - left - dividerWidth / 2) / (width - dividerWidth);
       setSplitRatio(Math.max(0.2, Math.min(0.8, ratio)));
     };
     const handleMouseUp = () => {

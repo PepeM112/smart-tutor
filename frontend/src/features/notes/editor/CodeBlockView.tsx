@@ -6,19 +6,21 @@
 // The chip shows the readable name ("Python"). Click → a filterable list of the registered
 // lowlight languages (search also finds aliases: "py", "yml"). "Auto" = no language, so lowlight
 // guesses the highlight. The language is stored as the canonical ```lang fence.
-// Wrap is view-only (local state, per block, not stored): it would only add noise to the Markdown.
+// Wrap is view-only and not stored (it would only add noise to the Markdown). It lives in a ProseMirror plugin
+// (`codeBlockWrap.ts`), so the block handle menu can read and change it too.
 
 import { NodeViewContent, NodeViewWrapper, useEditorState, type NodeViewProps } from '@tiptap/react';
 import { Check, ChevronDown, Copy, WrapText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { HoverHint } from '@/components/ui/hover-hint';
 import { cn } from '@/lib/utils';
 
+import { buildToggleCodeWrapTransaction, isCodeWrapped } from './codeBlockWrap';
 import { codeLanguageLabel, normalizeCodeLanguage, searchCodeLanguages } from './codeLanguages';
+import { copyCode } from './copyCode';
 
 import type { createLowlight } from 'lowlight';
 
@@ -27,7 +29,6 @@ type Lowlight = ReturnType<typeof createLowlight>;
 export function CodeBlockView({ node, editor, extension, getPos, updateAttributes }: NodeViewProps) {
   const t = useTranslations('notes');
   const [open, setOpen] = useState(false);
-  const [wrap, setWrap] = useState(false);
   const [copied, setCopied] = useState(false);
   // Set by an outside click: the user already put the cursor where they clicked, so the
   // close must not move it back into this block.
@@ -46,6 +47,22 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
     },
   });
 
+  // Wrap comes from the plugin state, not from the node: read it from the editor state, like `isActive`.
+  const wrap = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      const pos = getPos();
+      return typeof pos === 'number' && isCodeWrapped(e.state, pos);
+    },
+  });
+
+  const toggleWrap = () => {
+    const pos = getPos();
+    if (typeof pos !== 'number') return;
+    const tr = buildToggleCodeWrapTransaction(editor.state, pos);
+    if (tr) editor.view.dispatch(tr);
+  };
+
   const lowlight = (extension.options as { lowlight: Lowlight }).lowlight;
 
   const selectLanguage = (next: string | null) => {
@@ -60,14 +77,10 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
     return () => window.clearTimeout(timer);
   }, [copied]);
 
-  const copyCode = () => {
-    navigator.clipboard
-      .writeText(node.textContent)
-      .then(() => {
-        setCopied(true);
-        toast.success(t('code_copied'));
-      })
-      .catch(() => toast.error(t('code_copy_failed')));
+  const copyToClipboard = () => {
+    void copyCode(node.textContent, { copied: t('code_copied'), failed: t('code_copy_failed') }).then(ok => {
+      if (ok) setCopied(true);
+    });
   };
 
   return (
@@ -81,14 +94,10 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
             isActive || open ? 'opacity-100' : 'opacity-0 group-hover/code:opacity-100'
           )}
         >
-          <ToolbarButton
-            label={wrap ? t('code_wrap_off') : t('code_wrap_on')}
-            pressed={wrap}
-            onClick={() => setWrap(w => !w)}
-          >
+          <ToolbarButton label={wrap ? t('code_wrap_off') : t('code_wrap_on')} pressed={wrap} onClick={toggleWrap}>
             <WrapText className="size-3.5" />
           </ToolbarButton>
-          <ToolbarButton label={t('code_copy')} onClick={copyCode}>
+          <ToolbarButton label={t('code_copy')} onClick={copyToClipboard}>
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
           </ToolbarButton>
           <FloatingCard open={open} onOpenChange={setOpen}>
@@ -131,7 +140,7 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
         </div>
       )}
       {/* spellCheck off: the browser marks code words as spelling errors (the red lines). */}
-      <pre spellCheck={false} data-wrap={wrap || undefined}>
+      <pre spellCheck={false}>
         <NodeViewContent<'code'> as="code" className={language ? `language-${language}` : undefined} />
       </pre>
     </NodeViewWrapper>

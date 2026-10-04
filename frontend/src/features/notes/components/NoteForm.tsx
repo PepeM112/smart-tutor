@@ -172,6 +172,8 @@ export function NoteForm({ note }: { note: NoteRead }) {
 
       <ResponsiveSplitPane
         storageKey={ASSIST_DIFF_SPLIT_KEY}
+        // The note scrolls at the page edge (the layout padding moves inside the pane).
+        bleed
         side={diffPanel}
         onSideClose={handleDiffClose}
         main={

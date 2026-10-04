@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { pageBleed } from '@/lib/pageBleed';
 import { cn } from '@/lib/utils';
 
 import { SplitPane, type SplitPaneProps } from './SplitPane';
@@ -44,7 +45,16 @@ export function ResponsiveSplitPane({
 
   return (
     <>
-      <div className={cn('min-h-0 flex-1 overflow-y-auto', mobileMainClassName)}>{main}</div>
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto',
+          // No side pane on mobile (it is a drawer), so the right space is always padding.
+          splitPaneProps.bleed && pageBleed.all,
+          mobileMainClassName
+        )}
+      >
+        {main}
+      </div>
       <Drawer open={!!side} onOpenChange={open => !open && onSideClose()}>
         <DrawerContent className={DRAWER_HEIGHT_CLASS} title={drawerTitle}>
           {insetDrawerBody ? <DrawerBody>{side}</DrawerBody> : side}

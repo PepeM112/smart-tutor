@@ -4,7 +4,6 @@
 // Colors are in `note-editor.css` (`.note-callout[data-callout]`), not here.
 
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
-import { Info, Lightbulb, MessageSquareWarning, OctagonAlert, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import {
@@ -14,15 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { CALLOUT_TYPES, toCalloutType, type CalloutType } from './calloutTypes';
-
-const CALLOUT_ICONS: Record<CalloutType, LucideIcon> = {
-  note: Info,
-  tip: Lightbulb,
-  important: MessageSquareWarning,
-  warning: TriangleAlert,
-  caution: OctagonAlert,
-};
+import { CALLOUT_ICONS } from './calloutIcons';
+import { CALLOUT_TYPES, toCalloutType } from './calloutTypes';
 
 export function CalloutView({ node, editor, updateAttributes }: NodeViewProps) {
   const t = useTranslations('notes');
