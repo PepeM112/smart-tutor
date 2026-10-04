@@ -2,6 +2,7 @@
 
 import { Minus, PanelRight, RotateCw, WandSparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ type Props = {
 };
 
 export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
+  const t = useTranslations('assist.panel');
   const { isMobile, isXl } = useBreakpoint();
   const [closing, setClosing] = useState(false);
 
@@ -169,8 +171,8 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
       size="icon"
       icon={PanelRight}
       onClick={toggleMode}
-      aria-label="Dock to side"
-      tooltip="Dock to side"
+      aria-label={t('dock')}
+      tooltip={t('dock')}
     />
   ) : null;
 
@@ -181,16 +183,16 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
         size="icon"
         icon={RotateCw}
         onClick={onClear}
-        aria-label="Clear chat"
-        tooltip="Clear chat"
+        aria-label={t('clear_chat')}
+        tooltip={t('clear_chat')}
       />
       <Button
         variant="ghost"
         size="icon"
         icon={Minus}
         onClick={variant === 'desktop' ? handleMinimize : () => storeSetOpen(false)}
-        aria-label={variant === 'desktop' ? 'Minimize' : 'Close'}
-        tooltip={variant === 'desktop' ? 'Minimize' : 'Close'}
+        aria-label={variant === 'desktop' ? t('minimize') : t('close')}
+        tooltip={variant === 'desktop' ? t('minimize') : t('close')}
       />
     </div>
   );
@@ -202,7 +204,7 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
           <button
             type="button"
             onClick={() => storeSetOpen(true)}
-            aria-label="Open AI Assistant"
+            aria-label={t('open')}
             className="fixed right-5 bottom-5 z-40 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform duration-150 hover:scale-105 active:scale-95"
           >
             <WandSparkles className="size-6" />
@@ -212,7 +214,7 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
         {/* Bottom drawer: drag down or tap the backdrop to close. vaul moves it above the
         on-screen keyboard while the composer has focus (`repositionInputs`, on by default). */}
         <Drawer open={isOpen} onOpenChange={storeSetOpen}>
-          <DrawerContent title="AI Assistant" className="h-[85dvh]">
+          <DrawerContent title={t('title')} className="h-[85dvh]">
             <div className="-mt-2 flex shrink-0 items-center justify-end border-b border-border px-2 pb-1.5">
               {headerRight('mobile')}
             </div>
@@ -273,7 +275,7 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
             <button
               type="button"
               onClick={handleOpen}
-              aria-label="Open AI Assistant"
+              aria-label={t('open')}
               className="flex size-14 items-center justify-center bg-primary text-primary-foreground transition-transform duration-150 hover:scale-105 active:scale-95"
             >
               <WandSparkles className="size-6" />

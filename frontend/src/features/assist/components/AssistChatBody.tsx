@@ -1,6 +1,7 @@
 'use client';
 
 import { WandSparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
 
 import { AssistTurnRow } from './AssistTurnRow';
@@ -16,6 +17,7 @@ type AssistChatBodyProps = {
 };
 
 export function AssistChatBody({ turns, onConfirm, isStreaming, footer }: AssistChatBodyProps) {
+  const t = useTranslations('assist.empty');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,10 +32,8 @@ export function AssistChatBody({ turns, onConfirm, isStreaming, footer }: Assist
         {turns.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <WandSparkles className="size-8 text-muted-foreground/30" />
-            <p className="text-[13px] text-muted-foreground">Ask me anything about your studies.</p>
-            <p className="text-xs text-muted-foreground/60">
-              I can search your notes, tests, and questions, or create new content for you.
-            </p>
+            <p className="text-[13px] text-muted-foreground">{t('title')}</p>
+            <p className="text-xs text-muted-foreground/60">{t('hint')}</p>
           </div>
         )}
         {turns.map(turn => (

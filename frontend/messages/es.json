@@ -821,6 +821,38 @@
         "destination": "Destino",
         "items": "Elementos"
       }
+    },
+    "panel": {
+      "title": "Asistente de IA",
+      "open": "Abrir el asistente de IA",
+      "dock": "Acoplar al lateral",
+      "undock": "Desacoplar",
+      "undock_floating": "Desacoplar como ventana flotante",
+      "clear_chat": "Borrar chat",
+      "minimize": "Minimizar",
+      "close": "Cerrar"
+    },
+    "empty": {
+      "title": "Pregúntame lo que quieras sobre tus estudios.",
+      "hint": "Puedo buscar en tus notas, tests y preguntas, o crear contenido nuevo para ti."
+    },
+    "input": {
+      "placeholder": "Pregunta lo que quieras... (/ para comandos)",
+      "send": "Enviar",
+      "stop": "Detener",
+      "filter_hint": "Escribe para filtrar los comandos",
+      "use_defaults": "Usar valores por defecto",
+      "commands": {
+        "clear": "Borrar la conversación",
+        "refine_notes": "Refinar esta nota con IA",
+        "generate_test": "Generar un test a partir de esta nota"
+      },
+      "command_placeholders": {
+        "edit_note": "Describe cómo debe cambiar el texto seleccionado...",
+        "edit_test": "Describe cómo deben cambiar las preguntas seleccionadas...",
+        "refine_notes": "Describe cómo debe cambiar la nota...",
+        "generate_test": "Describe el test que quieres (número, tipos, dificultad)... o déjalo en blanco para usar los valores por defecto"
+      }
     }
   }
 }

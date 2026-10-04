@@ -1,6 +1,7 @@
 'use client';
 
 import { PanelRightOpen, RotateCw, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ type Props = {
 };
 
 export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfirm, onClear }: Props) {
+  const t = useTranslations('assist.panel');
   const toggleMode = useAssistPanelStore(s => s.toggleMode);
   const setOpen = useAssistPanelStore(s => s.setOpen);
   const dockedWidth = useAssistPanelStore(s => s.dockedWidth);
@@ -74,8 +76,8 @@ export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfi
           size="icon-lg"
           icon={PanelRightOpen}
           onClick={toggleMode}
-          aria-label="Undock"
-          tooltip="Undock to floating"
+          aria-label={t('undock')}
+          tooltip={t('undock_floating')}
         />
         <div className="flex items-center">
           <Button
@@ -83,10 +85,17 @@ export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfi
             size="icon-lg"
             icon={RotateCw}
             onClick={onClear}
-            aria-label="Clear chat"
-            tooltip="Clear chat"
+            aria-label={t('clear_chat')}
+            tooltip={t('clear_chat')}
           />
-          <Button variant="ghost" size="icon-lg" icon={X} onClick={handleClose} aria-label="Close" tooltip="Close" />
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            icon={X}
+            onClick={handleClose}
+            aria-label={t('close')}
+            tooltip={t('close')}
+          />
         </div>
       </div>
 

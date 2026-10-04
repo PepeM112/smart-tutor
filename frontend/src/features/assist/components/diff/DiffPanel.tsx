@@ -21,7 +21,13 @@ export function DiffPanel({ title, children, onAccept, onReject, onClose }: Diff
     <div className="flex h-full flex-col p-4">
       <div className="flex items-center justify-between mb-3 shrink-0">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        <Button variant="ghost" size="icon-sm" onClick={onClose ?? onReject} className="text-muted-foreground">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose ?? onReject}
+          className="text-muted-foreground"
+          aria-label={t('common.close')}
+        >
           <X className="size-4" />
         </Button>
       </div>

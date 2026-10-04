@@ -821,6 +821,38 @@
         "destination": "Destination",
         "items": "Items"
       }
+    },
+    "panel": {
+      "title": "AI Assistant",
+      "open": "Open AI Assistant",
+      "dock": "Dock to side",
+      "undock": "Undock",
+      "undock_floating": "Undock to floating",
+      "clear_chat": "Clear chat",
+      "minimize": "Minimize",
+      "close": "Close"
+    },
+    "empty": {
+      "title": "Ask me anything about your studies.",
+      "hint": "I can search your notes, tests, and questions, or create new content for you."
+    },
+    "input": {
+      "placeholder": "Ask anything... (/ for commands)",
+      "send": "Send",
+      "stop": "Stop",
+      "filter_hint": "Type to filter commands",
+      "use_defaults": "Use defaults",
+      "commands": {
+        "clear": "Clear the conversation",
+        "refine_notes": "Refine this note with AI",
+        "generate_test": "Generate a test from this note"
+      },
+      "command_placeholders": {
+        "edit_note": "Describe how the selected text should change...",
+        "edit_test": "Describe how the selected question(s) should change...",
+        "refine_notes": "Describe how the note should change...",
+        "generate_test": "Describe the test you want (count, types, difficulty)... or leave blank for defaults"
+      }
     }
   }
 }
