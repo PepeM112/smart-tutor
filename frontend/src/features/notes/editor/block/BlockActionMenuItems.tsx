@@ -18,6 +18,20 @@ import {
 
 import type { BlockAction, BlockSection } from './blockActions';
 
+/** One group per section: a small label, then its actions. */
+export function BlockActionMenuItems({ sections }: { sections: BlockSection[] }) {
+  const t = useTranslations('notes');
+
+  return sections.map(section => (
+    <Fragment key={section.id}>
+      <DropdownMenuLabel>{t(section.labelKey)}</DropdownMenuLabel>
+      {section.actions.map(action => (
+        <ActionItem key={action.id} action={action} />
+      ))}
+    </Fragment>
+  ));
+}
+
 function ActionItem({ action }: { action: BlockAction }) {
   const t = useTranslations('notes');
 
@@ -54,18 +68,4 @@ function ActionItem({ action }: { action: BlockAction }) {
         </DropdownMenuSub>
       );
   }
-}
-
-/** One group per section: a small label, then its actions. */
-export function BlockActionMenuItems({ sections }: { sections: BlockSection[] }) {
-  const t = useTranslations('notes');
-
-  return sections.map(section => (
-    <Fragment key={section.id}>
-      <DropdownMenuLabel>{t(section.labelKey)}</DropdownMenuLabel>
-      {section.actions.map(action => (
-        <ActionItem key={action.id} action={action} />
-      ))}
-    </Fragment>
-  ));
 }

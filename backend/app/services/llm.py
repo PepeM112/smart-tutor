@@ -386,7 +386,7 @@ def get_user_llm_client(user: User) -> LLMClient:
     raise ValueError(f"Unknown AI provider: {provider}")
 
 
-def _classify_provider_error(exc: Exception) -> HTTPException | None:
+def classify_provider_error(exc: Exception) -> HTTPException | None:
     """Map known provider SDK errors to appropriate HTTP responses."""
     from anthropic import APIStatusError as AnthropicAPIError
     from openai import APIStatusError as OpenAIAPIError
@@ -446,7 +446,7 @@ def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens
             detail="AI service returned an invalid response. Please try again.",
         ) from exc
     except Exception as exc:
-        classified = _classify_provider_error(exc)
+        classified = classify_provider_error(exc)
         if classified:
             raise classified from exc
         logger.exception("Unexpected error during LLM call")

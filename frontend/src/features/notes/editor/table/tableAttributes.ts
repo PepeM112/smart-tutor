@@ -8,7 +8,7 @@
 
 import { isNoteColor, type NoteColor } from '../noteColor';
 
-export const TABLE_LAYOUTS = ['compact', 'full'] as const;
+const TABLE_LAYOUTS = ['compact', 'full'] as const;
 export type TableLayout = (typeof TABLE_LAYOUTS)[number];
 export const DEFAULT_TABLE_LAYOUT: TableLayout = 'compact';
 

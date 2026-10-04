@@ -176,6 +176,7 @@ class QuestionListRead(BaseSchema):
     content: QuestionContent
     hint: str | None = None
     explanation: str | None = None
+    # The owning test: direct for a standalone question, through the group for a grouped one. None = bank.
     test_id: str | None = None
     group_id: str | None = None
     order: int = 0
@@ -201,6 +202,8 @@ class BulkDeleteQuestionsRequest(BaseSchema):
 
 class BulkDeleteQuestionsResponse(BaseSchema):
     deleted: int
+    # Ids that were not owned, not found or already deleted
+    skipped: int
 
 
 class BulkAssignQuestionsRequest(BaseSchema):
@@ -210,6 +213,8 @@ class BulkAssignQuestionsRequest(BaseSchema):
 
 class BulkAssignQuestionsResponse(BaseSchema):
     assigned: int
+    # Ids that were not owned, not found or deleted
+    skipped: int
 
 
 class BulkRestoreQuestionsRequest(BaseSchema):
@@ -218,6 +223,8 @@ class BulkRestoreQuestionsRequest(BaseSchema):
 
 class BulkRestoreQuestionsResponse(BaseSchema):
     restored: int
+    # Ids that were not owned, not found or not deleted
+    skipped: int
 
 
 PaginatedQuestionListRead = PaginatedResponse[QuestionListRead]

@@ -27,7 +27,8 @@ import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu
 import { HoverHint } from '@/components/ui/hover-hint';
 import { cn } from '@/lib/utils';
 
-import { runTableCommand } from './runTableCommand';
+import { keepEditorFocus, runEditorCommand } from '../editorCommand';
+
 import {
   buildInsertTransaction,
   buildSelectTransaction,
@@ -86,8 +87,6 @@ const BAR_CELL_SIZE =
 const BAR_BASE =
   'pointer-events-auto absolute flex items-center justify-center rounded-md bg-muted/70 text-muted-foreground opacity-0 transition-opacity duration-100 hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:opacity-100';
 
-const keepEditorFocus = (event: React.MouseEvent) => event.preventDefault();
-
 // ─── component ───────────────────────────────────────────────────────────────
 
 type TableControlsProps = {
@@ -106,7 +105,7 @@ export function TableControls({ editor, containerRef }: TableControlsProps) {
   // The size comes from the table map, not from the DOM bands: a merged cell in row 0 gives fewer bands than columns.
   const addAtEnd = useCallback(
     (tablePos: number, axis: TableAxis) => {
-      runTableCommand(editor, s => {
+      runEditorCommand(editor, s => {
         const size = tableSize(s, tablePos);
         return size && buildInsertTransaction(s, tablePos, axis, axis === 'column' ? size.columns : size.rows);
       });
@@ -266,7 +265,7 @@ function LineGrip({
   const select = useCallback(() => {
     // The target is built here, from primitives, so the deps are exact (an object made in render is new each time).
     const target: TableTarget = { kind: axis, tablePos, index };
-    runTableCommand(editor, state => buildSelectTransaction(state, target));
+    runEditorCommand(editor, state => buildSelectTransaction(state, target));
     lock(owner);
   }, [editor, lock, owner, tablePos, axis, index]);
 
@@ -297,6 +296,10 @@ function LineGrip({
       if (!wasOpen) changeOpen(true);
     },
   });
+
+  // The grip unmounts when its line goes away under an open menu (undo, a delete from the keyboard). It gets no
+  // close event then, so release its lock here, as `CellHandle` does.
+  useEffect(() => () => unlock(owner), [owner, unlock]);
 
   const band = (isColumn ? table.columns : table.rows)[index];
   const long = GRIP_HIT_LONG;
@@ -371,7 +374,7 @@ function CellHandle({ editor, table, row, col, lock, unlock, label }: CellHandle
         setOpen(next);
         if (next) {
           // Select the cell, so it is highlighted like the column and the row of their handles.
-          runTableCommand(editor, state =>
+          runEditorCommand(editor, state =>
             buildSelectTransaction(state, { kind: 'cell', tablePos: table.tablePos, row, col })
           );
           lock(owner);

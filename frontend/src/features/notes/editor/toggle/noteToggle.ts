@@ -46,7 +46,7 @@ const findDetailsEnd = (src: string): number | null => {
   return final.end;
 };
 
-export const splitDetails = (src: string): DetailsSplit | null => {
+const splitDetails = (src: string): DetailsSplit | null => {
   const open = OPEN_TAG_RE.exec(src);
   if (!open) return null;
   const end = findDetailsEnd(src);

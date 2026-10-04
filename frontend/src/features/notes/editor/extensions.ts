@@ -18,7 +18,7 @@ import { NoteLink } from './link/noteLink';
 import { NoteCodeBlock } from './noteCodeBlock';
 import { NoteColorMark } from './noteColor';
 import { HeadingAnchors } from './outline/headingAnchors';
-import { DEFAULT_SLASH_HINT, SlashMenuExtension } from './SlashMenu';
+import { SlashMenuExtension } from './SlashMenu';
 import { createNoteTableExtensions } from './table/noteTable';
 import { NoteToggle, NoteToggleSummary } from './toggle/noteToggle';
 import { ToggleView } from './toggle/ToggleView';
@@ -31,10 +31,6 @@ const lowlight = createLowlight(common);
 export type NoteExtensionOptions = {
   /** Placeholder shown when the editor is empty. */
   placeholder?: string;
-  /** Translated labels for slash menu items, keyed by labelKey. */
-  slashLabels?: Record<string, string>;
-  /** Translated key hint in the slash menu footer. */
-  slashHint?: string;
   /**
    * Give each heading a slug `id` (render only, not saved). Off by default: two editors on one page
    * (the diff panes) would repeat the same ids.
@@ -99,10 +95,7 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
       placeholder: options.placeholder ?? "Type '/' for commands",
     }),
 
-    SlashMenuExtension.configure({
-      translations: options.slashLabels ?? {},
-      hint: options.slashHint ?? DEFAULT_SLASH_HINT,
-    }),
+    SlashMenuExtension,
 
     // Highlight on the text of an AI chunk edit (decoration only, not saved).
     ChunkHighlight,

@@ -52,7 +52,7 @@ export const buildToggleCodeWrapTransaction = (state: EditorState, pos: number):
     ? state.tr.setMeta(codeWrapKey, { toggle: pos } satisfies ToggleMeta)
     : null;
 
-export const createCodeWrapPlugin = (): Plugin<readonly number[]> =>
+const createCodeWrapPlugin = (): Plugin<readonly number[]> =>
   new Plugin<readonly number[]>({
     key: codeWrapKey,
     state: {

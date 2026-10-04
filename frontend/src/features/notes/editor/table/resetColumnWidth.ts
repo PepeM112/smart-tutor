@@ -57,8 +57,8 @@ export function buildResetColumnWidthTransaction(state: EditorState, cellPos: nu
 export type EdgePress = { time: number; x: number; y: number };
 
 /** Maximum time (ms) and distance (px) between the two presses of a double-click. */
-export const DOUBLE_PRESS_MS = 500;
-export const DOUBLE_PRESS_DISTANCE = 4;
+const DOUBLE_PRESS_MS = 500;
+const DOUBLE_PRESS_DISTANCE = 4;
 
 export const isDoublePress = (previous: EdgePress | null, next: EdgePress): boolean =>
   previous !== null &&

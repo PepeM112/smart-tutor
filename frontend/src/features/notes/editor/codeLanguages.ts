@@ -146,7 +146,7 @@ export function codeLanguageLabel(language: string): string {
 }
 
 /** True when `query` matches the canonical name, the readable name or any alias of `language`. */
-export function codeLanguageMatches(language: string, query: string): boolean {
+function codeLanguageMatches(language: string, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   if (language.includes(q) || codeLanguageLabel(language).toLowerCase().includes(q)) return true;

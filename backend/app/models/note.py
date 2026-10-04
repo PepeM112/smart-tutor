@@ -14,7 +14,7 @@ class Note(Base, CreatedAtMixin, UpdatedAtMixin):
     __table_args__ = (Index("ix_note_user_folder", "user_id", "folder_id"),)
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
-    user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"))
+    user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id", ondelete="CASCADE"))
     # Own index: the FK cascade on a folder delete looks up notes by folder_id only, and it
     # can not use `ix_note_user_folder`, because user_id is its first column.
     folder_id: Mapped[str | None] = mapped_column(

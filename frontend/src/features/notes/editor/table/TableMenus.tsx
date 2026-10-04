@@ -29,9 +29,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { ColorSwatch } from '../ColorSwatch';
+import { runEditorCommand } from '../editorCommand';
 import { NOTE_PALETTE } from '../noteColor';
 
-import { runTableCommand } from './runTableCommand';
 import {
   buildClearCellsTransaction,
   buildDeleteLineTransaction,
@@ -56,7 +56,7 @@ export function LineMenu({ editor, axis, tablePos, index }: LineMenuProps) {
   const target: TableTarget = { kind: axis, tablePos, index };
   const isColumn = axis === 'column';
 
-  const insert = (gap: number) => runTableCommand(editor, state => buildInsertTransaction(state, tablePos, axis, gap));
+  const insert = (gap: number) => runEditorCommand(editor, state => buildInsertTransaction(state, tablePos, axis, gap));
   const canInsert = (gap: number) => canInsertAt(editor.state, tablePos, axis, gap);
 
   return (
@@ -72,14 +72,14 @@ export function LineMenu({ editor, axis, tablePos, index }: LineMenuProps) {
         {t(isColumn ? 'table_insert_right' : 'table_insert_below')}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onSelect={() => runTableCommand(editor, state => buildClearCellsTransaction(state, target))}>
+      <DropdownMenuItem onSelect={() => runEditorCommand(editor, state => buildClearCellsTransaction(state, target))}>
         <Eraser />
         {t('table_clear')}
       </DropdownMenuItem>
       <DropdownMenuItem
         variant="destructive"
         disabled={!canDeleteLine(editor.state, target)}
-        onSelect={() => runTableCommand(editor, state => buildDeleteLineTransaction(state, target))}
+        onSelect={() => runEditorCommand(editor, state => buildDeleteLineTransaction(state, target))}
       >
         <Trash2 />
         {t(isColumn ? 'table_delete_column' : 'table_delete_row')}
@@ -99,7 +99,7 @@ export function CellMenu({ editor, tablePos, row, col }: CellMenuProps) {
   return (
     <MenuShell editor={editor} side="bottom" align="start">
       <ColorSubmenu editor={editor} target={target} />
-      <DropdownMenuItem onSelect={() => runTableCommand(editor, state => buildClearCellsTransaction(state, target))}>
+      <DropdownMenuItem onSelect={() => runEditorCommand(editor, state => buildClearCellsTransaction(state, target))}>
         <Eraser />
         {t('table_clear')}
       </DropdownMenuItem>
@@ -160,7 +160,7 @@ function ColorSubmenu({ editor, target }: { editor: Editor; target: TableTarget 
       {NOTE_PALETTE.map(color => (
         <DropdownMenuItem
           key={color ?? 'default'}
-          onSelect={() => runTableCommand(editor, state => buildSetCellColorTransaction(state, target, key, color))}
+          onSelect={() => runEditorCommand(editor, state => buildSetCellColorTransaction(state, target, key, color))}
         >
           <ColorSwatch color={key === 'color' ? color : null} bg={key === 'bg' ? color : null} />
           {t(`color_${color ?? 'default'}`)}

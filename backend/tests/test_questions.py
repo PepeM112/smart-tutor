@@ -207,8 +207,8 @@ class TestBulkDeleteQuestionsRequestValidation:
 
 class TestBulkDeleteQuestionsResponseValidation:
     def test_deleted_count(self) -> None:
-        r = BulkDeleteQuestionsResponse(deleted=3)
-        assert r.deleted == 3
+        r = BulkDeleteQuestionsResponse(deleted=3, skipped=1)
+        assert (r.deleted, r.skipped) == (3, 1)
 
 
 # ---------------------------------------------------------------------------
@@ -239,8 +239,8 @@ class TestBulkAssignQuestionsRequestValidation:
 
 class TestBulkAssignQuestionsResponseValidation:
     def test_assigned_count(self) -> None:
-        r = BulkAssignQuestionsResponse(assigned=2)
-        assert r.assigned == 2
+        r = BulkAssignQuestionsResponse(assigned=2, skipped=0)
+        assert (r.assigned, r.skipped) == (2, 0)
 
 
 # ---------------------------------------------------------------------------

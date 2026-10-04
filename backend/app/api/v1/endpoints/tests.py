@@ -5,10 +5,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import CurrentUser
 from app.models.test import Test
 from app.models.test_result import TestResult
-from app.models.user import User
 from app.schemas.correction import TestSubmission
 from app.schemas.test import (
     PaginatedTestRead,
@@ -33,7 +32,6 @@ from app.services.question_helpers import build_stripped_test
 router = APIRouter()
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
-CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("", response_model=PaginatedTestRead)

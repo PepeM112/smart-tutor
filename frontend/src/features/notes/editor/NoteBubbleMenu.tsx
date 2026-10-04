@@ -26,6 +26,7 @@ import { HoverHint } from '@/components/ui/hover-hint';
 import { cn } from '@/lib/utils';
 
 import { ColorSwatch } from './ColorSwatch';
+import { normalizeLinkHref } from './link/linkHref';
 import { selectionToMarkdown } from './markdown';
 import { NOTE_PALETTE, type NoteColor } from './noteColor';
 
@@ -92,7 +93,7 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
   }, [editor]);
 
   const handleLinkConfirm = useCallback(() => {
-    const href = linkHref.trim();
+    const href = normalizeLinkHref(linkHref);
     if (href) {
       editor.chain().focus().setLink({ href }).run();
     }

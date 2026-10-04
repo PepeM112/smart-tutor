@@ -7,18 +7,12 @@ import { toast } from 'sonner';
 
 import { type UserRead, type UserUpdate } from '@/client';
 import { Button } from '@/components/ui/button';
-import { AI_PERMISSIONS_QUERY_KEY, useAiToolPermissions } from '@/features/assist/hooks/useAiToolPermissions';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 
-import {
-  applyPermissionDraft,
-  buildPermissionsPayload,
-  buildSettingsPayload,
-  DEFAULT_EASE_FACTOR,
-  mergePermissionDraft,
-  type PermissionDraft,
-} from '../utils';
+import { usePermissionDraft } from '../hooks/usePermissionDraft';
+import { useSettingsSave } from '../hooks/useSettingsSave';
+import { buildSettingsPayload, DEFAULT_EASE_FACTOR } from '../utils';
 
 import { AiPermissionsSection } from './AiPermissionsSection';
 import { AiSection } from './AiSection';
@@ -36,81 +30,27 @@ export function SettingsPage() {
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState<SettingsForm>(() => formFromUser(user));
-  const [settingsDirty, setSettingsDirty] = useState(false);
+  // Derived from the form, so a value changed and then changed back does not count as a change.
+  const settingsPayload = useMemo(() => buildSettingsPayload(form, user), [form, user]);
 
-  // The permission draft holds only the tools the user changed. Tools the user did not touch
-  // always follow the server data, so a refetch (e.g. "Always allow" in the chat) never loses a change.
-  const {
-    data: serverPermissions,
-    isLoading: isLoadingPermissions,
-    isError: isPermissionsError,
-  } = useAiToolPermissions();
-  const [permissionDraft, setPermissionDraft] = useState<PermissionDraft>({});
-  const permissionsPayload = useMemo(
-    () => buildPermissionsPayload(serverPermissions ?? [], permissionDraft),
-    [serverPermissions, permissionDraft]
-  );
-  const permissions = useMemo(
-    () => (serverPermissions ? applyPermissionDraft(serverPermissions, permissionDraft) : undefined),
-    [serverPermissions, permissionDraft]
-  );
-  const dirty = settingsDirty || Object.keys(permissionsPayload).length > 0;
+  const permissionDraft = usePermissionDraft();
+  const dirty = Object.keys(settingsPayload).length > 0 || Object.keys(permissionDraft.payload).length > 0;
 
   const hasAnthropicKey = user?.hasAnthropicKey ?? false;
   const hasOpenaiKey = user?.hasOpenaiKey ?? false;
 
   const updateField = useCallback(<K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
-    setSettingsDirty(true);
   }, []);
 
-  const updatePermissions = useCallback(
-    (changes: PermissionDraft) => {
-      setPermissionDraft(prev => mergePermissionDraft(serverPermissions ?? [], prev, changes));
+  const { saveSettings, isSaving } = useSettingsSave({
+    settingsPayload,
+    permissionsPayload: permissionDraft.payload,
+    onUserSaved: updatedUser => {
+      setUser(updatedUser);
+      setForm(formFromUser(updatedUser));
     },
-    [serverPermissions]
-  );
-
-  const { mutate: saveSettings, isPending: isSaving } = useMutation({
-    // Both requests run together. Each result is kept, so one failure does not hide the other success.
-    mutationFn: async () => {
-      const settingsPayload = buildSettingsPayload(form, user);
-      const [settingsResult, permissionsResult] = await Promise.allSettled([
-        Object.keys(settingsPayload).length === 0
-          ? Promise.resolve(null)
-          : sdk.usersUpdateMe({ body: settingsPayload }).then(res => res.data!),
-        Object.keys(permissionsPayload).length === 0
-          ? Promise.resolve(null)
-          : sdk.usersUpdateAiToolPermissions({ body: { permissions: permissionsPayload } }).then(res => res.data ?? []),
-      ]);
-      return { settingsResult, permissionsResult };
-    },
-    onSuccess: ({ settingsResult, permissionsResult }) => {
-      if (settingsResult.status === 'fulfilled') {
-        const updatedUser: UserRead | null = settingsResult.value;
-        if (updatedUser) {
-          setUser(updatedUser);
-          setForm(formFromUser(updatedUser));
-          void queryClient.invalidateQueries({ queryKey: ['me'] });
-        }
-        setSettingsDirty(false);
-      }
-
-      if (permissionsResult.status === 'fulfilled') {
-        // Show the saved values at once, so the switches do not jump back before the refetch ends.
-        if (permissionsResult.value && permissionsResult.value.length > 0)
-          queryClient.setQueryData(AI_PERMISSIONS_QUERY_KEY, permissionsResult.value);
-        setPermissionDraft({});
-        void queryClient.invalidateQueries({ queryKey: AI_PERMISSIONS_QUERY_KEY });
-      }
-
-      const isFailed = settingsResult.status === 'rejected' || permissionsResult.status === 'rejected';
-      if (isFailed) toast.error(t('settings.failed_to_save'));
-      else toast.success(t('settings.settings_saved'));
-    },
-    onError: () => {
-      toast.error(t('settings.failed_to_save'));
-    },
+    onPermissionsSaved: permissionDraft.reset,
   });
 
   const { mutate: removeKey, isPending: isRemovingKey } = useMutation({
@@ -133,7 +73,9 @@ export function SettingsPage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-2xl divide-y divide-border">
+    // While the save runs, the form is read-only: a change made then is not in the request, and the
+    // response would overwrite it. A disabled `fieldset` disables every control inside it.
+    <fieldset disabled={isSaving} className="mx-auto max-w-2xl min-w-0 divide-y divide-border">
       <div className="pb-6">
         <ProfileSection user={user} form={form} updateField={updateField} />
       </div>
@@ -149,11 +91,11 @@ export function SettingsPage() {
       </div>
       <div className="py-6">
         <AiPermissionsSection
-          permissions={permissions}
-          isLoading={isLoadingPermissions}
-          isError={isPermissionsError}
+          permissions={permissionDraft.permissions}
+          isLoading={permissionDraft.isLoading}
+          isError={permissionDraft.isError}
           disabled={isSaving}
-          onChange={updatePermissions}
+          onChange={permissionDraft.change}
         />
       </div>
       <div className="py-6">
@@ -171,7 +113,7 @@ export function SettingsPage() {
           {isSaving ? t('common.saving') : t('common.save')}
         </Button>
       </div>
-    </div>
+    </fieldset>
   );
 }
 

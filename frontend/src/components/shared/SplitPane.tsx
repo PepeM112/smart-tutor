@@ -3,7 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { type ReactNode } from 'react';
 
-import { useResizableSplit } from '@/hooks/useResizableSplit';
+import { MAX_SPLIT_RATIO, MIN_SPLIT_RATIO, useResizableSplit } from '@/hooks/useResizableSplit';
 import { pageBleed } from '@/lib/pageBleed';
 import { PANEL_FADE_DURATION, PANEL_SPRING } from '@/lib/panelMotion';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,8 @@ export type SplitPaneProps = {
   /** Right pane. `null` hides it and the divider, and the main pane uses the full width. */
   side: ReactNode | null;
   className?: string;
+  /** Accessible name of the divider (screen readers only). */
+  dividerLabel?: string;
   /** Classes for the main pane scroll box (padding, scrollbar style). */
   mainClassName?: string;
   /** Frame of the side content. Default: a card. The side pane clips its content; the content scrolls by itself. */
@@ -46,6 +48,7 @@ const CONTENT_FADE_DURATION = PANEL_FADE_DURATION;
 
 /**
  * Two panes side by side with a draggable divider (double-click resets the ratio).
+ * The divider takes pointer (mouse, touch, pen) and keyboard input: arrows move it, Home / End go to the limits.
  * Use it for every "list + detail panel on the right" page, so all of them get the same motion.
  *
  * Tiling grow: when `side` changes from null to a node, the side pane springs from
@@ -67,15 +70,13 @@ export function SplitPane({
   main,
   side,
   className,
+  dividerLabel,
   mainClassName,
   sideClassName,
   bleed = false,
 }: SplitPaneProps) {
-  const { containerRef, splitRatio, handleDividerMouseDown, resetRatio, isDragging } = useResizableSplit(
-    storageKey,
-    defaultRatio,
-    DIVIDER_WIDTH
-  );
+  const { containerRef, splitRatio, handleDividerPointerDown, handleDividerKeyDown, resetRatio, isDragging } =
+    useResizableSplit(storageKey, defaultRatio, DIVIDER_WIDTH);
   const prefersReduced = useReducedMotion();
   const instant = prefersReduced || isDragging;
 
@@ -120,17 +121,27 @@ export function SplitPane({
         {side && (
           <motion.div
             key="divider"
+            data-slot="split-pane-divider"
             role="separator"
             aria-orientation="vertical"
-            className="relative flex shrink-0 cursor-col-resize items-center justify-center overflow-hidden"
+            aria-label={dividerLabel}
+            // Value = share of the main pane, in percent.
+            aria-valuenow={Math.round(splitRatio * 100)}
+            aria-valuemin={MIN_SPLIT_RATIO * 100}
+            aria-valuemax={MAX_SPLIT_RATIO * 100}
+            tabIndex={0}
+            // touch-none: a touch drag moves the divider, it does not scroll the page.
+            className="group relative flex shrink-0 cursor-col-resize touch-none items-center justify-center overflow-hidden outline-none"
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: DIVIDER_WIDTH, opacity: 1, transition: openTransition }}
             exit={{ width: 0, opacity: 0, transition: closeTransition }}
-            onMouseDown={handleDividerMouseDown}
+            onPointerDown={handleDividerPointerDown}
+            onKeyDown={handleDividerKeyDown}
             onDoubleClick={resetRatio}
           >
             <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
-            <div className="relative z-10 h-7 w-3 rounded-full border border-border bg-background" />
+            {/* Focus ring is on the grip: the divider box clips (overflow-hidden). */}
+            <div className="relative z-10 h-7 w-3 rounded-full border border-border bg-background group-focus-visible:border-ring group-focus-visible:ring-2 group-focus-visible:ring-ring" />
           </motion.div>
         )}
 

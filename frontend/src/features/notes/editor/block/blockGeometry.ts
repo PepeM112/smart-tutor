@@ -8,11 +8,11 @@ import type { Band } from '../table/tableGeometry';
 import type { EditorView } from '@tiptap/pm/view';
 
 /**
- * How far left of the block the pointer still counts as "on the block". The handle (+ and grip, 52px) sits
- * left of the block, and a table block shifts it left by the width of the table handle (44px). The pointer is
- * tracked on the window, so the handle can be outside the editor container.
+ * How far left of the editor container the pointer still counts as "on the block". The handle (+ and grip, 48px)
+ * sits 8px left of the block, so it reaches about 56px out. 72px leaves some slack. The pointer is tracked on
+ * the window, so the handle can be outside the editor container.
  */
-export const BLOCK_HANDLE_REACH = 120;
+export const BLOCK_HANDLE_REACH = 72;
 
 /** Index of the block under the pointer. The gap between two blocks goes half to each, so there is no dead zone. */
 export function blockIndexAt(bands: Band[], y: number): number | null {

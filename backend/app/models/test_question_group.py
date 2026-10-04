@@ -16,7 +16,7 @@ class TestQuestionGroup(Base):
     __tablename__ = "test_question_group"
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
-    test_id: Mapped[str] = mapped_column(String(26), ForeignKey("test.id"))
+    test_id: Mapped[str] = mapped_column(String(26), ForeignKey("test.id"), index=True)
     type: Mapped[int] = mapped_column(Integer, default=int(QuestionGroupType.GENERIC))
     order: Mapped[int] = mapped_column(Integer)
     title: Mapped[str | None] = mapped_column(String, nullable=True, default=None)

@@ -53,6 +53,7 @@ import {
 import { HoverHint } from '@/components/ui/hover-hint';
 import { cn } from '@/lib/utils';
 
+import { keepEditorFocus, runEditorCommand } from '../editorCommand';
 import { useGripDrag } from '../table/useGripDrag';
 
 import { BlockActionMenuItems } from './BlockActionMenuItems';
@@ -82,11 +83,9 @@ const VIEWPORT_MARGIN = 4;
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 
-/** Ghost look (the `ghost` variant of `Button`), the same as the table handle. */
+/** Ghost look (the `ghost` variant of `Button`). */
 const HANDLE_BUTTON =
   'flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors duration-75 hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-primary data-[active=true]:bg-muted data-[active=true]:text-foreground select-none touch-none';
-
-const keepEditorFocus = (event: React.MouseEvent) => event.preventDefault();
 
 // ─── turn into ───────────────────────────────────────────────────────────────
 
@@ -104,13 +103,6 @@ const TURN_INTO_ITEMS: { kind: TurnIntoKind; labelKey: string; icon: LucideIcon 
   { kind: 'callout', labelKey: 'slash_callout', icon: Info },
   { kind: 'toggle', labelKey: 'slash_toggle', icon: ListCollapse },
 ];
-
-/** Dispatch the transaction of a command. A command that has nothing to do returns `null`. */
-function runBlockCommand(editor: Editor, build: (state: EditorState) => Transaction | null): void {
-  if (editor.isDestroyed) return;
-  const tr = build(editor.state);
-  if (tr) editor.view.dispatch(tr);
-}
 
 // ─── component ───────────────────────────────────────────────────────────────
 
@@ -191,7 +183,7 @@ function HandleControls({ editor, containerRef, overlay, state, onDropLineChange
           aria-label={t('block_add')}
           onMouseDown={keepEditorFocus}
           onClick={() => {
-            runBlockCommand(editor, s => buildInsertSlashBelowTransaction(s, state.pos));
+            runEditorCommand(editor, s => buildInsertSlashBelowTransaction(s, state.pos));
             editor.view.focus();
           }}
           className={HANDLE_BUTTON}
@@ -255,7 +247,7 @@ function BlockGrip({
       actionRan.current = false;
       savedSelection.current = editor.state.selection.toJSON();
       // The whole block is selected while its menu is open, so it is clear which block the menu acts on.
-      runBlockCommand(editor, s => buildSelectBlockTransaction(s, state.pos));
+      runEditorCommand(editor, s => buildSelectBlockTransaction(s, state.pos));
       lock(owner);
       return;
     }
@@ -304,7 +296,7 @@ function BlockGrip({
       );
     },
     onDrop: gap => {
-      runBlockCommand(editor, s => buildMoveBlockTransaction(s, state.pos, gap));
+      runEditorCommand(editor, s => buildMoveBlockTransaction(s, state.pos, gap));
       editor.view.focus();
     },
     onClick: wasOpen => {
@@ -349,7 +341,7 @@ function BlockMenu({ editor, pos, onAction }: BlockMenuProps) {
 
   const run = (build: (state: EditorState) => Transaction | null) => {
     onAction();
-    runBlockCommand(editor, build);
+    runEditorCommand(editor, build);
   };
 
   // Group 1: the actions of this kind of block. Group 2: the common ones.

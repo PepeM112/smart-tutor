@@ -217,7 +217,12 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
               {headerRight('mobile')}
             </div>
             {/* No drag from the composer: selecting typed text must not move the drawer. */}
-            <AssistChatBody turns={turns} onConfirm={onConfirm} footer={<div data-vaul-no-drag>{composer}</div>} />
+            <AssistChatBody
+              turns={turns}
+              onConfirm={onConfirm}
+              isStreaming={isStreaming}
+              footer={<div data-vaul-no-drag>{composer}</div>}
+            />
           </DrawerContent>
         </Drawer>
       </>
@@ -262,8 +267,8 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.7 }}
             transition={{ duration: 0.12 }}
-            className="absolute inset-0 flex items-center justify-center"
-            onMouseDown={fab.handleMouseDown}
+            className="absolute inset-0 flex touch-none items-center justify-center"
+            onPointerDown={fab.handleMouseDown}
           >
             <button
               type="button"
@@ -287,49 +292,49 @@ export function AssistFloatingCard({ turns, isStreaming, onSend, onStop, onConfi
               <div className="flex flex-1 items-center">
                 {dockButton}
                 <div
-                  onMouseDown={card.handleMouseDown}
+                  onPointerDown={card.handleMouseDown}
                   onDoubleClick={handleResetPositionAndSize}
-                  className="flex flex-1 cursor-grab items-center self-stretch rounded-md px-2 active:cursor-grabbing"
+                  className="flex flex-1 cursor-grab touch-none items-center self-stretch rounded-md px-2 active:cursor-grabbing"
                 />
               </div>
               {headerRight('desktop')}
             </div>
 
-            <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
+            <AssistChatBody turns={turns} onConfirm={onConfirm} isStreaming={isStreaming} footer={composer} />
 
             {/* Resize handles — edges */}
             <div
-              onMouseDown={e => onResizeStart(e, 'top')}
-              className="absolute inset-x-1.5 top-0 h-1 cursor-n-resize"
+              onPointerDown={e => onResizeStart(e, 'top')}
+              className="absolute touch-none inset-x-1.5 top-0 h-1 cursor-n-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'bottom')}
-              className="absolute inset-x-1.5 bottom-0 h-1 cursor-s-resize"
+              onPointerDown={e => onResizeStart(e, 'bottom')}
+              className="absolute touch-none inset-x-1.5 bottom-0 h-1 cursor-s-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'left')}
-              className="absolute inset-y-1.5 left-0 w-1 cursor-w-resize"
+              onPointerDown={e => onResizeStart(e, 'left')}
+              className="absolute touch-none inset-y-1.5 left-0 w-1 cursor-w-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'right')}
-              className="absolute inset-y-1.5 right-0 w-1 cursor-e-resize"
+              onPointerDown={e => onResizeStart(e, 'right')}
+              className="absolute touch-none inset-y-1.5 right-0 w-1 cursor-e-resize"
             />
             {/* Resize handles — corners */}
             <div
-              onMouseDown={e => onResizeStart(e, 'top-left')}
-              className="absolute top-0 left-0 size-2.5 cursor-nw-resize"
+              onPointerDown={e => onResizeStart(e, 'top-left')}
+              className="absolute touch-none top-0 left-0 size-2.5 cursor-nw-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'top-right')}
-              className="absolute top-0 right-0 size-2.5 cursor-ne-resize"
+              onPointerDown={e => onResizeStart(e, 'top-right')}
+              className="absolute touch-none top-0 right-0 size-2.5 cursor-ne-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'bottom-left')}
-              className="absolute bottom-0 left-0 size-2.5 cursor-sw-resize"
+              onPointerDown={e => onResizeStart(e, 'bottom-left')}
+              className="absolute touch-none bottom-0 left-0 size-2.5 cursor-sw-resize"
             />
             <div
-              onMouseDown={e => onResizeStart(e, 'bottom-right')}
-              className="absolute bottom-0 right-0 size-2.5 cursor-se-resize"
+              onPointerDown={e => onResizeStart(e, 'bottom-right')}
+              className="absolute touch-none bottom-0 right-0 size-2.5 cursor-se-resize"
             />
           </motion.div>
         )}

@@ -65,7 +65,7 @@ const isHeaderRow = (info: TableInfo, row: number): boolean => {
 };
 
 /** Does the first row hold header cells? Controls the header row rule above. */
-export function tableHasHeaderRow(state: EditorState, tablePos: number): boolean {
+function tableHasHeaderRow(state: EditorState, tablePos: number): boolean {
   const info = readTable(state, tablePos);
   return !!info && isHeaderRow(info, 0);
 }

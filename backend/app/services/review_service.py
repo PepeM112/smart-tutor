@@ -9,7 +9,12 @@ from app.schemas.user_question_state import ReviewMode
 def get_review_questions(
     db: Session, *, current_user: User, limit: int, mode: ReviewMode = "review"
 ) -> tuple[list[Question], bool]:
-    """Return (questions, has_questions). In review mode, due questions first then new; in practice mode, random."""
+    """Return (questions, has_questions). In review mode, due questions first then new; in practice mode, random.
+
+    `limit` is capped by the user's `daily_review_limit` when they set one.
+    """
+    if current_user.daily_review_limit:
+        limit = min(limit, current_user.daily_review_limit)
     has_questions = question_crud.user_has_questions(db, user_id=current_user.id)
 
     if not has_questions:

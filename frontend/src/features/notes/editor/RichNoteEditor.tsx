@@ -90,23 +90,7 @@ export function RichNoteEditor({
     () =>
       createNoteExtensions({
         placeholder: t('slash_menu_placeholder'),
-        slashHint: t('slash_menu_hint'),
         headingAnchors: hasOutline,
-        slashLabels: {
-          slash_text: t('slash_text'),
-          slash_h1: t('slash_h1'),
-          slash_h2: t('slash_h2'),
-          slash_h3: t('slash_h3'),
-          slash_bullet: t('slash_bullet'),
-          slash_ordered: t('slash_ordered'),
-          slash_todo: t('slash_todo'),
-          slash_quote: t('slash_quote'),
-          slash_code: t('slash_code'),
-          slash_divider: t('slash_divider'),
-          slash_callout: t('slash_callout'),
-          slash_toggle: t('slash_toggle'),
-          slash_table: t('slash_table'),
-        },
       }),
     [t, hasOutline]
   );

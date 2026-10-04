@@ -263,6 +263,19 @@ class TestMoveItems:
             "- folder `t`: A folder cannot be moved into itself",
         ]
 
+    def test_unexpected_error_on_a_later_item_keeps_the_earlier_moves_in_the_report(self) -> None:
+        # Earlier moves are committed. A crash on a later item must not turn the whole call into "failed".
+        with patch(f"{FOLDERS}.folder_service") as folder_svc, patch(f"{FOLDERS}.note_service") as note_svc:
+            folder_svc.load_folder_map.return_value = {"t": _folder("t", "Target")}
+            note_svc.move_note.side_effect = [None, RuntimeError("db down"), None]
+            output = self._run({"note_ids": ["a", "b", "c"], "target_folder_id": "t"})
+
+        assert output.splitlines() == [
+            "Moved 2 notes and 0 folders to Files > Target.",
+            "Skipped 1:",
+            "- note `b`: unexpected error",
+        ]
+
     def test_nothing_moved_when_all_are_skipped(self) -> None:
         with patch(f"{FOLDERS}.folder_service") as folder_svc, patch(f"{FOLDERS}.note_service") as note_svc:
             folder_svc.load_folder_map.return_value = {}

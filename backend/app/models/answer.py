@@ -17,8 +17,10 @@ class Answer(Base, CreatedAtMixin):
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
     # Null for answers from practice/review checks — only exam submissions create a TestResult
-    test_result_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test_result.id"), nullable=True)
-    question_id: Mapped[str] = mapped_column(String(26), ForeignKey("question.id"))
+    test_result_id: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("test_result.id"), nullable=True, index=True
+    )
+    question_id: Mapped[str] = mapped_column(String(26), ForeignKey("question.id"), index=True)
     user_answer: Mapped[str] = mapped_column(String)
     status: Mapped[int] = mapped_column(Integer, default=int(AnswerStatus.PENDING))
     rubric_result: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB, nullable=True)

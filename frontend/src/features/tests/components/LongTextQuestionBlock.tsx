@@ -2,7 +2,7 @@
 
 import { CircleMinus, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { LongTextLength, type QuestionType } from '@/client';
 import { AutoTextarea } from '@/components/shared/AutoTextarea';
@@ -232,7 +232,10 @@ function CategoryInput({
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
+  // Highlighted suggestion; -1 means none. The input keeps the focus the whole time.
+  const [activeIndex, setActiveIndex] = useState(-1);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listboxId = useId();
 
   useEffect(
     () => () => {
@@ -248,34 +251,81 @@ function CategoryInput({
   }, [value, suggestions]);
 
   const showDropdown = open && filtered.length > 0;
+  const optionId = (i: number): string => `${listboxId}-option-${i}`;
+
+  function select(suggestion: string) {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    onChange(suggestion);
+    setOpen(false);
+    setActiveIndex(-1);
+  }
+
+  function closeList() {
+    setOpen(false);
+    setActiveIndex(-1);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (filtered.length === 0) return;
+      e.preventDefault();
+      if (!showDropdown) {
+        setOpen(true);
+        return;
+      }
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      setActiveIndex(prev => (prev + step + filtered.length) % filtered.length);
+    } else if (e.key === 'Enter' && showDropdown && activeIndex >= 0) {
+      e.preventDefault();
+      select(filtered[activeIndex]);
+    } else if (e.key === 'Escape' && showDropdown) {
+      // Close only the list, not a parent dialog.
+      e.preventDefault();
+      e.stopPropagation();
+      closeList();
+    }
+  }
 
   return (
     <div className="relative w-32 shrink-0">
       <Input
+        role="combobox"
+        aria-expanded={showDropdown}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={showDropdown && activeIndex >= 0 ? optionId(activeIndex) : undefined}
         placeholder={t('test_editor.category')}
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => {
+          onChange(e.target.value);
+          setActiveIndex(-1);
+        }}
         onFocus={() => setOpen(true)}
         onBlur={() => {
-          timeoutRef.current = setTimeout(() => setOpen(false), 150);
+          timeoutRef.current = setTimeout(closeList, 150);
         }}
+        onKeyDown={handleKeyDown}
         className="w-full"
       />
       {showDropdown && (
-        <div className="absolute top-full left-0 z-10 mt-1 w-full rounded-md bg-popover py-1 ring-1 ring-foreground/10">
-          {filtered.map(s => (
-            <button
+        <div
+          id={listboxId}
+          role="listbox"
+          className="absolute top-full left-0 z-10 mt-1 w-full rounded-md bg-popover py-1 ring-1 ring-foreground/10"
+        >
+          {filtered.map((s, i) => (
+            <div
               key={s}
-              type="button"
-              className="w-full px-2 py-1 text-left text-sm hover:bg-accent truncate"
-              onMouseDown={() => {
-                if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                onChange(s);
-                setOpen(false);
-              }}
+              id={optionId(i)}
+              role="option"
+              aria-selected={i === activeIndex}
+              className={cn('w-full cursor-pointer px-2 py-1 text-left text-sm hover:bg-accent truncate', {
+                'bg-accent': i === activeIndex,
+              })}
+              onMouseDown={() => select(s)}
             >
               {s}
-            </button>
+            </div>
           ))}
         </div>
       )}

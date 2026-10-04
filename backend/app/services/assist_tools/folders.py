@@ -1,8 +1,9 @@
 """Folder tools: list folders, create a folder, move notes and folders.
 
-`create_folder` and `move_items` run without a confirmation card. They call the same service
-functions as the Files page (`folder_service`, `note_service`), so tree locking, ownership,
-cycle and name-conflict checks are the same.
+`create_folder` and `move_items` are write tools: they ask for confirmation by default, and the
+user can change that per tool in Settings. They call the same service functions as the Files page
+(`folder_service`, `note_service`), so tree locking, ownership, cycle and name-conflict checks
+are the same.
 """
 
 from __future__ import annotations

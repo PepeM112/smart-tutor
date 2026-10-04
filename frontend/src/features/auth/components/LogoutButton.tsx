@@ -38,7 +38,7 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
           variant="ghost"
           title={collapsed ? t('auth.log_out') : undefined}
           className={cn(
-            'w-full text-sidebar-muted hover:text-red-300 hover:bg-sidebar-accent',
+            'w-full text-sidebar-muted hover:text-destructive hover:bg-sidebar-accent',
             collapsed ? 'justify-center size-9 px-0' : 'justify-start gap-3 h-9 px-3'
           )}
         >

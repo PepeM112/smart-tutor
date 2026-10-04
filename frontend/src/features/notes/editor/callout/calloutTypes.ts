@@ -6,7 +6,7 @@ export type CalloutType = (typeof CALLOUT_TYPES)[number];
 
 export const DEFAULT_CALLOUT_TYPE: CalloutType = 'note';
 
-export const isCalloutType = (value: unknown): value is CalloutType =>
+const isCalloutType = (value: unknown): value is CalloutType =>
   typeof value === 'string' && (CALLOUT_TYPES as readonly string[]).includes(value);
 
 /** Read an unknown attribute value as a callout type. Unknown values become the default. */

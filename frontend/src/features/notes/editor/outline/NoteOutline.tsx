@@ -19,7 +19,16 @@
 import { Link2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+  type RefObject,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
@@ -66,6 +75,7 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
 
   const [open, setOpen] = useState(false);
   const closeTimer = useRef(0);
+  const navRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -79,6 +89,26 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
     closeTimer.current = window.setTimeout(() => setOpen(false), CLOSE_DELAY_MS);
   }, []);
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+
+  // Hover is for a mouse or a pen only. A touch sends `pointerenter` and `pointerleave` around each tap, so
+  // the card would open and close at once. On touch, a tap on the dashes opens the card (`onClick`).
+  const handlePointerEnter = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType !== 'touch') openRail();
+  };
+  const handlePointerLeave = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType !== 'touch') closeRailSoon();
+  };
+
+  // A tap outside the rail closes the card. A tap does not always move the focus (Safari does not focus a
+  // button on a tap), so `onBlur` is not sufficient.
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutside = (event: globalThis.PointerEvent) => {
+      if (!navRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutside);
+    return () => document.removeEventListener('pointerdown', closeOnOutside);
+  }, [open]);
 
   // Center the active item in the card when it opens (not on every scroll of the note).
   useEffect(() => {
@@ -127,8 +157,9 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
       <nav
         data-slot="note-outline"
         aria-label={t('outline_label')}
-        onPointerEnter={openRail}
-        onPointerLeave={closeRailSoon}
+        ref={navRef}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
         onFocus={openRail}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
@@ -141,6 +172,7 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
           type="button"
           aria-expanded={open}
           aria-label={t('outline_label')}
+          onClick={openRail}
           className="flex w-full flex-col items-end gap-3 overflow-hidden rounded-md py-4 pr-3 focus-visible:outline-2 focus-visible:outline-primary"
         >
           {headings.map(heading => (

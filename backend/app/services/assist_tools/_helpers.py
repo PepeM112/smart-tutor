@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
@@ -14,6 +15,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from app.models.folder import Folder
+
+logger = logging.getLogger("smarttutor.assist.tools")
 
 # Result sizes for list tools. A tool output goes back to the model, so keep it short.
 LIST_LIMIT = 20
@@ -75,10 +78,17 @@ def skip_reason(db: Session, action: Callable[[], object]) -> str | None:
     A service refuses with `HTTPException` (not found, not yours, name conflict, cycle). In a
     batch that must skip the one item and go on, not fail the whole call. The services commit
     each step that works, so the rollback only drops the refused step and releases its tree lock.
+
+    An unexpected error (for example a DB error) is also reported per item. Steps that ran before
+    it are already committed. If the error went up, the call would say "failed" for work that is done.
     """
     try:
         action()
     except HTTPException as exc:
         db.rollback()
         return str(exc.detail)
+    except Exception:
+        db.rollback()
+        logger.exception("Batch tool step failed")
+        return "unexpected error"
     return None

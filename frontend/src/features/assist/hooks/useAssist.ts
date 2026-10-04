@@ -46,7 +46,7 @@ const UNDO_TOAST_DURATION = 8000;
 type UseAssistReturn = {
   turns: AssistTurn[];
   isStreaming: boolean;
-  send: (text: string, displayText?: string, onComplete?: () => void) => void;
+  send: (text: string, displayText?: string) => void;
   stop: () => void;
   confirm: ConfirmHandler;
   clear: () => void;
@@ -86,16 +86,19 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   const lastAssistantTurnIdRef = useRef('');
   const queueRef = useRef<StreamQueueHandle | null>(null);
 
-  // Safety net: cancel any in-flight reveal timers if the panel unmounts
-  // mid-stream (the normal path is done/error/abort tearing the queue down).
+  // Safety net: if the panel unmounts mid-stream (e.g. logout), stop the request so the backend
+  // stops generating, and cancel any in-flight reveal timers (the normal path is done/error/abort
+  // tearing the queue down).
   useEffect(() => {
     return () => {
+      abortRef.current?.abort();
       queueRef.current?.destroy();
     };
   }, []);
 
   const queryClient = useQueryClient();
   const t = useTranslations('settings');
+  const tAssist = useTranslations('assist');
   const router = useRouter();
   const setPendingNoteDiff = useAssistDiffStore(s => s.setPendingNoteDiff);
   const setPendingTestDiff = useAssistDiffStore(s => s.setPendingTestDiff);
@@ -135,9 +138,14 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   // -------------------------------------------------------------------------
 
   const streamResponse = useCallback(
-    async (request: AssistRequest, resumeTurnId?: string, onComplete?: () => void) => {
+    /**
+     * `prepare` runs before the request, while the hook is already busy: `send` and `confirm` are
+     * locked, and Stop aborts the stream before it starts.
+     */
+    async (request: AssistRequest, resumeTurnId?: string, prepare?: () => Promise<void>) => {
       setIsStreaming(true);
-      abortRef.current = new AbortController();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       let activeTurnId: string;
       let activeTextSegmentId = '';
@@ -182,22 +190,25 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       }
 
       try {
+        await prepare?.();
         const response = await fetch('/api/v1/assist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify(request),
-          signal: abortRef.current.signal,
+          signal: controller.signal,
         });
 
         if (!response.ok) {
-          const error = (await response.json().catch(() => ({ detail: 'Request failed' }))) as {
+          const error = (await response.json().catch(() => ({ detail: tAssist('request_failed') }))) as {
             detail?: string;
           };
-          const errorSeg: TurnSegment = { type: 'error', id: nextId(), message: error.detail ?? 'An error occurred' };
+          const errorSeg: TurnSegment = {
+            type: 'error',
+            id: nextId(),
+            message: error.detail ?? tAssist('error_generic'),
+          };
           setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
-          setIsStreaming(false);
-          onComplete?.();
           return;
         }
 
@@ -212,7 +223,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           const errorSeg: TurnSegment = {
             type: 'error',
             id: nextId(),
-            message: 'Connection lost. Please try again.',
+            message: tAssist('connection_lost'),
           };
           setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
         }
@@ -229,7 +240,6 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           setIsStreaming(false);
           abortRef.current = null;
           queueRef.current = null;
-          onComplete?.();
         }
       }
 
@@ -318,17 +328,20 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
               if (tr.name === 'edit_test' && tr.metadata?.removedQuestionIds?.length) {
                 const ids = tr.metadata.removedQuestionIds;
-                toast('Questions removed', {
-                  description: `${ids.length} question(s) soft-deleted. You can undo this.`,
+                toast(tAssist('questions_removed'), {
+                  description: tAssist('questions_removed_description', { count: ids.length }),
                   duration: UNDO_TOAST_DURATION,
                   action: {
-                    label: 'Undo',
+                    label: tAssist('undo'),
                     onClick: () => {
-                      void sdk.questionsBulkRestore({ body: { questionIds: ids } }).then(() => {
-                        void queryClient.invalidateQueries({ queryKey: ['tests'] });
-                        void queryClient.invalidateQueries({ queryKey: ['questions'] });
-                        toast.success('Questions restored');
-                      });
+                      void sdk
+                        .questionsBulkRestore({ body: { questionIds: ids } })
+                        .then(() => {
+                          void queryClient.invalidateQueries({ queryKey: ['tests'] });
+                          void queryClient.invalidateQueries({ queryKey: ['questions'] });
+                          toast.success(tAssist('questions_restored'));
+                        })
+                        .catch(() => toast.error(tAssist('questions_restore_failed')));
                     },
                   },
                 });
@@ -407,7 +420,6 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
               setIsStreaming(false);
               abortRef.current = null;
               queueRef.current = null;
-              onComplete?.();
             });
             break;
           }
@@ -423,7 +435,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         }
       }
     },
-    [router, queryClient, setPendingNoteDiff, setPendingTestDiff]
+    [router, queryClient, setPendingNoteDiff, setPendingTestDiff, tAssist]
   );
 
   // -------------------------------------------------------------------------
@@ -431,7 +443,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   // -------------------------------------------------------------------------
 
   const send = useCallback(
-    (text: string, displayText?: string, onComplete?: () => void) => {
+    (text: string, displayText?: string) => {
       if (!text.trim() || abortRef.current) return;
 
       resolvePendingConfirmations();
@@ -450,13 +462,17 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         messages: conversationRef.current,
         pageContext,
       };
-      void streamResponse(request, undefined, onComplete);
+      void streamResponse(request);
     },
     [pageContext, streamResponse, resolvePendingConfirmations]
   );
 
   const confirm: ConfirmHandler = useCallback(
     (toolCallId, approved, options) => {
+      // The stream that asked is still open until its `done` is handled: the assistant message with
+      // the tool calls is not in the history yet, so a resume now would break the conversation.
+      if (abortRef.current) return;
+
       const pending = new Map(pendingToolIdsRef.current);
       pendingToolIdsRef.current.clear();
 
@@ -494,26 +510,24 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         return;
       }
 
-      const resume = (): void => {
-        const request: AssistRequest = {
-          messages: conversationRef.current,
-          pageContext,
-          toolConfirmations: confirmations,
-        };
-        void streamResponse(request, lastAssistantTurnIdRef.current);
+      // "Always allow" saves the permission before the request, so the resumed stream already
+      // reads it. It runs inside the stream (`prepare`), so the hook is busy during the save.
+      // If saving fails, this call still runs: the user approved it.
+      const savePermission =
+        alwaysAllow && toolName !== undefined
+          ? () =>
+              sdk
+                .usersUpdateAiToolPermissions({ body: { permissions: { [toolName]: true } } })
+                .then(() => void queryClient.invalidateQueries({ queryKey: AI_PERMISSIONS_QUERY_KEY }))
+                .catch(() => void toast.error(t('ai_permissions_save_failed')))
+          : undefined;
+
+      const request: AssistRequest = {
+        messages: conversationRef.current,
+        pageContext,
+        toolConfirmations: confirmations,
       };
-
-      if (!alwaysAllow || toolName === undefined) {
-        resume();
-        return;
-      }
-
-      // Save the permission first. If saving fails, this call still runs: the user approved it.
-      void sdk
-        .usersUpdateAiToolPermissions({ body: { permissions: { [toolName]: true } } })
-        .then(() => queryClient.invalidateQueries({ queryKey: AI_PERMISSIONS_QUERY_KEY }))
-        .catch(() => toast.error(t('ai_permissions_save_failed')))
-        .finally(resume);
+      void streamResponse(request, lastAssistantTurnIdRef.current, savePermission);
     },
     [pageContext, streamResponse, queryClient, t]
   );

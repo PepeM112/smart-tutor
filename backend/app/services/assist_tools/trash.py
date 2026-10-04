@@ -1,7 +1,7 @@
 """Trash tools: list the Trash and restore items from it.
 
-`restore_from_trash` runs without a confirmation card. There is no tool to delete forever:
-that stays in the UI.
+`restore_from_trash` is a write tool: it asks for confirmation by default, and the user can change
+that in Settings. There is no tool to delete forever: that stays in the UI.
 """
 
 from __future__ import annotations

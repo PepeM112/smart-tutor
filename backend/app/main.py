@@ -25,7 +25,7 @@ from .config import settings
 
 def custom_generate_unique_id(route: APIRoute) -> str:
     """
-    Generated an operation id based in the tag and the naem of the function.
+    Generate an operation id from the tag and the name of the function.
     Example: tag "tests" + function "create" -> testsCreate
     """
     tag = route.tags[0] if route.tags else "default"

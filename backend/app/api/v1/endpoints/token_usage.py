@@ -5,15 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, AIProvider
 from app.database import get_session
-from app.dependencies.auth import get_current_user
-from app.models.user import User
+from app.dependencies.auth import CurrentUser
 from app.schemas.token_usage import TokenUsageSummaryResponse, UsageGroupBy
 from app.services import token_usage_service
 
 router = APIRouter()
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
-CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("", response_model=TokenUsageSummaryResponse)

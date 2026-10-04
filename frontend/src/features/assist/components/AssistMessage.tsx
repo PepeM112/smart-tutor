@@ -48,6 +48,7 @@ export function UserBubble({ content }: { content: string }) {
 // ---------------------------------------------------------------------------
 
 export function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
+  const t = useTranslations('assist');
   // `content` already holds the queue's currently-revealed slice — the
   // reveal/pacing loop lives centrally in useStreamQueue.ts now, so this
   // component just renders precomputed state instead of animating locally.
@@ -55,7 +56,7 @@ export function AssistantBubble({ content, streaming }: { content: string; strea
     return (
       <div className="flex items-center gap-2 py-1">
         <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Thinking...</span>
+        <span className="text-xs text-muted-foreground">{t('thinking')}</span>
       </div>
     );
   }
@@ -124,6 +125,7 @@ export function ToolResultRow({
   output: string;
   metadata?: ToolResultMetadata;
 }) {
+  const t = useTranslations('assist');
   if (name === 'navigate_to') return null;
 
   if (name === 'refine_note' && metadata?.noteId && metadata.oldContent != null) {
@@ -154,7 +156,7 @@ export function ToolResultRow({
             href={viewPath}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
           >
-            View <ExternalLink className="size-3" />
+            {t('view')} <ExternalLink className="size-3" />
           </Link>
         </div>
       )}
@@ -163,6 +165,7 @@ export function ToolResultRow({
 }
 
 function RefineNoteResult({ noteId }: { noteId: string }) {
+  const t = useTranslations('assist');
   const pendingDiff = useAssistDiffStore(s => s.pendingNoteDiff);
   const hasDiff = pendingDiff?.noteId === noteId;
   const closeOnMobile = useCloseAssistOnMobile();
@@ -173,7 +176,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
     <div className="flex items-center gap-2 py-0.5">
       <CheckCircle className="size-3.5 text-feedback-correct" />
       <span className="text-[12px] text-muted-foreground">
-        {hasDiff ? 'Refinement ready — review the changes before applying.' : 'Refinement applied.'}
+        {hasDiff ? t('note_refinement_ready') : t('refinement_applied')}
       </span>
       {hasDiff && !isOnNote && (
         <Link
@@ -181,7 +184,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
           onClick={closeOnMobile}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
-          View changes <Eye className="size-3.5" />
+          {t('view_changes')} <Eye className="size-3.5" />
         </Link>
       )}
     </div>
@@ -189,6 +192,7 @@ function RefineNoteResult({ noteId }: { noteId: string }) {
 }
 
 function RefineQuestionsResult({ testId }: { testId: string }) {
+  const t = useTranslations('assist');
   const pendingDiff = useAssistDiffStore(s => s.pendingTestDiff);
   const hasDiff = pendingDiff?.testId === testId;
   const closeOnMobile = useCloseAssistOnMobile();
@@ -198,7 +202,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
     <div className="flex items-center gap-2 py-0.5">
       <CheckCircle className="size-3.5 text-feedback-correct" />
       <span className="text-[12px] text-muted-foreground">
-        {hasDiff ? 'Question refinement ready — review the changes before applying.' : 'Refinement applied.'}
+        {hasDiff ? t('questions_refinement_ready') : t('refinement_applied')}
       </span>
       {hasDiff && !isOnTest && (
         <Link
@@ -206,7 +210,7 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
           onClick={closeOnMobile}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         >
-          View changes <Eye className="size-3.5" />
+          {t('view_changes')} <Eye className="size-3.5" />
         </Link>
       )}
     </div>
@@ -244,6 +248,7 @@ export function ActionCard({
   context,
   status,
   onConfirm,
+  disabled,
 }: {
   id: string;
   name: string;
@@ -251,10 +256,11 @@ export function ActionCard({
   context?: ConfirmContext;
   status: 'pending' | 'approved' | 'rejected';
   onConfirm: ConfirmHandler;
+  disabled: boolean;
 }) {
   const t = useTranslations('assist.confirm');
   const label = useToolLabel(name);
-  const summary = _summarizeArgs(name, args);
+  const summary = _summarizeArgs(name, args, t);
   const summaryRows = context?.summary;
   const questionsToRemove = context?.questions_to_remove;
   const titleChange = context?.title_change;
@@ -284,7 +290,7 @@ export function ActionCard({
 
       {titleChange && (
         <div className="mb-2 space-y-0.5">
-          <p className="text-[12px] font-medium text-muted-foreground">Title:</p>
+          <p className="text-[12px] font-medium text-muted-foreground">{t('title_label')}</p>
           <div className="flex items-center gap-1.5 text-[11px]">
             <span className="rounded border border-destructive/20 bg-destructive/5 px-1.5 py-0.5 text-foreground line-through">
               {titleChange.from}
@@ -299,10 +305,10 @@ export function ActionCard({
 
       {descChange && (
         <div className="mb-2 space-y-0.5">
-          <p className="text-[12px] font-medium text-muted-foreground">Description:</p>
+          <p className="text-[12px] font-medium text-muted-foreground">{t('description_label')}</p>
           <div className="space-y-0.5 text-[11px]">
             <div className="rounded border border-destructive/20 bg-destructive/5 px-1.5 py-0.5 text-foreground line-through">
-              {descChange.from || '(empty)'}
+              {descChange.from || t('empty')}
             </div>
             <div className="rounded border border-feedback-correct-border bg-feedback-correct-bg px-1.5 py-0.5 text-foreground">
               {descChange.to}
@@ -314,7 +320,7 @@ export function ActionCard({
       {questionsToRemove && questionsToRemove.length > 0 && (
         <div className="mb-2 space-y-1">
           <p className="text-[12px] font-medium text-muted-foreground">
-            {questionsToRemove.length === 1 ? 'Question to remove:' : 'Questions to remove:'}
+            {t('question_to_remove', { count: questionsToRemove.length })}
           </p>
           {questionsToRemove.map(q => (
             <div
@@ -329,7 +335,13 @@ export function ActionCard({
 
       {status === 'pending' && (
         <div className="flex flex-wrap gap-2">
-          <Button variant="default" size="sm" className="flex-1" onClick={() => onConfirm(id, true)}>
+          <Button
+            variant="default"
+            size="sm"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => onConfirm(id, true)}
+          >
             <Check className="size-3" />
             {t('allow')}
           </Button>
@@ -337,12 +349,19 @@ export function ActionCard({
             variant="outline"
             size="sm"
             className="flex-1"
+            disabled={disabled}
             onClick={() => onConfirm(id, true, { alwaysAllow: true })}
           >
             <ShieldCheck className="size-3" />
             {t('always_allow')}
           </Button>
-          <Button variant="outline" size="sm" className="flex-1" onClick={() => onConfirm(id, false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => onConfirm(id, false)}
+          >
             <X className="size-3" />
             {t('cancel')}
           </Button>
@@ -378,10 +397,11 @@ export function ErrorRow({ message }: { message: string }) {
 }
 
 export function StoppedRow() {
+  const t = useTranslations('assist');
   return (
     <div className="flex items-center gap-1.5 py-1">
       <Square className="size-2.5 fill-muted-foreground text-muted-foreground" />
-      <span className="text-xs text-muted-foreground">Response stopped</span>
+      <span className="text-xs text-muted-foreground">{t('stopped')}</span>
     </div>
   );
 }
@@ -390,18 +410,21 @@ export function StoppedRow() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function _argStr(value: unknown, fallback = 'Unknown'): string {
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+function _argStr(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
 }
 
-function _summarizeArgs(name: string, args: Record<string, unknown>): string {
+function _summarizeArgs(name: string, args: Record<string, unknown>, t: Translate): string {
   switch (name) {
     case 'edit_test': {
       const parts: string[] = [];
-      if (args.title) parts.push(`Rename to "${_argStr(args.title)}"`);
-      if (args.description) parts.push('Update description');
-      if (Array.isArray(args.remove_question_ids)) parts.push(`Remove ${args.remove_question_ids.length} question(s)`);
-      return parts.join(', ') || 'No changes';
+      if (args.title) parts.push(t('summary_rename', { title: _argStr(args.title, t('unknown')) }));
+      if (args.description) parts.push(t('summary_update_description'));
+      if (Array.isArray(args.remove_question_ids))
+        parts.push(t('summary_remove_questions', { count: args.remove_question_ids.length }));
+      return parts.join(', ') || t('summary_no_changes');
     }
     default:
       return JSON.stringify(args);

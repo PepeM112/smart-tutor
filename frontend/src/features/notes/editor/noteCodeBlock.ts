@@ -14,6 +14,14 @@ const BACKTICK_FENCE = /^```([a-z0-9+#-]+)?[\s\n]$/i;
 const TILDE_FENCE = /^~~~([a-z0-9+#-]+)?[\s\n]$/i;
 
 export const NoteCodeBlock = CodeBlockLowlight.extend({
+  // A pass-through, on purpose. Tiptap's `extend()` copies the parent's `addProseMirrorPlugins` into the
+  // child, and that copy calls `this.parent()` too: each level without its own hook adds the lowlight
+  // plugin one more time (3 times with the `.extend()` in `extensions.ts`), so every code block was
+  // highlighted 3 times. This hook calls the lowlight hook once, and the copies below it call this one.
+  addProseMirrorPlugins() {
+    return this.parent?.() ?? [];
+  },
+
   addAttributes() {
     return {
       language: {

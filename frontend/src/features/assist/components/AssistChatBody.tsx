@@ -10,10 +10,12 @@ import type { AssistTurn, ConfirmHandler } from '../types';
 type AssistChatBodyProps = {
   turns: AssistTurn[];
   onConfirm: ConfirmHandler;
+  /** Locks the confirmation buttons while a stream runs. */
+  isStreaming: boolean;
   footer: React.ReactNode;
 };
 
-export function AssistChatBody({ turns, onConfirm, footer }: AssistChatBodyProps) {
+export function AssistChatBody({ turns, onConfirm, isStreaming, footer }: AssistChatBodyProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export function AssistChatBody({ turns, onConfirm, footer }: AssistChatBodyProps
           </div>
         )}
         {turns.map(turn => (
-          <AssistTurnRow key={turn.id} turn={turn} onConfirm={onConfirm} />
+          <AssistTurnRow key={turn.id} turn={turn} onConfirm={onConfirm} isStreaming={isStreaming} />
         ))}
       </div>
       {footer}

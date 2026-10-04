@@ -21,6 +21,7 @@ from app.services.service_helpers import get_owned_or_404
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from app.models.test import Test
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.assist.tools")
@@ -135,6 +136,14 @@ def create_test(db: Session, *, current_user: User, arguments: dict[str, object]
     )
 
 
+def _test_question_ids(test: Test) -> set[str]:
+    """Ids of the active questions of a test, standalone and grouped."""
+    ids = {q.id for q in test.questions}
+    for g in test.question_groups or []:
+        ids.update(q.id for q in g.questions)
+    return ids
+
+
 def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     test_id = str(arguments.get("test_id", ""))
     logger.info("edit_test: user=%s test=%s", current_user.id, test_id)
@@ -161,9 +170,7 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
     remove_ids = arguments.get("remove_question_ids")
     if isinstance(remove_ids, list) and remove_ids:
         str_ids = [str(qid) for qid in remove_ids]
-        test_question_ids = {q.id for q in test.questions}
-        for g in test.question_groups or []:
-            test_question_ids.update(q.id for q in g.questions)
+        test_question_ids = _test_question_ids(test)
         scoped_ids = [qid for qid in str_ids if qid in test_question_ids]
         if scoped_ids:
             removed_question_ids = question_service.bulk_delete_questions(
@@ -189,23 +196,25 @@ def edit_test_confirm_context(db: Session, *, current_user: User, arguments: dic
     """Before/after data for the confirm card of `edit_test`."""
     context: dict[str, Any] = {}
     test_id = arguments.get("test_id")
-    if test_id:
-        test = test_crud.get_by_id(db, id=str(test_id))
-        if test and test.user_id == current_user.id:
-            new_title = arguments.get("title")
-            if new_title:
-                context["title_change"] = {"from": test.title, "to": str(new_title)}
-            new_desc = arguments.get("description")
-            if new_desc:
-                context["description_change"] = {
-                    "from": test.description or "",
-                    "to": str(new_desc),
-                }
+    test = test_crud.get_by_id(db, id=str(test_id)) if test_id else None
+    if test is None or test.user_id != current_user.id:
+        return None
+    new_title = arguments.get("title")
+    if new_title:
+        context["title_change"] = {"from": test.title, "to": str(new_title)}
+    new_desc = arguments.get("description")
+    if new_desc:
+        context["description_change"] = {
+            "from": test.description or "",
+            "to": str(new_desc),
+        }
     remove_ids = arguments.get("remove_question_ids")
     if isinstance(remove_ids, list) and remove_ids:
+        # Same scope as the handler: only active questions of this test are removed.
+        in_test = _test_question_ids(test)
         questions = question_crud.list_by_ids(db, ids=[str(qid) for qid in remove_ids])
         context["questions_to_remove"] = [
-            {"id": q.id, "prompt": q.prompt} for q in questions if q.user_id == current_user.id
+            {"id": q.id, "prompt": q.prompt} for q in questions if q.id in in_test and q.user_id == current_user.id
         ]
     return context or None
 

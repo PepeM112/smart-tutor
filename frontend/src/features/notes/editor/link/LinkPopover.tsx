@@ -17,11 +17,10 @@
 
 import { Check, Copy, ExternalLink, Pencil, Unlink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from 'react';
 import { toast } from 'sonner';
 
 import { HoverHint } from '@/components/ui/hover-hint';
-import { cn } from '@/lib/utils';
 
 import { normalizeLinkHref, openLink } from './linkHref';
 import { useLinkTarget, type LinkTarget } from './useLinkTarget';
@@ -124,6 +123,13 @@ export function LinkPopover({ editor, containerRef }: LinkPopoverProps) {
       .catch(() => toast.error(t('link_copy_failed')));
   };
 
+  // A click outside ends the edit and drops the draft. Focus that stays inside the popover (the save button) does not.
+  const handleInputBlur = (event: FocusEvent<HTMLInputElement>) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && event.currentTarget.closest('[data-slot="link-popover"]')?.contains(next)) return;
+    stopEdit(false);
+  };
+
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -164,6 +170,7 @@ export function LinkPopover({ editor, containerRef }: LinkPopoverProps) {
               value={draft}
               onChange={event => setDraft(event.target.value)}
               onKeyDown={handleInputKeyDown}
+              onBlur={handleInputBlur}
               placeholder="https://…"
               aria-label={t('link_url_label')}
               className="h-7 min-w-0 flex-1 rounded border border-border bg-background px-2 text-xs outline-none focus:border-primary"
@@ -204,20 +211,16 @@ type PopoverButtonProps = {
   shortcut?: string;
   onClick: () => void;
   children: React.ReactNode;
-  className?: string;
 };
 
-function PopoverButton({ label, shortcut, onClick, children, className }: PopoverButtonProps) {
+function PopoverButton({ label, shortcut, onClick, children }: PopoverButtonProps) {
   return (
     <HoverHint label={label} shortcut={shortcut}>
       <button
         type="button"
         aria-label={label}
         onClick={onClick}
-        className={cn(
-          'flex size-7 shrink-0 items-center justify-center rounded-md text-foreground/70 transition-colors duration-75 hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary',
-          className
-        )}
+        className="flex size-7 shrink-0 items-center justify-center rounded-md text-foreground/70 transition-colors duration-75 hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
       >
         {children}
       </button>

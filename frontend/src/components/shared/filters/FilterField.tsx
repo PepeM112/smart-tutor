@@ -402,7 +402,7 @@ function SearchableMultiSelectField({
       </div>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-popover shadow-md">
+        <div className="absolute z-50 mt-1 w-full rounded-md bg-popover ring-1 ring-foreground/10">
           <div className="max-h-48 overflow-y-auto px-1 py-1">
             {filtered.length === 0 ? (
               <p className="py-3 text-center text-xs text-muted-foreground">{t('common.no_data_found')}</p>

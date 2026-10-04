@@ -359,11 +359,16 @@ export const BulkAssignQuestionsResponseSchema = {
         assigned: {
             type: 'integer',
             title: 'Assigned'
+        },
+        skipped: {
+            type: 'integer',
+            title: 'Skipped'
         }
     },
     type: 'object',
     required: [
-        'assigned'
+        'assigned',
+        'skipped'
     ],
     title: 'BulkAssignQuestionsResponse'
 } as const;
@@ -391,11 +396,16 @@ export const BulkDeleteQuestionsResponseSchema = {
         deleted: {
             type: 'integer',
             title: 'Deleted'
+        },
+        skipped: {
+            type: 'integer',
+            title: 'Skipped'
         }
     },
     type: 'object',
     required: [
-        'deleted'
+        'deleted',
+        'skipped'
     ],
     title: 'BulkDeleteQuestionsResponse'
 } as const;
@@ -423,11 +433,16 @@ export const BulkRestoreQuestionsResponseSchema = {
         restored: {
             type: 'integer',
             title: 'Restored'
+        },
+        skipped: {
+            type: 'integer',
+            title: 'Skipped'
         }
     },
     type: 'object',
     required: [
-        'restored'
+        'restored',
+        'skipped'
     ],
     title: 'BulkRestoreQuestionsResponse'
 } as const;

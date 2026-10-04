@@ -1,3 +1,5 @@
+from functools import partial
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -56,8 +58,13 @@ def _resolve_owning_test(db: Session, *, question: Question) -> Test | None:
 
 
 def get_question(db: Session, *, question_id: str, current_user: User) -> Question:
+    # A deleted question is treated as missing: it must not be updated, assigned or checked.
     return get_owned_or_404(
-        db, fetch=question_crud.get_by_id, id=question_id, current_user=current_user, entity_name="Question"
+        db,
+        fetch=partial(question_crud.get_by_id, active_only=True),
+        id=question_id,
+        current_user=current_user,
+        entity_name="Question",
     )
 
 
@@ -164,7 +171,7 @@ def bulk_delete_questions(
 
 def restore_questions(db: Session, *, question_ids: list[str], current_user: User) -> int:
     """Restore soft-deleted questions. Unowned or non-deleted questions are skipped."""
-    all_questions = question_crud.list_by_ids(db, ids=question_ids)
+    all_questions = question_crud.list_by_ids(db, ids=question_ids, active_only=False)
     owned_deleted = [
         q for q in all_questions if q.user_id == current_user.id and q.status == int(QuestionStatus.DELETED)
     ]
@@ -200,10 +207,12 @@ def bulk_update_questions(
 
 
 def _to_question_list_read(question: Question) -> QuestionListRead:
-    test_title = question.test.title if question.test else None
+    # The owning test, also for grouped questions (their `test_id` is NULL): the list shows and links it.
+    test = question.owning_test
     group_title = question.question_group.title if question.question_group else None
     data = QuestionListRead.model_validate(question, from_attributes=True).model_dump()
-    data["test_title"] = test_title
+    data["test_id"] = test.id if test else None
+    data["test_title"] = test.title if test else None
     data["group_title"] = group_title
     return QuestionListRead.model_validate(data)
 

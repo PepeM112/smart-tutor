@@ -1,10 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+
+import { usePointerDrag } from '@/hooks/usePointerDrag';
 
 type Position = { x: number; y: number };
 
 type Size = { width: number; height: number };
+
+/** Pointer and panel values at the start of a drag. */
+type DragStart = { startX: number; startY: number; posX: number; posY: number; width: number; height: number };
 
 type UseDraggableReturn = {
   position: Position;
@@ -21,15 +26,40 @@ const VIEWPORT_INSET = 16;
 export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panelSize?: Size): UseDraggableReturn {
   const [position, setPosition] = useState<Position>(initialPosition);
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef<{ startX: number; startY: number; posX: number; posY: number } | null>(null);
+  const dragRef = useRef<DragStart | null>(null);
+  const didMoveRef = useRef(false);
   const wasDraggedRef = useRef(false);
-  const cleanupRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    return () => {
-      cleanupRef.current?.();
-    };
-  }, []);
+  const handleMove = (ev: PointerEvent): void => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = ev.clientX - drag.startX;
+    const dy = ev.clientY - drag.startY;
+    if (!didMoveRef.current && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+    didMoveRef.current = true;
+    setIsDragging(true);
+    const pw = panelSize?.width ?? drag.width;
+    const ph = panelSize?.height ?? drag.height;
+    setPosition({
+      x: Math.max(VIEWPORT_INSET, Math.min(drag.posX + dx, window.innerWidth - pw - VIEWPORT_INSET)),
+      y: Math.max(VIEWPORT_INSET, Math.min(drag.posY + dy, window.innerHeight - ph - VIEWPORT_INSET)),
+    });
+  };
+
+  const handleEnd = (): void => {
+    setIsDragging(false);
+    dragRef.current = null;
+
+    if (didMoveRef.current) {
+      wasDraggedRef.current = true;
+      requestAnimationFrame(() => {
+        wasDraggedRef.current = false;
+      });
+    }
+  };
+
+  // `isDragging` here starts after the 3 px threshold, so the one of the hook is not used.
+  const { startDrag } = usePointerDrag({ onMove: handleMove, onEnd: handleEnd });
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -38,62 +68,18 @@ export function useDraggable(initialPosition: Position = DEFAULT_POSITION, panel
       if (!el) return;
 
       const rect = el.getBoundingClientRect();
-      const currentX = position.x === -1 ? rect.left : position.x;
-      const currentY = position.y === -1 ? rect.top : position.y;
-
-      dragStartRef.current = {
+      dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
-        posX: currentX,
-        posY: currentY,
+        posX: position.x === -1 ? rect.left : position.x,
+        posY: position.y === -1 ? rect.top : position.y,
+        width: rect.width,
+        height: rect.height,
       };
-
-      let didMove = false;
-
-      const handleMouseMove = (ev: MouseEvent): void => {
-        if (!dragStartRef.current) return;
-        const dx = ev.clientX - dragStartRef.current.startX;
-        const dy = ev.clientY - dragStartRef.current.startY;
-        if (!didMove && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
-        didMove = true;
-        setIsDragging(true);
-        const pw = panelSize?.width ?? rect.width;
-        const ph = panelSize?.height ?? rect.height;
-        setPosition({
-          x: Math.max(
-            VIEWPORT_INSET,
-            Math.min(dragStartRef.current.posX + dx, window.innerWidth - pw - VIEWPORT_INSET)
-          ),
-          y: Math.max(
-            VIEWPORT_INSET,
-            Math.min(dragStartRef.current.posY + dy, window.innerHeight - ph - VIEWPORT_INSET)
-          ),
-        });
-      };
-
-      const handleMouseUp = (): void => {
-        setIsDragging(false);
-        dragStartRef.current = null;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        cleanupRef.current = null;
-
-        if (didMove) {
-          wasDraggedRef.current = true;
-          requestAnimationFrame(() => {
-            wasDraggedRef.current = false;
-          });
-        }
-      };
-
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      cleanupRef.current = () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
+      didMoveRef.current = false;
+      startDrag(e);
     },
-    [position, panelSize]
+    [position, startDrag]
   );
 
   const resetPosition = useCallback(() => {

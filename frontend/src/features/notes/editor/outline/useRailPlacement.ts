@@ -17,9 +17,9 @@ import { findScrollParent } from './scroll';
 import type { Editor } from '@tiptap/core';
 
 /** Distance (px) from the top of the scroll area to the top of the rail. */
-export const RAIL_TOP = 96;
+const RAIL_TOP = 96;
 /** Distance (px) from the right edge of the scroll area (without its scrollbar) to the rail. */
-export const RAIL_INSET = 4;
+const RAIL_INSET = 4;
 /** Distance (px) kept free below the rail. */
 const RAIL_BOTTOM = 24;
 /** Width (px) of the rail. It is also the hit area, so it is wide on purpose. */

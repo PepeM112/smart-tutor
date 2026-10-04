@@ -228,6 +228,30 @@ describe('TableControls: lock', () => {
     expect(rowText(0)).toEqual(['A', 'B']);
     expect(screen.queryByRole('button', { name: 'table_cell_handle' })).not.toBeNull();
   });
+
+  // Regression: a grip whose column went away under its open menu unmounted with its lock. The controls stayed
+  // on the deleted column and stopped following the pointer.
+  it('releases the lock of a grip when its column is deleted under the open menu', async () => {
+    mount();
+    fireEvent.pointerMove(window, pointer(290, 45));
+    await frame();
+    const grip = screen.getByRole('button', { name: 'table_column_handle' });
+    fireEvent.pointerDown(grip, pointer(290, 45));
+    fireEvent.pointerUp(grip, pointer(290, 45));
+    await frame();
+    expect(screen.queryByRole('menuitem', { name: 'table_delete_column' })).not.toBeNull();
+
+    const lastHeader = editor.view.dom.querySelectorAll('th')[2];
+    act(() => {
+      editor.chain().setTextSelection(editor.view.posAtDOM(lastHeader, 0)).deleteColumn().run();
+    });
+    await frame();
+    fireEvent.pointerMove(window, pointer(90, 75));
+    await frame();
+
+    expect(rowText(0)).toEqual(['A', 'B']);
+    expect(screen.queryByRole('button', { name: 'table_cell_handle' })).not.toBeNull();
+  });
 });
 
 describe('TableControls: focus', () => {

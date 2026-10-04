@@ -242,6 +242,10 @@ export type BulkAssignQuestionsResponse = {
      * Assigned
      */
     assigned: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
 };
 
 /**
@@ -262,6 +266,10 @@ export type BulkDeleteQuestionsResponse = {
      * Deleted
      */
     deleted: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
 };
 
 /**
@@ -282,6 +290,10 @@ export type BulkRestoreQuestionsResponse = {
      * Restored
      */
     restored: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
 };
 
 /**

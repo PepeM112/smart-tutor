@@ -1,9 +1,10 @@
 'use client';
 
 import { PanelRightOpen, RotateCw, X } from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { usePointerDrag } from '@/hooks/usePointerDrag';
 
 import { MAX_DOCKED_WIDTH, MIN_DOCKED_WIDTH, useAssistPanelStore } from '../store/useAssistPanelStore';
 
@@ -27,49 +28,21 @@ export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfi
   const dockedWidth = useAssistPanelStore(s => s.dockedWidth);
   const setDockedWidth = useAssistPanelStore(s => s.setDockedWidth);
 
-  const resizingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startWidthRef = useRef(0);
-  const handleMouseMoveRef = useRef<((ev: MouseEvent) => void) | null>(null);
-  const handleMouseUpRef = useRef<(() => void) | null>(null);
+  const startRef = useRef({ x: 0, width: 0 });
 
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      resizingRef.current = true;
-      startXRef.current = e.clientX;
-      startWidthRef.current = dockedWidth;
-
-      const handleMouseMove = (ev: MouseEvent) => {
-        if (!resizingRef.current) return;
-        const dx = startXRef.current - ev.clientX;
-        const newWidth = Math.max(MIN_DOCKED_WIDTH, Math.min(MAX_DOCKED_WIDTH, startWidthRef.current + dx));
-        setDockedWidth(newWidth);
-      };
-
-      const handleMouseUp = () => {
-        resizingRef.current = false;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        handleMouseMoveRef.current = null;
-        handleMouseUpRef.current = null;
-      };
-
-      handleMouseMoveRef.current = handleMouseMove;
-      handleMouseUpRef.current = handleMouseUp;
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+  // The column is on the right, so dragging left makes it wider.
+  const { startDrag: handleResizeStart } = usePointerDrag({
+    cursor: 'ew-resize',
+    onMove: ev => {
+      const dx = startRef.current.x - ev.clientX;
+      setDockedWidth(Math.max(MIN_DOCKED_WIDTH, Math.min(MAX_DOCKED_WIDTH, startRef.current.width + dx)));
     },
-    [dockedWidth, setDockedWidth]
-  );
+  });
 
-  useEffect(() => {
-    return () => {
-      resizingRef.current = false;
-      if (handleMouseMoveRef.current) document.removeEventListener('mousemove', handleMouseMoveRef.current);
-      if (handleMouseUpRef.current) document.removeEventListener('mouseup', handleMouseUpRef.current);
-    };
-  }, []);
+  const handlePointerDown = (e: React.PointerEvent): void => {
+    startRef.current = { x: e.clientX, width: dockedWidth };
+    handleResizeStart(e);
+  };
 
   const handleClose = () => {
     setOpen(false);
@@ -90,8 +63,8 @@ export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfi
     <div className="relative flex h-full flex-col border-l border-border bg-sidebar" style={{ width: dockedWidth }}>
       {/* Resize handle on left edge */}
       <div
-        onMouseDown={handleResizeStart}
-        className="absolute inset-y-0 left-0 z-10 w-1 cursor-ew-resize hover:bg-primary/20 transition-colors"
+        onPointerDown={handlePointerDown}
+        className="absolute inset-y-0 left-0 z-10 w-1 cursor-ew-resize touch-none hover:bg-primary/20 transition-colors"
       />
 
       {/* Header */}
@@ -118,7 +91,7 @@ export function AssistDockedColumn({ turns, isStreaming, onSend, onStop, onConfi
       </div>
 
       {/* Chat body */}
-      <AssistChatBody turns={turns} onConfirm={onConfirm} footer={composer} />
+      <AssistChatBody turns={turns} onConfirm={onConfirm} isStreaming={isStreaming} footer={composer} />
     </div>
   );
 }

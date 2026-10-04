@@ -5,9 +5,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import CurrentUser
 from app.models.test_result import TestResult
-from app.models.user import User
 from app.schemas.test_result import (
     PaginatedTestResultListItem,
     SortOrder,
@@ -19,7 +18,6 @@ from app.services import test_result_service
 router = APIRouter()
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
-CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("", response_model=PaginatedTestResultListItem)

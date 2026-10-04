@@ -114,11 +114,15 @@ describe('mapWrapPositions', () => {
 });
 
 describe('real extension list', () => {
-  // Regression: `NoteCodeBlock.extend(...)` in `extensions.ts` added the keyed plugin two times.
-  it('creates the editor with one wrap plugin', () => {
+  // Regression: the `extend()` chain of the code block added its plugins more than once: the keyed wrap
+  // plugin threw, and the lowlight plugin was added 3 times (see `noteCodeBlock.ts` and `codeBlockWrap.ts`).
+  it('creates the editor with one wrap plugin and one lowlight plugin', () => {
     const real = new Editor({ extensions: createNoteExtensions(), content: '' });
+    // `Plugin.key` is the unique key string ("lowlight$", "lowlight$1", ...). It is not in the public type.
+    const keyOf = (plugin: unknown): string => (plugin as { key: string }).key;
     try {
       expect(real.state.plugins.filter(plugin => plugin.spec.key === codeWrapKey)).toHaveLength(1);
+      expect(real.state.plugins.filter(plugin => keyOf(plugin).startsWith('lowlight$'))).toHaveLength(1);
     } finally {
       real.destroy();
     }

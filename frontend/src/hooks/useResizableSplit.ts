@@ -1,6 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+
+import { usePointerDrag } from './usePointerDrag';
+
+export const MIN_SPLIT_RATIO = 0.2;
+export const MAX_SPLIT_RATIO = 0.8;
+/** Ratio change for one arrow key press. */
+const KEY_STEP = 0.02;
+
+const clampRatio = (ratio: number): number => Math.max(MIN_SPLIT_RATIO, Math.min(MAX_SPLIT_RATIO, ratio));
 
 function saveSplitRatio(storageKey: string, ratio: number): void {
   try {
@@ -16,7 +25,7 @@ function loadSplitRatio(storageKey: string, defaultRatio: number): number {
     const stored = localStorage.getItem(storageKey);
     if (stored) {
       const parsed = parseFloat(stored);
-      if (!isNaN(parsed) && parsed >= 0.2 && parsed <= 0.8) return parsed;
+      if (!isNaN(parsed) && parsed >= MIN_SPLIT_RATIO && parsed <= MAX_SPLIT_RATIO) return parsed;
     }
   } catch {
     /* storage unavailable */
@@ -27,36 +36,22 @@ function loadSplitRatio(storageKey: string, defaultRatio: number): number {
 /**
  * `dividerWidth` is the width in px of the divider between the panes. The ratio splits
  * the container width minus the divider, so the drag math removes it too.
+ * The ratio is saved when a drag ends and after each key press or reset.
  */
 export function useResizableSplit(storageKey: string, defaultRatio: number, dividerWidth = 0) {
   const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(storageKey, defaultRatio));
-  // Separate isDragging state (two flips: mousedown / mouseup) so consumers can
-  // conditionally suppress spring animations while the divider is dragged.
-  const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
+  // Written where the ratio changes (not in an effect), so a release in the same frame saves the last value.
   const latestRatio = useRef(splitRatio);
 
-  useEffect(() => {
-    latestRatio.current = splitRatio;
-  }, [splitRatio]);
-
-  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    isDraggingRef.current = true;
-    setIsDragging(true);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+  const updateRatio = useCallback((ratio: number): void => {
+    latestRatio.current = ratio;
+    setSplitRatio(ratio);
   }, []);
 
-  const resetRatio = useCallback(() => {
-    setSplitRatio(defaultRatio);
-    saveSplitRatio(storageKey, defaultRatio);
-  }, [storageKey, defaultRatio]);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current || !containerRef.current) return;
+  const handleMove = useCallback(
+    (e: PointerEvent): void => {
+      if (!containerRef.current) return;
       // Content box of the container: its padding is not part of the split (a `bleed` split has some).
       const container = containerRef.current;
       const style = getComputedStyle(container);
@@ -64,25 +59,49 @@ export function useResizableSplit(storageKey: string, defaultRatio: number, divi
       const width = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
       // The divider center must stay under the cursor: main width = (W - divider) * ratio.
       const ratio = (e.clientX - left - dividerWidth / 2) / (width - dividerWidth);
-      setSplitRatio(Math.max(0.2, Math.min(0.8, ratio)));
-    };
-    const handleMouseUp = () => {
-      if (!isDraggingRef.current) return;
-      isDraggingRef.current = false;
-      setIsDragging(false);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      saveSplitRatio(storageKey, latestRatio.current);
-    };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [storageKey, dividerWidth]);
+      updateRatio(clampRatio(ratio));
+    },
+    [dividerWidth, updateRatio]
+  );
 
-  return { containerRef, splitRatio, setSplitRatio, handleDividerMouseDown, resetRatio, isDragging };
+  const handleEnd = useCallback((): void => saveSplitRatio(storageKey, latestRatio.current), [storageKey]);
+
+  // `isDragging` lets consumers suppress spring animations while the divider is dragged.
+  const { startDrag: handleDividerPointerDown, isDragging } = usePointerDrag({
+    onMove: handleMove,
+    onEnd: handleEnd,
+    cursor: 'col-resize',
+  });
+
+  const setAndSaveRatio = useCallback(
+    (ratio: number): void => {
+      updateRatio(ratio);
+      saveSplitRatio(storageKey, ratio);
+    },
+    [storageKey, updateRatio]
+  );
+
+  const resetRatio = useCallback((): void => setAndSaveRatio(defaultRatio), [defaultRatio, setAndSaveRatio]);
+
+  // Arrow keys move the divider, Home / End go to the limits (the keyboard way to resize).
+  const handleDividerKeyDown = useCallback(
+    (e: React.KeyboardEvent): void => {
+      const target: number | null =
+        e.key === 'ArrowLeft'
+          ? latestRatio.current - KEY_STEP
+          : e.key === 'ArrowRight'
+            ? latestRatio.current + KEY_STEP
+            : e.key === 'Home'
+              ? MIN_SPLIT_RATIO
+              : e.key === 'End'
+                ? MAX_SPLIT_RATIO
+                : null;
+      if (target === null) return;
+      e.preventDefault();
+      setAndSaveRatio(clampRatio(target));
+    },
+    [setAndSaveRatio]
+  );
+
+  return { containerRef, splitRatio, handleDividerPointerDown, handleDividerKeyDown, resetRatio, isDragging };
 }

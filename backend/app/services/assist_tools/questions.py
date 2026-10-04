@@ -30,7 +30,8 @@ def search_questions(db: Session, *, current_user: User, arguments: dict[str, ob
         return ToolResult(output="No questions found.")
     lines = [f"Found {total} question(s):"]
     for q in questions:
-        test_label = f"in test `{q.test_id}`" if q.test_id else "in Question Bank"
+        test = q.owning_test
+        test_label = f"in test `{test.id}`" if test else "in Question Bank"
         lines.append(f"- [{QuestionType(q.question_type).name}] {q.prompt} ({test_label}, ID: `{q.id}`)")
     return ToolResult(output="\n".join(lines))
 

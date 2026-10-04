@@ -36,14 +36,3 @@ def get_session() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
-
-
-def init_db() -> None:
-    """Creates tables in the database based on SQLAlchemy metadata."""
-    try:
-        logger.info("Syncing models with Neon database...")
-        Base.metadata.create_all(engine)
-        logger.info("Database sync completed successfully.")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
