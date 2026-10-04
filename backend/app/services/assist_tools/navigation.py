@@ -54,4 +54,5 @@ NAVIGATE_TO = ToolSpec(
         "required": ["path"],
     },
     handler=navigate_to,
+    kind="read",
 )

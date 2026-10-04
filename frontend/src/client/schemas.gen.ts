@@ -38,6 +38,60 @@ export const AIProviderSchema = {
     ]
 } as const;
 
+export const AiToolPermissionReadSchema = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'read',
+                'write'
+            ],
+            title: 'Kind'
+        },
+        defaultAutoApprove: {
+            type: 'boolean',
+            title: 'Defaultautoapprove'
+        },
+        autoApprove: {
+            type: 'boolean',
+            title: 'Autoapprove'
+        }
+    },
+    type: 'object',
+    required: [
+        'name',
+        'kind',
+        'defaultAutoApprove',
+        'autoApprove'
+    ],
+    title: 'AiToolPermissionRead'
+} as const;
+
+export const AiToolPermissionsUpdateSchema = {
+    properties: {
+        permissions: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'boolean'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Permissions'
+        }
+    },
+    type: 'object',
+    title: 'AiToolPermissionsUpdate'
+} as const;
+
 export const AnswerReadSchema = {
     properties: {
         testResultId: {

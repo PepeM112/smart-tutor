@@ -12,9 +12,12 @@ import { useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { BlockHandle } from './block/BlockHandle';
 import { createNoteExtensions } from './extensions';
+import { LinkPopover } from './link/LinkPopover';
 import { parseMarkdown, serializeMarkdown } from './markdown';
 import { NoteBubbleMenu, type SelectionContext } from './NoteBubbleMenu';
+import { NoteOutline } from './outline/NoteOutline';
 import { TableControls } from './table/TableControls';
 import './note-editor.css';
 
@@ -43,6 +46,11 @@ export type RichNoteEditorProps = {
   onSendToAssistant?: (selection: SelectionContext) => void;
   /** React 19 ref prop — exposes `setMarkdown` and `editor`. */
   editorRef?: React.Ref<RichNoteEditorRef>;
+  /**
+   * Id of the note in this editor. When set (and editable), headings get slug ids, the outline rail shows
+   * and `#slug` in the URL scrolls to a heading. Leave it out for the read-only diff and preview editors.
+   */
+  noteId?: string;
   className?: string;
 };
 
@@ -63,10 +71,12 @@ export function RichNoteEditor({
   onAskAi,
   onSendToAssistant,
   editorRef,
+  noteId,
   className,
 }: RichNoteEditorProps) {
   const t = useTranslations('notes');
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasOutline = editable && noteId !== undefined;
 
   // Cache the latest onChange so the editor callback never stale-closes.
   const onChangeRef = useRef(onChange);
@@ -81,6 +91,7 @@ export function RichNoteEditor({
       createNoteExtensions({
         placeholder: t('slash_menu_placeholder'),
         slashHint: t('slash_menu_hint'),
+        headingAnchors: hasOutline,
         slashLabels: {
           slash_text: t('slash_text'),
           slash_h1: t('slash_h1'),
@@ -92,10 +103,12 @@ export function RichNoteEditor({
           slash_quote: t('slash_quote'),
           slash_code: t('slash_code'),
           slash_divider: t('slash_divider'),
+          slash_callout: t('slash_callout'),
+          slash_toggle: t('slash_toggle'),
           slash_table: t('slash_table'),
         },
       }),
-    [t]
+    [t, hasOutline]
   );
 
   const editor = useEditor({
@@ -153,6 +166,9 @@ export function RichNoteEditor({
       <EditorContent editor={editor} />
       {editor && editable && <NoteBubbleMenu editor={editor} onAskAi={onAskAi} onSendToAssistant={onSendToAssistant} />}
       {editor && editable && <TableControls editor={editor} containerRef={containerRef} />}
+      {editor && editable && <BlockHandle editor={editor} containerRef={containerRef} />}
+      {editor && editable && <LinkPopover editor={editor} containerRef={containerRef} />}
+      {editor && hasOutline && <NoteOutline editor={editor} containerRef={containerRef} noteId={noteId} />}
     </div>
   );
 }

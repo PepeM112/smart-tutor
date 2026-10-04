@@ -1,12 +1,22 @@
 from app.core.enums import NoteLength
 
+# The note editor shows two special blocks. Both are plain text in the Markdown, so other tools still read them.
+_BLOCK_SYNTAX = (
+    " You may use callouts for tips and warnings: a quote whose first line is only the marker "
+    "(> [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING] or > [!CAUTION]), then the text on "
+    "lines that start with '> '. You may use a collapsible section for long optional detail: "
+    "<details>, then <summary>Title</summary>, then a blank line, the Markdown content, "
+    "a blank line, and </details>. Use both sparingly. When you edit notes that already "
+    "contain them, keep these blocks and their markers and blank lines exactly as they are."
+)
+
 NOTE_GENERATION_SYSTEM_PROMPT = (
     "You are a study-notes generator. You produce well-structured Markdown notes "
     "for a given topic. Use headings (##, ###), bullet points, bold for key terms, "
     "and tables where appropriate (as simple Markdown pipe tables, never HTML). "
     "Include examples and mnemonics when they help. "
     "Output ONLY the Markdown content — no preamble, no closing remarks, no code fences "
-    "wrapping the entire output."
+    "wrapping the entire output." + _BLOCK_SYNTAX
 )
 
 _LENGTH_GUIDANCE: dict[int, str] = {
@@ -55,7 +65,7 @@ NOTE_REFINEMENT_SYSTEM_PROMPT = (
     "user instructions for how to improve them. Return the COMPLETE updated Markdown — "
     "keep unchanged sections as-is, modify what the user asks, and add new content "
     "if requested. Output ONLY the Markdown content — no preamble, no closing remarks, "
-    "no code fences wrapping the entire output." + _KEEP_COLOR_SPANS + _KEEP_TABLES
+    "no code fences wrapping the entire output." + _KEEP_COLOR_SPANS + _KEEP_TABLES + _BLOCK_SYNTAX
 )
 
 
@@ -76,7 +86,7 @@ NOTE_CHUNK_EDIT_SYSTEM_PROMPT = (
     "instructions to the selected section ONLY. Return ONLY the replacement text for the "
     "selected portion — no preamble, no explanation, no code fences wrapping the output. "
     "Preserve the original Markdown formatting style (headings, lists, bold, etc.) unless "
-    "the user explicitly asks to change it." + _KEEP_COLOR_SPANS + _KEEP_TABLES
+    "the user explicitly asks to change it." + _KEEP_COLOR_SPANS + _KEEP_TABLES + _BLOCK_SYNTAX
 )
 
 

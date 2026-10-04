@@ -15,6 +15,7 @@ import { TagInput } from './TagInput';
 import type { SelectionContext } from '../editor/NoteBubbleMenu';
 
 type Props = {
+  noteId: string;
   title: string;
   onTitleChange: (title: string) => void;
   tags: string[];
@@ -33,6 +34,7 @@ type Props = {
 
 /** Centered text column of an editable note: title, tags, conflict banner and body scroll together. */
 export function NoteEditorBody({
+  noteId,
   title,
   onTitleChange,
   tags,
@@ -71,6 +73,7 @@ export function NoteEditorBody({
 
       <RichNoteEditor
         editorRef={editorRef}
+        noteId={noteId}
         initialContent={initialContent}
         onChange={onContentChange}
         onBlur={onBlur}

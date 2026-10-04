@@ -13,6 +13,7 @@
  * and the assistant attachment flow to know what the user selected.
  */
 
+import { NodeSelection } from '@tiptap/pm/state';
 import { CellSelection } from '@tiptap/pm/tables';
 import { useEditorState } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
@@ -136,7 +137,10 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
       shouldShow={({ state }) => {
         const { from, to } = state.selection;
         // A cell selection (grips, cell drag) has the table menus for its actions.
-        return from !== to && !(state.selection instanceof CellSelection);
+        // A selected block (the block handle menu is open) has its own menu: no text format bar over it.
+        return (
+          from !== to && !(state.selection instanceof CellSelection) && !(state.selection instanceof NodeSelection)
+        );
       }}
     >
       <div

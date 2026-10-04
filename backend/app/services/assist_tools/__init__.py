@@ -9,7 +9,6 @@ from app.services.assist_tools.registry import (
     execute_tool,
     get_tool_definitions_anthropic,
     get_tool_definitions_openai,
-    requires_confirmation,
 )
 from app.services.assist_tools.types import ToolHandler, ToolResult, ToolSpec
 
@@ -22,5 +21,4 @@ __all__ = [
     "execute_tool",
     "get_tool_definitions_anthropic",
     "get_tool_definitions_openai",
-    "requires_confirmation",
 ]

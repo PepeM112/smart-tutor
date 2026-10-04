@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.core.enums import QuestionType
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.schemas.test_generation import GeneratedQuestionPreview, QuestionEditRequest
 from app.services import test_generation_service
-from app.services.assist_tools._helpers import SEARCH_LIMIT
+from app.services.assist_tools._helpers import SEARCH_LIMIT, clip, confirm_summary, string_list
 from app.services.assist_tools.types import QuestionRefineMetadata, ToolResult, ToolSpec
 from app.services.service_helpers import get_owned_or_404
 
@@ -85,6 +85,20 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
     )
 
 
+def refine_questions_confirm_context(
+    db: Session, *, current_user: User, arguments: dict[str, Any]
+) -> dict[str, Any] | None:
+    test_id = arguments.get("test_id")
+    test = test_crud.get_by_id(db, id=str(test_id)) if test_id else None
+    owned = test is not None and test.user_id == current_user.id
+    count = len(string_list(arguments.get("question_ids")))
+    return confirm_summary(
+        ("test", test.title if test and owned else None),
+        ("questions", str(count) if count else None),
+        ("instructions", clip(arguments.get("instructions"))),
+    )
+
+
 SEARCH_QUESTIONS = ToolSpec(
     name="search_questions",
     description="Search the user's question bank.",
@@ -99,6 +113,7 @@ SEARCH_QUESTIONS = ToolSpec(
         "required": [],
     },
     handler=search_questions,
+    kind="read",
 )
 
 REFINE_QUESTIONS = ToolSpec(
@@ -106,7 +121,8 @@ REFINE_QUESTIONS = ToolSpec(
     description=(
         "Edit the content of specific questions in a test using AI. "
         "Use get_test_details first to see the test's questions. "
-        "Executes directly — the user reviews the proposed changes in a diff view before accepting."
+        "The user may be asked to approve the call first; after it runs, the user reviews the proposed "
+        "changes in a diff view before accepting."
     ),
     input_schema={
         "type": "object",
@@ -128,4 +144,6 @@ REFINE_QUESTIONS = ToolSpec(
         "required": ["test_id", "question_ids", "instructions"],
     },
     handler=refine_questions,
+    confirm_context=refine_questions_confirm_context,
+    kind="write",
 )

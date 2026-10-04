@@ -9,15 +9,24 @@ from __future__ import annotations
 
 import logging
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app.crud import folder as folder_crud
+from app.crud import note as note_crud
 from app.schemas.folder import FolderCreate, FolderUpdate
 from app.services import folder_service, note_service
-from app.services.assist_tools._helpers import location_label, plural, skip_reason, string_list
+from app.services.assist_tools._helpers import (
+    confirm_summary,
+    location_label,
+    names_label,
+    note_label,
+    plural,
+    skip_reason,
+    string_list,
+)
 from app.services.assist_tools.types import ToolResult, ToolSpec
 
 if TYPE_CHECKING:
@@ -140,6 +149,30 @@ def move_items(db: Session, *, current_user: User, arguments: dict[str, object])
     return ToolResult(output="\n".join([head, *skipped_lines]))
 
 
+def create_folder_confirm_context(
+    db: Session, *, current_user: User, arguments: dict[str, Any]
+) -> dict[str, Any] | None:
+    parent_id = _optional_id(arguments.get("parent_id"))
+    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
+    return confirm_summary(
+        ("name", str(arguments.get("name") or "").strip()),
+        ("location", location_label(folders, parent_id) if parent_id is None or parent_id in folders else None),
+    )
+
+
+def move_items_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    # The folder map holds the folders of `current_user` only, so an ID of someone else shows nothing.
+    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
+    target_id = _optional_id(arguments.get("target_folder_id"))
+    notes = note_crud.list_live_by_ids(db, user_id=current_user.id, ids=string_list(arguments.get("note_ids")))
+    folder_names = [folders[fid].name for fid in string_list(arguments.get("folder_ids")) if fid in folders]
+    return confirm_summary(
+        ("notes", names_label([note_label(n.title) for n in notes])),
+        ("folders", names_label(folder_names)),
+        ("destination", location_label(folders, target_id) if target_id is None or target_id in folders else None),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Specs
 # ---------------------------------------------------------------------------
@@ -156,6 +189,7 @@ LIST_FOLDERS = ToolSpec(
         "required": [],
     },
     handler=list_folders,
+    kind="read",
 )
 
 CREATE_FOLDER = ToolSpec(
@@ -179,6 +213,8 @@ CREATE_FOLDER = ToolSpec(
         "required": ["name"],
     },
     handler=create_folder,
+    confirm_context=create_folder_confirm_context,
+    kind="write",
 )
 
 MOVE_ITEMS = ToolSpec(
@@ -211,4 +247,6 @@ MOVE_ITEMS = ToolSpec(
         "required": ["target_folder_id"],
     },
     handler=move_items,
+    confirm_context=move_items_confirm_context,
+    kind="write",
 )

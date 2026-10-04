@@ -12,6 +12,7 @@ import { sdk } from '@/lib/apiClient';
 
 import { buildSettingsPayload, DEFAULT_EASE_FACTOR } from '../utils';
 
+import { AiPermissionsSection } from './AiPermissionsSection';
 import { AiSection } from './AiSection';
 import { AppearanceSection } from './AppearanceSection';
 import { LanguageSection } from './LanguageSection';
@@ -95,6 +96,9 @@ export function SettingsPage() {
           removeKey={removeKey}
           isRemovingKey={isRemovingKey}
         />
+      </div>
+      <div className="py-6">
+        <AiPermissionsSection />
       </div>
       <div className="py-6">
         <AppearanceSection />

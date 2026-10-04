@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
 
@@ -43,6 +43,30 @@ def string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return list(dict.fromkeys(str(v) for v in value if v))
+
+
+def confirm_summary(*lines: tuple[str, str | None]) -> dict[str, Any] | None:
+    """Confirm card data for a tool without a special layout: `{key, value}` lines.
+
+    The frontend translates `key` (`assist.confirm.fields.<key>`), so keys are stable ids and
+    `value` is the data. Empty values are dropped. No lines gives None (no card details).
+    """
+    items = [{"key": key, "value": value} for key, value in lines if value]
+    return {"summary": items} if items else None
+
+
+def clip(text: object, limit: int = 160) -> str:
+    """Free text of the model (instructions, guidance) cut to one short line for a confirm card."""
+    flat = " ".join(str(text or "").split())
+    return flat if len(flat) <= limit else f"{flat[: limit - 1]}…"
+
+
+def names_label(names: list[str], limit: int = 5) -> str | None:
+    """ "A, B, C" or "A, B, C +4 more". None for an empty list."""
+    if not names:
+        return None
+    shown = ", ".join(names[:limit])
+    return shown if len(names) <= limit else f"{shown} +{len(names) - limit}"
 
 
 def skip_reason(db: Session, action: Callable[[], object]) -> str | None:

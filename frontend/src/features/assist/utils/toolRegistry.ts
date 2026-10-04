@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 
 /** The label of each tool is the i18n key `assist.tools.<name>` (see `useToolLabel`). Which tools
- * ask for approval is decided by the backend (`requires_confirmation` of its `ToolSpec`), which
- * sends a confirm event, so it is not repeated here. */
+ * ask for approval is decided by the backend (the `kind` of its `ToolSpec` and the user's
+ * permission overrides), which sends a confirm event, so it is not repeated here. */
 export type ToolDefinition = {
   icon: LucideIcon;
   /** Mutates user data, as opposed to a read-only lookup. */

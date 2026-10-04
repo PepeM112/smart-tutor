@@ -1,7 +1,11 @@
+from typing import Literal
+
 from pydantic import field_validator, model_validator
 
 from app.core.enums import AIProvider, UserRole, UserStatus
 from app.schemas.base import BaseSchema
+
+ToolKind = Literal["read", "write"]
 
 VALID_LOCALES = {"en", "es"}
 VALID_THEMES = {
@@ -91,3 +95,15 @@ class UserRead(UserBase):
         data["has_anthropic_key"] = bool(data.get("encrypted_anthropic_key"))
         data["has_openai_key"] = bool(data.get("encrypted_openai_key"))
         return data
+
+
+class AiToolPermissionRead(BaseSchema):
+    name: str
+    kind: ToolKind
+    default_auto_approve: bool
+    auto_approve: bool
+
+
+class AiToolPermissionsUpdate(BaseSchema):
+    # Partial map: tool names that are not in it keep their current value.
+    permissions: dict[str, bool] | None = None

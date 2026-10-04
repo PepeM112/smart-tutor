@@ -27,7 +27,16 @@ export type ConfirmContext = {
   questions_to_remove?: { id: string; prompt: string }[];
   title_change?: { from: string; to: string };
   description_change?: { from: string; to: string };
+  /** Generic summary built by the backend for the write tools. `key` is an i18n key suffix
+   * (`assist.confirm.fields.<key>`), `value` is already display text. */
+  summary?: { key: string; value: string }[];
 };
+
+export type ConfirmOptions = {
+  /** Save "allow without asking" for this tool, then approve every pending card of the same tool. */
+  alwaysAllow?: boolean;
+};
+export type ConfirmHandler = (toolCallId: string, approved: boolean, options?: ConfirmOptions) => void;
 export type SSEConfirmRequired = {
   id: string;
   name: string;

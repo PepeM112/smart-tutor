@@ -24,8 +24,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
+}));
+
+const updatePermissions = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/apiClient', () => ({
+  sdk: { usersUpdateAiToolPermissions: updatePermissions, questionsBulkRestore: vi.fn() },
 }));
 
 const PAGE_CONTEXT: PageContext = {
@@ -186,5 +193,56 @@ describe('useAssist — tool history after an approval (tool_use without tool_re
     expect(thirdBody.messages[1].toolCalls?.map(tc => tc.id)).toEqual(['cf']);
     expect(thirdBody.messages[2].toolResults?.map(r => r.toolCallId)).toEqual(['cf']);
     expect(thirdBody.messages[3].toolCalls?.map(tc => tc.id)).toEqual(['mv']);
+  });
+});
+
+describe('useAssist — always allow', () => {
+  const usage = { usage: { inputTokens: 1, outputTokens: 1 } };
+
+  it('saves the permission, then approves every pending card of the same tool and rejects the others', async () => {
+    updatePermissions.mockResolvedValue({ data: [] });
+    const call = (id: string, name: string) => [
+      { event: 'tool_call', data: { id, name, arguments: {} } },
+      { event: 'confirm_required', data: { id, name, arguments: {} } },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: {
+          getReader: () =>
+            makeSSEReader([
+              ...call('f1', 'create_folder'),
+              ...call('f2', 'create_folder'),
+              ...call('m1', 'move_items'),
+              { event: 'done', data: { ...usage, pendingConfirmations: ['f1', 'f2', 'm1'] } },
+            ]),
+        },
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        body: { getReader: () => makeSSEReader([{ event: 'done', data: usage }]) },
+        json: () => Promise.resolve({}),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+
+    act(() => result.current.send('organise'));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    act(() => result.current.confirm('f1', true, { alwaysAllow: true }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(updatePermissions).toHaveBeenCalledWith({ body: { permissions: { create_folder: true } } });
+
+    const body = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body) as {
+      toolConfirmations: { toolCallId: string; approved: boolean }[];
+    };
+    expect(body.toolConfirmations).toEqual([
+      { toolCallId: 'f1', approved: true },
+      { toolCallId: 'f2', approved: true },
+      { toolCallId: 'm1', approved: false },
+    ]);
   });
 });

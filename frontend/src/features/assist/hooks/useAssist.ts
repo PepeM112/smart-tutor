@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -13,6 +14,7 @@ import { buildInterruptedMessages, buildStreamMessages } from '../utils/buildStr
 import { consumeSSEStream } from '../utils/sseStream';
 import { getQueryKeysToInvalidate, isWriteTool } from '../utils/toolRegistry';
 
+import { AI_PERMISSIONS_QUERY_KEY } from './useAiToolPermissions';
 import { createStreamQueue } from './useStreamQueue';
 
 import type { StreamQueueHandle } from './useStreamQueue';
@@ -20,6 +22,7 @@ import type {
   AssistMessage,
   AssistRequest,
   AssistTurn,
+  ConfirmHandler,
   PageContext,
   SSEConfirmRequired,
   SSEDone,
@@ -45,7 +48,7 @@ type UseAssistReturn = {
   isStreaming: boolean;
   send: (text: string, displayText?: string, onComplete?: () => void) => void;
   stop: () => void;
-  confirm: (toolCallId: string, approved: boolean) => void;
+  confirm: ConfirmHandler;
   clear: () => void;
 };
 
@@ -77,7 +80,8 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   const [isStreaming, setIsStreaming] = useState(false);
 
   const conversationRef = useRef<AssistMessage[]>([]);
-  const pendingToolIdsRef = useRef<Set<string>>(new Set());
+  // Pending confirmation card id -> tool name (needed to approve every card of one tool).
+  const pendingToolIdsRef = useRef<Map<string, string>>(new Map());
   const abortRef = useRef<AbortController | null>(null);
   const lastAssistantTurnIdRef = useRef('');
   const queueRef = useRef<StreamQueueHandle | null>(null);
@@ -91,6 +95,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   }, []);
 
   const queryClient = useQueryClient();
+  const t = useTranslations('settings');
   const router = useRouter();
   const setPendingNoteDiff = useAssistDiffStore(s => s.setPendingNoteDiff);
   const setPendingTestDiff = useAssistDiffStore(s => s.setPendingTestDiff);
@@ -102,7 +107,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
   const resolvePendingConfirmations = useCallback(() => {
     if (pendingToolIdsRef.current.size === 0) return;
 
-    const rejectedResults: ToolResultData[] = [...pendingToolIdsRef.current].map(id => ({
+    const rejectedResults: ToolResultData[] = [...pendingToolIdsRef.current.keys()].map(id => ({
       toolCallId: id,
       output: 'User changed their request.',
     }));
@@ -350,7 +355,7 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
           case 'confirm_required': {
             const cr = data as SSEConfirmRequired;
-            pendingToolIdsRef.current.add(cr.id);
+            pendingToolIdsRef.current.set(cr.id, cr.name);
             textSegmentOpen = false;
 
             const actionSeg: TurnSegment = {
@@ -450,25 +455,32 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
     [pageContext, streamResponse, resolvePendingConfirmations]
   );
 
-  const confirm = useCallback(
-    (toolCallId: string, approved: boolean) => {
-      const otherPendingIds = [...pendingToolIdsRef.current].filter(id => id !== toolCallId);
+  const confirm: ConfirmHandler = useCallback(
+    (toolCallId, approved, options) => {
+      const pending = new Map(pendingToolIdsRef.current);
       pendingToolIdsRef.current.clear();
+
+      // "Always allow" also approves the other pending cards of the same tool in this round.
+      // Without it they would be rejected, and the user would have to answer each one again.
+      const toolName = pending.get(toolCallId);
+      const alwaysAllow = approved && options?.alwaysAllow === true && toolName !== undefined;
+      const isApproved = (id: string): boolean =>
+        id === toolCallId ? approved : alwaysAllow && pending.get(id) === toolName;
 
       setTurns(prev =>
         prev.map(turn => ({
           ...turn,
           segments: turn.segments.map(seg => {
             if (seg.type !== 'action_card' || seg.status !== 'pending') return seg;
-            if (seg.id === toolCallId)
-              return { ...seg, status: approved ? ('approved' as const) : ('rejected' as const) };
-            return { ...seg, status: 'rejected' as const };
+            return { ...seg, status: isApproved(seg.id) ? ('approved' as const) : ('rejected' as const) };
           }),
         }))
       );
 
-      const confirmations: ToolConfirmation[] = [{ toolCallId, approved }];
-      otherPendingIds.forEach(id => confirmations.push({ toolCallId: id, approved: false }));
+      const confirmations: ToolConfirmation[] = [
+        toolCallId,
+        ...[...pending.keys()].filter(id => id !== toolCallId),
+      ].map(id => ({ toolCallId: id, approved: isApproved(id) }));
 
       if (!approved) {
         conversationRef.current.push({
@@ -482,14 +494,28 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
         return;
       }
 
-      const request: AssistRequest = {
-        messages: conversationRef.current,
-        pageContext,
-        toolConfirmations: confirmations,
+      const resume = (): void => {
+        const request: AssistRequest = {
+          messages: conversationRef.current,
+          pageContext,
+          toolConfirmations: confirmations,
+        };
+        void streamResponse(request, lastAssistantTurnIdRef.current);
       };
-      void streamResponse(request, lastAssistantTurnIdRef.current);
+
+      if (!alwaysAllow || toolName === undefined) {
+        resume();
+        return;
+      }
+
+      // Save the permission first. If saving fails, this call still runs: the user approved it.
+      void sdk
+        .usersUpdateAiToolPermissions({ body: { permissions: { [toolName]: true } } })
+        .then(() => queryClient.invalidateQueries({ queryKey: AI_PERMISSIONS_QUERY_KEY }))
+        .catch(() => toast.error(t('ai_permissions_save_failed')))
+        .finally(resume);
     },
-    [pageContext, streamResponse]
+    [pageContext, streamResponse, queryClient, t]
   );
 
   const stop = useCallback(() => {

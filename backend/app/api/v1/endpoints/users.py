@@ -17,8 +17,8 @@ from app.crud import user as user_crud
 from app.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.services import user_service
+from app.schemas.user import AiToolPermissionRead, AiToolPermissionsUpdate, UserCreate, UserRead, UserUpdate
+from app.services import ai_permission_service, user_service
 
 router = APIRouter()
 
@@ -107,3 +107,17 @@ def update_me(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
     return user_service.update_user(db, current_user=current_user, data=data)
+
+
+@router.get("/me/ai-tool-permissions", response_model=list[AiToolPermissionRead])
+def get_ai_tool_permissions(current_user: Annotated[User, Depends(get_current_user)]) -> list[AiToolPermissionRead]:
+    return ai_permission_service.list_permissions(current_user)
+
+
+@router.patch("/me/ai-tool-permissions", response_model=list[AiToolPermissionRead])
+def update_ai_tool_permissions(
+    data: AiToolPermissionsUpdate,
+    db: DbSession,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> list[AiToolPermissionRead]:
+    return ai_permission_service.update_permissions(db, current_user=current_user, data=data)

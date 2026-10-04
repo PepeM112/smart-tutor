@@ -99,6 +99,18 @@ const BASE_ITEMS: Omit<SlashItem, 'displayLabel'>[] = [
     execute: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
   },
   {
+    labelKey: 'slash_callout',
+    label: 'Callout',
+    icon: 'ⓘ',
+    execute: ({ editor, range }) => editor.chain().focus().deleteRange(range).setCallout('note').run(),
+  },
+  {
+    labelKey: 'slash_toggle',
+    label: 'Toggle',
+    icon: '▸',
+    execute: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertToggle().run(),
+  },
+  {
     labelKey: 'slash_table',
     label: 'Table',
     icon: '⊞',

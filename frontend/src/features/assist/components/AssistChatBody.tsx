@@ -5,11 +5,11 @@ import { useEffect, useRef } from 'react';
 
 import { AssistTurnRow } from './AssistTurnRow';
 
-import type { AssistTurn } from '../types';
+import type { AssistTurn, ConfirmHandler } from '../types';
 
 type AssistChatBodyProps = {
   turns: AssistTurn[];
-  onConfirm: (toolCallId: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
   footer: React.ReactNode;
 };
 

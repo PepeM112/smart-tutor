@@ -28,9 +28,21 @@ The note editor is a Notion-style WYSIWYG editor (Tiptap). There is no Edit/View
 
 **Markdown input rules**: type the marker and a space — the marker is replaced by rich formatting. For example: `#` + space creates a heading, `**text**` becomes bold, `- ` starts a bullet list.
 
-**Slash menu**: type `/` to open a block picker. Select Text, H1–H3, Bullet, Numbered, To-do, Quote, Code, Divider, or Table with the keyboard or mouse. Esc closes the menu and keeps the `/`. The filter matches the English name and the name in the current language. The slash menu does not open inside code blocks or inline code.
+**Slash menu**: type `/` to open a block picker. Select Text, H1–H3, Bullet, Numbered, To-do, Quote, Code, Divider, Callout, Toggle, or Table with the keyboard or mouse. Esc closes the menu and keeps the `/`. The filter matches the English name and the name in the current language. The slash menu does not open inside code blocks or inline code.
 
 **Code blocks**: highlighted with the `common` lowlight language set. A language chip in the top-right corner (on hover, or while the cursor is in the block) opens a filterable language list. "Auto" (no language) lets lowlight guess the highlight. The language is stored as the fence info string (```` ```python ````). Spell check is off in code (`CodeBlockView.tsx`).
+
+Code aliases (`py`, `js`, `yml`...) become the canonical name (`python`) when typed, pasted, loaded or picked. The code toolbar also has Copy and a view-only Wrap toggle (`codeLanguages.ts`).
+
+**Links**: hover or click a link for a popover with the URL, open, edit, copy and remove. Cmd/Ctrl+click opens it (`link/`).
+
+**To-do nesting**: Tab / Shift+Tab indent and outdent a to-do. Saved as `- [ ]` with 2 spaces per level.
+
+**Callout**: a colored box (note, tip, important, warning, caution). Saved as a GitHub alert: `> [!TIP]` alone on the first line, then `> `-prefixed lines. Other Markdown viewers show a plain quote. The icon menu changes the type.
+
+**Toggle**: a collapsible section. Saved as `<details><summary>Title</summary>`, a blank line, the Markdown content, a blank line, `</details>`. The parser also accepts it without blank lines, on one line, and nested. Open or closed is view-only and never saved. Embeddings drop the marker line and the tags and keep the text.
+
+**Block handle**: on desktop, a "+" and a 6-dot grip show left of the block under the pointer. A block is a direct child of the document, so a list, quote, callout, toggle or table moves as a whole. Drag the grip to reorder (a line shows the drop place). Click it for Turn into (text, H1–H3, bullet, numbered, to-do, quote, code, callout, toggle), Duplicate and Delete. "+" adds an empty paragraph below and opens the slash menu in it. A table or a divider cannot be turned into another block. Each action is one undo step, and none of them changes the saved Markdown format. Code: `features/notes/editor/block/` (`blockCommands.ts` pure transaction builders, tested; `blockGeometry.ts`; `useBlockOverlay.ts` hover and lock like the table overlay; `BlockHandle.tsx`). The drag reuses `table/useGripDrag.ts`. For a table block the handle sits left of the table menu button (no overlap). While the menu is open the block is selected (soft outline, no text bubble menu). The overlay is hidden on touch and below `md`.
 
 **Width**: on desktop, the BookOpen button next to the save status switches the text column between the 720px reading width and the full page width. One setting per viewer for all notes, in localStorage (`useNoteWidth`). Smaller screens always use the full width.
 
@@ -84,6 +96,13 @@ The mark is `NoteColorMark` (`features/notes/editor/noteColor.ts`). Unknown colo
   - Code: `tableCommands.ts` (pure transaction builders, tested), `tableGeometry.ts` (pure hover and drop math, tested), `useTableOverlay.ts`, `useGripDrag.ts`, `TableMenus.tsx`.
 - RAG: `embedding_service.clean_note_for_embedding()` turns each table into text (cells joined by ` | `, rows by newlines) and then strips color spans. The AI edit prompts tell the model to keep `<table>` HTML and its attributes, and to write new tables as pipe tables.
 
+- Outline rail and heading anchors (`features/notes/editor/outline/`): on the note page only (`RichNoteEditor` gets `noteId`; the diff and preview editors do not, so ids are never repeated on a page).
+  - Heading ids: `headingAnchors.ts` is a ProseMirror plugin with node decorations. The id is a slug of the heading text (`slug.ts`: lowercase, no accents, letters and digits of any script, `-` between words). A repeated slug gets `-2`, `-3`. The id exists only in the DOM. It is not in the document and not in the Markdown, so AI, RAG and saved notes do not change.
+  - Rail (`NoteOutline.tsx`): an overlay in the editor container like the table controls. It is `absolute` to the right of the column and takes no layout space, and it is `sticky` near the top of the scroll area. Dashes: width by level (H1 longest), the active one is highlighted. Hover or keyboard focus opens a card with the headings indented by level. A click smooth-scrolls (instant with reduced motion). Each item has a copy-link button (`/notes/{id}#slug` + toast). Esc closes the card.
+  - It is hidden below `lg`, with fewer than 2 headings, and when the space between the column and the scroll area is less than 40px (`MIN_RAIL_SPACE`: full width on a narrow window, or the diff panel is open). The space is measured from the DOM, so it follows the split pane.
+  - The note page scrolls an inner pane, not the window. `findScrollParent` (`scroll.ts`) finds the scroll container, and the active heading comes from its scroll position (last heading above 96px from the top; the last heading when scrolled to the end).
+  - `/notes/{id}#slug` scrolls to the heading when the page loads and on `hashchange` (`useScrollToHash.ts`). A heading in a closed toggle has no box and is not scrolled to.
+
 ### Typography
 
 All editor styles are in `features/notes/editor/note-editor.css`. Each element (body, H1–H3, lists, quote, code, table, divider) has its own CSS variables at the top of the file (`--note-text-size`, `--note-h1-size`, `--note-table-size`, …). Change a variable there to change how that element looks. The color palette (`--note-<color>` and `--note-<color>-bg`) has values for the light themes and the dark themes.
@@ -96,7 +115,7 @@ Click "New note" on the notes list. An empty note (empty title, "Untitled" shown
 
 ## Note URLs
 
-Note URLs are Notion-style: `/notes/<title-slug>-<ulid>` (`noteHref()` in `src/lib/routes.ts`). Only the last 26 characters (the ULID) identify the note (`parseNoteId()`), so old links and bare `/notes/<ulid>` links still work. When the title changes, the page updates the address bar with `history.replaceState`. A router navigation could remount the editor.
+Note URLs are Notion-style: `/notes/<title-slug>-<ulid>` (`noteHref()` in `src/lib/routes.ts`). Only the last 26 characters (the ULID) identify the note (`parseNoteId()`), so old links and bare `/notes/<ulid>` links still work. When the title changes, the page updates the address bar with `history.replaceState`. A router navigation could remount the editor. The hash stays, and `#<heading-slug>` scrolls to that heading (see the outline rail in "The Editor").
 
 ## Autosave & Conflicts
 

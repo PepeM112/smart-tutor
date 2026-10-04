@@ -4,7 +4,7 @@ Orchestrates the conversation loop:
 1. Build system prompt with page context
 2. Convert frontend messages to provider format
 3. Stream LLM response, yielding SSE events
-4. On tool calls: auto-execute tools, pause the ones that require confirmation
+4. On tool calls: auto-execute tools, pause the ones the user must approve (`needs_confirmation`)
 5. Feed tool results back and continue streaming
 """
 
@@ -21,13 +21,13 @@ from app.core.enums import AIFeature, AIProvider
 from app.models.user import User
 from app.schemas.assist import AssistMessage, AssistRequest, ToolConfirmation, ToolResultData
 from app.services import token_usage_service
+from app.services.ai_permission_service import needs_confirmation
 from app.services.assist_prompts import build_system_prompt
 from app.services.assist_tools import (
     build_confirm_context,
     execute_tool,
     get_tool_definitions_anthropic,
     get_tool_definitions_openai,
-    requires_confirmation,
 )
 from app.services.llm import (
     CompletionResult,
@@ -369,7 +369,7 @@ def _stream_assist_inner(
             logger.info("Tool call: %s (id=%s, args=%s)", tc.name, tc.id, tc.arguments)
             yield _sse("tool_call", {"id": tc.id, "name": tc.name, "arguments": tc.arguments})
 
-            if requires_confirmation(tc.name):
+            if needs_confirmation(current_user, tc.name):
                 confirm_calls.append(tc)
             else:
                 logger.info("Auto-executing tool: %s", tc.name)

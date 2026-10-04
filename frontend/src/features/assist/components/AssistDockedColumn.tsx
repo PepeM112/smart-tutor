@@ -10,14 +10,14 @@ import { MAX_DOCKED_WIDTH, MIN_DOCKED_WIDTH, useAssistPanelStore } from '../stor
 import { AssistChatBody } from './AssistChatBody';
 import { AssistInput } from './AssistInput';
 
-import type { AssistTurn } from '../types';
+import type { AssistTurn, ConfirmHandler } from '../types';
 
 type Props = {
   turns: AssistTurn[];
   isStreaming: boolean;
   onSend: (text: string, displayText?: string) => void;
   onStop: () => void;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
   onClear: () => void;
 };
 

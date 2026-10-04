@@ -24,7 +24,11 @@ function loadSplitRatio(storageKey: string, defaultRatio: number): number {
   return defaultRatio;
 }
 
-export function useResizableSplit(storageKey: string, defaultRatio: number) {
+/**
+ * `dividerWidth` is the width in px of the divider between the panes. The ratio splits
+ * the container width minus the divider, so the drag math removes it too.
+ */
+export function useResizableSplit(storageKey: string, defaultRatio: number, dividerWidth = 0) {
   const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(storageKey, defaultRatio));
   // Separate isDragging state (two flips: mousedown / mouseup) so consumers can
   // conditionally suppress spring animations while the divider is dragged.
@@ -54,7 +58,8 @@ export function useResizableSplit(storageKey: string, defaultRatio: number) {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const ratio = (e.clientX - rect.left) / rect.width;
+      // The divider center must stay under the cursor: main width = (W - divider) * ratio.
+      const ratio = (e.clientX - rect.left - dividerWidth / 2) / (rect.width - dividerWidth);
       setSplitRatio(Math.max(0.2, Math.min(0.8, ratio)));
     };
     const handleMouseUp = () => {
@@ -73,7 +78,7 @@ export function useResizableSplit(storageKey: string, defaultRatio: number) {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, [storageKey]);
+  }, [storageKey, dividerWidth]);
 
   return { containerRef, splitRatio, setSplitRatio, handleDividerMouseDown, resetRatio, isDragging };
 }

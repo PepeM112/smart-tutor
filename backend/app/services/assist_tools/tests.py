@@ -7,13 +7,14 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from app.core.enums import QuestionType
+from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import TestGenerationRequest
 from app.services import question_service, test_generation_service, test_service
-from app.services.assist_tools._helpers import LIST_LIMIT
+from app.services.assist_tools._helpers import LIST_LIMIT, confirm_summary, note_label
 from app.services.assist_tools.types import TestCreatedMetadata, TestEditMetadata, ToolResult, ToolSpec
 from app.services.service_helpers import get_owned_or_404
 
@@ -209,6 +210,21 @@ def edit_test_confirm_context(db: Session, *, current_user: User, arguments: dic
     return context or None
 
 
+def create_test_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    note_id = arguments.get("note_id")
+    note = note_crud.get_by_id(db, id=str(note_id)) if note_id else None
+    types = arguments.get("question_types")
+    return confirm_summary(
+        ("note", note_label(note.title) if note and note.user_id == current_user.id else None),
+        ("question_count", str(arguments.get("question_count") or 10)),
+        ("difficulty", str(arguments.get("difficulty") or "medium")),
+        (
+            "question_types",
+            ", ".join(str(t).replace("_", " ").capitalize() for t in types) if isinstance(types, list) else None,
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Specs
 # ---------------------------------------------------------------------------
@@ -227,6 +243,7 @@ LIST_TESTS = ToolSpec(
         "required": [],
     },
     handler=list_tests,
+    kind="read",
 )
 
 GET_TEST_DETAILS = ToolSpec(
@@ -240,6 +257,7 @@ GET_TEST_DETAILS = ToolSpec(
         "required": ["test_id"],
     },
     handler=get_test_details,
+    kind="read",
 )
 
 CREATE_TEST = ToolSpec(
@@ -247,7 +265,7 @@ CREATE_TEST = ToolSpec(
     description=(
         "Generate a test with AI-created questions from an existing note. "
         "Use list_notes first to find the note ID. "
-        "Executes directly — the user will see a link to review the generated test on the edit page."
+        "After it runs, the user sees a link to review the generated test on the edit page."
     ),
     input_schema={
         "type": "object",
@@ -277,6 +295,8 @@ CREATE_TEST = ToolSpec(
         "required": ["note_id"],
     },
     handler=create_test,
+    confirm_context=create_test_confirm_context,
+    kind="write",
 )
 
 EDIT_TEST = ToolSpec(
@@ -284,7 +304,7 @@ EDIT_TEST = ToolSpec(
     description=(
         "Edit an existing test: rename it, change its description, or remove specific questions. "
         "Use get_test_details first to see the test's questions and their IDs. "
-        "Requires user confirmation before executing."
+        "The user may be asked to approve the change before it runs."
     ),
     input_schema={
         "type": "object",
@@ -310,6 +330,6 @@ EDIT_TEST = ToolSpec(
         "required": ["test_id"],
     },
     handler=edit_test,
-    requires_confirmation=True,
+    kind="write",
     confirm_context=edit_test_confirm_context,
 )

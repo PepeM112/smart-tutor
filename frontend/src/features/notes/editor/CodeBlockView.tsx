@@ -1,17 +1,24 @@
 'use client';
 
-// React NodeView for code blocks: the code plus a language chip in the top-right corner.
-// The chip shows on hover and while the cursor is in the block (touch has no hover).
-// Click → a filterable list of the registered lowlight languages. "Auto" = no language,
-// so lowlight guesses the highlight. The language is stored as the ```lang fence.
+// React NodeView for code blocks: the code plus a small toolbar in the top-right corner:
+// wrap toggle, copy button and the language chip. The toolbar shows on hover and while the cursor
+// is in the block (touch has no hover).
+// The chip shows the readable name ("Python"). Click → a filterable list of the registered
+// lowlight languages (search also finds aliases: "py", "yml"). "Auto" = no language, so lowlight
+// guesses the highlight. The language is stored as the canonical ```lang fence.
+// Wrap is view-only (local state, per block, not stored): it would only add noise to the Markdown.
 
 import { NodeViewContent, NodeViewWrapper, useEditorState, type NodeViewProps } from '@tiptap/react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Copy, WrapText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
+import { HoverHint } from '@/components/ui/hover-hint';
 import { cn } from '@/lib/utils';
+
+import { codeLanguageLabel, normalizeCodeLanguage, searchCodeLanguages } from './codeLanguages';
 
 import type { createLowlight } from 'lowlight';
 
@@ -20,6 +27,8 @@ type Lowlight = ReturnType<typeof createLowlight>;
 export function CodeBlockView({ node, editor, extension, getPos, updateAttributes }: NodeViewProps) {
   const t = useTranslations('notes');
   const [open, setOpen] = useState(false);
+  const [wrap, setWrap] = useState(false);
+  const [copied, setCopied] = useState(false);
   // Set by an outside click: the user already put the cursor where they clicked, so the
   // close must not move it back into this block.
   const closedByOutside = useRef(false);
@@ -40,8 +49,25 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
   const lowlight = (extension.options as { lowlight: Lowlight }).lowlight;
 
   const selectLanguage = (next: string | null) => {
-    updateAttributes({ language: next });
+    updateAttributes({ language: normalizeCodeLanguage(next) });
     setOpen(false);
+  };
+
+  // The check icon shows for a moment after a copy.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const copyCode = () => {
+    navigator.clipboard
+      .writeText(node.textContent)
+      .then(() => {
+        setCopied(true);
+        toast.success(t('code_copied'));
+      })
+      .catch(() => toast.error(t('code_copy_failed')));
   };
 
   return (
@@ -49,11 +75,22 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
       {editor.isEditable && (
         <div
           contentEditable={false}
+          data-slot="code-block-toolbar"
           className={cn(
-            'absolute top-1.5 right-1.5 z-10 transition-opacity',
+            'absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5 transition-opacity',
             isActive || open ? 'opacity-100' : 'opacity-0 group-hover/code:opacity-100'
           )}
         >
+          <ToolbarButton
+            label={wrap ? t('code_wrap_off') : t('code_wrap_on')}
+            pressed={wrap}
+            onClick={() => setWrap(w => !w)}
+          >
+            <WrapText className="size-3.5" />
+          </ToolbarButton>
+          <ToolbarButton label={t('code_copy')} onClick={copyCode}>
+            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          </ToolbarButton>
           <FloatingCard open={open} onOpenChange={setOpen}>
             <FloatingCardTrigger>
               <button
@@ -63,7 +100,7 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
                 onMouseDown={e => e.preventDefault()}
                 className="inline-flex h-6 items-center gap-0.5 rounded-md bg-code-fg/10 px-2 text-[11px] font-medium text-code-fg opacity-80 hover:bg-code-fg/15 hover:opacity-100"
               >
-                {language ?? t('code_language_auto')}
+                {language ? codeLanguageLabel(language) : t('code_language_auto')}
                 <ChevronDown className="size-3" />
               </button>
             </FloatingCardTrigger>
@@ -94,7 +131,7 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
         </div>
       )}
       {/* spellCheck off: the browser marks code words as spelling errors (the red lines). */}
-      <pre spellCheck={false}>
+      <pre spellCheck={false} data-wrap={wrap || undefined}>
         <NodeViewContent<'code'> as="code" className={language ? `language-${language}` : undefined} />
       </pre>
     </NodeViewWrapper>
@@ -111,7 +148,7 @@ function LanguageList({ languages, current, onSelect }: LanguageListProps) {
   const t = useTranslations('notes');
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
-  const matches = [...languages].sort().filter(lang => lang.includes(q));
+  const matches = searchCodeLanguages(languages, q);
   const showAuto = !q || t('code_language_auto').toLowerCase().includes(q);
 
   return (
@@ -134,13 +171,46 @@ function LanguageList({ languages, current, onSelect }: LanguageListProps) {
           <LanguageOption label={t('code_language_auto')} active={current === null} onClick={() => onSelect(null)} />
         )}
         {matches.map(lang => (
-          <LanguageOption key={lang} label={lang} active={current === lang} onClick={() => onSelect(lang)} />
+          <LanguageOption
+            key={lang}
+            label={codeLanguageLabel(lang)}
+            active={current === lang}
+            onClick={() => onSelect(lang)}
+          />
         ))}
         {!showAuto && matches.length === 0 && (
           <p className="px-2 py-1.5 text-xs text-muted-foreground">{t('code_language_none')}</p>
         )}
       </div>
     </div>
+  );
+}
+
+type ToolbarButtonProps = {
+  label: string;
+  onClick: () => void;
+  pressed?: boolean;
+  children: React.ReactNode;
+};
+
+/** Icon button of the code toolbar. It never takes the editor selection. */
+function ToolbarButton({ label, onClick, pressed, children }: ToolbarButtonProps) {
+  return (
+    <HoverHint label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={pressed}
+        onMouseDown={e => e.preventDefault()}
+        onClick={onClick}
+        className={cn(
+          'inline-flex size-6 items-center justify-center rounded-md text-code-fg opacity-80 hover:bg-code-fg/15 hover:opacity-100',
+          pressed ? 'bg-code-fg/15 opacity-100' : 'bg-code-fg/10'
+        )}
+      >
+        {children}
+      </button>
+    </HoverHint>
   );
 }
 

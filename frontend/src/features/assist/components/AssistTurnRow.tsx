@@ -10,11 +10,11 @@ import {
   UserBubble,
 } from './AssistMessage';
 
-import type { AssistTurn, TurnSegment } from '../types';
+import type { AssistTurn, ConfirmHandler, TurnSegment } from '../types';
 
 type AssistTurnRowProps = {
   turn: AssistTurn;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
 };
 
 export function AssistTurnRow({ turn, onConfirm }: AssistTurnRowProps) {
@@ -37,13 +37,7 @@ export function AssistTurnRow({ turn, onConfirm }: AssistTurnRowProps) {
   );
 }
 
-function SegmentView({
-  segment,
-  onConfirm,
-}: {
-  segment: TurnSegment;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
-}) {
+function SegmentView({ segment, onConfirm }: { segment: TurnSegment; onConfirm: ConfirmHandler }) {
   switch (segment.type) {
     case 'text':
       return <AssistantBubble content={segment.content} streaming={segment.streaming} />;

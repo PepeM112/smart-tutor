@@ -16,7 +16,7 @@ import { useAssistPanelStore } from '../store/useAssistPanelStore';
 import { AssistChatBody } from './AssistChatBody';
 import { AssistInput } from './AssistInput';
 
-import type { AssistTurn } from '../types';
+import type { AssistTurn, ConfirmHandler } from '../types';
 
 const FAB_SIZE = 56;
 const DEFAULT_OFFSET = 16;
@@ -29,7 +29,7 @@ type Props = {
   isStreaming: boolean;
   onSend: (text: string, displayText?: string) => void;
   onStop: () => void;
-  onConfirm: (toolCallId: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
   onClear: () => void;
 };
 

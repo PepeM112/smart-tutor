@@ -176,6 +176,7 @@ export function NoteForm({ note }: { note: NoteRead }) {
         onSideClose={handleDiffClose}
         main={
           <NoteEditorBody
+            noteId={note.id}
             title={title}
             onTitleChange={setTitle}
             tags={tags}

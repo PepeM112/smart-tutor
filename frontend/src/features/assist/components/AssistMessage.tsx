@@ -1,8 +1,20 @@
 'use client';
 
-import { AlertCircle, ArrowRight, Check, CheckCircle, ExternalLink, Eye, Loader2, Square, X } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  CheckCircle,
+  ExternalLink,
+  Eye,
+  Loader2,
+  ShieldCheck,
+  Square,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -16,7 +28,7 @@ import { useAssistDiffStore } from '../store/useAssistDiffStore';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
 import { getToolIcon, isWriteTool } from '../utils/toolRegistry';
 
-import type { ConfirmContext, ToolResultMetadata } from '../types';
+import type { ConfirmContext, ConfirmHandler, ToolResultMetadata } from '../types';
 import type { LucideIcon } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -238,14 +250,16 @@ export function ActionCard({
   arguments: Record<string, unknown>;
   context?: ConfirmContext;
   status: 'pending' | 'approved' | 'rejected';
-  onConfirm: (id: string, approved: boolean) => void;
+  onConfirm: ConfirmHandler;
 }) {
+  const t = useTranslations('assist.confirm');
   const label = useToolLabel(name);
   const summary = _summarizeArgs(name, args);
+  const summaryRows = context?.summary;
   const questionsToRemove = context?.questions_to_remove;
   const titleChange = context?.title_change;
   const descChange = context?.description_change;
-  const hasContextDetails = questionsToRemove || titleChange || descChange;
+  const hasContextDetails = questionsToRemove || titleChange || descChange || (summaryRows && summaryRows.length > 0);
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-2.5">
@@ -254,6 +268,19 @@ export function ActionCard({
         <span className="text-[12px] font-medium text-foreground">{label}</span>
       </div>
       {summary && !hasContextDetails && <p className="mb-2 text-[12px] text-muted-foreground">{summary}</p>}
+
+      {summaryRows && summaryRows.length > 0 && (
+        <dl className="mb-2 space-y-1 text-[12px] leading-[1.4]">
+          {summaryRows.map(row => (
+            <div key={row.key} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+              <dt className="shrink-0 font-medium text-muted-foreground sm:w-24">
+                {t.has(`fields.${row.key}`) ? t(`fields.${row.key}`) : row.key}
+              </dt>
+              <dd className="min-w-0 break-words text-foreground">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       {titleChange && (
         <div className="mb-2 space-y-0.5">
@@ -301,27 +328,36 @@ export function ActionCard({
       )}
 
       {status === 'pending' && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="default" size="sm" className="flex-1" onClick={() => onConfirm(id, true)}>
             <Check className="size-3" />
-            Approve
+            {t('allow')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => onConfirm(id, true, { alwaysAllow: true })}
+          >
+            <ShieldCheck className="size-3" />
+            {t('always_allow')}
           </Button>
           <Button variant="outline" size="sm" className="flex-1" onClick={() => onConfirm(id, false)}>
             <X className="size-3" />
-            Reject
+            {t('cancel')}
           </Button>
         </div>
       )}
       {status === 'approved' && (
         <div className="flex items-center gap-1.5 text-[12px] text-feedback-correct">
           <CheckCircle className="size-3" />
-          Approved — executing...
+          {t('approved')}
         </div>
       )}
       {status === 'rejected' && (
         <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
           <X className="size-3" />
-          Rejected
+          {t('rejected')}
         </div>
       )}
     </div>

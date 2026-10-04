@@ -38,7 +38,14 @@ import {
   type TableAxis,
   type TableTarget,
 } from './tableCommands';
-import { gapOffset, type Band, type TableMeasure } from './tableGeometry';
+import {
+  gapOffset,
+  hasTableHandleRoom,
+  TABLE_HANDLE_GAP,
+  TABLE_HANDLE_SIZE as TABLE_HANDLE,
+  type Band,
+  type TableMeasure,
+} from './tableGeometry';
 import { CellMenu, LineMenu, TableMenu } from './TableMenus';
 import { useGripDrag } from './useGripDrag';
 import { useTableOverlay, type TableOverlay } from './useTableOverlay';
@@ -47,8 +54,6 @@ import type { Editor } from '@tiptap/core';
 
 // ─── sizes (px) ──────────────────────────────────────────────────────────────
 
-const TABLE_HANDLE = 32;
-const TABLE_HANDLE_GAP = 12; // between the handle and the table
 // Size of the button (the hit area) of the bar handles: bigger than the bar that is drawn.
 const GRIP_HIT_LONG = 32;
 const GRIP_HIT_SHORT = 18;
@@ -244,7 +249,7 @@ function TableHandle({ editor, table, lock, unlock, label }: TableHandleProps) {
   const [open, setOpen] = useState(false);
 
   // Left of the header row. On a narrow screen there is no room left of the table: go above it.
-  const hasRoomLeft = table.viewportLeft - TABLE_HANDLE - TABLE_HANDLE_GAP >= 4;
+  const hasRoomLeft = hasTableHandleRoom(table.viewportLeft);
   const header = table.rows[0];
   const style: CSSProperties = hasRoomLeft
     ? {

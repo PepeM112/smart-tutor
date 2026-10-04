@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.core.enums import NoteLength
 from app.crud import note as note_crud
 from app.schemas.note import NoteGenerate
 from app.services import folder_service, note_service
-from app.services.assist_tools._helpers import LIST_LIMIT, location_label, note_label
+from app.services.assist_tools._helpers import LIST_LIMIT, clip, confirm_summary, location_label, note_label
 from app.services.assist_tools.types import NoteCreatedMetadata, NoteRefineMetadata, ToolResult, ToolSpec
 from app.services.service_helpers import get_owned_or_404
 
@@ -156,6 +156,31 @@ def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]
     )
 
 
+def _owned_note_title(db: Session, *, current_user: User, note_id: object) -> str | None:
+    note = note_crud.get_by_id(db, id=str(note_id)) if note_id else None
+    return note_label(note.title) if note and note.user_id == current_user.id else None
+
+
+def create_note_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    folder_id = arguments.get("folder_id")
+    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
+    # A folder ID that is not the user's (or is trashed) is not in the map: show nothing for it.
+    folder = location_label(folders, str(folder_id)) if folder_id and str(folder_id) in folders else None
+    return confirm_summary(
+        ("topic", clip(arguments.get("topic"))),
+        ("guidance", clip(arguments.get("guidance"))),
+        ("length", str(arguments.get("length") or "medium")),
+        ("folder", folder or ("Files" if not folder_id else None)),
+    )
+
+
+def refine_note_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    return confirm_summary(
+        ("note", _owned_note_title(db, current_user=current_user, note_id=arguments.get("note_id"))),
+        ("instructions", clip(arguments.get("instructions"))),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Specs
 # ---------------------------------------------------------------------------
@@ -179,6 +204,7 @@ LIST_NOTES = ToolSpec(
         "required": [],
     },
     handler=list_notes,
+    kind="read",
 )
 
 SEARCH_USER_NOTES = ToolSpec(
@@ -206,6 +232,7 @@ SEARCH_USER_NOTES = ToolSpec(
         "required": ["query"],
     },
     handler=search_user_notes,
+    kind="read",
 )
 
 GET_NOTE_CONTENT = ToolSpec(
@@ -219,6 +246,7 @@ GET_NOTE_CONTENT = ToolSpec(
         "required": ["note_id"],
     },
     handler=get_note_content,
+    kind="read",
 )
 
 CREATE_NOTE = ToolSpec(
@@ -253,13 +281,16 @@ CREATE_NOTE = ToolSpec(
         "required": ["topic"],
     },
     handler=create_note,
+    confirm_context=create_note_confirm_context,
+    kind="write",
 )
 
 REFINE_NOTE = ToolSpec(
     name="refine_note",
     description=(
         "Refine an existing note with AI based on instructions. "
-        "Executes directly — the user reviews the proposed changes in a diff view before accepting."
+        "The user may be asked to approve the call first; after it runs, the user reviews the proposed "
+        "changes in a diff view before accepting."
     ),
     input_schema={
         "type": "object",
@@ -273,4 +304,6 @@ REFINE_NOTE = ToolSpec(
         "required": ["note_id", "instructions"],
     },
     handler=refine_note,
+    confirm_context=refine_note_confirm_context,
+    kind="write",
 )

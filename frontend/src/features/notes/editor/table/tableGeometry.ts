@@ -58,6 +58,17 @@ export const isInTableBand = (table: TableMeasure, x: number, y: number, contain
   y >= table.top - HOVER_ZONE.top &&
   y <= table.top + table.height + HOVER_ZONE.bottom;
 
+/** Size of the table menu button, and the gap between it and the table. */
+export const TABLE_HANDLE_SIZE = 32;
+export const TABLE_HANDLE_GAP = 12;
+
+/**
+ * The table menu button sits left of the table when there is room (a 4px margin to the viewport edge).
+ * The block handle reads this too, so the two handles never take the same place.
+ */
+export const hasTableHandleRoom = (viewportLeft: number): boolean =>
+  viewportLeft - TABLE_HANDLE_SIZE - TABLE_HANDLE_GAP >= 4;
+
 /** Index of the band that holds `value`. Outside the bands it gives the first or the last one. */
 export function bandIndexAt(bands: Band[], value: number): number {
   const index = bands.findIndex(band => value < band.start + band.size);

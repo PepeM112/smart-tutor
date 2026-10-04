@@ -294,13 +294,11 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 ---
 
-## Two Confirmation Patterns for Assistant Write Tools
+## One Confirmation Rule for Assistant Tools: `kind` Plus Per-User Overrides
 
-**Decision:** `create_note`, `create_test`, and `edit_test` pause server-side and require an explicit approve/reject before running (`confirm_required`). `refine_note` and `refine_questions` run immediately and instead surface an old/new diff for the user to accept or reject afterward.
+**Decision:** Every `ToolSpec` has a `kind` (`read` or `write`). Read tools run at once and write tools pause with a `confirm_required` card (Allow / Always allow / Cancel). A per-user JSONB map (`User.ai_tool_permissions`) can override this for each tool. The backend decides the pause (`needs_confirmation`). `refine_note` and `refine_questions` follow the same rule; their old/new diff stays as a second review step after they run.
 
-**Why:** The first group either creates something from nothing or removes content outright — there's no natural "before" to show, so an upfront yes/no gate is the only sensible review. The second group revises something that already exists, which produces a natural diff — showing the actual before/after is a clearer review than a plain description of the pending change would be, and both are reversible (the diff panel can reject; `edit_test`'s question removals separately get an undo toast since they're a soft delete). The cost is an extra tool-name distinction to remember (`requires_confirmation` vs. everything else) rather than one uniform rule for all write tools.
-
----
+**Why:** Before, a hardcoded `requires_confirmation` flag made only `edit_test` ask, and the rule differed by tool with no way to change it. One rule with an opt-out is easier to explain, and safer by default (a new write tool asks until the user decides otherwise). Storing overrides on the server, not in the client, means the client cannot skip an approval. The cost is that `refine_*`, `create_*` and the Files tools now ask on first use. "Always allow" removes that cost for the tools the user trusts.
 
 ## Adjacency List for Folders (Not Materialized Path or Closure Table)
 

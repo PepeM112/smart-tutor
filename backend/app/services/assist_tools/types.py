@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from app.schemas.base import BaseSchema
 from app.schemas.test_generation import GeneratedQuestionPreview
+from app.schemas.user import ToolKind
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -80,16 +81,17 @@ class ConfirmContextBuilder(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class ToolSpec:
-    """Everything about one tool in one place: schema, handler and confirmation rule.
+    """Everything about one tool in one place: schema, handler and kind.
 
     `input_schema` is JSON Schema in the Anthropic shape. The registry converts it to the
-    OpenAI shape when needed. `requires_confirmation` pauses the stream until the user
-    approves; the optional `confirm_context` builds the readable summary for that card.
+    OpenAI shape when needed. `kind` gives the default approval policy (read runs at once,
+    write waits for the user); the user can override it per tool (see `ai_permission_service`).
+    The optional `confirm_context` builds the readable summary for the confirm card.
     """
 
     name: str
     description: str
     input_schema: dict[str, Any]
     handler: ToolHandler
-    requires_confirmation: bool = False
+    kind: ToolKind
     confirm_context: ConfirmContextBuilder | None = None

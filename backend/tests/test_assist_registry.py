@@ -15,15 +15,35 @@ from app.schemas.trash import TrashItemRead
 from app.services.assist_prompts import ASSIST_SYSTEM_PROMPT
 from app.services.assist_tools import (
     TOOLS,
+    _helpers,
     build_confirm_context,
     execute_tool,
     get_tool_definitions_anthropic,
     get_tool_definitions_openai,
     registry,
-    requires_confirmation,
 )
 
-CONFIRM_TOOLS = {"edit_test"}
+READ_TOOLS = {
+    "list_notes",
+    "search_user_notes",
+    "list_tests",
+    "get_note_content",
+    "get_test_details",
+    "search_questions",
+    "navigate_to",
+    "list_folders",
+    "list_trash",
+}
+WRITE_TOOLS = {
+    "create_note",
+    "create_test",
+    "create_folder",
+    "move_items",
+    "restore_from_trash",
+    "refine_questions",
+    "refine_note",
+    "edit_test",
+}
 NEW_TOOLS = ["create_folder", "move_items", "list_trash", "restore_from_trash"]
 
 FOLDERS = "app.services.assist_tools.folders"
@@ -68,17 +88,12 @@ class TestRegistry:
             assert set(schema["required"]) <= set(schema["properties"])
             assert spec.description
 
-    def test_only_the_expected_tools_require_confirmation(self) -> None:
-        assert {n for n in TOOLS if requires_confirmation(n)} == CONFIRM_TOOLS
+    def test_every_tool_has_the_expected_kind(self) -> None:
+        assert {n for n, t in TOOLS.items() if t.kind == "read"} == READ_TOOLS
+        assert {n for n, t in TOOLS.items() if t.kind == "write"} == WRITE_TOOLS
 
-    def test_list_trash_is_a_read_tool(self) -> None:
-        assert requires_confirmation("list_trash") is False
-
-    def test_unknown_tool_does_not_require_confirmation(self) -> None:
-        assert requires_confirmation("does_not_exist") is False
-
-    def test_every_confirmation_tool_has_a_confirm_card_builder(self) -> None:
-        assert all(TOOLS[n].confirm_context is not None for n in CONFIRM_TOOLS)
+    def test_every_write_tool_has_a_confirm_card_builder(self) -> None:
+        assert all(TOOLS[n].confirm_context is not None for n in WRITE_TOOLS)
 
     def test_new_tools_come_after_the_existing_ones(self) -> None:
         names = [d["name"] for d in get_tool_definitions_anthropic()]
@@ -394,7 +409,58 @@ class TestConfirmContext:
         assert build_confirm_context(MagicMock(), "list_notes", {}, _user()) is None
         assert build_confirm_context(MagicMock(), "does_not_exist", {}, _user()) is None
 
-    def test_organising_tools_run_without_a_confirm_card(self) -> None:
-        for name in ("create_folder", "move_items", "restore_from_trash"):
-            assert requires_confirmation(name) is False
-            assert TOOLS[name].confirm_context is None
+    def test_summary_drops_empty_values_and_gives_none_when_empty(self) -> None:
+        assert _helpers.confirm_summary(("a", "x"), ("b", None), ("c", "")) == {"summary": [{"key": "a", "value": "x"}]}
+        assert _helpers.confirm_summary(("a", None)) is None
+
+    def test_free_text_is_cut_to_one_line(self) -> None:
+        assert _helpers.clip("a\n  b", 10) == "a b"
+        assert _helpers.clip("x" * 20, 10) == "xxxxxxxxx…"
+
+    def test_names_list_is_capped(self) -> None:
+        assert _helpers.names_label([]) is None
+        assert _helpers.names_label(["A", "B", "C"], 2) == "A, B +1"
+
+    def test_create_folder_shows_name_and_location(self) -> None:
+        folders = {"p": _folder("p", "Bio")}
+        with patch(f"{FOLDERS}.folder_service.load_folder_map", return_value=folders):
+            context = build_confirm_context(
+                MagicMock(), "create_folder", {"name": " Cells ", "parent_id": "p"}, _user()
+            )
+        assert context == {"summary": [{"key": "name", "value": "Cells"}, {"key": "location", "value": "Files > Bio"}]}
+
+    def test_move_items_ignores_ids_of_other_users(self) -> None:
+        folders = {"f1": _folder("f1", "Mine")}
+        note = MagicMock()
+        note.title = "Cell notes"
+        with (
+            patch(f"{FOLDERS}.folder_service.load_folder_map", return_value=folders),
+            patch(f"{FOLDERS}.note_crud.list_live_by_ids", return_value=[note]),
+        ):
+            context = build_confirm_context(
+                MagicMock(),
+                "move_items",
+                {"note_ids": ["n1"], "folder_ids": ["f1", "foreign"], "target_folder_id": "f1"},
+                _user(),
+            )
+        assert context == {
+            "summary": [
+                {"key": "notes", "value": "Cell notes"},
+                {"key": "folders", "value": "Mine"},
+                {"key": "destination", "value": "Files > Mine"},
+            ]
+        }
+
+    def test_restore_shows_only_names_of_own_items(self) -> None:
+        mine = MagicMock(user_id="u1")
+        mine.title = "Old note"
+        foreign = MagicMock(user_id="other")
+        foreign.title = "Secret"
+        with patch(f"{TRASH}.note_crud.get_by_id", side_effect=[mine, foreign]):
+            context = build_confirm_context(
+                MagicMock(),
+                "restore_from_trash",
+                {"items": [{"kind": "note", "id": "n1"}, {"kind": "note", "id": "n2"}]},
+                _user(),
+            )
+        assert context == {"summary": [{"key": "items", "value": "Old note"}]}
