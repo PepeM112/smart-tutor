@@ -125,7 +125,8 @@ async function drag(label: string, hover: { x: number; y: number }, to: { x: num
     const x = hover.x + ((to.x - hover.x) * i) / steps;
     const y = hover.y + ((to.y - hover.y) * i) / steps;
     // With pointer capture the moves come to the grip. They bubble to the window (the overlay tracks them).
-    fireEvent.pointerMove(grip, pointer(x, y));
+    // `buttons: 1`: the button is held. A move with no button pressed ends the gesture (a lost release).
+    fireEvent.pointerMove(grip, { ...pointer(x, y), buttons: 1 });
     await frame();
   }
   fireEvent.pointerUp(grip, pointer(to.x, to.y));

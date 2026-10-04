@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-// Gesture lifecycle of `useGripDrag`: `isActive` during a gesture, and the cleanup when the grip
-// unmounts in the middle of a drag (no drop line or overlay lock may stay behind).
+// Gesture lifecycle of `useGripDrag`: `isActive` during a gesture, the end of a gesture whose release was
+// lost, and the cleanup when the grip unmounts in the middle of a drag (no drop line or overlay lock may stay behind).
 
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -38,15 +38,13 @@ function setup() {
   return { hook, callbacks };
 }
 
-const target = {
-  setPointerCapture: () => undefined,
-  releasePointerCapture: () => undefined,
-  hasPointerCapture: () => true,
-};
+const target = { setPointerCapture: () => undefined };
 
-const pointer = (clientX: number) =>
+/** The pointer down on the grip (a React event). */
+const press = (clientX: number) =>
   ({
     button: 0,
+    ctrlKey: false,
     pointerId: 1,
     clientX,
     clientY: 0,
@@ -54,24 +52,83 @@ const pointer = (clientX: number) =>
     currentTarget: target,
   }) as unknown as ReactPointerEvent<HTMLElement>;
 
+/** The rest of the gesture comes to the window. `buttons: 1` while the button is held. */
+const send = (type: string, init: { clientX?: number; buttons?: number } = {}) =>
+  act(() => {
+    window.dispatchEvent(Object.assign(new MouseEvent(type, { clientX: 0, ...init }), { pointerId: 1 }));
+  });
+
 describe('useGripDrag', () => {
   it('is active from pointer down to pointer up', () => {
     const { hook, callbacks } = setup();
     expect(hook.result.current.isActive()).toBe(false);
 
-    act(() => hook.result.current.handlers.onPointerDown(pointer(50)));
+    act(() => hook.result.current.handlers.onPointerDown(press(50)));
     expect(hook.result.current.isActive()).toBe(true);
 
-    act(() => hook.result.current.handlers.onPointerUp(pointer(50)));
+    send('pointerup', { clientX: 50 });
     expect(hook.result.current.isActive()).toBe(false);
     expect(callbacks.onClick).toHaveBeenCalledWith(false);
     expect(callbacks.onEnd).toHaveBeenCalledTimes(1);
   });
 
+  it('drops on the gap under the pointer', () => {
+    const { hook, callbacks } = setup();
+    act(() => hook.result.current.handlers.onPointerDown(press(50)));
+    send('pointermove', { clientX: 260, buttons: 1 });
+    send('pointerup', { clientX: 260 });
+
+    expect(callbacks.onDrop).toHaveBeenCalledWith(3);
+    expect(callbacks.onGapChange).toHaveBeenLastCalledWith(null);
+    expect(callbacks.onClick).not.toHaveBeenCalled();
+  });
+
+  // Regression: when the browser lost the `pointerup`, the gesture never ended. The drop line and the
+  // overlay lock stayed, and the next release ran the drop late.
+  it('cancels the drag when a move shows the button is up', () => {
+    const { hook, callbacks } = setup();
+    act(() => hook.result.current.handlers.onPointerDown(press(50)));
+    send('pointermove', { clientX: 260, buttons: 1 });
+    send('pointermove', { clientX: 270, buttons: 0 });
+
+    expect(hook.result.current.isActive()).toBe(false);
+    expect(callbacks.onGapChange).toHaveBeenLastCalledWith(null);
+    expect(callbacks.onEnd).toHaveBeenCalledTimes(1);
+
+    // A later release must not complete the old drag.
+    send('pointerup', { clientX: 270 });
+    expect(callbacks.onDrop).not.toHaveBeenCalled();
+  });
+
+  it('cancels the drag on a new press', () => {
+    const { hook, callbacks } = setup();
+    act(() => hook.result.current.handlers.onPointerDown(press(50)));
+    send('pointermove', { clientX: 260, buttons: 1 });
+    send('pointerdown', { clientX: 400, buttons: 1 });
+    send('pointerup', { clientX: 400 });
+
+    expect(hook.result.current.isActive()).toBe(false);
+    expect(callbacks.onEnd).toHaveBeenCalledTimes(1);
+    expect(callbacks.onDrop).not.toHaveBeenCalled();
+  });
+
+  it('cancels the drag when the window loses focus', () => {
+    const { hook, callbacks } = setup();
+    act(() => hook.result.current.handlers.onPointerDown(press(50)));
+    send('pointermove', { clientX: 260, buttons: 1 });
+    act(() => {
+      window.dispatchEvent(new FocusEvent('blur'));
+    });
+
+    expect(hook.result.current.isActive()).toBe(false);
+    expect(callbacks.onGapChange).toHaveBeenLastCalledWith(null);
+    expect(callbacks.onDrop).not.toHaveBeenCalled();
+  });
+
   it('ends the gesture when the grip unmounts during a drag', () => {
     const { hook, callbacks } = setup();
-    act(() => hook.result.current.handlers.onPointerDown(pointer(50)));
-    act(() => hook.result.current.handlers.onPointerMove(pointer(260)));
+    act(() => hook.result.current.handlers.onPointerDown(press(50)));
+    send('pointermove', { clientX: 260, buttons: 1 });
     expect(callbacks.onGapChange).toHaveBeenLastCalledWith(3);
 
     hook.unmount();
@@ -79,6 +136,10 @@ describe('useGripDrag', () => {
     expect(callbacks.onGapChange).toHaveBeenLastCalledWith(null);
     expect(callbacks.onEnd).toHaveBeenCalledTimes(1);
     expect(callbacks.onDrop).not.toHaveBeenCalled();
+
+    // The window listeners are gone with the gesture.
+    send('pointerup', { clientX: 260 });
+    expect(callbacks.onEnd).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing on unmount when no gesture runs', () => {
