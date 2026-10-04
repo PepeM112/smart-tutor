@@ -5,15 +5,15 @@ Revises: 3b3a78595fc9
 Create Date: 2026-10-04 18:10:00.000000
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '7c4e1a9d2b58'
-down_revision: Union[str, Sequence[str], None] = '3b3a78595fc9'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '3b3a78595fc9'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 # (table, column) pairs that get a plain index. Names follow the `ix_<table>_<column>` convention.
 _FK_INDEXES: list[tuple[str, str]] = [
