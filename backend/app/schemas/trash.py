@@ -23,7 +23,6 @@ class TrashItemRead(BaseSchema):
     # Human-readable location of the item before it was trashed.
     original_path: str | None
     # For folders: how many sub-items were trashed in the same batch.
-    # Descendant folders only, without the folder itself. `FolderDeletePreview.folder_count`
-    # includes the folder itself. Do not change either: the frontend relies on both.
+    # Descendant folders only, without the folder itself.
     folder_count: int
     note_count: int

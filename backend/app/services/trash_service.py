@@ -18,48 +18,14 @@ from app.crud import folder as folder_crud
 from app.crud import note as note_crud
 from app.models.folder import Folder
 from app.models.note import Note
-from app.schemas.folder import FolderCreate
+from app.schemas.folder import FileTree, FileTreeFolder, FileTreeNote, FolderCreate
 from app.schemas.trash import TrashItemRead
 from app.services import folder_service
-from app.services.folder_paths import build_folder_path, build_orphan_path
+from app.services.folder_paths import build_folder_path
 from app.services.service_helpers import get_owned_or_404, is_trash_expired
 
 if TYPE_CHECKING:
     from app.models.user import User
-
-
-def _detach_other_batches(db: Session, *, folder: Folder) -> None:
-    """Move the items of other trash batches out of `folder`'s subtree before a hard delete.
-
-    FK CASCADE deletes every row under `folder`. Items of a *different* batch (another
-    `deleted_at`) must survive, so each one moves to the parent of `folder` (it survives; it
-    can be live, trashed or root). The names of the deleted folders between that parent and
-    the item go into `orphan_path`, so restore can rebuild the original place.
-    """
-    batch = {f.id: f for f in folder_crud.list_batch_folders(db, folder=folder)}
-    batch_ids = list(batch)
-    # Only folders of this batch are deleted. An item of another batch keeps its own children:
-    # it moves only when its parent is in this batch.
-    orphan_folders = folder_crud.list_children_outside_batch(db, parent_ids=batch_ids, batch_ts=folder.deleted_at)
-    orphan_notes = note_crud.list_in_folders_outside_batch(
-        db, user_id=folder.user_id, folder_ids=batch_ids, batch_ts=folder.deleted_at
-    )
-
-    def _new_path(parent_id: str | None, existing: list[str] | None) -> list[str]:
-        return build_orphan_path(batch, top_id=folder.id, start_id=parent_id or folder.id, existing=existing)
-
-    for child in orphan_folders:
-        new_path = _new_path(child.parent_id, child.orphan_path)
-        folder_crud.reparent(db, folder=child, parent_id=folder.parent_id, orphan_path=new_path)
-    for note in orphan_notes:
-        new_path = _new_path(note.folder_id, note.orphan_path)
-        note_crud.reparent(db, note=note, folder_id=folder.parent_id, orphan_path=new_path)
-
-
-def _hard_delete_batch(db: Session, *, folder: Folder) -> None:
-    """Delete the trash batch of `folder` forever. Items of other batches in the subtree survive."""
-    _detach_other_batches(db, folder=folder)
-    folder_crud.hard_delete(db, folder=folder)
 
 
 def _purge_expired(db: Session, *, user_id: str) -> None:
@@ -69,7 +35,7 @@ def _purge_expired(db: Session, *, user_id: str) -> None:
     # Only the top of each batch is deleted; FK CASCADE removes its sub-folders and notes.
     for folder in folder_crud.list_expired_top_folders(db, user_id=user_id, before=cutoff):
         # Same rule as "Delete forever": items of another batch survive with their orphan_path.
-        _hard_delete_batch(db, folder=folder)
+        folder_service.hard_delete_batch(db, folder=folder)
     note_crud.purge_old_notes(db, user_id=user_id, before=cutoff)
     db.commit()
 
@@ -147,6 +113,35 @@ def _get_trashed_note_or_404(db: Session, *, note_id: str, current_user: User) -
     if note.deleted_at is None or is_trash_expired(note.deleted_at):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found in Trash")
     return note
+
+
+def get_batch_tree(db: Session, *, folder_id: str, current_user: User) -> FileTree:
+    """Return the folders and notes that were trashed together with a trashed folder.
+
+    Flat lists like `GET /folders/tree`, so the client builds the tree. The result holds the
+    descendants only (not the folder itself): the direct children have `parent_id == folder_id`.
+    Items of other batches inside the folder are not part of it. They are listed in Trash on
+    their own. Any trashed folder works, so a sub-folder of a batch gives its part of the tree.
+    """
+    folder = _get_trashed_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+    batch_ts = folder.deleted_at
+    if batch_ts is None:  # `_get_trashed_folder_or_404` allows trashed folders only.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found in Trash")
+
+    batch_folders = sorted(
+        (f for f in folder_crud.list_batch_folders(db, folder=folder) if f.id != folder.id),
+        key=lambda f: f.name.lower(),
+    )
+    note_rows = note_crud.list_batch_tree_notes(
+        db,
+        user_id=current_user.id,
+        folder_ids=[folder.id, *(f.id for f in batch_folders)],
+        deleted_at=batch_ts,
+    )
+    return FileTree(
+        folders=[FileTreeFolder.model_validate(f) for f in batch_folders],
+        notes=[FileTreeNote.model_validate(row) for row in note_rows],
+    )
 
 
 _RESTORE_SUFFIX = " (restored)"
@@ -291,7 +286,7 @@ def hard_delete_folder(db: Session, *, folder_id: str, current_user: User) -> No
     """
     folder_crud.lock_tree(db, user_id=current_user.id)
     folder = _get_trashed_folder_or_404(db, folder_id=folder_id, current_user=current_user)
-    _hard_delete_batch(db, folder=folder)
+    folder_service.hard_delete_batch(db, folder=folder)
     db.commit()
 
 

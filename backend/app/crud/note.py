@@ -51,6 +51,21 @@ def list_tree_notes(db: Session, *, user_id: str) -> Sequence[Row[tuple[str, str
     return db.execute(stmt).fetchall()
 
 
+def list_batch_tree_notes(
+    db: Session, *, user_id: str, folder_ids: Sequence[str], deleted_at: datetime
+) -> Sequence[Row[tuple[str, str, str | None, datetime]]]:
+    """Light note columns (no content) of the notes in `folder_ids` that were trashed at `deleted_at`.
+
+    Ordered by title (case-insensitive). Used for the tree view of a trashed folder.
+    """
+    stmt = (
+        select(Note.id, Note.title, Note.folder_id, Note.updated_at)
+        .where(Note.user_id == user_id, Note.folder_id.in_(folder_ids), Note.deleted_at == deleted_at)
+        .order_by(func.lower(Note.title))
+    )
+    return db.execute(stmt).fetchall()
+
+
 _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
     "title": Note.title,
     "updated_at": Note.updated_at,

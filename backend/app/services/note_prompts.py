@@ -3,7 +3,8 @@ from app.core.enums import NoteLength
 NOTE_GENERATION_SYSTEM_PROMPT = (
     "You are a study-notes generator. You produce well-structured Markdown notes "
     "for a given topic. Use headings (##, ###), bullet points, bold for key terms, "
-    "and tables where appropriate. Include examples and mnemonics when they help. "
+    "and tables where appropriate (as simple Markdown pipe tables, never HTML). "
+    "Include examples and mnemonics when they help. "
     "Output ONLY the Markdown content — no preamble, no closing remarks, no code fences "
     "wrapping the entire output."
 )
@@ -41,12 +42,20 @@ _KEEP_COLOR_SPANS = (
     "asks to change colors. Do not add new color tags unless the user asks for them."
 )
 
+# The note editor saves tables as HTML. An edit must not rewrite them, or it would lose
+# column widths and cell colors. New tables stay simple GFM, which the editor converts on load.
+_KEEP_TABLES = (
+    " The notes can contain tables written as <table> HTML. Keep each <table> exactly as it is, "
+    "with all its attributes (data-layout, colwidth, data-color, data-bg), unless the user asks "
+    "to change that table. When you create a new table, write a simple Markdown pipe table."
+)
+
 NOTE_REFINEMENT_SYSTEM_PROMPT = (
     "You are a study-notes editor. You receive existing Markdown study notes and "
     "user instructions for how to improve them. Return the COMPLETE updated Markdown — "
     "keep unchanged sections as-is, modify what the user asks, and add new content "
     "if requested. Output ONLY the Markdown content — no preamble, no closing remarks, "
-    "no code fences wrapping the entire output." + _KEEP_COLOR_SPANS
+    "no code fences wrapping the entire output." + _KEEP_COLOR_SPANS + _KEEP_TABLES
 )
 
 
@@ -67,7 +76,7 @@ NOTE_CHUNK_EDIT_SYSTEM_PROMPT = (
     "instructions to the selected section ONLY. Return ONLY the replacement text for the "
     "selected portion — no preamble, no explanation, no code fences wrapping the output. "
     "Preserve the original Markdown formatting style (headings, lists, bold, etc.) unless "
-    "the user explicitly asks to change it." + _KEEP_COLOR_SPANS
+    "the user explicitly asks to change it." + _KEEP_COLOR_SPANS + _KEEP_TABLES
 )
 
 

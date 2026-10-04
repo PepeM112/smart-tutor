@@ -20,7 +20,6 @@ import { readFileSync } from 'node:fs';
 import { Editor } from '@tiptap/core';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import Link from '@tiptap/extension-link';
-import { TableKit } from '@tiptap/extension-table';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { Markdown } from '@tiptap/markdown';
@@ -30,6 +29,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseMarkdown, serializeMarkdown, selectionToMarkdown, replaceSelectionWithMarkdown } from './markdown';
 import { NoteColorMark } from './noteColor';
+import { createNoteTableExtensions } from './table/noteTable';
 
 // ─── test editor setup ───────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ beforeAll(() => {
       }),
       Markdown,
       Link.configure({ openOnClick: false, autolink: true }),
-      TableKit,
+      ...createNoteTableExtensions(),
       TaskList,
       TaskItem.configure({ nested: false }),
       CodeBlockLowlight.configure({ lowlight }),

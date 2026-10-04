@@ -2,18 +2,18 @@ import type { QueryClient } from '@tanstack/react-query';
 
 /** Central query key definitions for the files feature. */
 export const fileQueryKeys = {
-  /** ['folders'] — prefix that covers the tree and the delete-preview sub-keys. */
+  /** ['folders'] — prefix that covers the tree. */
   folders: () => ['folders'] as const,
   /** ['folders', 'tree'] — the full non-trashed file tree. */
   foldersTree: () => ['folders', 'tree'] as const,
-  /** ['folders', id, 'delete-preview'] — counts for the delete-confirm dialog. */
-  folderDeletePreview: (id: string) => ['folders', id, 'delete-preview'] as const,
   /** ['notes'] — the flat notes list. */
   notes: () => ['notes'] as const,
   /** ['notes', id] — a single note by id. */
   note: (id: string) => ['notes', id] as const,
   /** ['trash'] — the trash list. */
   trash: () => ['trash'] as const,
+  /** ['trash', 'tree', id] — the items trashed together with a trashed folder. Under `['trash']`, so the same invalidation covers it. */
+  trashTree: (folderId: string) => ['trash', 'tree', folderId] as const,
 } as const;
 
 type InvalidateFileOpts = {

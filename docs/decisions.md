@@ -298,7 +298,7 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 **Decision:** `create_note`, `create_test`, and `edit_test` pause server-side and require an explicit approve/reject before running (`confirm_required`). `refine_note` and `refine_questions` run immediately and instead surface an old/new diff for the user to accept or reject afterward.
 
-**Why:** The first group either creates something from nothing or removes content outright — there's no natural "before" to show, so an upfront yes/no gate is the only sensible review. The second group revises something that already exists, which produces a natural diff — showing the actual before/after is a clearer review than a plain description of the pending change would be, and both are reversible (the diff panel can reject; `edit_test`'s question removals separately get an undo toast since they're a soft delete). The cost is an extra tool-name distinction to remember (`WRITE_TOOLS` vs. everything else) rather than one uniform rule for all write tools.
+**Why:** The first group either creates something from nothing or removes content outright — there's no natural "before" to show, so an upfront yes/no gate is the only sensible review. The second group revises something that already exists, which produces a natural diff — showing the actual before/after is a clearer review than a plain description of the pending change would be, and both are reversible (the diff panel can reject; `edit_test`'s question removals separately get an undo toast since they're a soft delete). The cost is an extra tool-name distinction to remember (`requires_confirmation` vs. everything else) rather than one uniform rule for all write tools.
 
 ---
 

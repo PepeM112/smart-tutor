@@ -4,7 +4,7 @@ Orchestrates the conversation loop:
 1. Build system prompt with page context
 2. Convert frontend messages to provider format
 3. Stream LLM response, yielding SSE events
-4. On tool calls: auto-execute reads, pause for write confirmation
+4. On tool calls: auto-execute tools, pause the ones that require confirmation
 5. Feed tool results back and continue streaming
 """
 
@@ -18,17 +18,16 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, AIProvider
-from app.crud import question as question_crud
-from app.crud import test as test_crud
 from app.models.user import User
-from app.schemas.assist import AssistMessage, AssistRequest, ToolConfirmation
+from app.schemas.assist import AssistMessage, AssistRequest, ToolConfirmation, ToolResultData
 from app.services import token_usage_service
 from app.services.assist_prompts import build_system_prompt
 from app.services.assist_tools import (
-    WRITE_TOOLS,
+    build_confirm_context,
     execute_tool,
     get_tool_definitions_anthropic,
     get_tool_definitions_openai,
+    requires_confirmation,
 )
 from app.services.llm import (
     CompletionResult,
@@ -58,6 +57,60 @@ def _sse(event: str, data: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _repair_tool_result_order(messages: list[AssistMessage]) -> list[AssistMessage]:
+    """Put every tool result in the tool message right after the assistant message that holds its tool call.
+
+    Both providers reject a history where a tool call has no result immediately after it. The
+    frontend builds the history, and an old client could store a result late (after a newer
+    assistant message). This repair makes the order valid again and logs a warning when it moves
+    something. A result stored before its call is moved too. A result with no matching tool call
+    is dropped, and so is a second result for the same call, because both providers reject them.
+    Tool calls that have no result yet are left alone: they can be pending confirmations, which
+    the converters add at the end.
+    """
+    owner_by_call_id: dict[str, int] = {
+        tc.id: index for index, msg in enumerate(messages) if msg.role == "assistant" for tc in msg.tool_calls or []
+    }
+    results_by_owner: dict[int, list[ToolResultData]] = {}
+    seen_call_ids: set[str] = set()
+    repaired = False
+
+    for index, msg in enumerate(messages):
+        if msg.role != "tool":
+            continue
+        # The assistant message right before this run of tool messages.
+        run_start = index
+        while run_start > 0 and messages[run_start - 1].role == "tool":
+            run_start -= 1
+        previous_assistant = run_start - 1
+        for result in msg.tool_results or []:
+            owner = owner_by_call_id.get(result.tool_call_id)
+            if owner is None:
+                logger.warning("Dropping tool result without a tool call: %s", result.tool_call_id)
+                repaired = True
+                continue
+            if result.tool_call_id in seen_call_ids:
+                logger.warning("Dropping duplicate tool result: %s", result.tool_call_id)
+                repaired = True
+                continue
+            seen_call_ids.add(result.tool_call_id)
+            repaired = repaired or owner != previous_assistant
+            results_by_owner.setdefault(owner, []).append(result)
+
+    if not repaired:
+        return messages
+
+    logger.warning("Repaired the order of tool results in the conversation history")
+    out: list[AssistMessage] = []
+    for index, msg in enumerate(messages):
+        if msg.role == "tool":
+            continue
+        out.append(msg)
+        if index in results_by_owner:
+            out.append(AssistMessage(role="tool", content="", tool_results=results_by_owner[index]))
+    return out
+
+
 def _to_anthropic_messages(
     messages: list[AssistMessage],
     pending_confirmations: list[ToolConfirmation] | None = None,
@@ -65,7 +118,7 @@ def _to_anthropic_messages(
     """Convert our schema messages to Anthropic's message format."""
     out: list[dict[str, Any]] = []
 
-    for msg in messages:
+    for msg in _repair_tool_result_order(messages):
         if msg.role == "user":
             out.append({"role": "user", "content": msg.content})
 
@@ -122,7 +175,7 @@ def _to_openai_messages(
     """Convert our schema messages to OpenAI's message format."""
     out: list[dict[str, Any]] = []
 
-    for msg in messages:
+    for msg in _repair_tool_result_order(messages):
         if msg.role == "user":
             out.append({"role": "user", "content": msg.content})
 
@@ -316,7 +369,7 @@ def _stream_assist_inner(
             logger.info("Tool call: %s (id=%s, args=%s)", tc.name, tc.id, tc.arguments)
             yield _sse("tool_call", {"id": tc.id, "name": tc.name, "arguments": tc.arguments})
 
-            if tc.name in WRITE_TOOLS:
+            if requires_confirmation(tc.name):
                 confirm_calls.append(tc)
             else:
                 logger.info("Auto-executing tool: %s", tc.name)
@@ -337,7 +390,7 @@ def _stream_assist_inner(
             # Pause: emit confirm_required for each write tool, then stop
             for wc in confirm_calls:
                 event_data: dict[str, Any] = {"id": wc.id, "name": wc.name, "arguments": wc.arguments}
-                context = _build_confirm_context(db, wc.name, wc.arguments, current_user)
+                context = build_confirm_context(db, wc.name, wc.arguments, current_user)
                 if context:
                     event_data["context"] = context
                 yield _sse("confirm_required", event_data)
@@ -394,35 +447,6 @@ def _stream_assist_inner(
         )
     yield _sse("error", {"message": "Too many tool rounds. Please try a simpler request."})
     yield _sse("done", {"usage": {"input_tokens": total_input, "output_tokens": total_output}})
-
-
-def _build_confirm_context(
-    db: Session, tool_name: str, arguments: dict[str, Any], current_user: User
-) -> dict[str, Any] | None:
-    """Resolve tool arguments into human-readable context for the confirm card."""
-    if tool_name == "edit_test":
-        context: dict[str, Any] = {}
-        test_id = arguments.get("test_id")
-        if test_id:
-            test = test_crud.get_by_id(db, id=str(test_id))
-            if test and test.user_id == current_user.id:
-                new_title = arguments.get("title")
-                if new_title:
-                    context["title_change"] = {"from": test.title, "to": str(new_title)}
-                new_desc = arguments.get("description")
-                if new_desc:
-                    context["description_change"] = {
-                        "from": test.description or "",
-                        "to": str(new_desc),
-                    }
-        remove_ids = arguments.get("remove_question_ids")
-        if isinstance(remove_ids, list) and remove_ids:
-            questions = question_crud.list_by_ids(db, ids=[str(qid) for qid in remove_ids])
-            context["questions_to_remove"] = [
-                {"id": q.id, "prompt": q.prompt} for q in questions if q.user_id == current_user.id
-            ]
-        return context if context else None
-    return None
 
 
 def _find_tool_call(messages: list[AssistMessage], tool_call_id: str) -> dict[str, Any] | None:

@@ -5,6 +5,7 @@ import type { FileTree, FileTreeFolder, FileTreeNote } from '@/client';
 import {
   buildChildrenIndex,
   canDrop,
+  hasChildItems,
   isDescendantOrSelf,
   isDraggedItem,
   isDropTargetData,
@@ -179,5 +180,19 @@ describe('isDropTargetData', () => {
     expect(isDropTargetData(undefined)).toBe(false);
     expect(isDropTargetData({})).toBe(false);
     expect(isDropTargetData({ folderId: 5 })).toBe(false);
+  });
+});
+
+// ─── hasChildItems ────────────────────────────────────────────────────────────
+
+describe('hasChildItems', () => {
+  const index = buildChildrenIndex(TREE);
+
+  it('is true for a folder with a sub-folder or a note', () => {
+    expect(hasChildItems(index, 'folderA')).toBe(true);
+  });
+
+  it('is false for a folder with nothing inside', () => {
+    expect(hasChildItems(index, 'folderB')).toBe(false);
   });
 });

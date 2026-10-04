@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field, field_validator
 
@@ -77,9 +78,7 @@ class FileTree(BaseSchema):
     notes: list[FileTreeNote]
 
 
-class FolderDeletePreview(BaseSchema):
-    """Recursive counts shown in the delete confirmation dialog."""
+class FolderDeleteResult(BaseSchema):
+    """What a folder delete did: moved to Trash, or removed at once (an empty folder)."""
 
-    # Includes the folder itself (its descendants + 1). `TrashItemRead.folder_count` does not.
-    folder_count: int
-    note_count: int
+    outcome: Literal["trashed", "deleted"]

@@ -4,61 +4,59 @@ import {
   FilePlus,
   FileText,
   Folder,
+  FolderInput,
+  FolderPlus,
   Pencil,
+  RotateCcw,
   Search,
+  Trash2,
   WandSparkles,
   type LucideIcon,
 } from 'lucide-react';
 
+/** The label of each tool is the i18n key `assist.tools.<name>` (see `useToolLabel`). Which tools
+ * ask for approval is decided by the backend (`requires_confirmation` of its `ToolSpec`), which
+ * sends a confirm event, so it is not repeated here. */
 export type ToolDefinition = {
-  label: string;
   icon: LucideIcon;
   /** Mutates user data, as opposed to a read-only lookup. */
   isWrite: boolean;
-  /** Pauses for explicit user approval before executing. Currently only `edit_test` uses this;
-   * other write tools execute directly (create tools) or via diff accept/reject (refine tools). */
-  requiresConfirm: boolean;
   queryKeysToInvalidate?: string[][];
 };
 
 export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
-  list_notes: { label: 'Listing notes', icon: FileText, isWrite: false, requiresConfirm: false },
-  list_folders: { label: 'Listing folders', icon: Folder, isWrite: false, requiresConfirm: false },
-  list_tests: { label: 'Listing tests', icon: ClipboardList, isWrite: false, requiresConfirm: false },
-  get_note_content: { label: 'Reading note', icon: FileText, isWrite: false, requiresConfirm: false },
-  get_test_details: { label: 'Reading test', icon: ClipboardList, isWrite: false, requiresConfirm: false },
-  search_user_notes: { label: 'Searching notes', icon: Search, isWrite: false, requiresConfirm: false },
-  search_questions: { label: 'Searching questions', icon: Search, isWrite: false, requiresConfirm: false },
-  navigate_to: { label: 'Navigating', icon: ArrowRight, isWrite: false, requiresConfirm: false },
+  list_notes: { icon: FileText, isWrite: false },
+  list_folders: { icon: Folder, isWrite: false },
+  list_tests: { icon: ClipboardList, isWrite: false },
+  get_note_content: { icon: FileText, isWrite: false },
+  get_test_details: { icon: ClipboardList, isWrite: false },
+  search_user_notes: { icon: Search, isWrite: false },
+  search_questions: { icon: Search, isWrite: false },
+  navigate_to: { icon: ArrowRight, isWrite: false },
   create_note: {
-    label: 'Creating note',
     icon: FilePlus,
     isWrite: true,
-    requiresConfirm: false,
     // The tree feeds the files table and sibling cards. It must show the new note.
     queryKeysToInvalidate: [['notes'], ['folders']],
   },
-  refine_note: { label: 'Refining note', icon: Pencil, isWrite: true, requiresConfirm: false },
-  create_test: {
-    label: 'Creating test',
-    icon: ClipboardList,
+  refine_note: { icon: Pencil, isWrite: true },
+  create_test: { icon: ClipboardList, isWrite: true, queryKeysToInvalidate: [['tests']] },
+  edit_test: { icon: Pencil, isWrite: true, queryKeysToInvalidate: [['tests'], ['questions']] },
+  refine_questions: { icon: WandSparkles, isWrite: true },
+  list_trash: { icon: Trash2, isWrite: false },
+  create_folder: { icon: FolderPlus, isWrite: true, queryKeysToInvalidate: [['folders']] },
+  move_items: {
+    icon: FolderInput,
     isWrite: true,
-    requiresConfirm: false,
-    queryKeysToInvalidate: [['tests']],
+    // The files tree shows the new places, and the notes list shows each note's folder.
+    queryKeysToInvalidate: [['folders'], ['notes']],
   },
-  edit_test: {
-    label: 'Editing test',
-    icon: Pencil,
+  restore_from_trash: {
+    icon: RotateCcw,
     isWrite: true,
-    requiresConfirm: true,
-    queryKeysToInvalidate: [['tests'], ['questions']],
+    queryKeysToInvalidate: [['trash'], ['folders'], ['notes']],
   },
-  refine_questions: { label: 'Refining questions', icon: WandSparkles, isWrite: true, requiresConfirm: false },
 };
-
-export function getToolLabel(name: string): string {
-  return TOOL_REGISTRY[name]?.label ?? name;
-}
 
 export function getToolIcon(name: string): LucideIcon {
   return TOOL_REGISTRY[name]?.icon ?? FileText;

@@ -137,3 +137,54 @@ describe('useAssist — SSE integration seam (P0-1/P0-2 regression)', () => {
     expect(indicatorSegments[0]?.type === 'tool_indicator' && indicatorSegments[0].status).toBe('running');
   });
 });
+
+describe('useAssist — tool history after an approval (tool_use without tool_result regression)', () => {
+  const usage = { usage: { inputTokens: 1, outputTokens: 1 } };
+  const streamOf = (events: MockSSEEvent[]) => ({
+    ok: true,
+    body: { getReader: () => makeSSEReader(events) },
+    json: () => Promise.resolve({}),
+  });
+
+  it('sends the result of the approved tool right after its own tool call', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        streamOf([
+          { event: 'tool_call', data: { id: 'cf', name: 'create_folder', arguments: { name: 'X' } } },
+          { event: 'confirm_required', data: { id: 'cf', name: 'create_folder', arguments: { name: 'X' } } },
+          { event: 'done', data: { ...usage, pendingConfirmations: ['cf'] } },
+        ])
+      )
+      .mockResolvedValueOnce(
+        streamOf([
+          { event: 'tool_executing', data: { id: 'cf', name: 'create_folder' } },
+          { event: 'tool_result', data: { id: 'cf', name: 'create_folder', output: 'Created X' } },
+          { event: 'text_delta', data: { content: 'Moving.' } },
+          { event: 'tool_call', data: { id: 'mv', name: 'move_items', arguments: {} } },
+          { event: 'confirm_required', data: { id: 'mv', name: 'move_items', arguments: {} } },
+          { event: 'done', data: { ...usage, pendingConfirmations: ['mv'] } },
+        ])
+      )
+      .mockResolvedValueOnce(streamOf([{ event: 'done', data: usage }]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+
+    act(() => result.current.send('move my notes'));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    act(() => result.current.confirm('cf', true));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    act(() => result.current.confirm('mv', true));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+
+    const thirdBody = JSON.parse((fetchMock.mock.calls[2][1] as { body: string }).body) as {
+      messages: { role: string; toolCalls?: { id: string }[]; toolResults?: { toolCallId: string }[] }[];
+    };
+    expect(thirdBody.messages.map(m => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
+    expect(thirdBody.messages[1].toolCalls?.map(tc => tc.id)).toEqual(['cf']);
+    expect(thirdBody.messages[2].toolResults?.map(r => r.toolCallId)).toEqual(['cf']);
+    expect(thirdBody.messages[3].toolCalls?.map(tc => tc.id)).toEqual(['mv']);
+  });
+});

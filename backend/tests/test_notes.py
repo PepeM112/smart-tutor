@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from app.core.enums import NoteLength, NoteSource
 from app.schemas.note import NoteBase, NoteChunkEdit, NoteCreate, NoteGenerate, NoteUpdate
-from app.services.embedding_service import strip_color_spans
+from app.services.embedding_service import clean_note_for_embedding, strip_color_spans, tables_to_text
 from app.services.llm import AnthropicLLMClient, CompletionResult, OpenAILLMClient
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
@@ -503,6 +503,15 @@ class TestNotePromptConstruction:
         assert "data-color" in NOTE_REFINEMENT_SYSTEM_PROMPT
         assert "data-color" in NOTE_CHUNK_EDIT_SYSTEM_PROMPT
 
+    def test_edit_prompts_keep_table_html(self) -> None:
+        for prompt in (NOTE_REFINEMENT_SYSTEM_PROMPT, NOTE_CHUNK_EDIT_SYSTEM_PROMPT):
+            assert "<table>" in prompt
+            assert "colwidth" in prompt
+            assert "pipe table" in prompt
+
+    def test_generation_prompt_asks_for_pipe_tables(self) -> None:
+        assert "pipe tables" in NOTE_GENERATION_SYSTEM_PROMPT
+
 
 # ---------------------------------------------------------------------------
 # RAG — color span stripping
@@ -522,6 +531,43 @@ class TestStripColorSpans:
 
     def test_leaves_other_html(self) -> None:
         assert strip_color_spans("<b>x</b> <span>y</span>") == "<b>x</b> y"
+
+
+# ---------------------------------------------------------------------------
+# RAG — table HTML to text
+# ---------------------------------------------------------------------------
+
+
+class TestTablesToText:
+    def test_cells_and_rows(self) -> None:
+        html = (
+            "<table>\n<tr>\n<th>Verb</th>\n<th>Meaning</th>\n</tr>\n<tr>\n<td>ir</td>\n<td>to go</td>\n</tr>\n</table>"
+        )
+        assert tables_to_text(html) == "Verb | Meaning\nir | to go"
+
+    def test_attributes_are_dropped(self) -> None:
+        html = '<table data-layout="full"><tr><th colwidth="120" data-color="red" data-bg="yellow">A</th></tr></table>'
+        assert tables_to_text(html) == "A"
+
+    def test_marks_entities_and_paragraphs(self) -> None:
+        html = "<table><tr><td><strong>a</strong> &lt; b &amp; c</td><td><p>one</p><p>two</p></td></tr></table>"
+        assert tables_to_text(html) == "a < b & c | one two"
+
+    def test_empty_cell_and_newline_entity(self) -> None:
+        html = "<table><tr><td></td><td>x&#10;y</td></tr></table>"
+        assert tables_to_text(html) == " | x y"
+
+    def test_text_around_table_is_kept(self) -> None:
+        html = "before\n\n<table><tr><td>a</td><td>b</td></tr></table>\n\nafter"
+        assert tables_to_text(html) == "before\n\na | b\n\nafter"
+
+    def test_pipe_table_is_unchanged(self) -> None:
+        md = "| a | b |\n| --- | --- |\n| 1 | 2 |"
+        assert tables_to_text(md) == md
+
+    def test_clean_note_strips_spans_inside_cells(self) -> None:
+        html = '<table><tr><td><span data-color="red">hot</span></td><td>cold</td></tr></table>'
+        assert clean_note_for_embedding(html) == "hot | cold"
 
 
 # ---------------------------------------------------------------------------

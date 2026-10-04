@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Assistant is a floating/dockable chat panel available on every authenticated page. It can answer questions about the user's own content (including semantic search via RAG), navigate the app on the user's behalf, and create or edit notes and tests. Only `edit_test` requires explicit confirmation; other write tools execute immediately and let the user review the result on the resource's own page.
+The Assistant is a floating/dockable chat panel available on every authenticated page. It can answer questions about the user's own content (including semantic search via RAG), navigate the app on the user's behalf, create or edit notes and tests, and organise Files (create folders, move items) and the Trash (list, restore). A write tool pauses for approval only when its `ToolSpec` has `requires_confirmation=True`. Today only `edit_test` does. All other write tools, including `create_folder`, `move_items` and `restore_from_trash`, execute immediately; the assistant says what it changed in its reply, and the user can review the result on the resource's own page.
 
 It is AI feature #7 (`AIFeature.ASSIST`), and shares the same per-user provider/API-key infrastructure as the other six features described in [AI Features](ai-features.md) (Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini, per-user encrypted keys, `get_user_llm_client`). What makes it different is the interaction shape: the other six features call `LLMClient.complete()` once and get a single structured response back. The Assistant calls `LLMClient.stream_with_tools()` — a streaming, multi-round, agentic tool-use loop — because a chat turn can involve the model reading data, calling tools, and replying incrementally rather than in one shot.
 
@@ -10,7 +10,7 @@ It is AI feature #7 (`AIFeature.ASSIST`), and shares the same per-user provider/
 
 | Layer    | Files                                                                                                                                                                       |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend  | `api/v1/endpoints/assist.py`, `schemas/assist.py`, `services/assist_service.py`, `services/assist_tools.py`, `services/assist_tools_service.py`, `services/assist_prompts.py` |
+| Backend  | `api/v1/endpoints/assist.py`, `schemas/assist.py`, `services/assist_service.py`, `services/assist_tools/` (package), `services/assist_prompts.py` |
 | Frontend | `frontend/src/features/assist/` (hooks, components, store, context, extensions, utils), mounted once in `frontend/app/(app)/layout.tsx`                                     |
 
 The frontend does not call the backend directly. It calls a dedicated Next.js Route Handler, `frontend/app/api/v1/assist/route.ts`, which forwards the request body and cookies to the backend and pipes the upstream SSE body straight through to the browser. This is a hand-written passthrough rather than the generic `next.config` rewrite proxy used elsewhere (see [Same-Origin API Proxy](decisions.md#same-origin-api-proxy-over-cross-origin-cookies)) — a `rewrites()` rule can't stream a response body, and SSE requires the connection to stay open and flush incrementally.
@@ -43,7 +43,7 @@ Every event is written as `event: <name>\ndata: <json>\n\n`.
 | `tool_call`         | `{ id, name, arguments }`                                                  | A tool call finished streaming and is ready to run                                            |
 | `tool_executing`    | `{ id, name }`                                                             | Emitted only when re-running a previously-approved write tool after confirmation              |
 | `tool_result`       | `{ id, name, output, metadata? }`                                          | Result of an auto-executed read tool, or of an approved write tool                             |
-| `confirm_required`  | `{ id, name, arguments, context? }`                                        | A write tool is paused pending user approval; `context` is a human-readable summary (currently populated only for `edit_test`) |
+| `confirm_required`  | `{ id, name, arguments, context? }`                                        | A write tool is paused pending user approval; `context` is a backend-resolved before/after preview built by the tool's optional `confirm_context` (populated for `edit_test`) |
 | `done`              | `{ usage: { inputTokens, outputTokens }, pendingConfirmations? }`          | End of this HTTP stream; `pendingConfirmations` is present when the loop paused for approval  |
 | `error`             | `{ message }`                                                              | A classified provider error, or "too many tool rounds"                                        |
 
@@ -53,7 +53,21 @@ Tool call arguments are never streamed incrementally — both the Anthropic and 
 
 ## Tools
 
-Defined in `assist_tools.py` (`TOOL_DEFINITIONS`), mirrored on the frontend in `utils/tool-registry.ts` for icons/labels.
+Defined in the package `services/assist_tools/`. Each tool is one frozen `ToolSpec` (`name`, `description`, `input_schema`, `handler`, `requires_confirmation`, optional `confirm_context`), placed next to its handler:
+
+| Module          | Tools                                                                          |
+| --------------- | ------------------------------------------------------------------------------ |
+| `notes.py`      | `list_notes`, `search_user_notes`, `get_note_content`, `create_note`, `refine_note` |
+| `tests.py`      | `list_tests`, `get_test_details`, `create_test`, `edit_test`                   |
+| `questions.py`  | `search_questions`, `refine_questions`                                         |
+| `folders.py`    | `list_folders`, `create_folder`, `move_items`                                  |
+| `trash.py`      | `list_trash`, `restore_from_trash`                                             |
+| `navigation.py` | `navigate_to`                                                                  |
+| `types.py`      | `ToolSpec`, `ToolResult`, `ToolHandler`, metadata schemas (no imports from the other modules, so no import cycle) |
+| `_helpers.py`   | Shared label and list helpers                                                  |
+| `registry.py`   | `TOOLS` (name to spec; duplicate names raise at import), `get_tool_definitions_anthropic/openai`, `requires_confirmation(name)`, `build_confirm_context`, `execute_tool` |
+
+To add a tool: write the handler and `ToolSpec` in the domain module, then add the spec to `_SPECS` in `registry.py`. The loop in `assist_service.py` reads the confirmation rule from the registry, so it needs no change. The frontend mirrors each tool in `utils/toolRegistry.ts` (label, icon, queries to invalidate).
 
 | Tool                  | Kind  | Confirmation | Purpose                                                        |
 | ---------------------- | ----- | ------------ | ----------------------------------------------------------------- |
@@ -70,16 +84,22 @@ Defined in `assist_tools.py` (`TOOL_DEFINITIONS`), mirrored on the frontend in `
 | `edit_test`            | write | **yes**      | Rename/describe a test, or remove questions from it                |
 | `refine_note`          | write | no**         | AI-revise an existing note (produces a reviewable diff)             |
 | `refine_questions`     | write | no**         | AI-edit specific questions in a test (produces a reviewable diff)   |
+| `create_folder`        | write | no           | Create a folder, in the root or under a parent folder              |
+| `move_items`           | write | no           | Move notes and folders to a target folder (or the root); skips items that cannot move |
+| `list_trash`           | read  | no           | List trashed items: kind, name, ID, original location, age, counts  |
+| `restore_from_trash`   | write | no           | Restore trashed folders and notes by `{kind, id}`                  |
 
 **Location:** tools show where an item is as `location`, in the words of the app UI: `Files` (root) or `Files > A > B`. They do not show `/A/B` paths.
 
 **Trashed notes** are excluded from all tools. `search_user_notes` filters the RAG chunk search to live notes only. `get_note_content` refuses to return a trashed note. `list_notes` and `list_folders` only show live items.
 
-\* `navigate_to` is auto-executed like a read tool (no server-side pause), but it has a client-side side effect: it tells the frontend to route the user somewhere. It's restricted to an allowlist of route prefixes (`_ALLOWED_ROUTE_PREFIXES` in `assist_tools_service.py`: `/dashboard /notes /tests /questions /review /history /settings /stats /files /trash`); anything else falls back to `/dashboard`.
+\* `navigate_to` is auto-executed like a read tool (no server-side pause), but it has a client-side side effect: it tells the frontend to route the user somewhere. It's restricted to an allowlist of route prefixes (`_ALLOWED_ROUTE_PREFIXES` in `assist_tools/navigation.py`: `/dashboard /notes /tests /questions /review /history /settings /stats /files /trash`); anything else falls back to `/dashboard`.
 
-\*\* `refine_note` and `refine_questions` are **not** in the backend's `WRITE_TOOLS` set, so they execute immediately without a `confirm_required` pause. This is intentional: their output is naturally reviewable as an old/new diff, so the frontend shows a lightweight "view changes → accept/reject" flow instead of an upfront yes/no gate (see [Diff Review Flow](#diff-review-flow-refine_note--refine_questions) below). The tradeoff is that the AI writes before the user has seen anything — acceptable here because both are reversible (the diff panel can reject, and `edit_test`'s question removals get their own undo toast — see below).
+\*\* `refine_note` and `refine_questions` do **not** set `requires_confirmation`, so they execute immediately without a `confirm_required` pause. This is intentional: their output is naturally reviewable as an old/new diff, so the frontend shows a lightweight "view changes → accept/reject" flow instead of an upfront yes/no gate (see [Diff Review Flow](#diff-review-flow-refine_note--refine_questions) below). The tradeoff is that the AI writes before the user has seen anything — acceptable here because both are reversible (the diff panel can reject, and `edit_test`'s question removals get their own undo toast — see below).
 
-\*\*\* `create_note` and `create_test` also execute immediately without confirmation. The system prompt instructs the model to call them directly when intent is clear — the user is taken to the edit page to review the result, so the output is naturally inspectable without a gate. Only `edit_test` remains in `WRITE_TOOLS` with a `confirm_required` pause, because its changes (renames, question removals) modify existing content in place.
+\*\*\* `create_note` and `create_test` also execute immediately without confirmation. The system prompt instructs the model to call them directly when intent is clear — the user is taken to the edit page to review the result, so the output is naturally inspectable without a gate. Only `edit_test` sets `requires_confirmation=True` and gets a `confirm_required` pause, because it modifies existing content in place. The Files and Trash tools (`create_folder`, `move_items`, `restore_from_trash`) run at once: they only change where items are, and the user can undo them from the Files and Trash pages.
+
+\*\*\*\* `move_items` and `restore_from_trash` work per item: one item that cannot move or restore (not owned, not found, would create a cycle, name clash) is skipped with a reason, and the other items still go through. Delete-forever is not an Assistant tool; it stays in the Trash UI. "Move these notes into a new folder X" runs `create_folder`, then `move_items`, in one stream with no approval step.
 
 ## Agentic Loop
 
@@ -105,6 +125,8 @@ There's no separate confirm endpoint — the frontend calls `POST /api/v1/assist
 3. For each `approved: true`, the backend looks the original arguments back up from that assistant message (`_find_tool_call`), emits `tool_executing`, actually runs the tool, and emits `tool_result`.
 4. For `approved: false`, nothing runs — a synthetic "User declined this action." tool result is injected instead (flagged `is_error` for Anthropic) so the model sees the decline and can respond to it.
 5. The round loop then resumes normally and streams a fresh reply.
+
+**History order.** Both providers reject a tool call that has no result in the message right after it. So when a resumed stream ends (`done`), the frontend (`utils/buildStreamMessages.ts`) stores the results of the decided tool calls (the approved tool's output, `User declined this action.` for the others) in a `tool` message BEFORE the new assistant message, and the results of the new assistant message's own (read) tool calls after it. If a resumed stream stops without `done` (abort, network error), the decided calls still get a result (`The action did not finish.`), so the next request stays valid. As a safety net, `_repair_tool_result_order` in `assist_service.py` moves every tool result right after the assistant message that holds its call, and drops results without a call. It logs a warning when it repairs something. Several tool rounds in one stream are stored as one assistant message (all calls) followed by one `tool` message (all results); this is valid for both providers.
 
 On the frontend, this is a segment of type `action_card` (see [Confirmation UI](#confirmation-ui-action-cards)). Only one action card can be approved per turn — approving one auto-rejects any other still-pending ones, and starting a new message auto-rejects anything left pending from before.
 
@@ -155,7 +177,7 @@ Net effect: the visual order on screen always matches wire order, and a tool ind
 
 ### Confirmation UI (Action Cards)
 
-`confirm_required` renders as an `action_card` segment (`ActionCard` in `AssistMessage.tsx`): a tool icon and label, a per-tool argument summary, and — for `edit_test` specifically, since it's the only tool with a populated `context` — a richer before/after preview (title/description as strikethrough-old → new, questions to remove listed by prompt text). While `status: 'pending'`, it shows Approve/Reject buttons that call back into `useAssist().confirm(toolCallId, approved)` (see [Confirmation Flow](#confirmation-flow-write-tools)).
+`confirm_required` renders as an `action_card` segment (`ActionCard` in `AssistMessage.tsx`): a tool icon and label, a per-tool argument summary, and a richer preview when the tool supplies a `context`. For `edit_test` this is a before/after preview (title/description as strikethrough-old → new, questions to remove listed by prompt text). The context uses names, not IDs, and only items of the current user. While `status: 'pending'`, it shows Approve/Reject buttons that call back into `useAssist().confirm(toolCallId, approved)` (see [Confirmation Flow](#confirmation-flow-write-tools)).
 
 ### Diff Review Flow (`refine_note` / `refine_questions`)
 
@@ -180,7 +202,8 @@ The backend only ever uses `pageContext` for one thing: `build_system_prompt` (`
 
 `ASSIST_SYSTEM_PROMPT` (`assist_prompts.py`) establishes the Assistant's identity and behavior rules, notably:
 
-- Call write tools immediately rather than asking "should I proceed?" in prose — the UI already shows its own approve/reject card, so asking first would double the confirmation step.
+- Follow the recipes for "move these notes into a new folder X" (`list_notes`/`list_folders` → `create_folder` → `move_items`) and "check the trash" (`list_trash` → `restore_from_trash`).
+- Call write tools immediately rather than asking "should I proceed?" in prose. `edit_test` shows its own approve/reject card, so asking first would double the confirmation step. The Files and Trash tools run at once, and the assistant says what it changed.
 - Keep narration between tool calls minimal — the UI already shows spinners and labels for what's running.
 - Before referring to "question N" in a test, call `get_test_details` first and match by list position *and* prompt text, since position alone is ambiguous once questions have been reordered or edited.
 - Refuse or ask for clarification rather than calling a tool when a request contradicts a question's actual type (e.g. asking to add options to a Simple question).

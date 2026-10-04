@@ -10,7 +10,7 @@ SmartTutor uses AI for eight capabilities:
 4. **Test generation** — creating questions from study notes (see [AI Test Generation](test-generation.md))
 5. **Note chunk editing** — user selects text inside a note's preview, gives an instruction, and the AI rewrites only that selection
 6. **Test question editing** — user selects one or more questions (in the test editor or in a generated test preview), gives an instruction, and the AI edits them. Unlike automatic test generation, this can also produce Long Text questions.
-7. **AI Assistant** — a chat panel, present on every page, that can answer questions about the user's content, navigate the app, and create or edit notes/tests through an agentic tool-calling loop (see [AI Assistant](ai-assistant.md))
+7. **AI Assistant** — a chat panel, present on every page, that can answer questions about the user's content, navigate the app, and create or edit notes/tests, organise folders and restore items from the Trash through an agentic tool-calling loop (only `edit_test` asks for approval first) (see [AI Assistant](ai-assistant.md))
 8. **Semantic search (RAG)** — notes are chunked and embedded into vectors, enabling the AI Assistant to find relevant content by meaning rather than keyword match (see [RAG & Semantic Search](#rag--semantic-search) below)
 
 Features 1–6 share the same request/response shape: call `complete_for_user`, get a single structured result back. The Assistant (#7) is different — a chat turn streams incrementally and can involve multiple rounds of tool calls, so it uses `stream_with_tools()` instead of `complete()` on the same underlying `LLMClient`. RAG (#8) uses a separate embedding model and infrastructure but shares per-user token tracking. All features share provider setup and per-user keys. See [AI Assistant](ai-assistant.md) for the Assistant's protocol, tools, and streaming architecture in full.
@@ -67,7 +67,7 @@ If the user has no API key configured for their preferred provider, the call fai
 
 Each AI feature has its own prompt tailored to its task (grading a rubric, drafting a note, editing a chunk, generating or editing questions), but all of them are designed to return **structured, parseable output** rather than free-form prose. This lets the backend validate what the AI returns — checking that a rubric verdict is boolean, that a generated question has the right shape, that a note's length roughly matches what was requested, that an edited note chunk contains only replacement text — instead of trusting the AI's output blindly.
 
-- Note chunk editing uses `NOTE_CHUNK_EDIT_SYSTEM_PROMPT` (`services/note_prompts.py`). It instructs the AI to return only the replacement text for the selected section, preserving the surrounding document's Markdown style. The chunk edit and refinement prompts also tell the AI to keep the editor's color `<span>` tags.
+- Note chunk editing uses `NOTE_CHUNK_EDIT_SYSTEM_PROMPT` (`services/note_prompts.py`). It instructs the AI to return only the replacement text for the selected section, preserving the surrounding document's Markdown style. The chunk edit and refinement prompts also tell the AI to keep the editor's color `<span>` tags and its `<table>` HTML (with `data-*` and `colwidth` attributes). New tables must be simple Markdown pipe tables.
 - Test question editing reuses `TEST_GENERATION_SYSTEM_PROMPT` with a dedicated user-prompt builder, `build_question_edit_user_prompt` (`services/test_generation_prompts.py`), which lists the full question set and marks which indices are selected for editing.
 
 ## Token Usage Tracking
@@ -124,7 +124,7 @@ Embeddings use OpenAI's `text-embedding-3-small` (1536 dimensions), called via a
 
 ### Chunking
 
-Notes are split into ~500-token chunks with 50-token overlap using `tiktoken` (`cl100k_base` encoding). Short notes (≤500 tokens) are stored as a single chunk. Before chunking, `strip_color_spans()` removes the editor's color tags (`<span data-color|data-bg>`) and keeps their text, so the tags do not add noise to the embeddings. Chunking preserves context at boundaries while keeping each chunk small enough for precise retrieval.
+Notes are split into ~500-token chunks with 50-token overlap using `tiktoken` (`cl100k_base` encoding). Short notes (≤500 tokens) are stored as a single chunk. Before chunking, `clean_note_for_embedding()` turns HTML tables into text (cells joined by ` | `, rows by newlines) and `strip_color_spans()` removes the editor's color tags (`<span data-color|data-bg>`) and keeps their text, so the tags do not add noise to the embeddings. Chunking preserves context at boundaries while keeping each chunk small enough for precise retrieval.
 
 ### Storage (pgvector)
 

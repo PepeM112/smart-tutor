@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { createNoteExtensions } from './extensions';
 import { parseMarkdown, serializeMarkdown } from './markdown';
 import { NoteBubbleMenu, type SelectionContext } from './NoteBubbleMenu';
+import { TableControls } from './table/TableControls';
 import './note-editor.css';
 
 import type { Editor } from '@tiptap/core';
@@ -65,6 +66,7 @@ export function RichNoteEditor({
   className,
 }: RichNoteEditorProps) {
   const t = useTranslations('notes');
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Cache the latest onChange so the editor callback never stale-closes.
   const onChangeRef = useRef(onChange);
@@ -147,9 +149,10 @@ export function RichNoteEditor({
   );
 
   return (
-    <div data-slot="rich-note-editor" className={cn('relative', className)}>
+    <div ref={containerRef} data-slot="rich-note-editor" className={cn('relative', className)}>
       <EditorContent editor={editor} />
       {editor && editable && <NoteBubbleMenu editor={editor} onAskAi={onAskAi} onSendToAssistant={onSendToAssistant} />}
+      {editor && editable && <TableControls editor={editor} containerRef={containerRef} />}
     </div>
   );
 }

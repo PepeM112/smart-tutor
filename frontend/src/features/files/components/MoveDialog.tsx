@@ -5,12 +5,12 @@ import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import { type FileTreeFolder } from '@/client';
+import { TREE_INDENT_STEP_PX } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 import { useFolders } from '../hooks/useFolders';
-import { TREE_INDENT_STEP_PX } from '../lib/treeLayout';
 
 type Props = {
   open: boolean;

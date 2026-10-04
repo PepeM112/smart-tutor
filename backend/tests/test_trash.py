@@ -104,6 +104,7 @@ class TestCascadeSoftDelete:
             now = _ts()
             mock_dt.now.return_value = now
             mock_get.return_value = _make_folder("f1")
+            mock_crud.count_live_descendants.return_value = (0, 1)  # Has content: soft delete.
 
             folder_service.delete_folder(db, folder_id="f1", current_user=user)
 
@@ -349,7 +350,7 @@ class TestPurge:
             patch("app.services.trash_service.folder_crud") as mock_crud,
             patch("app.services.trash_service.note_crud") as mock_note_crud,
             patch("app.services.trash_service.datetime") as mock_dt,
-            patch("app.services.trash_service._hard_delete_batch") as mock_hard_delete,
+            patch("app.services.folder_service.hard_delete_batch") as mock_hard_delete,
         ):
             mock_dt.now.return_value = now
             mock_crud.list_expired_top_folders.return_value = expired
@@ -369,7 +370,7 @@ class TestPurge:
 
 class TestHardDeleteFolderDetach:
     def test_detach_runs_before_crud_hard_delete_then_commit(self) -> None:
-        """_detach_other_batches must run first so foreign-key CASCADE does not remove
+        """detach_other_batches must run first so foreign-key CASCADE does not remove
         items that belong to a different trash batch inside the same subtree."""
         from app.services import trash_service
 
@@ -380,9 +381,9 @@ class TestHardDeleteFolderDetach:
 
         with (
             patch("app.services.trash_service._get_trashed_folder_or_404", return_value=folder),
-            patch("app.services.trash_service.folder_crud") as mock_crud,
+            patch("app.services.folder_service.folder_crud") as mock_crud,
             patch(
-                "app.services.trash_service._detach_other_batches",
+                "app.services.folder_service.detach_other_batches",
                 side_effect=lambda *a, **kw: call_order.append("detach"),
             ) as mock_detach,
         ):
@@ -529,7 +530,7 @@ class TestRestoreNameTruncation:
 
 
 # ---------------------------------------------------------------------------
-# build_orphan_path — pure helper for trash_service._detach_other_batches
+# build_orphan_path — pure helper for folder_service.detach_other_batches
 # ---------------------------------------------------------------------------
 
 
@@ -617,11 +618,11 @@ def _run_detach(
     child_folders: list[MagicMock] | None = None,
     notes: list[MagicMock] | None = None,
 ) -> tuple[MagicMock, MagicMock]:
-    """Run trash_service._detach_other_batches; the CRUD reads return the given in-memory rows.
+    """Run folder_service.detach_other_batches; the CRUD reads return the given in-memory rows.
 
     Returns the (folder_crud, note_crud) mocks, so a test can check the query arguments.
     """
-    from app.services import trash_service
+    from app.services import folder_service
 
     def _reparent_folder(_db: object, *, folder: MagicMock, parent_id: str | None, orphan_path: list[str]) -> None:
         folder.parent_id, folder.orphan_path = parent_id, orphan_path
@@ -630,15 +631,15 @@ def _run_detach(
         note.folder_id, note.orphan_path = folder_id, orphan_path
 
     with (
-        patch("app.services.trash_service.folder_crud") as mock_folder_crud,
-        patch("app.services.trash_service.note_crud") as mock_note_crud,
+        patch("app.services.folder_service.folder_crud") as mock_folder_crud,
+        patch("app.services.folder_service.note_crud") as mock_note_crud,
     ):
         mock_folder_crud.list_batch_folders.return_value = batch
         mock_folder_crud.list_children_outside_batch.return_value = child_folders or []
         mock_note_crud.list_in_folders_outside_batch.return_value = notes or []
         mock_folder_crud.reparent.side_effect = _reparent_folder
         mock_note_crud.reparent.side_effect = _reparent_note
-        trash_service._detach_other_batches(MagicMock(), folder=top)
+        folder_service.detach_other_batches(MagicMock(), folder=top)
     return mock_folder_crud, mock_note_crud
 
 

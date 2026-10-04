@@ -13,6 +13,7 @@
  * and the assistant attachment flow to know what the user selected.
  */
 
+import { CellSelection } from '@tiptap/pm/tables';
 import { useEditorState } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import { Bold, ChevronDown, Code, Italic, Link2, MessageSquareQuote, Strikethrough, WandSparkles } from 'lucide-react';
@@ -23,8 +24,9 @@ import { Button } from '@/components/ui/button';
 import { HoverHint } from '@/components/ui/hover-hint';
 import { cn } from '@/lib/utils';
 
+import { ColorSwatch } from './ColorSwatch';
 import { selectionToMarkdown } from './markdown';
-import { NOTE_COLORS, type NoteColor } from './noteColor';
+import { NOTE_PALETTE, type NoteColor } from './noteColor';
 
 import type { Editor } from '@tiptap/core';
 
@@ -133,7 +135,8 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
       // Only show the bubble menu on non-empty text selections.
       shouldShow={({ state }) => {
         const { from, to } = state.selection;
-        return from !== to;
+        // A cell selection (grips, cell drag) has the table menus for its actions.
+        return from !== to && !(state.selection instanceof CellSelection);
       }}
     >
       <div
@@ -294,24 +297,6 @@ function LinkPanel({ href, onHrefChange, onConfirm, onClose, addLabel }: LinkPan
 
 // ─── color palette ───────────────────────────────────────────────────────────
 
-const PALETTE: (NoteColor | null)[] = [null, ...NOTE_COLORS];
-
-/** "A" glyph in the given text color on the given background, as Notion does. */
-function ColorSwatch({ color, bg }: { color: NoteColor | null; bg: NoteColor | null }) {
-  return (
-    <span
-      className="flex size-5 items-center justify-center rounded text-[13px] font-semibold leading-none"
-      style={{
-        color: color ? `var(--note-${color})` : undefined,
-        background: bg ? `var(--note-${bg}-bg)` : undefined,
-        boxShadow: bg ? undefined : 'inset 0 0 0 1px var(--border)',
-      }}
-    >
-      A
-    </span>
-  );
-}
-
 type ColorPanelProps = {
   current: ColorAttrs;
   onText: (color: NoteColor | null) => void;
@@ -326,7 +311,7 @@ function ColorPanel({ current, onText, onBackground }: ColorPanelProps) {
     <div>
       <div className="px-1 pb-1 text-[11px] font-medium text-muted-foreground">{title}</div>
       <div className="grid grid-cols-5 gap-1">
-        {PALETTE.map(c => {
+        {NOTE_PALETTE.map(c => {
           const selected = (kind === 'text' ? (current.color ?? null) : (current.bg ?? null)) === c;
           return (
             <HoverHint key={c ?? 'default'} label={colorName(c)}>

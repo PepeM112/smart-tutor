@@ -577,24 +577,23 @@ export const FolderCreateSchema = {
     title: 'FolderCreate'
 } as const;
 
-export const FolderDeletePreviewSchema = {
+export const FolderDeleteResultSchema = {
     properties: {
-        folderCount: {
-            type: 'integer',
-            title: 'Foldercount'
-        },
-        noteCount: {
-            type: 'integer',
-            title: 'Notecount'
+        outcome: {
+            type: 'string',
+            enum: [
+                'trashed',
+                'deleted'
+            ],
+            title: 'Outcome'
         }
     },
     type: 'object',
     required: [
-        'folderCount',
-        'noteCount'
+        'outcome'
     ],
-    title: 'FolderDeletePreview',
-    description: 'Recursive counts shown in the delete confirmation dialog.'
+    title: 'FolderDeleteResult',
+    description: 'What a folder delete did: moved to Trash, or removed at once (an empty folder).'
 } as const;
 
 export const FolderReadSchema = {
