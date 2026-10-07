@@ -69,6 +69,9 @@ def _clone_test(db: Session, *, test: Test) -> tuple[Test, dict[str, str]]:
         source_note_id=test.source_note_id,
         version=test.version,
         parent_id=test.id,
+        # A space test keeps its space, so its old results still pass the access check.
+        # `is_draft` stays False: only published tests have results.
+        space_id=test.space_id,
     )
     db.add(frozen_test)
     db.flush()

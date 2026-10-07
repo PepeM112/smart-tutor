@@ -12,6 +12,10 @@ from app.models.folder import Folder
 from app.models.note import Note
 from app.schemas.note import NoteUpdate
 
+# Personal notes only. Course and classroom notes have `space_id` set (see docs/spaces.md).
+# Trash and folder queries need no filter: a CHECK keeps space notes out of folders and Trash.
+PERSONAL_NOTE = Note.space_id.is_(None)
+
 
 def get_by_id(db: Session, *, id: str) -> Note | None:
     stmt = select(Note).where(Note.id == id)
@@ -26,7 +30,7 @@ def get_by_id_for_update(db: Session, *, id: str) -> Note | None:
 
 def list_live_by_ids(db: Session, *, user_id: str, ids: Sequence[str]) -> Sequence[Note]:
     """Return the LIVE (non-trashed) notes of `user_id` among `ids`."""
-    stmt = select(Note).where(Note.user_id == user_id, Note.id.in_(ids), Note.deleted_at.is_(None))
+    stmt = select(Note).where(Note.user_id == user_id, PERSONAL_NOTE, Note.id.in_(ids), Note.deleted_at.is_(None))
     return db.scalars(stmt).all()
 
 
@@ -48,7 +52,7 @@ def list_tree_notes(db: Session, *, user_id: str) -> Sequence[TreeNoteRow]:
     """Light note columns (no content) for the file-tree endpoint; live only, ordered by title (case-insensitive)."""
     stmt = (
         select(Note.id, Note.title, Note.folder_id, Note.updated_at, Note.is_favorite, Note.favorited_at)
-        .where(Note.user_id == user_id, Note.deleted_at.is_(None))
+        .where(Note.user_id == user_id, PERSONAL_NOTE, Note.deleted_at.is_(None))
         .order_by(func.lower(Note.title))
     )
     return db.execute(stmt).fetchall()
@@ -103,6 +107,7 @@ def search_live_content(
         select(Note.id, Note.title, Note.folder_id, Note.content)
         .where(
             Note.user_id == user_id,
+            PERSONAL_NOTE,
             Note.deleted_at.is_(None),
             ilike_search(Note.content, value=query),
         )
@@ -123,7 +128,7 @@ def list_by_user(
     per_page: int = 20,
 ) -> tuple[Sequence[Note], int]:
     # Only live (non-trashed) notes appear in list views.
-    stmt = select(Note).where(Note.user_id == user_id, Note.deleted_at.is_(None))
+    stmt = select(Note).where(Note.user_id == user_id, PERSONAL_NOTE, Note.deleted_at.is_(None))
 
     if title:
         stmt = stmt.where(ilike_search(Note.title, value=title))
@@ -166,8 +171,10 @@ def update(db: Session, *, note: Note, data: NoteUpdate) -> Note:
 
 
 def list_unindexed_ids_by_user(db: Session, *, user_id: str) -> list[str]:
-    """Return IDs of LIVE notes owned by user that have not yet been embedded."""
-    stmt = select(Note.id).where(Note.user_id == user_id, Note.is_indexed.is_(False), Note.deleted_at.is_(None))
+    """Return IDs of LIVE personal notes of the user that have not yet been embedded."""
+    stmt = select(Note.id).where(
+        Note.user_id == user_id, PERSONAL_NOTE, Note.is_indexed.is_(False), Note.deleted_at.is_(None)
+    )
     return list(db.scalars(stmt).all())
 
 

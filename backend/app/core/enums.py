@@ -95,3 +95,35 @@ class AIFeature(NamedIntEnum):
     TEST_GENERATION = 6
     ASSIST = 7
     EMBEDDING = 8
+
+
+# --- Spaces (courses + classrooms). See docs/spaces.md. ---
+
+
+class SpaceKind(NamedIntEnum):
+    COURSE = 1
+    CLASSROOM = 2
+
+
+class SpaceVisibility(NamedIntEnum):
+    PRIVATE = 1
+    UNLISTED = 2
+    PUBLIC = 3
+
+
+class SpaceStatus(NamedIntEnum):
+    ACTIVE = 1
+    ARCHIVED = 2
+
+
+class SpaceRole(NamedIntEnum):
+    # OWNER is never stored in space_member: `space.owner_id` is the only owner record.
+    OWNER = 1
+    EDITOR = 2
+    VIEWER = 3
+
+
+class MemberStatus(NamedIntEnum):
+    INVITED = 1
+    REQUESTED = 2
+    ACTIVE = 3

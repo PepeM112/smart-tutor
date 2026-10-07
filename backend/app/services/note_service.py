@@ -20,6 +20,7 @@ from app.schemas.note import (
     NoteUpdate,
 )
 from app.services import token_usage_service
+from app.services.access_service import AccessLevel, get_note_or_404, require_personal
 from app.services.folder_service import get_live_folder_or_404
 from app.services.llm import CompletionResult, complete_for_user
 from app.services.note_prompts import (
@@ -31,7 +32,7 @@ from app.services.note_prompts import (
     build_note_refinement_user_prompt,
 )
 from app.services.note_text import markdown_to_plain_text
-from app.services.service_helpers import get_owned_or_404, is_trash_expired
+from app.services.service_helpers import is_trash_expired
 
 _NOTE_MAX_TOKENS: dict[int, int] = {
     NoteLength.SHORT: 2048,
@@ -85,30 +86,31 @@ def schedule_indexing(note_id: str) -> None:
         db.close()
 
 
-def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
-    """Fetch any owned note, including trashed ones (for GET /notes/{id}).
+def get_note(db: Session, *, note_id: str, current_user: User, level: AccessLevel = AccessLevel.READ) -> Note:
+    """Fetch a note the user can access, including trashed ones (for GET /notes/{id}).
 
     A note trashed longer ago than the retention time is gone: 404, even before the purge runs.
     """
-    note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    note = get_note_or_404(db, note_id=note_id, current_user=current_user, level=level)
     if is_trash_expired(note.deleted_at):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
     return note
 
 
-def get_live_note(db: Session, *, note_id: str, current_user: User, for_update: bool = False) -> Note:
-    """Fetch an owned note for a WRITE operation: raise 409 if it is in Trash.
+def get_live_note(
+    db: Session,
+    *,
+    note_id: str,
+    current_user: User,
+    level: AccessLevel = AccessLevel.EDIT,
+    for_update: bool = False,
+) -> Note:
+    """Fetch a note that is not in Trash (409 if it is). EDIT by default: most callers write.
 
     `for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE). Only the
     content PATCH needs it (version check); tree writes use `folder_crud.lock_tree` instead.
     """
-    note = get_owned_or_404(
-        db,
-        fetch=note_crud.get_by_id_for_update if for_update else note_crud.get_by_id,
-        id=note_id,
-        current_user=current_user,
-        entity_name="Note",
-    )
+    note = get_note_or_404(db, note_id=note_id, current_user=current_user, level=level, for_update=for_update)
     if note.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -148,6 +150,7 @@ def move_note(db: Session, *, note_id: str, current_user: User, folder_id: str |
     """Change note.folder_id only. Does not touch version or is_indexed."""
     folder_crud.lock_tree(db, user_id=current_user.id)
     note = get_live_note(db, note_id=note_id, current_user=current_user)
+    require_personal(space_id=note.space_id)
     _validate_folder_ownership(db, folder_id=folder_id, current_user=current_user)
     note_crud.move(db, note=note, folder_id=folder_id)
     db.commit()
@@ -187,6 +190,7 @@ def set_favorite(db: Session, *, note_id: str, current_user: User, is_favorite: 
     A note in Trash gives 409, like every other write.
     """
     note = get_live_note(db, note_id=note_id, current_user=current_user)
+    require_personal(space_id=note.space_id)
     # A repeated PUT must not change anything: a new `favorited_at` would move the note in the sidebar.
     if note.is_favorite == is_favorite:
         return note
@@ -246,7 +250,8 @@ def search_notes_content(
 def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
     """Soft-delete a note (move to Trash). Already-trashed notes are a no-op."""
     folder_crud.lock_tree(db, user_id=current_user.id)
-    note = get_note(db, note_id=note_id, current_user=current_user)
+    note = get_note(db, note_id=note_id, current_user=current_user, level=AccessLevel.EDIT)
+    require_personal(space_id=note.space_id)
     if note.deleted_at is None:
         note_crud.soft_delete(db, note=note, now=datetime.now(timezone.utc))
         db.commit()

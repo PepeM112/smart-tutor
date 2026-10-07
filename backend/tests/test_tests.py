@@ -20,12 +20,14 @@ def _note(user_id: str = "u1", deleted_at: datetime | None = None) -> MagicMock:
     n.id = "n1"
     n.user_id = user_id
     n.deleted_at = deleted_at
+    n.space_id = None  # personal
+    n.is_draft = False
     return n
 
 
 @pytest.fixture
 def mock_note_crud() -> Iterator[MagicMock]:
-    with patch("app.services.test_service.note_crud") as mock:
+    with patch("app.services.access_service.note_crud") as mock:
         yield mock
 
 
@@ -60,7 +62,7 @@ class TestCreateTestSourceNote:
         [
             (None, 404),  # missing
             (_note(deleted_at=datetime.now(timezone.utc)), 404),  # in Trash
-            (_note(user_id="other"), 403),  # another user's note (same rule as get_owned_or_404)
+            (_note(user_id="other"), 403),  # another user's note (same rule as access_service)
         ],
     )
     def test_invalid_source_note_is_rejected_before_create(

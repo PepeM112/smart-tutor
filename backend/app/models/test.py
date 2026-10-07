@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import TestStatus
@@ -14,6 +14,12 @@ if TYPE_CHECKING:
 
 class Test(Base, CreatedAtMixin):
     __tablename__ = "test"
+    __table_args__ = (
+        # Only space content has drafts.
+        CheckConstraint(
+            "space_id IS NOT NULL OR (is_draft = false AND draft_of_id IS NULL)", name="ck_test_personal_flags"
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
     title: Mapped[str] = mapped_column(String, index=True)
@@ -27,6 +33,16 @@ class Test(Base, CreatedAtMixin):
     # Points to the original Test this was copied from (copy-on-write versioning); NULL means this is the original
     parent_id: Mapped[str | None] = mapped_column(
         String(26), ForeignKey("test.id", ondelete="SET NULL"), nullable=True, default=None, index=True
+    )
+    # Space (course / classroom) that owns this test. NULL = personal. `user_id` is then the creator only.
+    space_id: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("space.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    # Space content only: true for a row members can not see yet (new in edit mode, or a twin).
+    is_draft: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    # Space content only: the published test this draft twin will replace on publish.
+    draft_of_id: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("test.id", ondelete="CASCADE"), nullable=True, index=True
     )
 
     questions: Mapped[list["Question"]] = relationship(back_populates="test", cascade="all, delete-orphan")

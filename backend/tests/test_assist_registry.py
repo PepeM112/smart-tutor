@@ -460,9 +460,9 @@ class TestConfirmContext:
         }
 
     def test_restore_shows_only_names_of_own_items(self) -> None:
-        mine = MagicMock(user_id="u1")
+        mine = MagicMock(user_id="u1", space_id=None)
         mine.title = "Old note"
-        foreign = MagicMock(user_id="other")
+        foreign = MagicMock(user_id="other", space_id=None)
         foreign.title = "Secret"
         with patch(f"{TRASH}.note_crud.get_by_id", side_effect=[mine, foreign]):
             context = build_confirm_context(
@@ -477,7 +477,7 @@ class TestConfirmContext:
 class TestCreateToolCards:
     """The confirm card shows the values that will run, as the handler sees them."""
 
-    NOTE = MagicMock(user_id="u1", title="Cells")
+    NOTE = MagicMock(user_id="u1", title="Cells", space_id=None, is_draft=False)
     TESTS = "app.services.assist_tools.tests"
 
     def _card(self, arguments: dict[str, object]) -> dict[str, str]:

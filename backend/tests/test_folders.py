@@ -37,6 +37,8 @@ def _make_note(id: str, user_id: str = "u1", folder_id: str | None = None, versi
     n.folder_id = folder_id
     n.version = version
     n.deleted_at = None  # live by default
+    n.space_id = None  # personal
+    n.is_draft = False
     return n
 
 
@@ -557,6 +559,7 @@ class TestTreeLock:
         with (
             patch("app.services.trash_service.folder_crud") as mock_folder_crud,
             patch("app.services.trash_service.note_crud") as mock_note_crud,
+            patch("app.services.access_service.note_crud", new=mock_note_crud),
         ):
             mock_note_crud.get_by_id.return_value = note
             order = _ordered(folder_crud=mock_folder_crud, note_crud=mock_note_crud, db=db)
@@ -594,6 +597,7 @@ class TestTreeLock:
         with (
             patch("app.services.note_service.folder_crud") as mock_folder_crud,
             patch("app.services.note_service.note_crud") as mock_note_crud,
+            patch("app.services.access_service.note_crud", new=mock_note_crud),
             patch("app.services.note_service.get_live_folder_or_404") as mock_get_folder,
         ):
             mock_note_crud.get_by_id.return_value = _make_note("n1")

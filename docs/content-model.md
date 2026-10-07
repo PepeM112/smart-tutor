@@ -11,11 +11,17 @@ User
       ├── Question (standalone within test)
       └── QuestionGroup
            └── Question (grouped within test)
+
+Space (course / classroom, see spaces.md)
+ ├── Note  (space_id set)
+ └── Test  (space_id set) → its questions follow the test
 ```
+
+**Personal vs space content.** `note.space_id` and `test.space_id` are `NULL` for personal content. A row with `space_id` set belongs to a [space](spaces.md): access comes from the role in the space, and `user_id` only records the creator. Space rows also use `is_draft` (members can not see the row yet) and `draft_of_id` (the published row that this draft replaces on publish). CHECK constraints keep `is_draft = false` and `draft_of_id = NULL` on personal rows, and keep space notes out of folders, Trash and favorites. Personal queries filter `space_id IS NULL`. Load single notes, tests and questions through `access_service` (see [Spaces](spaces.md#access-layer-servicesaccess_servicepy)).
 
 Questions have a `user_id` FK for direct ownership. A question's `test_id` is **nullable** — questions with `test_id = NULL` are **bank questions** (standalone, not part of any test). Bank questions are owned via `user_id` directly.
 
-A **Test** is a named collection of questions (e.g. "Spanish Vocabulary Chapter 3"). Tests belong to a single user and are never shared. A test can optionally track its origin via `source_note_id` — a reference to the Note it was generated from (see [AI Test Generation](test-generation.md)). This is `null` for manually-created tests.
+A **Test** is a named collection of questions (e.g. "Spanish Vocabulary Chapter 3"). A personal test belongs to a single user. A space test belongs to a course or classroom (`space_id`). A test can optionally track its origin via `source_note_id` — a reference to the Note it was generated from (see [AI Test Generation](test-generation.md)). This is `null` for manually-created tests.
 
 ### Question Bank
 
@@ -151,7 +157,7 @@ Notes are a separate content type — standalone Markdown documents for study ma
 
 For full details, see [Study Notes](study-notes.md).
 
-A note has no `source` field (removed in ST-65). `is_favorite` and `favorited_at` mark a starred note; the favorite endpoint does not change `version` or `updated_at`.
+A note has no `source` field (removed in ST-65). A space note (`space_id` set) can not be in a folder, in Trash or a favorite (CHECK `ck_note_space_flags`). `is_favorite` and `favorited_at` mark a starred note; the favorite endpoint does not change `version` or `updated_at`.
 
 ### Folders
 

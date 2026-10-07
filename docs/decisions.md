@@ -374,3 +374,46 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** The folder path is not stored in the embedding chunk metadata or the RAG chunk header.
 
 **Why:** Embedding is expensive. Adding the folder path to the chunk header would make every note stale when its folder is renamed or moved, forcing a re-embed of all chunks in that subtree. The folder path is not needed for ranking chunks by relevance — that is purely content-based. The AI Assistant reads the live folder path from the database at tool-call time (`list_notes`, `get_note_content`, `search_user_notes`), so the model always sees the current location without stale embeddings.
+
+---
+
+## Generic `space` Table for Courses and Classrooms
+
+**Decision:** Courses and classrooms are rows of one `space` table with a `kind` column. A classroom course points to its classroom with `parent_id`.
+
+**Alternative considered:** Separate `course` and `classroom` tables.
+
+**Why:** Members, invites, the feed, notifications and progress all point to "a space". With one table they use real FKs with `ON DELETE CASCADE`. With two tables they need `target_type + target_id` columns, which Postgres can not enforce.
+
+---
+
+## `space.owner_id` Is the Only Owner Record
+
+**Decision:** The owner is stored only in `space.owner_id`. A CHECK constraint stops `space_member` from storing the OWNER role.
+
+**Why:** One source of truth, so a space can never have two owners. An ownership transfer later changes one column.
+
+---
+
+## Published Space Content Can Not Change Through the Content Endpoints
+
+**Decision:** EDIT access on space content requires a draft row (`is_draft = true`). Publish (M2) is the only way to change what members see.
+
+**Why:** Members never see a half-done edit, and the access layer has one simple rule. The draft notes reuse the normal note editor and autosave.
+
+---
+
+## CHECK Constraints for Personal-Only Flags
+
+**Decision:** CHECK constraints keep drafts off personal rows, and keep space notes out of folders, Trash and favorites.
+
+**Why:** The DB enforces the rule, so no code path can break it. The Trash and folder queries can never return a space note, so they need no `space_id IS NULL` filter, and the M1 diff stays small.
+
+---
+
+## One Access Layer With a Pure Permission Function
+
+**Decision:** `access_service` loads every single note, test and question and decides READ / EDIT. The permission matrix is a pure function, `can_access_space_content`.
+
+**Why:** Before, each service checked `user_id == current_user.id` itself. Space content needs roles, inheritance, drafts and archive, and one copy of these rules is easier to keep correct. The pure function gets a full matrix test with no DB. Missing rows stay 404 and no access stays 403, so existing clients see no change.
+

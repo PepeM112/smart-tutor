@@ -56,6 +56,8 @@ def _make_note(
     n.deleted_at = deleted_at
     n.version = version
     n.orphan_path = orphan_path
+    n.space_id = None  # personal
+    n.is_draft = False
     return n
 
 
@@ -139,7 +141,7 @@ class TestTrashedNoteRejected:
         user = _make_user()
         trashed = _make_note("n1", deleted_at=_ts(2))
 
-        with patch("app.services.note_service.get_owned_or_404") as mock_get:
+        with patch("app.services.note_service.get_note_or_404") as mock_get:
             mock_get.return_value = trashed
             data = NoteUpdate(version=1)
             with pytest.raises(HTTPException) as exc_info:
@@ -155,7 +157,7 @@ class TestTrashedNoteRejected:
         user = _make_user()
         trashed = _make_note("n1", deleted_at=_ts(1))
 
-        with patch("app.services.note_service.get_owned_or_404") as mock_get:
+        with patch("app.services.note_service.get_note_or_404") as mock_get:
             mock_get.return_value = trashed
             with pytest.raises(HTTPException) as exc_info:
                 note_service.move_note(db, note_id="n1", current_user=user, folder_id=None)
@@ -251,7 +253,7 @@ class TestExpiredTrashActsAsGone:
         from app.services import note_service
 
         with (
-            patch("app.services.note_service.get_owned_or_404", return_value=_make_note("n1", deleted_at=_ts(31))),
+            patch("app.services.note_service.get_note_or_404", return_value=_make_note("n1", deleted_at=_ts(31))),
             pytest.raises(HTTPException) as exc_info,
         ):
             note_service.get_note(MagicMock(), note_id="n1", current_user=_make_user())
@@ -262,7 +264,7 @@ class TestExpiredTrashActsAsGone:
         from app.services import note_service
 
         note = _make_note("n1", deleted_at=_ts(29))
-        with patch("app.services.note_service.get_owned_or_404", return_value=note):
+        with patch("app.services.note_service.get_note_or_404", return_value=note):
             assert note_service.get_note(MagicMock(), note_id="n1", current_user=_make_user()) is note
 
     def test_restore_expired_folder_raises_404(self) -> None:
@@ -282,7 +284,7 @@ class TestExpiredTrashActsAsGone:
 
         note = _make_note("n1", deleted_at=_ts(31))
         with (
-            patch("app.services.trash_service.get_owned_or_404", return_value=note),
+            patch("app.services.trash_service.get_note_or_404", return_value=note),
             pytest.raises(HTTPException) as exc_info,
         ):
             trash_service._get_trashed_note_or_404(MagicMock(), note_id="n1", current_user=_make_user())
@@ -293,7 +295,7 @@ class TestExpiredTrashActsAsGone:
         from app.services import trash_service
 
         note = _make_note("n1", deleted_at=_ts(29))
-        with patch("app.services.trash_service.get_owned_or_404", return_value=note):
+        with patch("app.services.trash_service.get_note_or_404", return_value=note):
             found = trash_service._get_trashed_note_or_404(MagicMock(), note_id="n1", current_user=_make_user())
 
         assert found is note

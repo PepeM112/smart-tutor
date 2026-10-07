@@ -132,6 +132,9 @@ def _item_name(db: Session, *, current_user: User, kind: str, item_id: str) -> s
         owned = note_crud.get_by_id(db, id=item_id)
     if owned is None or owned.user_id != current_user.id:
         return None
+    # Trash is personal only: a course or classroom note is never in it.
+    if not isinstance(owned, Folder) and owned.space_id is not None:
+        return None
     return note_label(owned.name if isinstance(owned, Folder) else owned.title)
 
 

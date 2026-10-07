@@ -59,7 +59,12 @@ def list_by_user(
     stmt = (
         select(Test)
         .options(*_active_load_options())
-        .where(Test.user_id == user_id, Test.status == TestStatus.ACTIVE, Test.parent_id.is_(None))
+        .where(
+            Test.user_id == user_id,
+            Test.space_id.is_(None),  # personal tests only (see docs/spaces.md)
+            Test.status == TestStatus.ACTIVE,
+            Test.parent_id.is_(None),
+        )
     )
 
     if search:
