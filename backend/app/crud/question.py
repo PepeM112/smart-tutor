@@ -40,7 +40,15 @@ def list_by_ids(db: Session, *, ids: list[str], active_only: bool = True) -> Seq
 
     Only active questions by default. Restore passes `active_only=False` because it needs the deleted rows.
     """
-    stmt = select(Question).options(joinedload(Question.question_group)).where(Question.id.in_(ids))
+    # Eager-load both paths to the owning test: bulk actions call `question_space_id` on each row.
+    stmt = (
+        select(Question)
+        .options(
+            joinedload(Question.test),
+            joinedload(Question.question_group).joinedload(TestQuestionGroup.test),
+        )
+        .where(Question.id.in_(ids))
+    )
     if active_only:
         stmt = stmt.where(Question.status == int(QuestionStatus.ACTIVE))
     return db.scalars(stmt).all()

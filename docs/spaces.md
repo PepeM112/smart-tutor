@@ -110,6 +110,10 @@ Personal content (`space_id IS NULL`): only the user with `user_id` has access, 
 - **Bulk question actions** (bulk delete, bulk assign, restore) skip space questions and count them as skipped. This is the project rule for bulk endpoints.
 - **Exams.** `test_service.get_takeable_test` gives 409 "Draft tests can not be taken" for a draft test (exam start and submit).
 - **Versioning.** The frozen copy of a test keeps `space_id`, so old results of a space test still pass the access check.
+- **SRS.** Space questions are not in SRS. `check_question` does not write `UserQuestionState` for them (M3 adds an opt-in).
+- **Source note of a personal test.** A user can generate a personal test from a space note they can read. The test keeps `source_note_id`, so it links to the space note. This is the one link from personal content to space content, and it is intentional (the user can see where the questions came from). The link can break:
+  - The user leaves the space → the note load gives 403. The UI shows "You no longer have access to this file".
+  - The space or the note is deleted → `source_note_id` becomes NULL (`ondelete="SET NULL"`), so the link is not shown. If the UI still has the old id, the load gives 404 and the UI shows "This file no longer exists".
 - **AI Assistant.** Read tools use READ (a VIEWER can read published space notes). Write tools (`refine_note`, `edit_test`, `refine_questions`) use EDIT, so they refuse published space content. Confirm cards show a name only when the user has access.
 
 ---

@@ -274,7 +274,8 @@ def check_question(
     answer_status = correct_question(user_answer, question)
 
     srs_state = None
-    if update_srs:
+    # Space questions are not in SRS (M3 adds an opt-in), so a check must not create SRS state for them.
+    if update_srs and question_space_id(question) is None:
         srs_state = record_answer(
             db,
             user_id=current_user.id,

@@ -17,6 +17,7 @@ from app.models.note import Note
 from app.models.space import Space
 from app.models.space_member import SpaceMember
 from app.models.user import User
+from app.models.user_question_state import UserQuestionState
 from app.schemas.note import NoteUpdate
 from app.services import note_service, question_service, test_service, trash_service
 from app.services.access_service import AccessLevel, get_space_access
@@ -257,6 +258,19 @@ class TestTestAndQuestionAccess:
             )
             == 403
         )
+
+    def test_check_does_not_add_srs_state_for_a_space_question(
+        self, db_session: Session, owner: User, course: Space
+    ) -> None:
+        viewer = _member(db_session, course, SpaceRole.VIEWER)
+        question = new_test(db_session, user=owner, space=course).questions[0]
+
+        result = question_service.check_question(
+            db_session, question_id=question.id, current_user=viewer, user_answer="ir"
+        )
+
+        assert result.srs_state is None
+        assert db_session.scalars(select(UserQuestionState).where(UserQuestionState.user_id == viewer.id)).all() == []
 
 
 # ---------------------------------------------------------------------------
