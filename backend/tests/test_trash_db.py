@@ -505,3 +505,36 @@ class TestTrashTreeViaApi:
         assert listed[("folder", ids["c"])]["originalPath"] == "/P/A"
         tree = client.get(f"/api/v1/trash/folders/{ids['c']}/tree").json()
         assert len(tree["notes"]) == 1
+
+
+class TestTrashTree:
+    def test_lists_every_trashed_folder_and_note_not_only_batch_tops(self, db_session: Session, user: User) -> None:
+        p = _folder(db_session, user, "P")
+        x = _folder(db_session, user, "X", p)
+        n = _note(db_session, user, "N", x)
+        live = _note(db_session, user, "Live")
+        _trash_folder(db_session, user, x)
+        other = _note(db_session, user, "Other")
+        _trash_note(db_session, user, other)
+
+        tree = trash_service.get_trash_tree(db_session, current_user=user)
+
+        assert {f.id for f in tree.folders} == {x.id}
+        assert {note.id for note in tree.notes} == {n.id, other.id}
+        assert live.id not in {note.id for note in tree.notes}
+        # The parent id lets the client build the tree below the trash root.
+        (node,) = (note for note in tree.notes if note.id == n.id)
+        assert node.folder_id == x.id
+
+    def test_expired_items_are_purged_first(self, db_session: Session, user: User) -> None:
+        old = _note(db_session, user, "Old")
+        recent = _note(db_session, user, "Recent")
+        _trash_note(db_session, user, old)
+        _trash_note(db_session, user, recent)
+        old_id, recent_id = old.id, recent.id
+        _age(db_session, Note, [old_id], TRASH_RETENTION_DAYS + 1)
+
+        tree = trash_service.get_trash_tree(db_session, current_user=user)
+
+        assert {note.id for note in tree.notes} == {recent_id}
+        assert _reload(db_session, Note, old_id) is None

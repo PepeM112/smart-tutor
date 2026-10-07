@@ -1,15 +1,13 @@
 'use client';
 
 import { type ColumnDef } from '@tanstack/react-table';
-import { Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo } from 'react';
 
 import type { TestResultListItem } from '@/client';
-import { DataTable } from '@/components/shared/DataTable';
+import { DataTableV2 } from '@/components/shared/DataTableV2';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
-import { Button } from '@/components/ui/button';
 import { getScoreBadgeClasses } from '@/features/history/utils/scoreColors';
 import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
@@ -18,9 +16,11 @@ type Props = {
   data: TestResultListItem[];
   sort?: SortState;
   onSort?: (column: string | null, order: SortDirection) => void;
+  onPreview: (id: string) => void;
+  previewId: string | null;
 };
 
-export function HistoryTable({ data, sort, onSort }: Props) {
+export function HistoryTable({ data, sort, onSort, onPreview, previewId }: Props) {
   const router = useRouter();
   const t = useTranslations();
   const columns = useMemo(() => getColumns(t), [t]);
@@ -39,7 +39,7 @@ export function HistoryTable({ data, sort, onSort }: Props) {
   );
 
   return (
-    <DataTable
+    <DataTableV2
       columns={columns}
       data={data}
       sort={sort}
@@ -48,6 +48,9 @@ export function HistoryTable({ data, sort, onSort }: Props) {
       onRowClick={row => router.push(Routes.RESULT_DETAIL(row.id))}
       renderPreview={renderPreview}
       expandable={false}
+      getRowId={row => row.id}
+      onPreview={row => onPreview(row.id)}
+      previewId={previewId}
     />
   );
 }
@@ -67,12 +70,13 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
     {
       accessorKey: 'testTitle',
       header: t('history.column_test'),
-      cell: ({ row }) => <p className="font-medium text-foreground truncate max-w-xs">{row.original.testTitle}</p>,
+      meta: { grow: true },
+      cell: ({ row }) => <p className="font-medium text-foreground truncate ">{row.original.testTitle}</p>,
     },
     {
       id: 'score',
       header: t('history.column_score'),
-      meta: { sortKey: 'score' },
+      meta: { sortKey: 'score', widthClass: 'w-40' },
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5">
           <ScoreBadge score={row.original.score ?? 0} />
@@ -87,6 +91,7 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
     {
       id: 'result',
       header: t('history.column_result'),
+      meta: { widthClass: 'w-20 text-right' },
       cell: ({ row }) => (
         <span className="tabular-nums text-muted-foreground">
           {row.original.correctAnswers} / {row.original.totalQuestions}
@@ -96,33 +101,10 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
     {
       accessorKey: 'createdAt',
       header: t('history.column_date'),
-      meta: { sortKey: 'created_at' },
+      meta: { sortKey: 'created_at', widthClass: 'w-24 text-right' },
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>
       ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: function ActionsCell({ row }) {
-        const router = useRouter();
-        return (
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              tooltip={t('history.view_details')}
-              onClick={e => {
-                e.stopPropagation();
-                router.push(Routes.RESULT_DETAIL(row.original.id));
-              }}
-              aria-label={t('history.view_details')}
-            >
-              <Eye className="size-4" />
-            </Button>
-          </div>
-        );
-      },
     },
   ];
 }

@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button';
 
 import { type AutosaveStatus } from '../editor/useAutosave';
 
+import { FavoriteButton } from './FavoriteButton';
 import { NoteWidthToggle } from './NoteWidthToggle';
 
 type NoteHeaderActionsProps = {
+  noteId: string;
+  isFavorite: boolean;
   status: AutosaveStatus;
   onRetry: () => void;
   onMove: () => void;
@@ -19,8 +22,10 @@ type NoteHeaderActionsProps = {
   onToggleWidth: () => void;
 };
 
-/** Right side of the top bar of an editable note: save status, move, width toggle. */
+/** Right side of the top bar of an editable note: save status, favorite, move, width toggle. */
 export function NoteHeaderActions({
+  noteId,
+  isFavorite,
   status,
   onRetry,
   onMove,
@@ -33,6 +38,7 @@ export function NoteHeaderActions({
   return (
     <>
       <SaveStatus status={status} onRetry={onRetry} />
+      <FavoriteButton noteId={noteId} fallbackIsFavorite={isFavorite} />
       <Button variant="ghost" size="icon" onClick={onMove} tooltip={t('files.move')} aria-label={t('files.move')}>
         <FolderInput className="size-[18px]" />
       </Button>

@@ -1,14 +1,19 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
+import { SearchInput } from '@/components/shared/SearchInput';
+import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
+import { formatFilesView } from '@/features/assist/utils/formatPageData';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useRowPreview } from '@/hooks/useRowPreview';
 
 import { useFileMutations } from '../hooks/useFileMutations';
 import { useFileTree } from '../hooks/useFileTree';
 import { useFolderPath } from '../hooks/useFolderPath';
+import { filterTree } from '../lib/fileTree';
 
 import { FileBreadcrumb } from './FileBreadcrumb';
 import { FilePageShell } from './FilePageShell';
@@ -25,21 +30,20 @@ type Props = {
 export function FilesPage({ folderId }: Props) {
   const t = useTranslations();
   const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
-  // Reset the preview when navigating to a different folder.
+  // Reset the search when navigating to a different folder.
   // Using the React "adjust state on prop change" pattern instead of useEffect
   // to avoid a cascading render from setState inside an effect body.
   const [prevFolderId, setPrevFolderId] = useState(folderId);
   if (prevFolderId !== folderId) {
     setPrevFolderId(folderId);
-    setPreviewId(null);
+    setSearch('');
   }
 
-  // Show the preview only while its note is still in the tree. A trashed note leaves the tree,
-  // so the pane closes by itself (no effect needed).
-  const { notes: treeNotes } = useFileTree();
-  const activePreviewId = previewId && treeNotes.some(n => n.id === previewId) ? previewId : null;
+  // The preview closes when the folder changes or when its note leaves the tree (trashed).
+  const { notes: treeNotes, folders: treeFolders, childrenIndex } = useFileTree();
+  const { previewId, openPreview, closePreview } = useRowPreview(treeNotes, folderId ?? '');
 
   // Root page (/files) uses the standard page header; folder pages use FileBreadcrumb.
   useBreadcrumb(folderId === null ? t('files.title') : '');
@@ -50,17 +54,37 @@ export function FilesPage({ folderId }: Props) {
 
   const { renameFolder } = useFileMutations();
 
+  // One filter for the table and for the AI page data.
+  const filter = useMemo(() => filterTree(childrenIndex, folderId, search), [childrenIndex, folderId, search]);
+
+  const aiPageData = useMemo(() => {
+    // With a search: everything visible in the subtree. Without: the direct children of the view.
+    const inView = (parentId: string | null): boolean => parentId === folderId;
+    const visibleFolders = treeFolders.filter(f => (filter ? filter.visibleIds.has(f.id) : inView(f.parentId)));
+    const visibleNotes = treeNotes.filter(n => (filter ? filter.visibleIds.has(n.id) : inView(n.folderId)));
+    return formatFilesView(visibleFolders, visibleNotes, currentFolder?.name ?? null);
+  }, [filter, folderId, treeFolders, treeNotes, currentFolder?.name]);
+  useProvidePageData(aiPageData);
+
+  const searchInput = <SearchInput value={search} onChange={setSearch} placeholder={t('files.search_placeholder')} />;
+
   const toolbar = <FilesToolbar folderId={folderId} onNewFolder={() => setNewFolderOpen(true)} />;
 
   // ── Preview panel ────────────────────────────────────────────────────────────
 
-  const previewPanel = activePreviewId ? (
-    <NotePreviewPanel noteId={activePreviewId} onClose={() => setPreviewId(null)} />
-  ) : null;
+  const previewPanel = previewId ? <NotePreviewPanel noteId={previewId} onClose={closePreview} /> : null;
 
   // ── Table ────────────────────────────────────────────────────────────────────
 
-  const table = <FilesTable currentFolderId={folderId} onPreview={setPreviewId} previewId={activePreviewId} />;
+  const table = (
+    <FilesTable
+      currentFolderId={folderId}
+      onPreview={openPreview}
+      previewId={previewId}
+      query={search}
+      filter={filter}
+    />
+  );
 
   // ── Layout: desktop SplitPane, mobile drawer ─────────────────────────────────
 
@@ -72,7 +96,7 @@ export function FilesPage({ folderId }: Props) {
       bleed
       main={table}
       side={previewPanel}
-      onSideClose={() => setPreviewId(null)}
+      onSideClose={closePreview}
       // The preview panel has its own frame and scroll.
       insetDrawerBody={false}
     />
@@ -84,7 +108,10 @@ export function FilesPage({ folderId }: Props) {
   if (folderId === null) {
     return (
       <div className="flex h-full flex-col gap-4">
-        {toolbar}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-48 max-w-150 flex-1">{searchInput}</div>
+          <div className="ml-auto">{toolbar}</div>
+        </div>
         <div className="flex min-h-0 flex-1 flex-col">{contentArea}</div>
         <NewFolderDialog open={newFolderOpen} onOpenChange={setNewFolderOpen} parentId={null} />
       </div>
@@ -111,6 +138,7 @@ export function FilesPage({ folderId }: Props) {
         ) : null
       }
       actions={toolbar}
+      search={searchInput}
     >
       {contentArea}
       <NewFolderDialog open={newFolderOpen} onOpenChange={setNewFolderOpen} parentId={folderId} />

@@ -149,6 +149,8 @@ export function NoteForm({ note }: { note: NoteRead }) {
       }
       actions={
         <NoteHeaderActions
+          noteId={note.id}
+          isFavorite={note.isFavorite}
           status={status}
           onRetry={() => void flush()}
           onMove={() => setMoveOpen(true)}

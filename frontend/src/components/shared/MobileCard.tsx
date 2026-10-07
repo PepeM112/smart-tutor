@@ -21,7 +21,8 @@ export type MobileCardProps<T> = {
   data: T;
   preview: ReactNode;
   expandable: boolean;
-  actions?: MobileAction[];
+  /** One flat list, or groups split by a separator. */
+  actions?: MobileAction[] | MobileAction[][];
   onRowClick?: (row: T) => void | Promise<void>;
   cells: CellData[];
   /** A paragraph-length field (e.g. a description) shown as its own wrapping block, distinct from the short key/value grid. */

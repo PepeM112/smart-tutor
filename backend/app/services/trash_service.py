@@ -19,7 +19,7 @@ from app.crud import note as note_crud
 from app.models.folder import Folder
 from app.models.note import Note
 from app.schemas.folder import FileTree, FileTreeFolder, FileTreeNote, FolderCreate
-from app.schemas.trash import TrashItemRead
+from app.schemas.trash import TrashItemRead, TrashTree, TrashTreeFolder, TrashTreeNote
 from app.services import folder_service
 from app.services.folder_paths import build_folder_path
 from app.services.service_helpers import get_owned_or_404, is_trash_expired
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 def _purge_expired(db: Session, *, user_id: str) -> None:
-    """Hard-delete items trashed more than 30 days ago. Called lazily on GET /trash."""
+    """Hard-delete items trashed more than 30 days ago. Called lazily on GET /trash and GET /trash/tree."""
     folder_crud.lock_tree(db, user_id=user_id)
     cutoff = datetime.now(timezone.utc) - timedelta(days=TRASH_RETENTION_DAYS)
     # Only the top of each batch is deleted; FK CASCADE removes its sub-folders and notes.
@@ -141,6 +141,22 @@ def get_batch_tree(db: Session, *, folder_id: str, current_user: User) -> FileTr
     return FileTree(
         folders=[FileTreeFolder.model_validate(f) for f in batch_folders],
         notes=[FileTreeNote.model_validate(row) for row in note_rows],
+    )
+
+
+def get_trash_tree(db: Session, *, current_user: User) -> TrashTree:
+    """Return ALL trashed folders and notes as flat lists, after purging expired ones.
+
+    The client uses it to search the whole Trash. It builds the tree from `parent_id` / `folder_id`.
+    `deleted_at` tells the batches apart: an item whose parent has another `deleted_at` (or is not
+    trashed) is the top of its own batch, like in `list_trash`.
+    """
+    _purge_expired(db, user_id=current_user.id)
+    folder_rows = folder_crud.list_trashed_tree_folders(db, user_id=current_user.id)
+    note_rows = note_crud.list_trashed_tree_notes(db, user_id=current_user.id)
+    return TrashTree(
+        folders=[TrashTreeFolder.model_validate(row) for row in folder_rows],
+        notes=[TrashTreeNote.model_validate(row) for row in note_rows],
     )
 
 

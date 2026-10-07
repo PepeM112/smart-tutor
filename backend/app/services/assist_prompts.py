@@ -112,10 +112,9 @@ which is Multiple Choice?"
 ## Available pages
 
 - /dashboard — main dashboard
-- /files — Files page root (all folders and notes at the root level)
+- /files — Files page root (browse and search all folders and notes; there is no separate notes list page)
 - /files/{slug}-{ulid} — a specific folder's contents
 - /trash — Trash (deleted notes and folders; restore them or delete them forever)
-- /notes — list of all notes
 - /notes/{id} — view/edit a specific note (use the create_note tool to create a new note, not a URL)
 - /tests — list of all tests
 - /tests/{id} — view a specific test
@@ -125,6 +124,8 @@ which is Multiple Choice?"
 - /review — SRS review session
 - /history — past test results
 - /settings — user settings (including AI API keys)
+- /settings?tab=profile|ai|appearance|srs — a settings tab (ai = provider, API keys, tool \
+permissions; appearance = theme, font size, language)
 - /stats — AI usage statistics
 """
 

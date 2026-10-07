@@ -3,7 +3,6 @@
 import {
   BarChart2,
   BookOpen,
-  FileText,
   FlaskConical,
   Folder,
   Grid3X3,
@@ -11,20 +10,29 @@ import {
   LayoutDashboard,
   RefreshCw,
   Settings,
+  Star,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useMemo } from 'react';
 
 import { UserRole } from '@/client';
 import { LogoutButton } from '@/features/auth/components/LogoutButton';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { Routes } from '@/lib/routes';
+import { useFileTree } from '@/features/files/hooks/useFileTree';
+import { displayTitle } from '@/lib/displayTitle';
+import { noteHref, parseSlugId, Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 type NavItem = {
+  /** Translation key. For a dynamic item (a favorite note) it is only a unique React key. */
   labelKey: string;
+  /** Text shown instead of `t(labelKey)`. */
+  label?: string;
+  /** Replaces the pathname match, for items whose href alone does not tell if they are active. */
+  isActive?: boolean;
   href: string | null;
   icon: React.ElementType;
   disabled?: boolean;
@@ -49,7 +57,6 @@ const sections: NavSection[] = [
     items: [
       { labelKey: 'sidebar.tests', href: Routes.TESTS, icon: BookOpen },
       { labelKey: 'sidebar.files', href: Routes.FILES, icon: Folder },
-      { labelKey: 'sidebar.notes', href: Routes.NOTES, icon: FileText },
       { labelKey: 'sidebar.questions', href: Routes.QUESTIONS, icon: Grid3X3 },
       { labelKey: 'sidebar.trash', href: Routes.TRASH, icon: Trash2 },
     ],
@@ -76,11 +83,34 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const t = useTranslations();
   const pathname = usePathname();
   const userRole = useAuthStore(s => s.user?.role);
+  const { notes } = useFileTree();
+
+  // Favorites sit between Analytics and Dev. The section is left out when there are none.
+  const allSections = useMemo<NavSection[]>(() => {
+    const openNoteId = activeNoteId(pathname);
+    const favorites: NavItem[] = notes
+      .filter(note => note.isFavorite)
+      .sort((a, b) => (b.favoritedAt?.getTime() ?? 0) - (a.favoritedAt?.getTime() ?? 0))
+      .map(note => ({
+        labelKey: `favorite-${note.id}`,
+        label: displayTitle(note.title, t),
+        href: noteHref(note),
+        icon: Star,
+        isActive: note.id === openNoteId,
+      }));
+    if (favorites.length === 0) return sections;
+    const devIndex = sections.findIndex(section => section.labelKey === 'sidebar.dev');
+    return [
+      ...sections.slice(0, devIndex),
+      { labelKey: 'sidebar.favorites', items: favorites },
+      ...sections.slice(devIndex),
+    ];
+  }, [notes, pathname, t]);
 
   return (
     <>
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
-        {sections.map(section => {
+        {allSections.map(section => {
           const visibleItems = section.items.filter(item => !item.requiredRole || item.requiredRole === userRole);
           if (visibleItems.length === 0) return null;
 
@@ -91,8 +121,9 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
                 {visibleItems.map(item => {
                   const Icon = item.icon;
                   const isActive =
-                    item.href !== null && (pathname === item.href || pathname.startsWith(item.href + '/'));
-                  const label = t(item.labelKey);
+                    item.isActive ??
+                    (item.href !== null && (pathname === item.href || pathname.startsWith(item.href + '/')));
+                  const label = item.label ?? t(item.labelKey);
 
                   if (item.disabled || item.href === null) {
                     return (
@@ -162,4 +193,11 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
       </div>
     </>
   );
+}
+
+/** The note id of a `/notes/<slug>-<id>` path, or null on any other path. */
+function activeNoteId(pathname: string): string | null {
+  if (!pathname.startsWith('/notes/')) return null;
+  const segment = pathname.split('/')[2];
+  return segment ? parseSlugId(segment) : null;
 }

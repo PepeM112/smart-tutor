@@ -26,6 +26,15 @@ vi.mock('@/features/assist/hooks/useAiToolPermissions', () => ({
 vi.mock('./AppearanceSection', () => ({ AppearanceSection: () => null }));
 vi.mock('./LanguageSection', () => ({ LanguageSection: () => null }));
 
+// The tab is in the URL. This mock keeps the query string in a variable, and `replace` updates it.
+const nav = vi.hoisted(() => ({ query: '' }));
+const replace = vi.hoisted(() => vi.fn());
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace }),
+  usePathname: () => '/settings',
+  useSearchParams: () => new URLSearchParams(nav.query),
+}));
+
 const USER = {
   id: 'u1',
   username: 'jose',
@@ -45,6 +54,10 @@ const permission = (name: string, autoApprove: boolean): AiToolPermissionRead =>
 beforeEach(() => {
   useAuthStore.setState({ user: USER });
   serverPermissions.current = [];
+  nav.query = '';
+  replace.mockImplementation((url: string) => {
+    nav.query = url.split('?')[1] ?? '';
+  });
 });
 
 afterEach(() => {
@@ -52,12 +65,26 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function mount() {
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <SettingsPage />
-    </QueryClientProvider>
-  );
+const queryClient = new QueryClient();
+const ui = () => (
+  <QueryClientProvider client={queryClient}>
+    <SettingsPage />
+  </QueryClientProvider>
+);
+
+/** Renders the page. The `tab` argument is the `?tab=` value in the URL. */
+function mount(tab?: string) {
+  nav.query = tab ? `tab=${tab}` : '';
+  return render(ui());
+}
+
+/** Clicks a tab. The mocked router stores the new URL, so a re-render shows the new tab. */
+function openTab(name: string, rerender: (ui: React.ReactElement) => void) {
+  // A tab with unsaved changes has the dot label in its name, so the name is a prefix match.
+  const tab = screen.getByRole('tab', { name: new RegExp(`^${name}`) });
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
+  rerender(ui());
 }
 
 const saveButton = () => screen.getByRole('button', { name: 'common.save' });
@@ -68,6 +95,50 @@ const isDisabled = (element: Element): boolean => element.matches(':disabled');
 const flush = () => act(() => new Promise(resolve => setTimeout(resolve, 0)));
 
 describe('SettingsPage', () => {
+  describe('tabs', () => {
+    it('opens the profile tab by default and for an unknown value', () => {
+      mount('nope');
+      expect(screen.getByRole('tab', { name: 'settings.tab_profile' }).getAttribute('aria-selected')).toBe('true');
+      expect(nameInput()).not.toBeNull();
+    });
+
+    it('opens the tab from the URL', () => {
+      mount('srs');
+      expect(screen.getByRole('tab', { name: 'settings.tab_srs' }).getAttribute('aria-selected')).toBe('true');
+      expect(nameInput()).toBeNull();
+    });
+
+    it('writes the tab to the URL with replace and without a scroll', () => {
+      const { rerender } = mount();
+      openTab('settings.tab_ai', rerender);
+      expect(replace).toHaveBeenCalledWith('/settings?tab=ai', { scroll: false });
+    });
+
+    it('keeps the draft when the user changes tabs, shows a dot on the changed tab, and saves it', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: { ...USER, displayName: 'Pepe' } } as never);
+      const { rerender } = mount();
+      const dot = () => screen.queryAllByRole('img', { name: 'settings.unsaved_changes' });
+      expect(dot()).toHaveLength(0);
+
+      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
+      expect(dot()).toHaveLength(1);
+
+      openTab('settings.tab_srs', rerender);
+      expect(nameInput()).toBeNull();
+      // The dot stays on the profile tab, so the changed tab is visible from another tab.
+      expect(screen.getByRole('tab', { name: /settings.tab_profile/ }).querySelector('[role="img"]')).not.toBeNull();
+
+      openTab('settings.tab_profile', rerender);
+      expect(nameInput().value).toBe('Pepe');
+
+      // Save is shared: it works from a tab other than the changed one.
+      openTab('settings.tab_srs', rerender);
+      fireEvent.click(saveButton());
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { displayName: 'Pepe' } }));
+      await waitFor(() => expect(dot()).toHaveLength(0));
+    });
+  });
+
   // Regression: any edit set a "dirty" flag, so a value changed and then changed back still enabled Save.
   it('disables Save again when a field gets back its saved value', () => {
     mount();
@@ -111,7 +182,7 @@ describe('SettingsPage', () => {
 
     // The group checkbox is the only control with a native mixed state.
     it('shows the mixed state, then allows all tools, then turns all tools off', () => {
-      mount();
+      mount('ai');
       expect(groupCheckbox().getAttribute('aria-checked')).toBe('mixed');
 
       fireEvent.click(groupCheckbox());
@@ -124,7 +195,7 @@ describe('SettingsPage', () => {
     });
 
     it('enables Save for a changed tool, and disables it again when the change is undone', () => {
-      mount();
+      mount('ai');
       expect(isDisabled(saveButton())).toBe(true);
 
       fireEvent.click(switches()[1]);
@@ -136,7 +207,7 @@ describe('SettingsPage', () => {
 
     it('sends only the changed tools when the user selects all', async () => {
       vi.mocked(sdk.usersUpdateAiToolPermissions).mockResolvedValue({ data: [] } as never);
-      mount();
+      mount('ai');
 
       fireEvent.click(groupCheckbox());
       fireEvent.click(saveButton());
@@ -150,7 +221,7 @@ describe('SettingsPage', () => {
 
     it('shows an error toast and keeps the change when the save fails', async () => {
       vi.mocked(sdk.usersUpdateAiToolPermissions).mockRejectedValue(new Error('network'));
-      mount();
+      mount('ai');
 
       fireEvent.click(switches()[1]);
       fireEvent.click(saveButton());

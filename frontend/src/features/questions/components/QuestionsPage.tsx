@@ -12,6 +12,7 @@ import { FilterPopover } from '@/components/shared/filters/FilterPopover';
 import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
+import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
@@ -19,12 +20,14 @@ import { formatQuestionsList } from '@/features/assist/utils/formatPageData';
 import { useAllTests } from '@/features/tests/hooks/useAllTests';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
+import { useRowPreview } from '@/hooks/useRowPreview';
 import { useUrlSort } from '@/hooks/useUrlSort';
 import { sdk } from '@/lib/apiClient';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
 import { AssignDialog } from './AssignDialog';
+import { QuestionPreviewPanel } from './QuestionPreviewPanel';
 import { QuestionsTable } from './QuestionsTable';
 
 const PER_PAGE = 25;
@@ -115,13 +118,15 @@ export function QuestionsPage() {
   const search = getValue<string>('search');
   const grouping = getValue<string>('grouping') as 'grouped' | 'ungrouped' | undefined;
 
+  const listParams = { questionType, testId, search, grouping, page, sortBy, sortOrder };
+
   const {
     data: response,
     isLoading,
     isFetching,
     isError,
   } = useQuery({
-    queryKey: ['questions', { questionType, testId, search, grouping, page, sortBy, sortOrder }],
+    queryKey: ['questions', listParams],
     queryFn: () =>
       sdk.questionsList({
         query: {
@@ -139,6 +144,13 @@ export function QuestionsPage() {
 
   const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
+  // The pane closes when the view changes (page, sort, filters) or its question leaves the page.
+  const {
+    previewItem: previewQuestion,
+    previewId,
+    openPreview,
+    closePreview,
+  } = useRowPreview(items, JSON.stringify(listParams));
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
@@ -158,7 +170,7 @@ export function QuestionsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full flex-col gap-6">
       <ListPageHeader
         filters={
           <FilterPopover
@@ -198,7 +210,12 @@ export function QuestionsPage() {
         </div>
       )}
 
-      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('questions.failed_to_load')}>
+      <QueryState
+        className="flex min-h-0 flex-1 flex-col"
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={t('questions.failed_to_load')}
+      >
         {isFilteredEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-muted-foreground">{t('questions.no_results')}</p>
@@ -207,16 +224,28 @@ export function QuestionsPage() {
             </Button>
           </div>
         ) : (
-          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-            <QuestionsTable
-              data={items}
-              sort={sort}
-              onSort={handleSort}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-            />
-            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-          </div>
+          <ResponsiveSplitPane
+            storageKey="questions-preview-split-ratio"
+            defaultRatio={0.6}
+            bleed
+            main={
+              <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+                <QuestionsTable
+                  data={items}
+                  sort={sort}
+                  onSort={handleSort}
+                  selectedIds={selectedIds}
+                  onSelectionChange={setSelectedIds}
+                  onPreview={openPreview}
+                  previewId={previewId}
+                />
+                <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+              </div>
+            }
+            side={previewQuestion ? <QuestionPreviewPanel question={previewQuestion} onClose={closePreview} /> : null}
+            onSideClose={closePreview}
+            insetDrawerBody={false}
+          />
         )}
       </QueryState>
 

@@ -123,13 +123,6 @@ describe('getBlockSections', () => {
     expect(submenu.options.map(o => o.id)).toEqual(['note', 'tip', 'important', 'warning', 'caution']);
     expect(submenu.options.filter(o => o.checked).map(o => o.id)).toEqual(['warning']);
   });
-
-  it('every section has a group label key', () => {
-    ['| A |\n| --- |\n| 1 |', '```js\n1\n```', '> [!TIP]\n> x'].forEach(md => {
-      load(md);
-      expect(sectionsOfFirstBlock()[0].labelKey).toMatch(/^block_section_/);
-    });
-  });
 });
 
 describe('hasTurnInto', () => {

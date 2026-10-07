@@ -1,5 +1,6 @@
 import {
-  NoteSource,
+  type FileTreeFolder,
+  type FileTreeNote,
   type NoteRead,
   type QuestionListRead,
   type QuestionRead,
@@ -10,12 +11,19 @@ import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 
 import type { MentionCandidate } from '../context/PageDataContext';
 
-export function formatNotesList(notes: NoteRead[]): string {
-  if (notes.length === 0) return 'No notes to display.';
-  const lines = [`Notes list (${notes.length} shown):`];
+/** The Files view the user sees: the folders and notes after the search filter. Ids let the AI call tools on them. */
+export function formatFilesView(
+  folders: FileTreeFolder[],
+  notes: FileTreeNote[],
+  currentFolderName: string | null
+): string {
+  const where = currentFolderName ? `folder "${currentFolderName}"` : 'the root';
+  if (folders.length === 0 && notes.length === 0) return `Files view (${where}): nothing to display.`;
+  const lines = [`Files view (${where}): ${folders.length} folders, ${notes.length} notes shown.`];
+  folders.forEach(f => lines.push(`- Folder "${f.name}" (ID: ${f.id})`));
   notes.forEach(n => {
     const updated = n.updatedAt ? ` | updated: ${String(n.updatedAt)}` : '';
-    lines.push(`- "${n.title}" (ID: ${n.id}${updated})`);
+    lines.push(`- Note "${n.title || 'Untitled'}" (ID: ${n.id}${updated})`);
   });
   return lines.join('\n');
 }
@@ -34,7 +42,6 @@ export function formatTestsList(tests: TestRead[]): string {
 export function formatNoteDetail(note: NoteRead): string {
   const lines = [
     `Note: "${note.title || 'Untitled'}" (ID: ${note.id})`,
-    `Source: ${note.source === NoteSource.USER_CREATED ? 'User-created' : 'AI-generated'}`,
     note.updatedAt ? `Updated: ${String(note.updatedAt)}` : '',
     '',
     note.content || '(empty)',

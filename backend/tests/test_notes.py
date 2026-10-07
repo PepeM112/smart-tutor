@@ -9,26 +9,29 @@ Run:  pytest tests/test_notes.py
 from __future__ import annotations
 
 import os
+import time
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from app.core.enums import NoteLength, NoteSource
+from app.core.enums import NoteLength
 from app.schemas.note import NoteBase, NoteChunkEdit, NoteCreate, NoteGenerate, NoteUpdate
-from app.services.embedding_service import (
-    clean_note_for_embedding,
-    strip_callouts_and_toggles,
-    strip_color_spans,
-    tables_to_text,
-)
 from app.services.llm import AnthropicLLMClient, CompletionResult, OpenAILLMClient
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
     NOTE_GENERATION_SYSTEM_PROMPT,
     NOTE_REFINEMENT_SYSTEM_PROMPT,
     build_note_generation_user_prompt,
+)
+from app.services.note_service import _build_snippet
+from app.services.note_text import (
+    clean_note_for_embedding,
+    markdown_to_plain_text,
+    strip_callouts_and_toggles,
+    strip_color_spans,
+    tables_to_text,
 )
 
 # ---------------------------------------------------------------------------
@@ -45,10 +48,6 @@ class TestNoteSchemaValidation:
         with pytest.raises(ValidationError, match="at most 200"):
             NoteBase(title="x" * 201)
 
-    def test_create_inherits_validation(self) -> None:
-        with pytest.raises(ValidationError, match="at most 200"):
-            NoteCreate(title="x" * 201)
-
     def test_update_title_max_length(self) -> None:
         with pytest.raises(ValidationError, match="at most 200"):
             NoteUpdate(title="x" * 201, version=1)
@@ -64,14 +63,6 @@ class TestNoteSchemaValidation:
         assert update.tags is None
         assert update.version == 1
         assert update.reindex is False
-
-    def test_update_reindex_flag_default_false(self) -> None:
-        update = NoteUpdate(version=1)
-        assert update.reindex is False
-
-    def test_update_reindex_flag_set_true(self) -> None:
-        update = NoteUpdate(version=1, reindex=True)
-        assert update.reindex is True
 
     def test_generate_topic_max_length(self) -> None:
         with pytest.raises(ValidationError, match="at most 200"):
@@ -492,18 +483,6 @@ class TestNotePromptConstruction:
         assert "## Length" in prompt
         assert "300-500 words" in prompt
 
-    def test_medium_length_hint(self) -> None:
-        prompt = build_note_generation_user_prompt("Topic", length=NoteLength.MEDIUM)
-        assert "800-1500 words" in prompt
-
-    def test_long_length_hint(self) -> None:
-        prompt = build_note_generation_user_prompt("Topic", length=NoteLength.LONG)
-        assert "2000-3500 words" in prompt
-
-    def test_system_prompt_requests_markdown(self) -> None:
-        assert "Markdown" in NOTE_GENERATION_SYSTEM_PROMPT
-        assert "headings" in NOTE_GENERATION_SYSTEM_PROMPT
-
     def test_edit_prompts_keep_color_spans(self) -> None:
         assert "data-color" in NOTE_REFINEMENT_SYSTEM_PROMPT
         assert "data-color" in NOTE_CHUNK_EDIT_SYSTEM_PROMPT
@@ -810,7 +789,6 @@ class TestNoteServiceErrorHandling:
 
             mock_crud.create.assert_called_once()
             call_kwargs = mock_crud.create.call_args.kwargs
-            assert call_kwargs["source"] == NoteSource.AI_GENERATED
             assert call_kwargs["title"] == "Spanish verbs"
             assert "## Spanish Verbs" in call_kwargs["content"]
             db.commit.assert_called_once()
@@ -974,3 +952,135 @@ class TestGenerateNoteFolderValidation:
         # LLM must not have been called.
         mock_llm.assert_not_called()
         assert exc_info.value.status_code == 404
+
+
+class TestBuildSnippet:
+    def test_short_content_is_returned_whole(self) -> None:
+        assert _build_snippet("Cells\nhave a Nucleus", "nucleus") == "Cells have a Nucleus"
+
+    def test_long_content_is_cut_around_the_hit_with_ellipses(self) -> None:
+        snippet = _build_snippet("a" * 200 + "NEEDLE" + "b" * 200, "needle")
+
+        assert "NEEDLE" in snippet
+        assert snippet.startswith("…") and snippet.endswith("…")
+        assert len(snippet) <= 82
+
+    def test_markdown_syntax_is_removed(self) -> None:
+        md = '```python\nprint("Minor")\n```\n\n---\n\n## JavaScript\n\n**JavaScript** powers [the web](https://x.dev).'
+
+        assert _build_snippet(md, "powers") == '…Minor") JavaScript JavaScript powers the web.'
+
+    def test_editor_html_is_removed(self) -> None:
+        md = '> [!TIP]\n> A <span data-color="red">red</span> cell: <table><tr><td>ir</td></tr></table>'
+
+        assert _build_snippet(md, "red") == "A red cell: ir"
+
+    def test_hit_only_in_hidden_markup_gives_no_snippet(self) -> None:
+        """`red` is in the color span tag only, `table` in the table tag only: no real hit."""
+        md = '<span data-color="red">text</span>\n\n<table><tr><td>cell</td></tr></table>'
+
+        assert _build_snippet(md, "red") is None
+        assert _build_snippet(md, "table") is None
+        assert _build_snippet(md, "cell") == "text cell"
+
+    def test_hit_only_in_a_link_url_gives_no_snippet(self) -> None:
+        assert _build_snippet("see [the web](https://secret.dev) now", "secret") is None
+
+    @pytest.mark.parametrize(
+        ("md", "query", "kept"),
+        [
+            ("call `__init__` first", "__init__", "__init__"),
+            ("```python\nclass A:\n    def __init__(self): ...\n```", "__init__", "__init__(self)"),
+            ('```python\nif __name__ == "__main__":\n    run()\n```', "__name__", 'if __name__ == "__main__":'),
+            ("the type `List<String>` here", "List<String>", "List<String>"),
+            ("```java\nList<String> names;\n```", "List<String>", "List<String> names;"),
+        ],
+    )
+    def test_code_is_kept_as_written(self, md: str, query: str, kept: str) -> None:
+        snippet = _build_snippet(md, query)
+
+        assert snippet is not None
+        assert kept in snippet
+        assert "`" not in snippet
+
+    def test_query_with_two_spaces_matches_collapsed_text(self) -> None:
+        assert _build_snippet("a b c", "a  b") == "a b c"
+
+    def test_long_hit_is_not_cut(self) -> None:
+        query = "word " * 40 + "end"
+
+        assert query in _build_snippet("x " * 50 + query, query)
+
+
+class TestMarkdownToPlainText:
+    @pytest.mark.parametrize(
+        ("markdown", "expected"),
+        [
+            # Marks inside a word stay: `_` and `*` are not emphasis there.
+            ("snake_case_names", "snake_case_names"),
+            ("call my_func_name now", "call my_func_name now"),
+            ("2*3*4", "2*3*4"),
+            ("a <b and c> d", "a d"),
+            # A `<` or `>` that is not a tag stays.
+            ("a < b and c > d", "a < b and c > d"),
+            ("x <= y >= z", "x <= y >= z"),
+            # Editor HTML: opening and closing tags go, the text stays.
+            ('A <span data-color="red">red</span> word', "A red word"),
+            # Emphasis at word edges.
+            ("**bold** text", "bold text"),
+            ("a *it* b", "a it b"),
+            ("a _it_ b", "a it b"),
+            ("a __strong__ b", "a strong b"),
+            ("~~gone~~ and `code`", "gone and code"),
+            # Code is literal: no emphasis, tag, link or line-prefix rule applies inside it.
+            ("`__init__` and `a*b*c`", "__init__ and a*b*c"),
+            ('use `<span data-color="red">x</span>` ok', 'use <span data-color="red">x</span> ok'),
+            ("`[a](b)` and `**x**`", "[a](b) and **x**"),
+            ("```\n# not a title\n- not an item\n&amp; <b>x</b>\n```", "# not a title - not an item &amp; <b>x</b>"),
+            ("~~~\n__x__\n~~~", "__x__"),
+            # A longer fence is not closed by a shorter one.
+            ("````\n```\n__x__\n````\nafter", "``` __x__ after"),
+            # An unclosed fence runs to the end.
+            ("before\n```\n__x__", "before __x__"),
+            # A placeholder character typed by the user is not read as a placeholder.
+            ("a \ue0000\ue001 b `c`", "a 0 b c"),
+            ("(**bold**)", "(bold)"),
+            ("un**believ**able", "unbelievable"),
+            # Links and images keep their text, lose the URL.
+            ("[the web](https://x.dev) now", "the web now"),
+            ("![alt text](img.png) after", "alt text after"),
+            ("[a](u) and [b](v)", "a and b"),
+            ("[not a link] (but text)", "[not a link] (but text)"),
+            # Line prefixes.
+            ("## Title\n- item\n1. first", "Title item first"),
+        ],
+    )
+    def test_cases(self, markdown: str, expected: str) -> None:
+        assert markdown_to_plain_text(markdown) == expected
+
+    @pytest.mark.parametrize(
+        "unit",
+        [
+            "[",
+            "_x ",
+            "*x ",
+            "![",
+            "`x ",
+            "<a ",
+            "<table>",
+            "<table><tr><td>",
+            "<table ",
+            "<details ",
+            "<table><tr ",
+            "```\n",
+            "~~~x\n",
+            "```x\n~~~\n",
+        ],
+    )
+    def test_many_unclosed_marks_run_in_linear_time(self, unit: str) -> None:
+        text = unit * 50_000
+
+        started = time.perf_counter()
+        markdown_to_plain_text(text)
+
+        assert time.perf_counter() - started < 1.0

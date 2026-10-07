@@ -15,7 +15,8 @@ Notes serve two purposes:
 | ------------ | --------------------------------------------------------------- |
 | `title`      | Short name, up to 200 characters                                |
 | `content`    | The note body, in GFM Markdown, up to 50,000 characters         |
-| `source`     | `USER_CREATED` or `AI_GENERATED`                                |
+| `is_favorite` | Whether the note is in the sidebar Favorites section           |
+| `favorited_at` | When the note was last starred (sidebar order, newest first)  |
 | `tags`       | Free-form labels for organization (max 10, 25 characters each)  |
 | `version`    | Integer counter, starts at 1, incremented on every content save |
 | `is_indexed` | Whether the note has current embeddings in the chunk store      |
@@ -111,7 +112,7 @@ To check all sizes and colors at once, import `features/notes/editor/__fixtures_
 
 ## Creating Notes
 
-Click "New note" on the notes list. An empty note (empty title, "Untitled" shown only as a placeholder) is created on the server immediately and opened. The list, the export file name and the AI Assistant show "Untitled" for an empty title. Edit the title inline. There is no `/notes/new` page.
+Click "New note" on the Files page. An empty note (empty title, "Untitled" shown only as a placeholder) is created on the server immediately and opened. The list, the export file name and the AI Assistant show "Untitled" for an empty title. Edit the title inline. There is no `/notes/new` page.
 
 ## Note URLs
 
@@ -137,7 +138,7 @@ Instead of writing from scratch, a user can ask the AI to draft a note. The requ
 - Optional **guidance** — focus areas, or things to include or exclude
 - A **length** preference: short, medium, or long
 
-The AI produces structured Markdown content covering the topic. The note is saved and opened in the editor. Notes created this way are tagged `AI_GENERATED` so their origin stays visible.
+The AI produces structured Markdown content covering the topic. The note is saved and opened in the editor.
 
 ## AI Note Refinement
 
@@ -190,7 +191,23 @@ From this page the user can:
 - Create a new note, import a `.md` file, or generate a note with AI — all saved in the current folder.
 - Rename, move (a folder-picker dialog), or delete (to Trash) any item.
 
-The flat note list at `/notes` ("All Notes") remains as a secondary view with sort and filters. It shows the folder of each note as a link.
+There is no flat "All Notes" page. `/notes/<id>` opens a note; `/notes` itself does not exist.
+
+Note rows have an Eye (preview) button and a `⋮` menu: [Export] | [Rename, Move] | [Delete]. Folder rows have only the menu: [Rename, Move] | [Delete]. The menu is the shared `ActionsMenu`.
+
+### Search
+
+The search input sits on the left of the toolbar row (max 600px). It searches the subtree of the current folder.
+
+- **Titles and folder names** are filtered on the client at once (`filterTree` in `features/files/lib/fileTree.ts`). The ancestors of a deep match are shown expanded. This expansion is derived (`forcedExpanded`) and is not saved: when the query changes or clears, the folders go back to their saved state.
+- **Content** is searched on the server: `GET /notes/search?q=&folder_id=` (plain `ILIKE`, not RAG). The call is debounced (300 ms) and runs only for 3 or more characters. The results show in a separate "Found in content" list below the tree, with the folder path and a snippet. The snippet is plain text: the server removes markdown and editor HTML first (`markdown_to_plain_text` in `services/note_text.py`, best effort with regexes), and the client shows the hits in medium weight. Only the content is searched, not the title. A note can show in the tree (title match) and in this list (content match). Notes whose title does not match come first, so title matches do not use up the 50-result limit before the new results. Only hits that remain in the plain text are shown: a query that matches only hidden markup (`red` in a color span, `table` in a table tag) gives no result. Inline code and fenced code are kept as written (`__init__`, `List<String>` stay in the snippet). The text is searched as raw markdown, so text split by markup does not match: `bold text` does not find `**bold** text`. The query is 3 to 200 characters. The tree rows never move when the list loads.
+- The search clears when the user goes to another folder.
+
+## Favorites
+
+A note can be starred from the note header or the Files preview header. `PUT /notes/{id}/favorite` sets `is_favorite` and `favorited_at`. It changes neither `version` nor `updated_at`, so an open editor gets no conflict and the "Updated" date stays the same. The client patches the tree cache and the note cache optimistically.
+
+Favorites show in a sidebar section under Analytics, newest first. The section is hidden when there are no favorites. The sidebar reads them from the file tree (`FileTreeNote.isFavorite` / `favoritedAt`), so a trashed note leaves the section. A restored note keeps its favorite flag. Starring a trashed note returns `409`.
 
 Folder URLs follow the same slug pattern as notes: `/files/<name-slug>-<ulid>` (`folderHref()` in `src/lib/routes.ts`). The ULID is the canonical identifier; the slug part is cosmetic and updated with `history.replaceState` when the folder is renamed.
 
@@ -200,7 +217,9 @@ Deleting a note or a folder moves it to Trash (soft delete). Deleting a folder a
 
 **Empty folder:** a folder with no live subfolders and no live notes is deleted forever, not trashed. The dialog says so. `DELETE /folders/{id}` returns `{ outcome: "trashed" | "deleted" }`, and the toast "Undo" creates the folder again (same name, same parent) when the outcome is `deleted`. Trashed items of earlier batches inside the folder survive: they move to the parent and keep an `orphan_path` (same rule as "Delete forever", see Restore).
 
-The `/trash` page lists only the top item of each delete batch — not each descendant individually. The list is the same tree table as `/files` (shared `TreeRowShell`, `TreeChevron`, `TreeHeaderRow`, `TreeActionsCell`) with the columns Name, Original location and Deleted (relative time). Hover actions on each row: Restore and Delete forever. There is no drag and drop. The page also has an "Empty Trash" action.
+The `/trash` page lists only the top item of each delete batch — not each descendant individually. The list is the same tree table as `/files` (shared `TreeRowShell`, `TreeChevron`, `TreeHeaderRow`, `TreeActionsCell`) with the columns Name, Original location and Deleted (relative time). Each row has one `⋮` menu: [Restore] | [Delete forever]. There is no drag and drop. The page also has an "Empty Trash" action.
+
+The Trash page has the same search input as Files. Trash is always viewed from its root. To find items deep inside trashed folders, the page loads the full trash tree once (`GET /trash/tree`, which purges expired items first) and filters it on the client (`buildTrashIndex` in `features/trash/lib/trashSearch.ts`). An item is a top row when its parent is not trashed or was trashed in a different batch (different `deleted_at`). Trash search does not search note content.
 
 A folder row can be expanded to show the items that were trashed with it (`GET /trash/folders/{id}/tree`, flat lists like `GET /folders/tree`, same `deleted_at` only). Each item in that tree has its own "Restore" and "Delete forever". Restore of a sub-item brings back its trashed ancestors as rows only; the remaining siblings become separate Trash entries. Delete forever of a sub-item lowers the counts of the top item.
 
@@ -216,10 +235,10 @@ Restore rebuilds the original path of the item:
 
 ### Purge (30 days)
 
-Items stay in Trash for 30 days. They are then deleted permanently. Purge is lazy: `GET /trash` hard-deletes all items where `deleted_at < now() - 30 days` before returning the list. No scheduler is needed. Until the purge runs, an item that is older than 30 days already acts as gone: `GET /notes/{id}`, restore and "Delete forever" return 404 for it (`is_trash_expired` in `service_helpers.py`, constant `TRASH_RETENTION_DAYS`).
+Items stay in Trash for 30 days. They are then deleted permanently. Purge is lazy: `GET /trash` and `GET /trash/tree` hard-delete all items where `deleted_at < now() - 30 days` before returning. No scheduler is needed. Until the purge runs, an item that is older than 30 days already acts as gone: `GET /notes/{id}`, restore and "Delete forever" return 404 for it (`is_trash_expired` in `service_helpers.py`, constant `TRASH_RETENTION_DAYS`).
 
 ### Trashed note URL
 
 Opening the URL of a trashed note shows the note in read-only mode with a banner "This note is in Trash" and a Restore button. Autosave is disabled. Any `PATCH` to a trashed note returns `409 Conflict` ("Note is in Trash") so the UI can distinguish the reason from a version conflict.
 
-Trashed notes are hidden everywhere: Files page, All Notes list, dashboard, stats, semantic search, AI Assistant tools, and test generation.
+Trashed notes are hidden everywhere: Files page, Favorites, content search, dashboard, stats, semantic search, AI Assistant tools, and test generation.

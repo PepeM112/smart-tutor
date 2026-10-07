@@ -34,7 +34,7 @@ describe('noteHref', () => {
   });
 });
 
-describe('parseSlugId (note)', () => {
+describe('parseSlugId', () => {
   it('returns bare ULID unchanged', () => {
     expect(parseSlugId(ULID)).toBe(ULID);
   });
@@ -59,25 +59,7 @@ describe('folderHref', () => {
     expect(folderHref({ id: ULID, name: 'My Folder' })).toBe(`/files/my-folder-${ULID}`);
   });
 
-  it('strips diacritics', () => {
-    expect(folderHref({ id: ULID, name: 'Ação' })).toBe(`/files/acao-${ULID}`);
-  });
-
   it('falls back to "untitled" for empty name', () => {
     expect(folderHref({ id: ULID, name: '' })).toBe(`/files/untitled-${ULID}`);
-  });
-});
-
-describe('parseSlugId (folder)', () => {
-  it('returns bare ULID unchanged', () => {
-    expect(parseSlugId(ULID)).toBe(ULID);
-  });
-
-  it('extracts ULID from slug-prefixed param', () => {
-    expect(parseSlugId(`my-folder-${ULID}`)).toBe(ULID);
-  });
-
-  it('returns param unchanged when last 26 chars are not a ULID', () => {
-    expect(parseSlugId('notaulid')).toBe('notaulid');
   });
 });

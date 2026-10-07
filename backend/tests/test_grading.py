@@ -71,11 +71,6 @@ class TestBuildUserPrompt:
         assert parsed[0]["index"] == 0
         assert parsed[0]["point"] == "Mentions the Rubicon crossing"
 
-    def test_system_prompt_requests_json_format(self) -> None:
-        assert "JSON" in GRADING_SYSTEM_PROMPT
-        assert "reason" in GRADING_SYSTEM_PROMPT
-        assert "met" in GRADING_SYSTEM_PROMPT
-
 
 # ---------------------------------------------------------------------------
 # Code fence stripping

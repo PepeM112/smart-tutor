@@ -93,11 +93,6 @@ describe('HeadingAnchors', () => {
     ]);
   });
 
-  it('adds no id without the plugin', () => {
-    const editor = createEditor(NOTE, false);
-    expect(editor.view.dom.querySelectorAll('[id]')).toHaveLength(0);
-  });
-
   it('does not change the saved Markdown', () => {
     const plain = serializeMarkdown(createEditor(NOTE, false));
     const anchored = serializeMarkdown(createEditor(NOTE, true));

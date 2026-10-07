@@ -606,6 +606,22 @@ export const FileTreeNoteSchema = {
             type: 'string',
             format: 'date-time',
             title: 'Updatedat'
+        },
+        isFavorite: {
+            type: 'boolean',
+            title: 'Isfavorite'
+        },
+        favoritedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Favoritedat'
         }
     },
     type: 'object',
@@ -613,7 +629,9 @@ export const FileTreeNoteSchema = {
         'id',
         'title',
         'folderId',
-        'updatedAt'
+        'updatedAt',
+        'isFavorite',
+        'favoritedAt'
     ],
     title: 'FileTreeNote',
     description: 'Light note record for the full file-tree response (no content).'
@@ -1018,6 +1036,43 @@ export const NoteChunkEditResponseSchema = {
     title: 'NoteChunkEditResponse'
 } as const;
 
+export const NoteContentMatchSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        folderId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Folderid'
+        },
+        snippet: {
+            type: 'string',
+            title: 'Snippet'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'title',
+        'folderId',
+        'snippet'
+    ],
+    title: 'NoteContentMatch',
+    description: 'A note whose content matches a search, with a short text around the first hit.'
+} as const;
+
 export const NoteCreateSchema = {
     properties: {
         title: {
@@ -1056,6 +1111,21 @@ export const NoteCreateSchema = {
         'title'
     ],
     title: 'NoteCreate'
+} as const;
+
+export const NoteFavoriteSchema = {
+    properties: {
+        isFavorite: {
+            type: 'boolean',
+            title: 'Isfavorite'
+        }
+    },
+    type: 'object',
+    required: [
+        'isFavorite'
+    ],
+    title: 'NoteFavorite',
+    description: 'Star or unstar a note (body of `PUT /notes/{id}/favorite`).'
 } as const;
 
 export const NoteGenerateSchema = {
@@ -1181,12 +1251,25 @@ export const NoteReadSchema = {
             ],
             title: 'Folderid'
         },
-        source: {
-            $ref: '#/components/schemas/NoteSource'
-        },
         isIndexed: {
             type: 'boolean',
             title: 'Isindexed'
+        },
+        isFavorite: {
+            type: 'boolean',
+            title: 'Isfavorite'
+        },
+        favoritedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Favoritedat'
         },
         version: {
             type: 'integer',
@@ -1221,27 +1304,15 @@ export const NoteReadSchema = {
         'id',
         'userId',
         'folderId',
-        'source',
         'isIndexed',
+        'isFavorite',
+        'favoritedAt',
         'version',
         'deletedAt',
         'createdAt',
         'updatedAt'
     ],
     title: 'NoteRead'
-} as const;
-
-export const NoteSourceSchema = {
-    type: 'integer',
-    enum: [
-        1,
-        2
-    ],
-    title: 'NoteSource',
-    'x-enum-varnames': [
-        'USER_CREATED',
-        'AI_GENERATED'
-    ]
 } as const;
 
 export const NoteUpdateSchema = {
@@ -1346,40 +1417,6 @@ export const PageContextSchema = {
         'route'
     ],
     title: 'PageContext'
-} as const;
-
-export const PaginatedResponse_NoteRead_Schema = {
-    properties: {
-        items: {
-            items: {
-                $ref: '#/components/schemas/NoteRead'
-            },
-            type: 'array',
-            title: 'Items'
-        },
-        total: {
-            type: 'integer',
-            title: 'Total'
-        },
-        page: {
-            type: 'integer',
-            minimum: 1,
-            title: 'Page'
-        },
-        perPage: {
-            type: 'integer',
-            minimum: 1,
-            title: 'Perpage'
-        }
-    },
-    type: 'object',
-    required: [
-        'items',
-        'total',
-        'page',
-        'perPage'
-    ],
-    title: 'PaginatedResponse[NoteRead]'
 } as const;
 
 export const PaginatedResponse_QuestionListRead_Schema = {
@@ -3275,6 +3312,138 @@ export const TrashItemReadSchema = {
     ],
     title: 'TrashItemRead',
     description: 'One top-level entry in the user\'s Trash list.\n\nTop-level means the item\'s parent is live (or has a different deleted_at),\nso it represents a distinct delete action.'
+} as const;
+
+export const TrashTreeSchema = {
+    properties: {
+        folders: {
+            items: {
+                $ref: '#/components/schemas/TrashTreeFolder'
+            },
+            type: 'array',
+            title: 'Folders'
+        },
+        notes: {
+            items: {
+                $ref: '#/components/schemas/TrashTreeNote'
+            },
+            type: 'array',
+            title: 'Notes'
+        }
+    },
+    type: 'object',
+    required: [
+        'folders',
+        'notes'
+    ],
+    title: 'TrashTree',
+    description: 'All trashed folders and notes of the user as flat lists (for client-side search).'
+} as const;
+
+export const TrashTreeFolderSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        parentId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parentid'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        },
+        deletedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Deletedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'name',
+        'parentId',
+        'updatedAt',
+        'deletedAt'
+    ],
+    title: 'TrashTreeFolder',
+    description: 'Trashed folder record. `deleted_at` is the key of its delete batch.'
+} as const;
+
+export const TrashTreeNoteSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        folderId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Folderid'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        },
+        isFavorite: {
+            type: 'boolean',
+            title: 'Isfavorite'
+        },
+        favoritedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Favoritedat'
+        },
+        deletedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Deletedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'title',
+        'folderId',
+        'updatedAt',
+        'isFavorite',
+        'favoritedAt',
+        'deletedAt'
+    ],
+    title: 'TrashTreeNote',
+    description: 'Trashed note record. `deleted_at` is the key of its delete batch.'
 } as const;
 
 export const UserCreateSchema = {

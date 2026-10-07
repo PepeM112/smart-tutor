@@ -5,6 +5,7 @@ import type { FileTree, FileTreeFolder, FileTreeNote } from '@/client';
 import {
   buildChildrenIndex,
   canDrop,
+  filterTree,
   hasChildItems,
   isDescendantOrSelf,
   isDraggedItem,
@@ -21,7 +22,7 @@ function makeFolder(id: string, parentId: string | null = null): FileTreeFolder 
 }
 
 function makeNote(id: string, folderId: string | null = null): FileTreeNote {
-  return { id, title: id, folderId, updatedAt: NOW };
+  return { id, title: id, folderId, updatedAt: NOW, isFavorite: false, favoritedAt: null };
 }
 
 // Tree structure used across tests:
@@ -194,5 +195,81 @@ describe('hasChildItems', () => {
 
   it('is false for a folder with nothing inside', () => {
     expect(hasChildItems(index, 'folderB')).toBe(false);
+  });
+});
+
+// ─── filterTree ───────────────────────────────────────────────────────────────
+
+describe('filterTree', () => {
+  // root
+  // ├── Spanish            (folder)
+  // │   ├── Verbs          (folder)
+  // │   │   └── Irregular  (note)
+  // │   └── Greetings      (note)
+  // ├── Maths              (folder)
+  // │   └── Algebra        (note)
+  // └── Todo               (note)
+  const folder = (id: string, name: string, parentId: string | null = null): FileTreeFolder => ({
+    ...makeFolder(id, parentId),
+    name,
+  });
+  const note = (id: string, title: string, folderId: string | null = null): FileTreeNote => ({
+    ...makeNote(id, folderId),
+    title,
+  });
+  const index = buildChildrenIndex({
+    folders: [folder('spanish', 'Spanish'), folder('verbs', 'Verbs', 'spanish'), folder('maths', 'Maths')],
+    notes: [
+      note('irregular', 'Irregular', 'verbs'),
+      note('greetings', 'Greetings', 'spanish'),
+      note('algebra', 'Algebra', 'maths'),
+      note('todo', 'Todo'),
+    ],
+  });
+
+  it('returns null for an empty or blank query', () => {
+    expect(filterTree(index, null, '')).toBeNull();
+    expect(filterTree(index, null, '   ')).toBeNull();
+  });
+
+  it('shows a deep match with its ancestors, and forces only the ancestors open', () => {
+    const result = filterTree(index, null, 'irreg');
+    expect([...(result?.visibleIds ?? [])].sort()).toEqual(['irregular', 'spanish', 'verbs']);
+    expect([...(result?.forcedExpanded ?? [])].sort()).toEqual(['spanish', 'verbs']);
+  });
+
+  it('shows the whole subtree of a folder that matches by name, without forcing it open', () => {
+    const result = filterTree(index, null, 'spanish');
+    expect([...(result?.visibleIds ?? [])].sort()).toEqual(['greetings', 'irregular', 'spanish', 'verbs']);
+    expect(result?.forcedExpanded.size).toBe(0);
+  });
+
+  it('forces a matching folder open when something deeper matches too', () => {
+    const planIndex = buildChildrenIndex({
+      folders: [folder('plan', 'Plan')],
+      notes: [note('planB', 'Plan B', 'plan'), note('other', 'Other', 'plan')],
+    });
+    const result = filterTree(planIndex, null, 'plan');
+    expect([...(result?.visibleIds ?? [])].sort()).toEqual(['other', 'plan', 'planB']);
+    expect([...(result?.forcedExpanded ?? [])]).toEqual(['plan']);
+  });
+
+  it('matches case-insensitive and trimmed', () => {
+    const result = filterTree(index, null, '  ALGEBRA ');
+    expect([...(result?.visibleIds ?? [])].sort()).toEqual(['algebra', 'maths']);
+  });
+
+  it('only looks in the subtree of the root id', () => {
+    const result = filterTree(index, 'spanish', 'a');
+    // "Greetings" has no "a"; "Irregular" has. "Algebra" and "Maths" are outside the scope.
+    expect(result?.visibleIds.has('algebra')).toBe(false);
+    expect(result?.visibleIds.has('irregular')).toBe(true);
+    expect(result?.visibleIds.has('spanish')).toBe(false);
+  });
+
+  it('returns empty sets when nothing matches', () => {
+    const result = filterTree(index, null, 'zzz');
+    expect(result?.visibleIds.size).toBe(0);
+    expect(result?.forcedExpanded.size).toBe(0);
   });
 });

@@ -75,11 +75,6 @@ class QuestionGroupType(NamedIntEnum):
     VOCABULARY = 2
 
 
-class NoteSource(NamedIntEnum):
-    USER_CREATED = 1
-    AI_GENERATED = 2
-
-
 class NoteLength(NamedIntEnum):
     SHORT = 1
     MEDIUM = 2

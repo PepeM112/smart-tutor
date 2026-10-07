@@ -7,7 +7,10 @@ import type { FileTree, FileTreeFolder, FileTreeNote } from '@/client';
  * Backend sends folders sorted by lower(name) and notes by lower(title),
  * so insertion order preserves the backend sort.
  */
-export type ChildrenIndex = Map<string | null, { folders: FileTreeFolder[]; notes: FileTreeNote[] }>;
+export type ChildrenIndex<F extends FileTreeFolder = FileTreeFolder, N extends FileTreeNote = FileTreeNote> = Map<
+  string | null,
+  { folders: F[]; notes: N[] }
+>;
 
 export type DraggedItem = {
   kind: 'folder' | 'note';
@@ -53,14 +56,17 @@ export function isDropTargetData(value: unknown): value is DropTargetData {
  * Build a parentId → { folders, notes } index from the flat tree lists.
  * Each entry is appended in the order it arrives from the server (already sorted).
  */
-export function buildChildrenIndex(tree: FileTree): ChildrenIndex {
-  const index = new Map<string | null, { folders: FileTreeFolder[]; notes: FileTreeNote[] }>();
+export function buildChildrenIndex<F extends FileTreeFolder, N extends FileTreeNote>(tree: {
+  folders: F[];
+  notes: N[];
+}): ChildrenIndex<F, N> {
+  const index: ChildrenIndex<F, N> = new Map();
 
   // Shared helper: fetch or create an empty bucket for a key.
   const bucket = (key: string | null) => {
     const existing = index.get(key);
     if (existing) return existing;
-    const entry = { folders: [] as FileTreeFolder[], notes: [] as FileTreeNote[] };
+    const entry = { folders: [] as F[], notes: [] as N[] };
     index.set(key, entry);
     return entry;
   };
@@ -147,4 +153,74 @@ export function moveInTree(
     ...tree,
     notes: tree.notes.map(n => (n.id === dragged.id ? { ...n, folderId: targetFolderId } : n)),
   };
+}
+
+// ─── filterTree ───────────────────────────────────────────────────────────────
+
+/** The part of a children index that the search needs. Files and Trash indexes both fit it. */
+type SearchableIndex = Map<
+  string | null,
+  { folders: { id: string; name: string }[]; notes: { id: string; title: string }[] }
+>;
+
+export type TreeFilter = {
+  /** Rows to show: the matches, their ancestors, and the whole subtree of a matching folder. */
+  visibleIds: Set<string>;
+  /** Folders on the path to a match. They show open while the search is active. */
+  forcedExpanded: Set<string>;
+};
+
+/**
+ * Filter the subtree of `rootId` (null = the whole tree) by a search text. Matches folder names and
+ * note titles, case-insensitive. Returns null when the text is empty: no filter.
+ *
+ * Nothing here writes to the saved expand state of the table. The caller reads `forcedExpanded` next to
+ * its own expand state, so a cleared search brings back the exact earlier view.
+ * A folder that matches by name shows its whole subtree, but it is not forced open.
+ */
+export function filterTree(index: SearchableIndex, rootId: string | null, query: string): TreeFilter | null {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return null;
+
+  const visibleIds = new Set<string>();
+  const forcedExpanded = new Set<string>();
+
+  const showSubtree = (folderId: string): void => {
+    const children = index.get(folderId);
+    children?.folders.forEach(folder => {
+      visibleIds.add(folder.id);
+      showSubtree(folder.id);
+    });
+    children?.notes.forEach(note => visibleIds.add(note.id));
+  };
+
+  // True when something below `parentId` matches. Every child is visited: `map` first, then `some`.
+  const visitChildren = (parentId: string | null): boolean => {
+    const children = index.get(parentId);
+
+    const folderHits = (children?.folders ?? []).map(folder => {
+      const nameMatches = folder.name.toLowerCase().includes(needle);
+      const hasMatchBelow = visitChildren(folder.id);
+      if (nameMatches) {
+        visibleIds.add(folder.id);
+        showSubtree(folder.id);
+      }
+      if (hasMatchBelow) {
+        visibleIds.add(folder.id);
+        forcedExpanded.add(folder.id);
+      }
+      return nameMatches || hasMatchBelow;
+    });
+
+    const noteHits = (children?.notes ?? []).map(note => {
+      const matches = note.title.toLowerCase().includes(needle);
+      if (matches) visibleIds.add(note.id);
+      return matches;
+    });
+
+    return [...folderHits, ...noteHits].some(Boolean);
+  };
+
+  visitChildren(rootId);
+  return { visibleIds, forcedExpanded };
 }

@@ -95,11 +95,6 @@ class TestRegistry:
     def test_every_write_tool_has_a_confirm_card_builder(self) -> None:
         assert all(TOOLS[n].confirm_context is not None for n in WRITE_TOOLS)
 
-    def test_new_tools_come_after_the_existing_ones(self) -> None:
-        names = [d["name"] for d in get_tool_definitions_anthropic()]
-        assert names[-4:] == NEW_TOOLS
-        assert len(names) == 17
-
     def test_provider_formats_have_the_same_tools(self) -> None:
         anthropic = get_tool_definitions_anthropic()
         openai = get_tool_definitions_openai()

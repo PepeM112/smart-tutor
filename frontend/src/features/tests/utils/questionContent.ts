@@ -1,6 +1,6 @@
-import type { MultipleChoiceContent, SimpleContent } from '@/client';
+import type { LongTextContent, MultipleChoiceContent, SimpleContent } from '@/client';
 
-export type { MultipleChoiceContent, SimpleContent };
+export type { LongTextContent, MultipleChoiceContent, SimpleContent };
 
 export function isSimpleContent(content: unknown): content is SimpleContent {
   return content != null && typeof content === 'object' && 'answers' in content && Array.isArray(content.answers);
@@ -15,6 +15,10 @@ export function isMCContent(content: unknown): content is MultipleChoiceContent 
     'correctIndices' in content &&
     Array.isArray(content.correctIndices)
   );
+}
+
+export function isLongTextContent(content: unknown): content is LongTextContent {
+  return content != null && typeof content === 'object' && 'rubric' in content && Array.isArray(content.rubric);
 }
 
 // MC answers are stored as comma-separated option indices, e.g. "0,2"

@@ -69,6 +69,8 @@ class FileTreeNote(BaseSchema):
     title: str
     folder_id: str | None
     updated_at: datetime
+    is_favorite: bool
+    favorited_at: datetime | None
 
 
 class FileTree(BaseSchema):

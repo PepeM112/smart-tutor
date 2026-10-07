@@ -55,6 +55,21 @@ def list_tree_folders(db: Session, *, user_id: str) -> Sequence[Row[tuple[str, s
     return db.execute(stmt).fetchall()
 
 
+def list_trashed_tree_folders(
+    db: Session, *, user_id: str
+) -> Sequence[Row[tuple[str, str, str | None, datetime, datetime | None]]]:
+    """Light columns of ALL trashed folders of the user, ordered by name (case-insensitive).
+
+    `deleted_at` is included: it is the key of the delete batch.
+    """
+    stmt = (
+        select(Folder.id, Folder.name, Folder.parent_id, Folder.updated_at, Folder.deleted_at)
+        .where(Folder.user_id == user_id, Folder.deleted_at.is_not(None))
+        .order_by(func.lower(Folder.name))
+    )
+    return db.execute(stmt).fetchall()
+
+
 def get_live_child_by_name(db: Session, *, user_id: str, parent_id: str | None, name: str) -> Folder | None:
     """Return the LIVE folder with this name (case-insensitive) in `parent_id`, or None."""
     return db.scalars(

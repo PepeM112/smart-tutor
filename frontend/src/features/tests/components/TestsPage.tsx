@@ -11,17 +11,20 @@ import { FilterPopover } from '@/components/shared/filters/FilterPopover';
 import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
+import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { formatTestsList } from '@/features/assist/utils/formatPageData';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
+import { useRowPreview } from '@/hooks/useRowPreview';
 import { useUrlSort } from '@/hooks/useUrlSort';
 import { sdk } from '@/lib/apiClient';
 import { FilterType, type DateFilterValue, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
 import { QuickTestDialog } from './QuickTestDialog';
+import { TestPreviewPanel } from './TestPreviewPanel';
 import { TestsTable } from './TestsTable';
 
 const PER_PAGE = 20;
@@ -84,13 +87,15 @@ export function TestsPage() {
   const questionType = getValue<Primitive[]>('question_type');
   const created = getValue<DateFilterValue>('created');
 
+  const listParams = { search, questionType, created, page, sortBy, sortOrder };
+
   const {
     data: response,
     isLoading,
     isFetching,
     isError,
   } = useQuery({
-    queryKey: ['tests', { search, questionType, created, page, sortBy, sortOrder }],
+    queryKey: ['tests', listParams],
     queryFn: () =>
       sdk.testsList({
         query: {
@@ -108,13 +113,20 @@ export function TestsPage() {
 
   const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
+  // The pane closes when the view changes (page, sort, filters) or its test leaves the page.
+  const {
+    previewItem: previewTest,
+    previewId,
+    openPreview,
+    closePreview,
+  } = useRowPreview(items, JSON.stringify(listParams));
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
   useProvidePageData(useMemo(() => (items.length > 0 ? formatTestsList(items) : null), [items]));
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full flex-col gap-6">
       <ListPageHeader
         filters={
           <FilterPopover
@@ -134,7 +146,12 @@ export function TestsPage() {
         }
       />
 
-      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
+      <QueryState
+        className="flex min-h-0 flex-1 flex-col"
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={t('tests.failed_to_load')}
+      >
         {isFilteredEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-muted-foreground">{t('tests.no_results')}</p>
@@ -143,10 +160,26 @@ export function TestsPage() {
             </Button>
           </div>
         ) : (
-          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-            <TestsTable data={items} sort={sort} onSort={handleSort} />
-            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-          </div>
+          <ResponsiveSplitPane
+            storageKey="tests-preview-split-ratio"
+            defaultRatio={0.6}
+            bleed
+            main={
+              <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+                <TestsTable
+                  data={items}
+                  sort={sort}
+                  onSort={handleSort}
+                  onPreview={openPreview}
+                  previewId={previewId}
+                />
+                <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+              </div>
+            }
+            side={previewTest ? <TestPreviewPanel test={previewTest} onClose={closePreview} /> : null}
+            onSideClose={closePreview}
+            insetDrawerBody={false}
+          />
         )}
       </QueryState>
     </div>

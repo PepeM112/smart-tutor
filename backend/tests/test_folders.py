@@ -200,7 +200,7 @@ class TestOwnership:
 
 # The CRUD returns SQLAlchemy Rows: tuples whose columns are also named attributes.
 _FolderRow = namedtuple("_FolderRow", ["id", "name", "parent_id", "updated_at"])
-_NoteRow = namedtuple("_NoteRow", ["id", "title", "folder_id", "updated_at"])
+_NoteRow = namedtuple("_NoteRow", ["id", "title", "folder_id", "updated_at", "is_favorite", "favorited_at"])
 
 
 def _now() -> datetime:
@@ -222,8 +222,8 @@ class TestGetTree:
         ]
         # note in root folder and note in child folder
         note_rows = [
-            _NoteRow("n1", "Alpha", None, ts),
-            _NoteRow("n2", "Beta", "f2", ts),
+            _NoteRow("n1", "Alpha", None, ts, False, None),
+            _NoteRow("n2", "Beta", "f2", ts, False, None),
         ]
         with (
             patch("app.services.folder_service.folder_crud") as mock_crud,
@@ -252,7 +252,7 @@ class TestGetTree:
         db = MagicMock()
         user = _make_user("u1")
         ts = _now()
-        note_rows = [_NoteRow("n1", "Title", None, ts)]
+        note_rows = [_NoteRow("n1", "Title", None, ts, False, None)]
         with (
             patch("app.services.folder_service.folder_crud") as mock_crud,
             patch("app.services.folder_service.note_crud") as mock_note_crud,

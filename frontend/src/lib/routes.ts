@@ -11,7 +11,6 @@ export const Routes = {
   TEST_EDIT: (id: string) => `/tests/${id}/edit`,
   TEST_DETAIL: (id: string) => `/tests/${id}`,
 
-  NOTES: '/notes',
   NOTE_DETAIL: (id: string) => `/notes/${id}`,
 
   FILES: '/files',

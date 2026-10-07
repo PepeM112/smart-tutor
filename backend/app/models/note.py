@@ -4,7 +4,6 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Te
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.enums import NoteSource
 from app.database import Base
 from app.models.base import CreatedAtMixin, UpdatedAtMixin, generate_ulid
 
@@ -25,10 +24,12 @@ class Note(Base, CreatedAtMixin, UpdatedAtMixin):
     )
     title: Mapped[str] = mapped_column(String(200))
     content: Mapped[str] = mapped_column(Text, default="")
-    source: Mapped[int] = mapped_column(Integer, default=int(NoteSource.USER_CREATED))
     tags: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
     is_indexed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     version: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    # When the note was starred (the sidebar shows the newest first). None when not a favorite.
+    favorited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Names of folders deleted forever between this note and its current folder (outermost first).
     orphan_path: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)

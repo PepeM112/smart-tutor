@@ -21,7 +21,7 @@ import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { QueryState } from '@/components/shared/QueryState';
 import { TreeHeaderRow } from '@/components/shared/tree/TreeHeaderRow';
-import { ACTIONS_CELL_WIDTH_CLASS } from '@/components/shared/tree/treeLayout';
+import { ACTIONS_CELL_TWO_BUTTONS_CLASS } from '@/components/shared/tree/treeLayout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { displayTitle } from '@/lib/displayTitle';
 import { cn } from '@/lib/utils';
@@ -30,8 +30,9 @@ import { FilesTreeContext, type FilesTreeContextValue } from '../context/FilesTr
 import { useFileMutations } from '../hooks/useFileMutations';
 import { useFileTree } from '../hooks/useFileTree';
 import { FOLDER_DROP_PREFIX } from '../hooks/useTreeRowDnd';
-import { canDrop, type DraggedItem, isDraggedItem, isDropTargetData } from '../lib/fileTree';
+import { canDrop, type DraggedItem, isDraggedItem, isDropTargetData, type TreeFilter } from '../lib/fileTree';
 
+import { FilesContentResults } from './FilesContentResults';
 import { FolderTreeRow, NoteTreeRow } from './FileTreeRow';
 
 /**
@@ -45,12 +46,18 @@ const preferFolderRows: CollisionDetection = args => {
   return folderHits.length > 0 ? folderHits : hits;
 };
 
+const NO_IDS: ReadonlySet<string> = new Set();
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 type Props = {
   currentFolderId: string | null;
   onPreview: (noteId: string) => void;
   previewId: string | null;
+  /** The search text. Empty = no search. */
+  query: string;
+  /** The result of `filterTree` for `query` (null = no search). The page computes it once. */
+  filter: TreeFilter | null;
 };
 
 // ─── FilesTable ───────────────────────────────────────────────────────────────
@@ -58,10 +65,11 @@ type Props = {
 /**
  * Notion-style tree table for the Files page.
  * Root-level items are taken from `childrenIndex.get(currentFolderId)`.
- * Expanded state is a local immutable Set that never escapes this component.
+ * Expanded state is a local immutable Set that never escapes this component. A search opens the folders
+ * on the path to a match through `isExpanded`, and never writes them into that Set.
  * DnD (desktop only) uses the full folder list for `canDrop` validation.
  */
-export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
+export function FilesTable({ currentFolderId, onPreview, previewId, query, filter }: Props) {
   const t = useTranslations();
   const { isDesktop } = useBreakpoint();
 
@@ -71,18 +79,39 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
   // Immutable set of expanded folder IDs — toggled by FolderTreeRow through the tree context.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // Stable identity: rows use it in the hover-to-open effect deps, so a new function would restart the timer.
-  const handleToggleExpand = useCallback((id: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+  // While a search forces folders open, a click on such a folder cannot change `expanded` (the folder would stay
+  // open on screen, and the saved state would change behind the user's back). It goes in this set instead.
+  // The set belongs to one query: a new query makes it empty again.
+  // Keyed by the trimmed query, as in Trash: the search ignores outer spaces, so they must not reset the set.
+  const searchKey = query.trim();
+  const [collapsed, setCollapsed] = useState<{ query: string; ids: Set<string> }>({ query: searchKey, ids: new Set() });
+  const collapsedWhileFiltering = collapsed.query === searchKey ? collapsed.ids : NO_IDS;
+
+  const forcedExpanded = filter?.forcedExpanded;
+  const visibleIds = filter?.visibleIds;
+
+  // Identity changes only when the search or its result changes. Rows use it in the hover-to-open effect deps.
+  const handleToggleExpand = useCallback(
+    (id: string) => {
+      const toggle = (prev: ReadonlySet<string>): Set<string> => {
+        const next = new Set(prev);
+        if (!next.delete(id)) next.add(id);
+        return next;
+      };
+      if (forcedExpanded?.has(id)) {
+        setCollapsed(prev => ({ query: searchKey, ids: toggle(prev.query === searchKey ? prev.ids : NO_IDS) }));
       } else {
-        next.add(id);
+        setExpanded(toggle);
       }
-      return next;
-    });
-  }, []);
+    },
+    [forcedExpanded, searchKey]
+  );
+
+  const isExpanded = useCallback(
+    (id: string) => (forcedExpanded?.has(id) ? !collapsedWhileFiltering.has(id) : expanded.has(id)),
+    [expanded, forcedExpanded, collapsedWhileFiltering]
+  );
+  const isVisible = useCallback((id: string) => visibleIds === undefined || visibleIds.has(id), [visibleIds]);
 
   // Active drag item — tracked to render the DragOverlay and compute valid targets.
   const [activeDrag, setActiveDrag] = useState<DraggedItem | null>(null);
@@ -125,7 +154,8 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
   // Memoised: rows re-render only when something they read changes.
   const treeContext = useMemo<FilesTreeContextValue>(
     () => ({
-      expanded,
+      isExpanded,
+      isVisible,
       onToggleExpand: handleToggleExpand,
       childrenIndex,
       folders,
@@ -134,14 +164,16 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
       mutations,
       isDesktop,
     }),
-    [expanded, handleToggleExpand, childrenIndex, folders, onPreview, previewId, mutations, isDesktop]
+    [isExpanded, isVisible, handleToggleExpand, childrenIndex, folders, onPreview, previewId, mutations, isDesktop]
   );
 
   // ── Root children ─────────────────────────────────────────────────────────
   const rootChildren = childrenIndex.get(currentFolderId);
-  const rootFolders = rootChildren?.folders ?? [];
-  const rootNotes = rootChildren?.notes ?? [];
-  const isEmpty = rootFolders.length === 0 && rootNotes.length === 0;
+  const rootFolders = (rootChildren?.folders ?? []).filter(folder => isVisible(folder.id));
+  const rootNotes = (rootChildren?.notes ?? []).filter(note => isVisible(note.id));
+  // The view itself is empty (not "the search found nothing").
+  const isEmpty = (rootChildren?.folders.length ?? 0) + (rootChildren?.notes.length ?? 0) === 0;
+  const hasNoMatches = filter !== null && rootFolders.length === 0 && rootNotes.length === 0;
 
   // ── Layout ────────────────────────────────────────────────────────────────
   const tableContent = (
@@ -154,7 +186,14 @@ export function FilesTable({ currentFolderId, onPreview, previewId }: Props) {
         {rootNotes.map(note => (
           <NoteTreeRow key={note.id} note={note} depth={0} />
         ))}
+        {hasNoMatches && (
+          <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+            {t('files.no_search_results', { query: query.trim() })}
+          </p>
+        )}
       </div>
+      {/* Below the rows, so a late response never moves them. */}
+      {filter && <FilesContentResults query={query} folderId={currentFolderId} />}
     </ViewDropZone>
   );
 
@@ -236,7 +275,7 @@ function ViewDropZone({ currentFolderId, folders, children }: ViewDropZoneProps)
         highlight && 'bg-primary/5 ring-1 ring-primary/40'
       )}
     >
-      <TreeHeaderRow actionsWidthClass={ACTIONS_CELL_WIDTH_CLASS}>
+      <TreeHeaderRow actionsWidthClass={ACTIONS_CELL_TWO_BUTTONS_CLASS}>
         <span className="flex-1">{highlight ? t('files.drop_here') : t('files.col_name')}</span>
         <span className="hidden w-24 text-right sm:block">{t('notes.column_updated')}</span>
       </TreeHeaderRow>

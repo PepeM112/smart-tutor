@@ -10,11 +10,9 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type QuestionType, type QuestionListRead } from '@/client';
-import { DataTable, type MobileAction } from '@/components/shared/DataTable';
+import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Tooltip } from '@/components/ui/tooltip';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
 import { sdk } from '@/lib/apiClient';
@@ -28,9 +26,11 @@ type Props = {
   onSort: (column: string | null, order: SortDirection) => void;
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
+  onPreview: (id: string) => void;
+  previewId: string | null;
 };
 
-export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionChange }: Props) {
+export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionChange, onPreview, previewId }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -70,11 +70,6 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
   }
 
   const columns = useQuestionsColumns({
-    deleteQuestion,
-    isDeleting: deleteIsPending,
-    onAssign: setAssignQuestionId,
-    onDuplicate: (id: string) => duplicateQuestion(id),
-    isDuplicating,
     selectedIds,
     onToggleSelect: toggleSelect,
     onToggleAll: toggleAll,
@@ -112,41 +107,45 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
   );
 
   const renderActions = useCallback(
-    (question: QuestionListRead): MobileAction[] => [
-      {
-        label: t('common.edit'),
-        icon: Pencil,
-        onClick: () => router.push(Routes.QUESTION_EDIT(question.id)),
-      },
-      {
-        label: t('questions.duplicate'),
-        icon: Copy,
-        onClick: () => {
-          duplicateQuestion(question.id);
+    (question: QuestionListRead): MobileAction[][] => [
+      [
+        {
+          label: t('common.edit'),
+          icon: Pencil,
+          onClick: () => router.push(Routes.QUESTION_EDIT(question.id)),
         },
-      },
-      {
-        label: t('questions.assign_to_test'),
-        icon: Send,
-        onClick: () => setAssignQuestionId(question.id),
-      },
-      {
-        label: t('common.delete'),
-        icon: Trash2,
-        variant: 'destructive',
-        onClick: () => deleteQuestion(question.id),
-        confirm: {
-          title: t('questions.delete_question'),
-          description: t('questions.delete_question_confirm'),
+        {
+          label: t('questions.duplicate'),
+          icon: Copy,
+          disabled: isDuplicating,
+          onClick: () => duplicateQuestion(question.id),
         },
-      },
+        {
+          label: t('questions.assign_to_test'),
+          icon: Send,
+          onClick: () => setAssignQuestionId(question.id),
+        },
+      ],
+      [
+        {
+          label: t('common.delete'),
+          icon: Trash2,
+          variant: 'destructive',
+          onClick: () => deleteQuestion(question.id),
+          disabled: deleteIsPending,
+          confirm: {
+            title: t('questions.delete_question'),
+            description: t('questions.delete_question_confirm'),
+          },
+        },
+      ],
     ],
-    [t, router, deleteQuestion, duplicateQuestion]
+    [t, router, deleteQuestion, duplicateQuestion, isDuplicating, deleteIsPending]
   );
 
   return (
     <>
-      <DataTable
+      <DataTableV2
         columns={columns}
         data={data}
         emptyMessage={t('questions.no_questions_yet')}
@@ -155,6 +154,9 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
         renderActions={renderActions}
         sort={sort}
         onSort={onSort}
+        getRowId={question => question.id}
+        onPreview={question => onPreview(question.id)}
+        previewId={previewId}
       />
       {assignQuestionId && (
         <AssignDialog
@@ -217,11 +219,6 @@ function LocationCell({ question }: { question: QuestionListRead }) {
 }
 
 type ColumnDeps = {
-  deleteQuestion: (id: string) => void;
-  isDeleting: boolean;
-  onAssign: (questionId: string) => void;
-  onDuplicate: (questionId: string) => void;
-  isDuplicating: boolean;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onToggleAll: () => void;
@@ -229,22 +226,17 @@ type ColumnDeps = {
 };
 
 function useQuestionsColumns({
-  deleteQuestion,
-  isDeleting,
-  onAssign,
-  onDuplicate,
-  isDuplicating,
   selectedIds,
   onToggleSelect,
   onToggleAll,
   allSelected,
 }: ColumnDeps): ColumnDef<QuestionListRead, unknown>[] {
   const t = useTranslations();
-  const router = useRouter();
 
   return [
     {
       id: 'select',
+      meta: { widthClass: 'w-7' },
       header: () => (
         <Checkbox
           checked={allSelected}
@@ -257,98 +249,34 @@ function useQuestionsColumns({
           checked={selectedIds.has(row.original.id)}
           onCheckedChange={() => onToggleSelect(row.original.id)}
           onClick={e => e.stopPropagation()}
-          aria-label={`Select ${row.original.prompt}`}
+          aria-label={t('questions.select_row', { prompt: row.original.prompt })}
         />
       ),
     },
     {
       accessorKey: 'prompt',
-      meta: { label: t('questions.column_prompt'), sortKey: 'prompt' },
+      meta: { label: t('questions.column_prompt'), sortKey: 'prompt', grow: true },
       cell: ({ row }) => (
         <div className="min-w-0">
-          <p className="font-medium text-foreground truncate max-w-md">{row.original.prompt}</p>
+          <p className="font-medium text-foreground truncate">{row.original.prompt}</p>
         </div>
       ),
     },
     {
       id: 'type',
-      meta: { label: t('questions.column_type'), sortKey: 'question_type' },
+      meta: { label: t('questions.column_type'), sortKey: 'question_type', widthClass: 'w-36' },
       cell: ({ row }) => <QuestionTypeBadge type={row.original.questionType} />,
     },
     {
       id: 'location',
       header: t('questions.column_location'),
+      meta: { widthClass: 'w-56' },
       cell: ({ row }) => <LocationCell question={row.original} />,
     },
     {
       id: 'points',
-      meta: { label: t('questions.column_points'), sortKey: 'points' },
+      meta: { label: t('questions.column_points'), sortKey: 'points', widthClass: 'w-16 text-right' },
       cell: ({ row }) => <span className="tabular-nums text-muted-foreground">{row.original.points ?? 1}</span>,
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <div className="flex justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            tooltip={t('common.edit')}
-            onClick={e => {
-              e.stopPropagation();
-              router.push(Routes.QUESTION_EDIT(row.original.id));
-            }}
-            aria-label={t('common.edit')}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            tooltip={t('questions.duplicate')}
-            disabled={isDuplicating}
-            onClick={e => {
-              e.stopPropagation();
-              onDuplicate(row.original.id);
-            }}
-            aria-label={t('questions.duplicate')}
-          >
-            <Copy className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            tooltip={t('questions.assign_to_test')}
-            onClick={e => {
-              e.stopPropagation();
-              onAssign(row.original.id);
-            }}
-            aria-label={t('questions.assign_to_test')}
-          >
-            <Send className="size-4" />
-          </Button>
-          <ConfirmDialog
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon-lg"
-                className="text-destructive hover:text-destructive"
-                tooltip={t('common.delete')}
-                onClick={e => e.stopPropagation()}
-                disabled={isDeleting}
-                aria-label={t('common.delete')}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            }
-            title={t('questions.delete_question')}
-            description={t('questions.delete_question_confirm')}
-            confirmLabel={t('common.delete')}
-            confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onConfirm={() => deleteQuestion(row.original.id)}
-          />
-        </div>
-      ),
     },
   ];
 }

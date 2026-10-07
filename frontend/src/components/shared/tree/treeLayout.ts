@@ -11,7 +11,14 @@ export const TREE_ROW_BASE_PADDING_PX = 4;
 export const TREE_NAME_OFFSET_PX = 28;
 
 /**
- * Width of the actions cell of a Files row (4 icon buttons). Rows and the column header use the same
- * class, so the columns line up. `w-29` = 116px.
+ * Width of an actions cell with one button (`icon-sm`, 28px): the `⋮` menu. `w-7` = 28px.
+ * Trash rows and list rows with no Eye button use it.
  */
-export const ACTIONS_CELL_WIDTH_CLASS = 'w-29';
+export const ACTIONS_CELL_ONE_BUTTON_CLASS = 'w-7';
+
+/**
+ * Width of an actions cell with two buttons (28px each, 2px gap): the note Eye button + the `⋮` menu.
+ * Files folder rows have only the menu; the cell aligns it to the right. Rows and the column header use the
+ * same class, so the columns line up. `w-15` = 60px.
+ */
+export const ACTIONS_CELL_TWO_BUTTONS_CLASS = 'w-15';
