@@ -25,9 +25,10 @@ def strip_color_spans(text_content: str) -> str:
 # becomes plain text: cells separated by " | ", rows by newlines.
 # Tables do not nest in the editor, so a block stops at the next opening tag. Without this, many unclosed
 # `<table>` tags make the run time grow with the square of the input.
-_TABLE_BLOCK = re.compile(r"<table\b[^>]*>(?:(?!<table\b).)*?</table>", re.IGNORECASE | re.DOTALL)
-_TABLE_ROW = re.compile(r"<tr\b[^>]*>((?:(?!<tr\b).)*?)</tr>", re.IGNORECASE | re.DOTALL)
-_TABLE_CELL = re.compile(r"<t[hd]\b[^>]*>((?:(?!<t[hd]\b).)*?)</t[hd]>", re.IGNORECASE | re.DOTALL)
+# The attribute part has no `<` either, so many unclosed `<table ` stop at the next `<` (linear run time).
+_TABLE_BLOCK = re.compile(r"<table\b[^<>]*>(?:(?!<table\b).)*?</table>", re.IGNORECASE | re.DOTALL)
+_TABLE_ROW = re.compile(r"<tr\b[^<>]*>((?:(?!<tr\b).)*?)</tr>", re.IGNORECASE | re.DOTALL)
+_TABLE_CELL = re.compile(r"<t[hd]\b[^<>]*>((?:(?!<t[hd]\b).)*?)</t[hd]>", re.IGNORECASE | re.DOTALL)
 _BLOCK_BREAK_TAG = re.compile(r"<br\s*/?>|</(?:p|li|pre|blockquote)>", re.IGNORECASE)
 # A tag starts with a letter, `/` or `!`, so "a < b and c > d" and "x <= y" are not read as tags. The body
 # has no `<`, so many unclosed `<a ` stop at the next `<` (linear run time).
@@ -59,7 +60,7 @@ _CALLOUT_MARKER_LINE = re.compile(
     r"^(?:[ \t]*>)+[ \t]*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*(?:\n|$)",
     re.IGNORECASE | re.MULTILINE,
 )
-_DETAILS_TAG = re.compile(r"</?(?:details|summary)\b[^>]*>[ \t]*\n?", re.IGNORECASE)
+_DETAILS_TAG = re.compile(r"</?(?:details|summary)\b[^<>]*>[ \t]*\n?", re.IGNORECASE)
 
 
 def _details_tag_replacement(match: re.Match[str]) -> str:
@@ -78,7 +79,6 @@ def clean_note_for_embedding(text_content: str) -> str:
 
 
 # Markdown syntax that only marks up text. Removing it keeps the words a reader sees.
-_FENCE_LINE = re.compile(r"^[ \t]*(?:```|~~~).*$", re.MULTILINE)
 _LINE_PREFIX = re.compile(
     r"^[ \t]*(?:>[ \t]?)*(?:#{1,6}[ \t]+|[-*+][ \t]+(?:\[[ xX]\][ \t]+)?|\d+[.)][ \t]+)?", re.MULTILINE
 )
@@ -87,24 +87,72 @@ _RULE_LINE = re.compile(r"^[ \t]*(?:[-*_][ \t]*){3,}$", re.MULTILINE)
 # square of the input on a note with many unclosed marks.
 _IMAGE = re.compile(r"!\[([^\[\]\n]*)\]\([^()\n]*\)")
 _LINK = re.compile(r"\[([^\[\]\n]+)\]\([^()\n]*\)")
-# Marks that are emphasis even inside a word: `**bold**`, `~~strike~~`, `` `code` ``.
-_EMPHASIS_ANYWHERE = re.compile(r"(\*\*|~~|`)(?=\S)(.{1,300}?)(?<=\S)\1")
+# Marks that are emphasis even inside a word: `**bold**`, `~~strike~~`.
+_EMPHASIS_ANYWHERE = re.compile(r"(\*\*|~~)(?=\S)(.{1,300}?)(?<=\S)\1")
 # `*` and `_` do not open emphasis inside a word (CommonMark), so `snake_case_name` and `2*3*4` stay as they are.
 _EMPHASIS_AT_WORD_EDGE = re.compile(r"(?<!\w)(\*|__?)(?=\S)(.{1,300}?)(?<=\S)\1(?!\w)")
+
+# Code is literal: `__init__` and `List<String>` must not lose characters to the rules above. Code is
+# swapped for a placeholder before they run and put back after. The placeholder is a private-use
+# character plus an index, so no rule can match it. Fence lines are dropped, the code text stays.
+_PLACEHOLDER_OPEN = "\ue000"
+_PLACEHOLDER_CLOSE = "\ue001"
+_PLACEHOLDER = re.compile(f"{_PLACEHOLDER_OPEN}(\\d+){_PLACEHOLDER_CLOSE}")
+_FENCE_OPEN = re.compile(r"[ \t]*(?:(`{3,})[^`]*|(~{3,}).*)")
+_FENCE_CLOSE = re.compile(r"[ \t]*(`{3,}|~{3,})[ \t]*")
+# A newline or a backtick ends the span, so many unclosed backticks stay linear.
+_INLINE_CODE = re.compile(r"`([^`\n]{1,300})`")
+
+
+def _stash(code: list[str], text: str) -> str:
+    code.append(text)
+    return f"{_PLACEHOLDER_OPEN}{len(code) - 1}{_PLACEHOLDER_CLOSE}"
+
+
+def _stash_fenced_blocks(text: str, code: list[str]) -> str:
+    """Replace each fenced block (fence lines and body) by one placeholder holding the body."""
+    out: list[str] = []
+    body: list[str] = []
+    fence = ""  # marker of the open fence, "" when outside a block
+    for line in text.splitlines():
+        if not fence:
+            opening = _FENCE_OPEN.fullmatch(line)
+            if opening is None:
+                out.append(line)
+            else:
+                fence = opening.group(1) or opening.group(2)
+            continue
+        closing = _FENCE_CLOSE.fullmatch(line)
+        # CommonMark: the closing fence uses the same character and is at least as long.
+        if closing is not None and closing.group(1)[0] == fence[0] and len(closing.group(1)) >= len(fence):
+            out.append(_stash(code, "\n".join(body)) if body else "")
+            body, fence = [], ""
+        else:
+            body.append(line)
+    if fence and body:  # an unclosed fence runs to the end of the note
+        out.append(_stash(code, "\n".join(body)))
+    return "\n".join(out)
 
 
 def markdown_to_plain_text(text_content: str) -> str:
     """Note markdown -> the text a reader sees, on one line. For search snippets.
 
     Best effort with regexes, not a full parser: an odd construct can keep a stray mark.
+    Inline code and fenced blocks are kept as written, without their backticks and fence lines.
     """
-    text = clean_note_for_embedding(text_content)
-    text = _FENCE_LINE.sub("", text)
+    code: list[str] = []
+    # A stray placeholder character in the note must not be read as a placeholder.
+    text = text_content.replace(_PLACEHOLDER_OPEN, "").replace(_PLACEHOLDER_CLOSE, "")
+    text = _stash_fenced_blocks(text, code)
+    text = _INLINE_CODE.sub(lambda match: _stash(code, match.group(1)), text)
+    text = clean_note_for_embedding(text)
     text = _RULE_LINE.sub("", text)
     text = _LINE_PREFIX.sub("", text)
     text = _IMAGE.sub(r"\1", text)
     text = _LINK.sub(r"\1", text)
     text = _EMPHASIS_ANYWHERE.sub(r"\2", text)
     text = _EMPHASIS_AT_WORD_EDGE.sub(r"\2", text)
+    # Entities are decoded before the code comes back: `&amp;` typed inside code stays as typed.
     text = html.unescape(_ANY_TAG.sub("", text))
+    text = _PLACEHOLDER.sub(lambda match: code[int(match.group(1))], text)
     return " ".join(text.split())

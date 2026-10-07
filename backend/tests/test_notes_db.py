@@ -189,6 +189,16 @@ class TestContentSearch:
 
         assert matches[0].title == "Z"
 
+    def test_code_text_is_found_and_kept_in_the_snippet(self, db_session: Session, user: User) -> None:
+        _note(db_session, user, "inline", "call `__init__` first")
+        _note(db_session, user, "fenced", '```python\nif __name__ == "__main__":\n    run()\n```')
+
+        inline = note_service.search_notes_content(db_session, current_user=user, query="__init__")
+        fenced = note_service.search_notes_content(db_session, current_user=user, query="__name__")
+
+        assert [m.snippet for m in inline] == ["call __init__ first"]
+        assert [m.snippet for m in fenced] == ['if __name__ == "__main__": run()']
+
     def test_hit_only_in_markup_is_not_a_result(self, db_session: Session, user: User) -> None:
         _note(db_session, user, "colored", 'A <span data-color="red">cell</span>')
         _note(db_session, user, "real", "a red cell")

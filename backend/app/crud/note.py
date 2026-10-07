@@ -120,8 +120,6 @@ def list_by_user(
     *,
     user_id: str,
     title: str | None = None,
-    content: str | None = None,
-    page: int = 1,
     per_page: int = 20,
 ) -> tuple[Sequence[Note], int]:
     # Only live (non-trashed) notes appear in list views.
@@ -129,13 +127,11 @@ def list_by_user(
 
     if title:
         stmt = stmt.where(ilike_search(Note.title, value=title))
-    if content:
-        stmt = stmt.where(ilike_search(Note.content, value=content))
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0
 
-    stmt = stmt.order_by(Note.updated_at.desc()).offset((page - 1) * per_page).limit(per_page)
+    stmt = stmt.order_by(Note.updated_at.desc()).limit(per_page)
     notes = db.scalars(stmt).all()
     return notes, total
 

@@ -205,11 +205,14 @@ def _build_snippet(content: str, query: str) -> str | None:
     (`red` in a color span, `table` in a table tag), so the note is not a real result.
     """
     content = markdown_to_plain_text(content)
-    hit = re.search(re.escape(query), content, flags=re.IGNORECASE)
+    # The plain text has collapsed whitespace, so the query gets the same (not the full markdown cleanup).
+    needle = " ".join(query.split())
+    hit = re.search(re.escape(needle), content, flags=re.IGNORECASE)
     if hit is None:
         return None
     start = max(0, hit.start() - _SNIPPET_LEAD)
-    end = min(len(content), start + _SNIPPET_LENGTH)
+    # A long hit must not be cut.
+    end = min(len(content), max(start + _SNIPPET_LENGTH, hit.end()))
     text = content[start:end].strip()
     return f"{'…' if start > 0 else ''}{text}{'…' if end < len(content) else ''}"
 
@@ -219,8 +222,8 @@ def search_notes_content(
 ) -> list[NoteContentMatch]:
     """Find live notes whose content contains `query`. With `folder_id`: only that folder and its sub-folders.
 
-    Notes whose title matches are left out (the client lists them as title matches), and so are notes
-    where the hit is only in markup (see `_build_snippet`).
+    Notes whose title also matches stay in the results and sort last, so they do not use up the limit.
+    Notes where the hit is only in markup are left out (see `_build_snippet`).
     """
     query = query.strip()
     if len(query) < NOTE_SEARCH_MIN_CHARS:

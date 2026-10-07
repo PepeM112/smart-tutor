@@ -3,7 +3,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { Download, EllipsisVertical, Eye, FolderInput, Pencil, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type FileTreeFolder, type FileTreeNote } from '@/client';
@@ -12,7 +12,6 @@ import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
 import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
 import { ACTIONS_CELL_TWO_BUTTONS_CLASS } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { exportNote } from '@/features/notes/lib/exportNote';
 import { sdk } from '@/lib/apiClient';
 import { displayTitle } from '@/lib/displayTitle';
@@ -40,7 +39,8 @@ export function FileRowActions({ item, onStartRename }: Props) {
   const t = useTranslations();
   const { mutations, onPreview, childrenIndex } = useFilesTree();
   const [moveOpen, setMoveOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  // Focus target after the Move dialog closes. The dialog has no trigger of its own.
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   // The actions cell shows only on hover. Keep it visible while the menu is open.
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -92,13 +92,21 @@ export function FileRowActions({ item, onStartRename }: Props) {
     { label: t('files.move'), icon: FolderInput, onClick: () => setMoveOpen(true) },
   ];
   const deleteActions: MobileAction[] = [
-    { label: config.deleteConfirmLabel, icon: Trash2, variant: 'destructive', onClick: () => setDeleteOpen(true) },
+    {
+      label: config.deleteConfirmLabel,
+      icon: Trash2,
+      variant: 'destructive',
+      // The menu blocks a second click while the request runs (the old dialog disabled its confirm button).
+      disabled: config.isTrashing,
+      onClick: config.trash,
+      confirm: { title: config.deleteTitle, description: config.deleteDescription },
+    },
   ];
   const noteActions: MobileAction[] = [{ label: t('common.export'), icon: Download, onClick: () => downloadNote(id) }];
 
   return (
     <RowEventBoundary>
-      <TreeActionsCell widthClass={ACTIONS_CELL_TWO_BUTTONS_CLASS} forceVisible={menuOpen || moveOpen || deleteOpen}>
+      <TreeActionsCell widthClass={ACTIONS_CELL_TWO_BUTTONS_CLASS} forceVisible={menuOpen || moveOpen}>
         {!isFolder && (
           <Button
             variant="ghost"
@@ -115,7 +123,13 @@ export function FileRowActions({ item, onStartRename }: Props) {
           actions={isFolder ? [manageActions, deleteActions] : [noteActions, manageActions, deleteActions]}
           onOpenChange={setMenuOpen}
           trigger={
-            <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label={t('common.action')}>
+            <Button
+              ref={menuTriggerRef}
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
+              aria-label={t('common.action')}
+            >
               <EllipsisVertical className="size-4" />
             </Button>
           }
@@ -132,18 +146,9 @@ export function FileRowActions({ item, onStartRename }: Props) {
           config.move(targetId);
           setMoveOpen(false);
         }}
-      />
-
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title={config.deleteTitle}
-        description={config.deleteDescription}
-        confirmLabel={config.deleteConfirmLabel}
-        disableConfirm={config.isTrashing}
-        onConfirm={() => {
-          config.trash();
-          setDeleteOpen(false);
+        onCloseAutoFocus={event => {
+          event.preventDefault();
+          menuTriggerRef.current?.focus();
         }}
       />
     </RowEventBoundary>

@@ -983,6 +983,34 @@ class TestBuildSnippet:
         assert _build_snippet(md, "table") is None
         assert _build_snippet(md, "cell") == "text cell"
 
+    def test_hit_only_in_a_link_url_gives_no_snippet(self) -> None:
+        assert _build_snippet("see [the web](https://secret.dev) now", "secret") is None
+
+    @pytest.mark.parametrize(
+        ("md", "query", "kept"),
+        [
+            ("call `__init__` first", "__init__", "__init__"),
+            ("```python\nclass A:\n    def __init__(self): ...\n```", "__init__", "__init__(self)"),
+            ('```python\nif __name__ == "__main__":\n    run()\n```', "__name__", 'if __name__ == "__main__":'),
+            ("the type `List<String>` here", "List<String>", "List<String>"),
+            ("```java\nList<String> names;\n```", "List<String>", "List<String> names;"),
+        ],
+    )
+    def test_code_is_kept_as_written(self, md: str, query: str, kept: str) -> None:
+        snippet = _build_snippet(md, query)
+
+        assert snippet is not None
+        assert kept in snippet
+        assert "`" not in snippet
+
+    def test_query_with_two_spaces_matches_collapsed_text(self) -> None:
+        assert _build_snippet("a b c", "a  b") == "a b c"
+
+    def test_long_hit_is_not_cut(self) -> None:
+        query = "word " * 40 + "end"
+
+        assert query in _build_snippet("x " * 50 + query, query)
+
 
 class TestMarkdownToPlainText:
     @pytest.mark.parametrize(
@@ -1004,6 +1032,18 @@ class TestMarkdownToPlainText:
             ("a _it_ b", "a it b"),
             ("a __strong__ b", "a strong b"),
             ("~~gone~~ and `code`", "gone and code"),
+            # Code is literal: no emphasis, tag, link or line-prefix rule applies inside it.
+            ("`__init__` and `a*b*c`", "__init__ and a*b*c"),
+            ('use `<span data-color="red">x</span>` ok', 'use <span data-color="red">x</span> ok'),
+            ("`[a](b)` and `**x**`", "[a](b) and **x**"),
+            ("```\n# not a title\n- not an item\n&amp; <b>x</b>\n```", "# not a title - not an item &amp; <b>x</b>"),
+            ("~~~\n__x__\n~~~", "__x__"),
+            # A longer fence is not closed by a shorter one.
+            ("````\n```\n__x__\n````\nafter", "``` __x__ after"),
+            # An unclosed fence runs to the end.
+            ("before\n```\n__x__", "before __x__"),
+            # A placeholder character typed by the user is not read as a placeholder.
+            ("a \ue0000\ue001 b `c`", "a 0 b c"),
             ("(**bold**)", "(bold)"),
             ("un**believ**able", "unbelievable"),
             # Links and images keep their text, lose the URL.
@@ -1018,7 +1058,25 @@ class TestMarkdownToPlainText:
     def test_cases(self, markdown: str, expected: str) -> None:
         assert markdown_to_plain_text(markdown) == expected
 
-    @pytest.mark.parametrize("unit", ["[", "_x ", "*x ", "![", "`x ", "<a ", "<table>", "<table><tr><td>"])
+    @pytest.mark.parametrize(
+        "unit",
+        [
+            "[",
+            "_x ",
+            "*x ",
+            "![",
+            "`x ",
+            "<a ",
+            "<table>",
+            "<table><tr><td>",
+            "<table ",
+            "<details ",
+            "<table><tr ",
+            "```\n",
+            "~~~x\n",
+            "```x\n~~~\n",
+        ],
+    )
     def test_many_unclosed_marks_run_in_linear_time(self, unit: str) -> None:
         text = unit * 50_000
 

@@ -82,8 +82,10 @@ export function FilesTable({ currentFolderId, onPreview, previewId, query, filte
   // While a search forces folders open, a click on such a folder cannot change `expanded` (the folder would stay
   // open on screen, and the saved state would change behind the user's back). It goes in this set instead.
   // The set belongs to one query: a new query makes it empty again.
-  const [collapsed, setCollapsed] = useState<{ query: string; ids: Set<string> }>({ query, ids: new Set() });
-  const collapsedWhileFiltering = collapsed.query === query ? collapsed.ids : NO_IDS;
+  // Keyed by the trimmed query, as in Trash: the search ignores outer spaces, so they must not reset the set.
+  const searchKey = query.trim();
+  const [collapsed, setCollapsed] = useState<{ query: string; ids: Set<string> }>({ query: searchKey, ids: new Set() });
+  const collapsedWhileFiltering = collapsed.query === searchKey ? collapsed.ids : NO_IDS;
 
   const forcedExpanded = filter?.forcedExpanded;
   const visibleIds = filter?.visibleIds;
@@ -97,12 +99,12 @@ export function FilesTable({ currentFolderId, onPreview, previewId, query, filte
         return next;
       };
       if (forcedExpanded?.has(id)) {
-        setCollapsed(prev => ({ query, ids: toggle(prev.query === query ? prev.ids : NO_IDS) }));
+        setCollapsed(prev => ({ query: searchKey, ids: toggle(prev.query === searchKey ? prev.ids : NO_IDS) }));
       } else {
         setExpanded(toggle);
       }
     },
-    [forcedExpanded, query]
+    [forcedExpanded, searchKey]
   );
 
   const isExpanded = useCallback(

@@ -21,14 +21,24 @@ type Props = {
   currentParentId?: string | null;
   isPending?: boolean;
   onConfirm: (targetFolderId: string | null) => void;
+  /** Lets the opener choose where focus goes on close. The dialog has no trigger, so the default is <body>. */
+  onCloseAutoFocus?: (event: Event) => void;
 };
 
-export function MoveDialog({ open, onOpenChange, movingFolderId, currentParentId, isPending, onConfirm }: Props) {
+export function MoveDialog({
+  open,
+  onOpenChange,
+  movingFolderId,
+  currentParentId,
+  isPending,
+  onConfirm,
+  onCloseAutoFocus,
+}: Props) {
   const t = useTranslations();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader>
           <DialogTitle>{t('files.move_to')}</DialogTitle>
         </DialogHeader>

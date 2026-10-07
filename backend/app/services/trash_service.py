@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 def _purge_expired(db: Session, *, user_id: str) -> None:
-    """Hard-delete items trashed more than 30 days ago. Called lazily on GET /trash."""
+    """Hard-delete items trashed more than 30 days ago. Called lazily on GET /trash and GET /trash/tree."""
     folder_crud.lock_tree(db, user_id=user_id)
     cutoff = datetime.now(timezone.utc) - timedelta(days=TRASH_RETENTION_DAYS)
     # Only the top of each batch is deleted; FK CASCADE removes its sub-folders and notes.

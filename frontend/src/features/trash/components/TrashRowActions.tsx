@@ -9,7 +9,6 @@ import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
 import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
 import { ACTIONS_CELL_ONE_BUTTON_CLASS } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import { useTrashTable } from '../context/TrashTableContext';
 import { type TrashTarget } from '../hooks/useTrashMutations';
@@ -24,13 +23,12 @@ type Props = {
 export function TrashRowActions({ target, name }: Props) {
   const t = useTranslations();
   const { restoreItem, hardDeleteItem, isBusy } = useTrashTable();
-  const [deleteOpen, setDeleteOpen] = useState(false);
   // The actions cell shows only on hover. Keep it visible while the menu is open.
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <RowEventBoundary>
-      <TreeActionsCell widthClass={ACTIONS_CELL_ONE_BUTTON_CLASS} forceVisible={menuOpen || deleteOpen}>
+      <TreeActionsCell widthClass={ACTIONS_CELL_ONE_BUTTON_CLASS} forceVisible={menuOpen}>
         <ActionsMenu
           actions={[
             [{ label: t('trash.restore'), icon: RotateCcw, disabled: isBusy, onClick: () => restoreItem(target) }],
@@ -40,7 +38,12 @@ export function TrashRowActions({ target, name }: Props) {
                 icon: Trash2,
                 variant: 'destructive',
                 disabled: isBusy,
-                onClick: () => setDeleteOpen(true),
+                onClick: () => hardDeleteItem(target),
+                // The confirm dialog belongs to `ActionsMenu`, so it can return focus to the `⋮` trigger on close.
+                confirm: {
+                  title: t('trash.delete_forever_title'),
+                  description: t('trash.delete_forever_confirm', { name }),
+                },
               },
             ],
           ]}
@@ -52,20 +55,6 @@ export function TrashRowActions({ target, name }: Props) {
           }
         />
       </TreeActionsCell>
-
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title={t('trash.delete_forever_title')}
-        description={t('trash.delete_forever_confirm', { name })}
-        confirmLabel={t('trash.delete_forever')}
-        confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-        disableConfirm={isBusy}
-        onConfirm={() => {
-          hardDeleteItem(target);
-          setDeleteOpen(false);
-        }}
-      />
     </RowEventBoundary>
   );
 }
