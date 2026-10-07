@@ -11,10 +11,13 @@ import { useTrashMutations } from '../hooks/useTrashMutations';
 import { TRASH_ACTIONS_CELL_WIDTH_CLASS } from '../lib/constants';
 
 import { TrashRow } from './TrashRow';
+import { TrashSearchRows } from './TrashSearchRows';
 import { TrashTree } from './TrashTree';
 
 type Props = {
   items: TrashItemRead[];
+  /** Search text. Not empty = show the filtered tree of all trashed items instead of the lazy rows. */
+  query: string;
 };
 
 /**
@@ -22,7 +25,7 @@ type Props = {
  * The rows are the top-level trashed items. A trashed folder loads its contents on expand.
  * There is no drag and drop here.
  */
-export function TrashTable({ items }: Props) {
+export function TrashTable({ items, query }: Props) {
   const t = useTranslations();
   const { restoreItem, isRestoring, hardDeleteItem, isHardDeleting } = useTrashMutations();
   // Explicit `now` (updates each minute): without it next-intl warns, and server and client can disagree.
@@ -43,9 +46,11 @@ export function TrashTable({ items }: Props) {
           <span className="hidden w-28 text-right sm:block">{t('trash.col_deleted')}</span>
         </TreeHeaderRow>
         <div className="py-1">
-          {items.map(item => (
-            <TrashItemRow key={`${item.kind}-${item.id}`} item={item} />
-          ))}
+          {query.trim() === '' ? (
+            items.map(item => <TrashItemRow key={`${item.kind}-${item.id}`} item={item} />)
+          ) : (
+            <TrashSearchRows query={query} items={items} />
+          )}
         </div>
       </div>
     </TrashTableContext.Provider>

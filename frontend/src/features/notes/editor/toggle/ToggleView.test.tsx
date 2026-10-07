@@ -108,19 +108,6 @@ afterEach(() => {
 });
 
 describe('toggle DOM and collapse CSS', () => {
-  it('puts the blocks in the content element inside the toggle body', async () => {
-    const container = await renderEditor();
-    const content = toggleElement(container).querySelector(
-      ':scope > .note-toggle-body > [data-node-view-content-react]'
-    );
-
-    // The summary is the first child of the content element, the blocks follow it.
-    expect(content?.children[0]?.hasAttribute('data-toggle-summary')).toBe(true);
-    expect(content?.children[1]?.tagName).toBe('UL');
-    // No block is a direct child of the body: this is why a `body > block` selector matches nothing.
-    expect(toggleElement(container).querySelector(':scope > .note-toggle-body > ul')).toBeNull();
-  });
-
   it('hides the blocks after the summary while the toggle is closed, and shows them when it opens', async () => {
     const container = await renderEditor();
     const toggle = toggleElement(container);

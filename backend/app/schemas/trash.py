@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Literal
 
 from app.schemas.base import BaseSchema
+from app.schemas.folder import FileTreeFolder, FileTreeNote
 
 TrashKind = Literal["folder", "note"]
 
@@ -26,3 +27,22 @@ class TrashItemRead(BaseSchema):
     # Descendant folders only, without the folder itself.
     folder_count: int
     note_count: int
+
+
+class TrashTreeFolder(FileTreeFolder):
+    """Trashed folder record. `deleted_at` is the key of its delete batch."""
+
+    deleted_at: datetime
+
+
+class TrashTreeNote(FileTreeNote):
+    """Trashed note record. `deleted_at` is the key of its delete batch."""
+
+    deleted_at: datetime
+
+
+class TrashTree(BaseSchema):
+    """All trashed folders and notes of the user as flat lists (for client-side search)."""
+
+    folders: list[TrashTreeFolder]
+    notes: list[TrashTreeNote]

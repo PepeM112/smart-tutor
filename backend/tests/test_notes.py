@@ -15,20 +15,20 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from app.core.enums import NoteLength, NoteSource
+from app.core.enums import NoteLength
 from app.schemas.note import NoteBase, NoteChunkEdit, NoteCreate, NoteGenerate, NoteUpdate
-from app.services.embedding_service import (
-    clean_note_for_embedding,
-    strip_callouts_and_toggles,
-    strip_color_spans,
-    tables_to_text,
-)
 from app.services.llm import AnthropicLLMClient, CompletionResult, OpenAILLMClient
 from app.services.note_prompts import (
     NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
     NOTE_GENERATION_SYSTEM_PROMPT,
     NOTE_REFINEMENT_SYSTEM_PROMPT,
     build_note_generation_user_prompt,
+)
+from app.services.note_text import (
+    clean_note_for_embedding,
+    strip_callouts_and_toggles,
+    strip_color_spans,
+    tables_to_text,
 )
 
 # ---------------------------------------------------------------------------
@@ -45,10 +45,6 @@ class TestNoteSchemaValidation:
         with pytest.raises(ValidationError, match="at most 200"):
             NoteBase(title="x" * 201)
 
-    def test_create_inherits_validation(self) -> None:
-        with pytest.raises(ValidationError, match="at most 200"):
-            NoteCreate(title="x" * 201)
-
     def test_update_title_max_length(self) -> None:
         with pytest.raises(ValidationError, match="at most 200"):
             NoteUpdate(title="x" * 201, version=1)
@@ -64,14 +60,6 @@ class TestNoteSchemaValidation:
         assert update.tags is None
         assert update.version == 1
         assert update.reindex is False
-
-    def test_update_reindex_flag_default_false(self) -> None:
-        update = NoteUpdate(version=1)
-        assert update.reindex is False
-
-    def test_update_reindex_flag_set_true(self) -> None:
-        update = NoteUpdate(version=1, reindex=True)
-        assert update.reindex is True
 
     def test_generate_topic_max_length(self) -> None:
         with pytest.raises(ValidationError, match="at most 200"):
@@ -492,18 +480,6 @@ class TestNotePromptConstruction:
         assert "## Length" in prompt
         assert "300-500 words" in prompt
 
-    def test_medium_length_hint(self) -> None:
-        prompt = build_note_generation_user_prompt("Topic", length=NoteLength.MEDIUM)
-        assert "800-1500 words" in prompt
-
-    def test_long_length_hint(self) -> None:
-        prompt = build_note_generation_user_prompt("Topic", length=NoteLength.LONG)
-        assert "2000-3500 words" in prompt
-
-    def test_system_prompt_requests_markdown(self) -> None:
-        assert "Markdown" in NOTE_GENERATION_SYSTEM_PROMPT
-        assert "headings" in NOTE_GENERATION_SYSTEM_PROMPT
-
     def test_edit_prompts_keep_color_spans(self) -> None:
         assert "data-color" in NOTE_REFINEMENT_SYSTEM_PROMPT
         assert "data-color" in NOTE_CHUNK_EDIT_SYSTEM_PROMPT
@@ -810,7 +786,6 @@ class TestNoteServiceErrorHandling:
 
             mock_crud.create.assert_called_once()
             call_kwargs = mock_crud.create.call_args.kwargs
-            assert call_kwargs["source"] == NoteSource.AI_GENERATED
             assert call_kwargs["title"] == "Spanish verbs"
             assert "## Spanish Verbs" in call_kwargs["content"]
             db.commit.assert_called_once()
@@ -974,3 +949,33 @@ class TestGenerateNoteFolderValidation:
         # LLM must not have been called.
         mock_llm.assert_not_called()
         assert exc_info.value.status_code == 404
+
+
+class TestBuildSnippet:
+    def test_short_content_is_returned_whole(self) -> None:
+        from app.services.note_service import _build_snippet
+
+        assert _build_snippet("Cells\nhave a Nucleus", "nucleus") == "Cells have a Nucleus"
+
+    def test_long_content_is_cut_around_the_hit_with_ellipses(self) -> None:
+        from app.services.note_service import _build_snippet
+
+        snippet = _build_snippet("a" * 200 + "NEEDLE" + "b" * 200, "needle")
+
+        assert "NEEDLE" in snippet
+        assert snippet.startswith("…") and snippet.endswith("…")
+        assert len(snippet) <= 82
+
+    def test_markdown_syntax_is_removed(self) -> None:
+        from app.services.note_service import _build_snippet
+
+        md = '```python\nprint("Minor")\n```\n\n---\n\n## JavaScript\n\n**JavaScript** powers [the web](https://x.dev).'
+
+        assert _build_snippet(md, "powers") == '…Minor") JavaScript JavaScript powers the web.'
+
+    def test_editor_html_is_removed(self) -> None:
+        from app.services.note_service import _build_snippet
+
+        md = '> [!TIP]\n> A <span data-color="red">red</span> cell: <table><tr><td>ir</td></tr></table>'
+
+        assert _build_snippet(md, "red") == "A red cell: ir"

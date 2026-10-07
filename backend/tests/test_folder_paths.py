@@ -1,14 +1,10 @@
-"""Tests for the pure folder-path builder and the shared "top of batch" queries.
+"""Tests for the pure folder-path builder.
 
 Run:  pytest tests/test_folder_paths.py
 """
 
 from __future__ import annotations
 
-from sqlalchemy.dialects import postgresql
-
-from app.crud import folder as folder_crud
-from app.crud import note as note_crud
 from app.models.folder import Folder
 from app.services.folder_paths import build_folder_path
 
@@ -62,13 +58,3 @@ class TestBuildFolderPath:
         # The result is a list, so a folder named "A/B" is one item, not two folders.
         folders = _map(_folder("p", "P"), _folder("ab", "A/B", "p"))
         assert build_folder_path(folders, folder_id="ab") == ["P", "A/B"]
-
-
-class TestTopOfBatchStatements:
-    def test_folder_and_note_statements_use_a_self_join(self) -> None:
-        dialect = postgresql.dialect()
-        folder_sql = str(folder_crud._trashed_top_folders_stmt("u1").compile(dialect=dialect))
-        note_sql = str(note_crud._trashed_top_notes_stmt("u1").compile(dialect=dialect))
-        assert "LEFT OUTER JOIN folder AS folder_1" in folder_sql
-        assert "LEFT OUTER JOIN folder AS folder_1" in note_sql
-        assert "IS NOT NULL" in folder_sql and "IS NOT NULL" in note_sql

@@ -9,7 +9,9 @@ from app.models.note import Note
 from app.schemas.note import (
     NoteChunkEdit,
     NoteChunkEditResponse,
+    NoteContentMatch,
     NoteCreate,
+    NoteFavoriteUpdate,
     NoteGenerate,
     NoteMove,
     NoteRead,
@@ -31,7 +33,6 @@ def list_(
     current_user: CurrentUser,
     title: str | None = None,
     content: str | None = None,
-    source: Annotated[list[int] | None, Query()] = None,
     sort_by: Annotated[NoteSortBy | None, Query()] = None,
     sort_order: Annotated[SortOrder, Query()] = "desc",
     page: int = Query(default=1, ge=1),
@@ -42,7 +43,6 @@ def list_(
         current_user=current_user,
         title=title,
         content=content,
-        source=source,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
@@ -54,6 +54,18 @@ def list_(
         page=page,
         per_page=per_page,
     )
+
+
+# Declared before the `/{note_id}` routes, so "search" is not read as a note id.
+@router.get("/search", response_model=list[NoteContentMatch])
+def search_content(
+    db: DbSession,
+    current_user: CurrentUser,
+    q: Annotated[str, Query(min_length=3)],
+    folder_id: str | None = None,
+) -> list[NoteContentMatch]:
+    """Find live notes by content, optionally only inside a folder and its sub-folders."""
+    return note_service.search_notes_content(db, current_user=current_user, query=q, folder_id=folder_id)
 
 
 @router.post("/generate", response_model=NoteRead, status_code=status.HTTP_201_CREATED)
@@ -92,6 +104,11 @@ def update(note_id: str, data: NoteUpdate, db: DbSession, current_user: CurrentU
 @router.post("/{note_id}/move", response_model=NoteRead)
 def move(note_id: str, data: NoteMove, db: DbSession, current_user: CurrentUser) -> Note:
     return note_service.move_note(db, note_id=note_id, current_user=current_user, folder_id=data.folder_id)
+
+
+@router.put("/{note_id}/favorite", response_model=NoteRead)
+def set_favorite(note_id: str, data: NoteFavoriteUpdate, db: DbSession, current_user: CurrentUser) -> Note:
+    return note_service.set_favorite(db, note_id=note_id, current_user=current_user, is_favorite=data.is_favorite)
 
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)

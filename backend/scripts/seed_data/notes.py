@@ -4,7 +4,6 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import NoteSource
 from app.models.note import Note
 from app.services import embedding_service
 
@@ -104,7 +103,6 @@ def seed_notes(db: Session, user_id: str) -> list[Note]:
             user_id=user_id,
             title=data["title"],
             content=data["content"],
-            source=NoteSource.USER_CREATED,
             tags=data["tags"],
         )
         db.add(note)

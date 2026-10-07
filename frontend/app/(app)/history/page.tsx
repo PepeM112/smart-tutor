@@ -8,8 +8,10 @@ import { FilterPopover } from '@/components/shared/filters/FilterPopover';
 import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
+import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { HistoryTable } from '@/features/history/components/HistoryTable';
+import { ResultPreviewPanel } from '@/features/history/components/ResultPreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
 import { useUrlSort } from '@/hooks/useUrlSort';
@@ -23,6 +25,7 @@ export default function HistoryPage() {
   useBreadcrumb(t('history.title'));
 
   const [page, setPage] = useState(1);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const resetPage = useCallback(() => setPage(1), []);
   const { sort, sortBy, sortOrder, handleSort } = useUrlSort(['score', 'created_at'] as const, resetPage);
 
@@ -94,11 +97,13 @@ export default function HistoryPage() {
 
   const items = response?.data?.items ?? [];
   const total = response?.data?.total ?? 0;
+  // The pane closes by itself when its result is not in the current page (filter, page).
+  const activePreviewId = items.some(item => item.id === previewId) ? previewId : null;
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full flex-col gap-6">
       <ListPageHeader
         filters={
           <FilterPopover
@@ -111,7 +116,12 @@ export default function HistoryPage() {
         actions={<p className="truncate text-sm text-muted-foreground">{t('history.subtitle')}</p>}
       />
 
-      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('history.failed_to_load')}>
+      <QueryState
+        className="flex min-h-0 flex-1 flex-col"
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={t('history.failed_to_load')}
+      >
         {isFilteredEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-muted-foreground">{t('history.no_results')}</p>
@@ -120,10 +130,30 @@ export default function HistoryPage() {
             </Button>
           </div>
         ) : (
-          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-            <HistoryTable data={items} sort={sort} onSort={handleSort} />
-            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-          </div>
+          <ResponsiveSplitPane
+            storageKey="history-preview-split-ratio"
+            defaultRatio={0.6}
+            bleed
+            main={
+              <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+                <HistoryTable
+                  data={items}
+                  sort={sort}
+                  onSort={handleSort}
+                  onPreview={setPreviewId}
+                  previewId={activePreviewId}
+                />
+                <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+              </div>
+            }
+            side={
+              activePreviewId ? (
+                <ResultPreviewPanel resultId={activePreviewId} onClose={() => setPreviewId(null)} />
+              ) : null
+            }
+            onSideClose={() => setPreviewId(null)}
+            insetDrawerBody={false}
+          />
         )}
       </QueryState>
     </div>

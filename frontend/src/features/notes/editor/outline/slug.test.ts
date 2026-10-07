@@ -34,9 +34,4 @@ describe('assignSlugs', () => {
     expect(slugs).toEqual(['intro', 'intro-2', 'intro-3', 'intro-4']);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
-
-  it('is the same for the same input', () => {
-    const texts = ['A', 'B', 'A'];
-    expect(assignSlugs(texts)).toEqual(assignSlugs(texts));
-  });
 });

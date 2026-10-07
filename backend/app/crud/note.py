@@ -1,13 +1,12 @@
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 from sqlalchemy import CursorResult, Row, Select, UnaryExpression, func, or_, select
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import update as sql_update  # `update` is taken by the CRUD function below
 from sqlalchemy.orm import InstrumentedAttribute, Session, aliased
 
-from app.core.enums import NoteSource
 from app.crud.helpers import ilike_search
 from app.models.folder import Folder
 from app.models.note import Note
@@ -41,10 +40,14 @@ def list_in_folders_outside_batch(
     return db.scalars(stmt).all()
 
 
-def list_tree_notes(db: Session, *, user_id: str) -> Sequence[Row[tuple[str, str, str | None, datetime]]]:
+# Row shape of the light tree selects (the fields of `FileTreeNote`).
+TreeNoteRow: TypeAlias = Row[tuple[str, str, str | None, datetime, bool, datetime | None]]
+
+
+def list_tree_notes(db: Session, *, user_id: str) -> Sequence[TreeNoteRow]:
     """Light note columns (no content) for the file-tree endpoint; live only, ordered by title (case-insensitive)."""
     stmt = (
-        select(Note.id, Note.title, Note.folder_id, Note.updated_at)
+        select(Note.id, Note.title, Note.folder_id, Note.updated_at, Note.is_favorite, Note.favorited_at)
         .where(Note.user_id == user_id, Note.deleted_at.is_(None))
         .order_by(func.lower(Note.title))
     )
@@ -53,16 +56,52 @@ def list_tree_notes(db: Session, *, user_id: str) -> Sequence[Row[tuple[str, str
 
 def list_batch_tree_notes(
     db: Session, *, user_id: str, folder_ids: Sequence[str], deleted_at: datetime
-) -> Sequence[Row[tuple[str, str, str | None, datetime]]]:
+) -> Sequence[TreeNoteRow]:
     """Light note columns (no content) of the notes in `folder_ids` that were trashed at `deleted_at`.
 
     Ordered by title (case-insensitive). Used for the tree view of a trashed folder.
     """
     stmt = (
-        select(Note.id, Note.title, Note.folder_id, Note.updated_at)
+        select(Note.id, Note.title, Note.folder_id, Note.updated_at, Note.is_favorite, Note.favorited_at)
         .where(Note.user_id == user_id, Note.folder_id.in_(folder_ids), Note.deleted_at == deleted_at)
         .order_by(func.lower(Note.title))
     )
+    return db.execute(stmt).fetchall()
+
+
+def list_trashed_tree_notes(
+    db: Session, *, user_id: str
+) -> Sequence[Row[tuple[str, str, str | None, datetime, bool, datetime | None, datetime | None]]]:
+    """Light note columns (no content) of ALL trashed notes of the user, ordered by title (case-insensitive).
+
+    `deleted_at` is included: it is the key of the delete batch.
+    """
+    stmt = (
+        select(
+            Note.id, Note.title, Note.folder_id, Note.updated_at, Note.is_favorite, Note.favorited_at, Note.deleted_at
+        )
+        .where(Note.user_id == user_id, Note.deleted_at.is_not(None))
+        .order_by(func.lower(Note.title))
+    )
+    return db.execute(stmt).fetchall()
+
+
+def search_live_content(
+    db: Session, *, user_id: str, query: str, folder_ids: Sequence[str] | None, limit: int
+) -> Sequence[Row[tuple[str, str, str | None, str]]]:
+    """Live notes whose content contains `query` (case-insensitive), ordered by title.
+
+    `folder_ids` limits the search to the notes directly in those folders. None = no limit.
+    The content is selected so the service can build the snippet.
+    """
+    stmt = (
+        select(Note.id, Note.title, Note.folder_id, Note.content)
+        .where(Note.user_id == user_id, Note.deleted_at.is_(None), ilike_search(Note.content, value=query))
+        .order_by(func.lower(Note.title), Note.id)
+        .limit(limit)
+    )
+    if folder_ids is not None:
+        stmt = stmt.where(Note.folder_id.in_(folder_ids))
     return db.execute(stmt).fetchall()
 
 
@@ -85,7 +124,6 @@ def list_by_user(
     user_id: str,
     title: str | None = None,
     content: str | None = None,
-    source: list[int] | None = None,
     sort_by: NoteSortBy | None = None,
     sort_order: SortOrder = "desc",
     page: int = 1,
@@ -98,8 +136,6 @@ def list_by_user(
         stmt = stmt.where(ilike_search(Note.title, value=title))
     if content:
         stmt = stmt.where(ilike_search(Note.content, value=content))
-    if source:
-        stmt = stmt.where(Note.source.in_(source))
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0
@@ -115,7 +151,6 @@ def create(
     user_id: str,
     title: str,
     content: str = "",
-    source: NoteSource,
     tags: list[str] | None = None,
     folder_id: str | None = None,
 ) -> Note:
@@ -124,7 +159,6 @@ def create(
         folder_id=folder_id,
         title=title,
         content=content,
-        source=int(source),
         tags=tags or [],
     )
     db.add(note)
@@ -152,6 +186,23 @@ def mark_indexed(db: Session, *, note_id: str, version: int) -> bool:
     # A bulk UPDATE returns a CursorResult; `Session.execute` is typed as the generic Result.
     result = cast(CursorResult[Any], db.execute(stmt))
     return result.rowcount > 0
+
+
+def set_favorite(db: Session, *, note: Note, is_favorite: bool, now: datetime) -> None:
+    """Set the favorite flag with one UPDATE. `version` and `updated_at` do not change.
+
+    `updated_at` has `onupdate=now()`, which fires on every UPDATE that does not set the column.
+    It is set to its own value here, so the star is not an edit: the note does not move up in
+    "recently updated" lists, and the editor autosave does not see a change. The caller must
+    refresh the note, because a bulk UPDATE does not change the loaded object.
+    """
+    stmt = (
+        sql_update(Note)
+        .where(Note.id == note.id)
+        .values(is_favorite=is_favorite, favorited_at=now if is_favorite else None, updated_at=Note.updated_at)
+        .execution_options(synchronize_session=False)
+    )
+    db.execute(stmt)
 
 
 def move(db: Session, *, note: Note, folder_id: str | None) -> Note:

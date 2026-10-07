@@ -400,6 +400,14 @@ export type FileTreeNote = {
      * Updatedat
      */
     updatedAt: Date;
+    /**
+     * Isfavorite
+     */
+    isFavorite: boolean;
+    /**
+     * Favoritedat
+     */
+    favoritedAt: Date | null;
 };
 
 /**
@@ -621,6 +629,30 @@ export type NoteChunkEditResponse = {
 };
 
 /**
+ * NoteContentMatch
+ *
+ * A note whose content matches a search, with a short text around the first hit.
+ */
+export type NoteContentMatch = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Folderid
+     */
+    folderId: string | null;
+    /**
+     * Snippet
+     */
+    snippet: string;
+};
+
+/**
  * NoteCreate
  */
 export type NoteCreate = {
@@ -640,6 +672,16 @@ export type NoteCreate = {
      * Folderid
      */
     folderId?: string | null;
+};
+
+/**
+ * NoteFavoriteUpdate
+ */
+export type NoteFavoriteUpdate = {
+    /**
+     * Isfavorite
+     */
+    isFavorite: boolean;
 };
 
 /**
@@ -719,11 +761,18 @@ export type NoteRead = {
      * Folderid
      */
     folderId: string | null;
-    source: NoteSource;
     /**
      * Isindexed
      */
     isIndexed: boolean;
+    /**
+     * Isfavorite
+     */
+    isFavorite: boolean;
+    /**
+     * Favoritedat
+     */
+    favoritedAt: Date | null;
     /**
      * Version
      */
@@ -741,20 +790,6 @@ export type NoteRead = {
      */
     updatedAt: Date;
 };
-
-/**
- * NoteSource
- */
-export enum NoteSource {
-    /**
-     * USER_CREATED
-     */
-    USER_CREATED = 1,
-    /**
-     * AI_GENERATED
-     */
-    AI_GENERATED = 2
-}
 
 /**
  * NoteUpdate
@@ -1875,6 +1910,86 @@ export type TrashItemRead = {
      * Notecount
      */
     noteCount: number;
+};
+
+/**
+ * TrashTree
+ *
+ * All trashed folders and notes of the user as flat lists (for client-side search).
+ */
+export type TrashTree = {
+    /**
+     * Folders
+     */
+    folders: Array<TrashTreeFolder>;
+    /**
+     * Notes
+     */
+    notes: Array<TrashTreeNote>;
+};
+
+/**
+ * TrashTreeFolder
+ *
+ * Trashed folder record. `deleted_at` is the key of its delete batch.
+ */
+export type TrashTreeFolder = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parentid
+     */
+    parentId: string | null;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
+    /**
+     * Deletedat
+     */
+    deletedAt: Date;
+};
+
+/**
+ * TrashTreeNote
+ *
+ * Trashed note record. `deleted_at` is the key of its delete batch.
+ */
+export type TrashTreeNote = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Folderid
+     */
+    folderId: string | null;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
+    /**
+     * Isfavorite
+     */
+    isFavorite: boolean;
+    /**
+     * Favoritedat
+     */
+    favoritedAt: Date | null;
+    /**
+     * Deletedat
+     */
+    deletedAt: Date;
 };
 
 /**
@@ -3186,10 +3301,6 @@ export type NotesListData = {
          */
         content?: string | null;
         /**
-         * Source
-         */
-        source?: Array<number> | null;
-        /**
          * Sort By
          */
         sort_by?: 'title' | 'updated_at' | 'created_at' | null;
@@ -3251,6 +3362,42 @@ export type NotesCreateResponses = {
 };
 
 export type NotesCreateResponse = NotesCreateResponses[keyof NotesCreateResponses];
+
+export type NotesSearchContentData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Q
+         */
+        q: string;
+        /**
+         * Folder Id
+         */
+        folder_id?: string | null;
+    };
+    url: '/api/v1/notes/search';
+};
+
+export type NotesSearchContentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotesSearchContentError = NotesSearchContentErrors[keyof NotesSearchContentErrors];
+
+export type NotesSearchContentResponses = {
+    /**
+     * Response Notessearchcontent
+     *
+     * Successful Response
+     */
+    200: Array<NoteContentMatch>;
+};
+
+export type NotesSearchContentResponse = NotesSearchContentResponses[keyof NotesSearchContentResponses];
 
 export type NotesGenerateData = {
     body: NoteGenerate;
@@ -3427,6 +3574,36 @@ export type NotesMoveResponses = {
 
 export type NotesMoveResponse = NotesMoveResponses[keyof NotesMoveResponses];
 
+export type NotesSetFavoriteData = {
+    body: NoteFavoriteUpdate;
+    path: {
+        /**
+         * Note Id
+         */
+        note_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notes/{note_id}/favorite';
+};
+
+export type NotesSetFavoriteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotesSetFavoriteError = NotesSetFavoriteErrors[keyof NotesSetFavoriteErrors];
+
+export type NotesSetFavoriteResponses = {
+    /**
+     * Successful Response
+     */
+    200: NoteRead;
+};
+
+export type NotesSetFavoriteResponse = NotesSetFavoriteResponses[keyof NotesSetFavoriteResponses];
+
 export type TrashEmptyData = {
     body?: never;
     path?: never;
@@ -3478,6 +3655,31 @@ export type TrashListResponses = {
 };
 
 export type TrashListResponse = TrashListResponses[keyof TrashListResponses];
+
+export type TrashTreeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trash/tree';
+};
+
+export type TrashTreeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TrashTreeError = TrashTreeErrors[keyof TrashTreeErrors];
+
+export type TrashTreeResponses = {
+    /**
+     * Successful Response
+     */
+    200: TrashTree;
+};
+
+export type TrashTreeResponse = TrashTreeResponses[keyof TrashTreeResponses];
 
 export type TrashFolderTreeData = {
     body?: never;

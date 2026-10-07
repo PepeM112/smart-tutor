@@ -6,6 +6,9 @@
     "save": "Guardar",
     "edit": "Editar",
     "close": "Cerrar",
+    "preview": "Vista previa",
+    "open": "Abrir",
+    "close_preview": "Cerrar vista previa",
     "resize_panel": "Redimensionar panel",
     "loading": "Cargando…",
     "try_again": "Intentar de nuevo",
@@ -58,7 +61,6 @@
     "review_now": "Repasar Ahora",
     "library": "Biblioteca",
     "tests": "Tests",
-    "notes": "Todas las notas",
     "questions": "Preguntas",
     "analytics": "Analíticas",
     "test_history": "Historial de Tests",
@@ -68,7 +70,8 @@
     "profile_and_settings": "Perfil y Ajustes",
     "soon": "Pronto",
     "files": "Archivos",
-    "trash": "Papelera"
+    "trash": "Papelera",
+    "favorites": "Favoritos"
   },
   "auth": {
     "log_in": "Iniciar sesión",
@@ -250,7 +253,9 @@
     "hint_placeholder": "Pista opcional mostrada antes de responder",
     "explanation_label": "Explicación",
     "explanation_placeholder": "Explicación opcional mostrada después de responder",
-    "options_label": "Opciones"
+    "options_label": "Opciones",
+    "accepted_answers": "Respuestas aceptadas",
+    "rubric_label": "Rúbrica"
   },
   "exam": {
     "submit_exam": "Enviar Examen",
@@ -268,11 +273,7 @@
     "hint": "Pista: {hint}"
   },
   "notes": {
-    "title": "Notas",
-    "new_note": "Nueva Nota",
     "note": "Nota",
-    "failed_to_load": "Error al cargar las notas. Inténtalo de nuevo.",
-    "no_notes_yet": "Aún no hay notas. ¡Crea la primera!",
     "failed_to_delete": "Error al eliminar la nota",
     "note_not_found": "Nota no encontrada.",
     "failed_to_load_note": "Error al cargar la nota. Inténtalo de nuevo.",
@@ -283,21 +284,12 @@
     "untitled": "Sin título",
     "saving": "Guardando…",
     "failed_to_create": "Error al crear la nota",
-    "source_ai": "IA",
-    "source_manual": "Manual",
-    "column_title": "Título",
-    "column_source": "Fuente",
     "column_updated": "Actualizado",
     "note_imported": "Nota importada",
     "failed_to_import": "Error al importar la nota",
     "failed_to_read_file": "No se pudo leer el archivo",
     "importing": "Importando…",
     "remove_tag": "Eliminar etiqueta {tag}",
-    "filter_title": "Título",
-    "filter_content": "Contenido",
-    "filter_source": "Origen",
-    "no_results": "Ninguna nota coincide con tus filtros.",
-    "clear_filters": "Limpiar filtros",
     "slash_text": "Texto",
     "slash_h1": "Título 1",
     "slash_h2": "Título 2",
@@ -394,7 +386,10 @@
     "table_delete_row": "Eliminar fila",
     "add_tag": "Añadir etiqueta",
     "move_to_trash_confirm": "¿Mover \"{title}\" a la papelera? Puedes restaurarlo después.",
-    "in_trash_banner": "Esta nota está en la papelera."
+    "in_trash_banner": "Esta nota está en la papelera.",
+    "add_favorite": "Añadir a favoritos",
+    "remove_favorite": "Quitar de favoritos",
+    "failed_to_update_favorite": "Error al actualizar el favorito"
   },
   "notes_ai": {
     "generate_with_ai": "Generar con IA",
@@ -612,6 +607,11 @@
     "unlimited": "Ilimitado",
     "initial_ease_factor": "Factor de Facilidad Inicial",
     "initial_ease_factor_description": "Factor de facilidad inicial para preguntas nuevas. Valores más altos significan intervalos más largos entre repasos.",
+    "tab_profile": "Perfil",
+    "tab_ai": "IA",
+    "tab_appearance": "Apariencia",
+    "tab_srs": "SRS",
+    "unsaved_changes": "Cambios sin guardar",
     "settings_saved": "Ajustes guardados",
     "failed_to_save": "Error al guardar los ajustes",
     "ai_not_configured": "La IA no está configurada. Añade tu clave API en Ajustes para usar esta función.",
@@ -692,16 +692,18 @@
     "folder_deleted": "Carpeta eliminada.",
     "folder_restored": "Carpeta restaurada.",
     "note_moved_to_trash": "Nota movida a la papelera.",
-    "preview": "Vista previa",
-    "open": "Abrir",
-    "close_preview": "Cerrar vista previa",
     "col_name": "Nombre",
     "expand_folder": "Expandir carpeta",
     "collapse_folder": "Contraer carpeta",
     "note_renamed": "Nota renombrada.",
     "failed_to_rename_note": "Error al renombrar la nota.",
     "drop_here": "Mover aquí",
-    "failed_to_load": "No se pudieron cargar los archivos. Inténtalo de nuevo."
+    "failed_to_load": "No se pudieron cargar los archivos. Inténtalo de nuevo.",
+    "search_placeholder": "Buscar archivos…",
+    "no_search_results": "Ningún archivo coincide con \"{query}\".",
+    "found_in_content": "Encontrado en el contenido",
+    "searching_content": "Buscando en el contenido…",
+    "failed_to_export": "Error al exportar la nota"
   },
   "trash": {
     "title": "Papelera",
@@ -724,7 +726,9 @@
     "col_original_location": "Ubicación original",
     "col_deleted": "Eliminado",
     "failed_to_load": "No se pudo cargar la papelera. Inténtalo de nuevo.",
-    "failed_to_load_tree": "No se pudo cargar el contenido de esta carpeta."
+    "failed_to_load_tree": "No se pudo cargar el contenido de esta carpeta.",
+    "search_placeholder": "Buscar en la papelera…",
+    "no_search_results": "Ningún elemento de la papelera coincide con \"{query}\"."
   },
   "assist": {
     "thinking": "Pensando...",

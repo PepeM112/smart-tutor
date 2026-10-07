@@ -10,10 +10,14 @@ export const fileQueryKeys = {
   notes: () => ['notes'] as const,
   /** ['notes', id] — a single note by id. */
   note: (id: string) => ['notes', id] as const,
+  /** ['notes', 'search', folderId, q] — notes whose content matches `q`, in a folder subtree (null = all). */
+  noteSearch: (folderId: string | null, q: string) => ['notes', 'search', folderId, q] as const,
   /** ['trash'] — the trash list. */
   trash: () => ['trash'] as const,
   /** ['trash', 'tree', id] — the items trashed together with a trashed folder. Under `['trash']`, so the same invalidation covers it. */
   trashTree: (folderId: string) => ['trash', 'tree', folderId] as const,
+  /** ['trash', 'tree'] — the whole trashed tree, for the Trash search. Under `['trash']`, so the same invalidation covers it. */
+  trashFullTree: () => ['trash', 'tree'] as const,
 } as const;
 
 type InvalidateFileOpts = {

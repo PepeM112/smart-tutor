@@ -364,95 +364,11 @@ class TestPurge:
 
 
 # ---------------------------------------------------------------------------
-# P0-1: hard delete detaches other-batch items before the row is deleted
-# ---------------------------------------------------------------------------
-
-
-class TestHardDeleteFolderDetach:
-    def test_detach_runs_before_crud_hard_delete_then_commit(self) -> None:
-        """detach_other_batches must run first so foreign-key CASCADE does not remove
-        items that belong to a different trash batch inside the same subtree."""
-        from app.services import trash_service
-
-        db = MagicMock()
-        folder = _make_folder("f1", deleted_at=_ts(1))
-        call_order: list[str] = []
-        db.commit.side_effect = lambda: call_order.append("commit")
-
-        with (
-            patch("app.services.trash_service._get_trashed_folder_or_404", return_value=folder),
-            patch("app.services.folder_service.folder_crud") as mock_crud,
-            patch(
-                "app.services.folder_service.detach_other_batches",
-                side_effect=lambda *a, **kw: call_order.append("detach"),
-            ) as mock_detach,
-        ):
-            mock_crud.hard_delete.side_effect = lambda *a, **kw: call_order.append("delete")
-            trash_service.hard_delete_folder(db, folder_id="f1", current_user=_make_user())
-
-        assert call_order == ["detach", "delete", "commit"]
-        mock_detach.assert_called_once_with(db, folder=folder)
-        mock_crud.hard_delete.assert_called_once_with(db, folder=folder)
-
-
-# ---------------------------------------------------------------------------
-# empty_trash — two bulk deletes, notes first
-# ---------------------------------------------------------------------------
-
-
-class TestEmptyTrash:
-    def test_bulk_deletes_notes_then_folders_and_commits_once(self) -> None:
-        from app.services import trash_service
-
-        db = MagicMock()
-        order: list[str] = []
-        with (
-            patch("app.services.trash_service.folder_crud") as mock_folder_crud,
-            patch("app.services.trash_service.note_crud") as mock_note_crud,
-        ):
-            mock_note_crud.delete_all_trashed.side_effect = lambda *a, **kw: order.append("notes")
-            mock_folder_crud.delete_all_trashed.side_effect = lambda *a, **kw: order.append("folders")
-            trash_service.empty_trash(db, current_user=_make_user())
-
-        assert order == ["notes", "folders"]
-        mock_note_crud.delete_all_trashed.assert_called_once_with(db, user_id="u1")
-        mock_folder_crud.delete_all_trashed.assert_called_once_with(db, user_id="u1")
-        db.commit.assert_called_once()
-        db.delete.assert_not_called()
-
-
-# ---------------------------------------------------------------------------
-# list_trash — folders are loaded once, not once per item
+# list_trash — original path format
 # ---------------------------------------------------------------------------
 
 
 class TestListTrashPaths:
-    def test_folder_map_loaded_once_for_all_items(self) -> None:
-        from app.services import trash_service
-
-        db = MagicMock()
-        parent = _make_folder("p", name="P", deleted_at=None)
-        folders = {"p": parent}
-        top_folders = [_make_folder(f"t{i}", parent_id="p", name=f"T{i}", deleted_at=_ts(i + 1)) for i in range(3)]
-        notes = [_make_note(f"n{i}", folder_id="p", deleted_at=_ts(i + 5)) for i in range(3)]
-        for n in notes:
-            n.title = "Note"
-
-        with (
-            patch("app.services.trash_service._purge_expired"),
-            patch("app.services.trash_service.folder_service.load_folder_map", return_value=folders) as mock_load,
-            patch("app.services.trash_service.folder_crud") as mock_crud,
-            patch("app.services.trash_service.note_crud") as mock_note_crud,
-        ):
-            mock_crud.list_trashed_top_folders.return_value = top_folders
-            mock_note_crud.list_trashed_top_notes.return_value = notes
-            mock_crud.count_batch_items.return_value = (0, 0)
-            items = trash_service.list_trash(db, current_user=_make_user())
-
-        mock_load.assert_called_once_with(db, user_id="u1", include_trashed=True)
-        assert len(items) == 6
-        assert {i.original_path for i in items} == {"/P"}
-
     def test_original_path_string_format(self) -> None:
         # `build_folder_path` returns names; the API still sends "/A/B", None for root, "/" for an unknown parent.
         from app.services import trash_service

@@ -1,9 +1,10 @@
+import re
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import AIFeature, NoteLength, NoteSource
+from app.core.enums import AIFeature, NoteLength
 from app.crud import folder as folder_crud
 from app.crud import note as note_crud
 from app.database import SessionLocal
@@ -12,6 +13,7 @@ from app.models.user import User
 from app.schemas.note import (
     NoteChunkEdit,
     NoteChunkEditResponse,
+    NoteContentMatch,
     NoteCreate,
     NoteGenerate,
     NoteRead,
@@ -30,6 +32,7 @@ from app.services.note_prompts import (
     build_note_generation_user_prompt,
     build_note_refinement_user_prompt,
 )
+from app.services.note_text import markdown_to_plain_text
 from app.services.service_helpers import get_owned_or_404, is_trash_expired
 
 _NOTE_MAX_TOKENS: dict[int, int] = {
@@ -38,6 +41,12 @@ _NOTE_MAX_TOKENS: dict[int, int] = {
     NoteLength.LONG: 8192,
 }
 _DEFAULT_MAX_TOKENS = 4096
+
+# Content search (`GET /notes/search`)
+_SEARCH_MIN_CHARS = 3
+_SEARCH_LIMIT = 50
+_SNIPPET_LENGTH = 80
+_SNIPPET_LEAD = 30  # characters of context before the hit
 
 # Refine and chunk edit return a rewrite of their input, so the output is about as long as
 # the input. A fixed limit cut long notes off, and the diff then showed the end as deleted.
@@ -85,7 +94,6 @@ def list_notes(
     current_user: User,
     title: str | None = None,
     content: str | None = None,
-    source: list[int] | None = None,
     sort_by: NoteSortBy | None = None,
     sort_order: SortOrder = "desc",
     page: int = 1,
@@ -96,7 +104,6 @@ def list_notes(
         user_id=current_user.id,
         title=title,
         content=content,
-        source=source,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
@@ -156,7 +163,6 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
         user_id=current_user.id,
         title=data.title,
         content=data.content,
-        source=NoteSource.USER_CREATED,
         tags=data.tags,
         folder_id=data.folder_id,
     )
@@ -202,6 +208,54 @@ def update_note(db: Session, *, note_id: str, current_user: User, data: NoteUpda
     return updated
 
 
+def set_favorite(db: Session, *, note_id: str, current_user: User, is_favorite: bool) -> Note:
+    """Star or unstar a note. Does not change `version` or `updated_at` (see `note_crud.set_favorite`).
+
+    A note in Trash gives 409, like every other write.
+    """
+    note = get_live_note(db, note_id=note_id, current_user=current_user)
+    note_crud.set_favorite(db, note=note, is_favorite=is_favorite, now=datetime.now(timezone.utc))
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+def _build_snippet(content: str, query: str) -> str:
+    """About `_SNIPPET_LENGTH` characters of `content` around the first hit of `query`.
+
+    The markdown is turned into plain text first, so the snippet shows what the reader sees
+    (no `#`, `**`, fences or editor HTML). A cut edge gets an ellipsis.
+    """
+    content = markdown_to_plain_text(content)
+    hit = re.search(re.escape(query), content, flags=re.IGNORECASE)
+    start = max(0, hit.start() - _SNIPPET_LEAD) if hit else 0
+    end = min(len(content), start + _SNIPPET_LENGTH)
+    text = content[start:end].strip()
+    return f"{'…' if start > 0 else ''}{text}{'…' if end < len(content) else ''}"
+
+
+def search_notes_content(
+    db: Session, *, current_user: User, query: str, folder_id: str | None = None
+) -> list[NoteContentMatch]:
+    """Find live notes whose content contains `query`. With `folder_id`: only that folder and its sub-folders."""
+    query = query.strip()
+    if len(query) < _SEARCH_MIN_CHARS:
+        return []
+    folder_ids: list[str] | None = None
+    if folder_id is not None:
+        get_live_folder_or_404(db, folder_id=folder_id, current_user=current_user)
+        folder_ids = [folder_id, *folder_crud.get_descendant_ids(db, folder_id=folder_id)]
+    rows = note_crud.search_live_content(
+        db, user_id=current_user.id, query=query, folder_ids=folder_ids, limit=_SEARCH_LIMIT
+    )
+    return [
+        NoteContentMatch(
+            id=row.id, title=row.title, folder_id=row.folder_id, snippet=_build_snippet(row.content, query)
+        )
+        for row in rows
+    ]
+
+
 def delete_note(db: Session, *, note_id: str, current_user: User) -> None:
     """Soft-delete a note (move to Trash). Already-trashed notes are a no-op."""
     folder_crud.lock_tree(db, user_id=current_user.id)
@@ -240,7 +294,6 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
         user_id=current_user.id,
         title=data.topic,
         content=result.text,
-        source=NoteSource.AI_GENERATED,
         folder_id=data.folder_id,
     )
     db.commit()

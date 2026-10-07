@@ -32,13 +32,13 @@ type FolderTreeRowProps = {
 };
 
 export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
-  const { expanded, onToggleExpand, childrenIndex, mutations } = useFilesTree();
-  const isExpanded = expanded.has(folder.id);
+  const { isExpanded: isFolderExpanded, isVisible, onToggleExpand, childrenIndex, mutations } = useFilesTree();
+  const isExpanded = isFolderExpanded(folder.id);
   const [renaming, setRenaming] = useState(false);
 
   const children = childrenIndex.get(folder.id);
-  const childFolders = children?.folders ?? [];
-  const childNotes = children?.notes ?? [];
+  const childFolders = (children?.folders ?? []).filter(child => isVisible(child.id));
+  const childNotes = (children?.notes ?? []).filter(child => isVisible(child.id));
   // A folder with nothing inside cannot open: no chevron and no toggle on a row click.
   const hasChildren = hasChildItems(childrenIndex, folder.id);
 

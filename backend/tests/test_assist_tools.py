@@ -89,6 +89,14 @@ class TestNavigateTo:
     def test_unknown_route_falls_back_to_dashboard(self) -> None:
         assert self._route("/admin") == "/dashboard"
 
+    def test_notes_list_page_is_gone_but_a_note_page_is_allowed(self) -> None:
+        assert self._route("/notes") == "/dashboard"
+        assert self._route("/notes/abc123") == "/notes/abc123"
+
+    def test_settings_tab_is_kept_only_when_it_exists(self) -> None:
+        assert self._route("/settings?tab=ai") == "/settings?tab=ai"
+        assert self._route("/settings?tab=billing") == "/settings"
+
 
 class TestSearchUserNotes:
     def test_note_lookup_is_filtered_by_owner(self) -> None:

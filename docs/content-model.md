@@ -151,6 +151,8 @@ Notes are a separate content type — standalone Markdown documents for study ma
 
 For full details, see [Study Notes](study-notes.md).
 
+A note has no `source` field (removed in ST-65). `is_favorite` and `favorited_at` mark a starred note; the favorite endpoint does not change `version` or `updated_at`.
+
 ### Folders
 
 Folders are containers for notes. They form an adjacency list: each folder has an optional `parent_id` FK pointing to another folder owned by the same user. There is no depth limit.

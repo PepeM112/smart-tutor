@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.dependencies.auth import CurrentUser
 from app.schemas.folder import FileTree
-from app.schemas.trash import TrashItemRead, TrashKind
+from app.schemas.trash import TrashItemRead, TrashKind, TrashTree
 from app.services import trash_service
 
 router = APIRouter()
@@ -20,6 +20,12 @@ DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 def list_(db: DbSession, current_user: CurrentUser) -> list[TrashItemRead]:
     """Return top-level trashed items. Lazily purges items older than 30 days first."""
     return trash_service.list_trash(db, current_user=current_user)
+
+
+@router.get("/tree", response_model=TrashTree)
+def tree(db: DbSession, current_user: CurrentUser) -> TrashTree:
+    """Return all trashed folders and notes as flat lists (for searching the whole Trash)."""
+    return trash_service.get_trash_tree(db, current_user=current_user)
 
 
 @router.get("/folders/{folder_id}/tree", response_model=FileTree)

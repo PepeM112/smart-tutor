@@ -29,7 +29,8 @@ export function CompactQuestionCard({
   number: number;
   isSelected: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  /** Leave it out for a read-only card (the history preview): no button role, no pointer. */
+  onClick?: () => void;
 }) {
   const score = computeQuestionScore(answer, question);
   const isFailed = answer?.status === AnswerStatus.FAILED;
@@ -47,18 +48,19 @@ export function CompactQuestionCard({
 
   return (
     <Card
-      role="button"
-      tabIndex={disabled ? -1 : 0}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? (disabled ? -1 : 0) : undefined}
       aria-disabled={disabled}
       className={cn(
         'p-4 ring-1 transition-colors',
         ringClass,
         isSelected && bgClass,
-        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer select-none'
+        disabled && 'opacity-50',
+        onClick && (disabled ? 'cursor-not-allowed' : 'cursor-pointer select-none')
       )}
       onClick={disabled ? undefined : onClick}
       onKeyDown={
-        disabled
+        disabled || !onClick
           ? undefined
           : e => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -102,7 +104,8 @@ export function CompactGroupCard({
   totalCount: number;
   number: number;
   isSelected: boolean;
-  onClick: () => void;
+  /** Leave it out for a read-only card (the history preview). */
+  onClick?: () => void;
 }) {
   const pct = totalCount > 0 ? (correctCount / totalCount) * 100 : 0;
   const ringClass = getScoreRingColor(pct);
@@ -110,16 +113,25 @@ export function CompactGroupCard({
 
   return (
     <Card
-      role="button"
-      tabIndex={0}
-      className={cn('p-4 ring-1 transition-colors cursor-pointer select-none', ringClass, isSelected && bgClass)}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      className={cn(
+        'p-4 ring-1 transition-colors',
+        onClick && 'cursor-pointer select-none',
+        ringClass,
+        isSelected && bgClass
+      )}
       onClick={onClick}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
+      onKeyDown={
+        onClick
+          ? e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
       <CardContent className="p-0">
         <NumberedScoreRow number={number} title={title} correctCount={correctCount} totalCount={totalCount} />

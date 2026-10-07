@@ -12,6 +12,7 @@ import { FilterPopover } from '@/components/shared/filters/FilterPopover';
 import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
+import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
@@ -25,6 +26,7 @@ import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
 import { AssignDialog } from './AssignDialog';
+import { QuestionPreviewPanel } from './QuestionPreviewPanel';
 import { QuestionsTable } from './QuestionsTable';
 
 const PER_PAGE = 25;
@@ -53,6 +55,7 @@ export function QuestionsPage() {
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const { data: tests } = useAllTests();
 
@@ -139,6 +142,8 @@ export function QuestionsPage() {
 
   const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
+  // The pane closes by itself when its question is not in the current page (filter, page, delete).
+  const previewQuestion = items.find(question => question.id === previewId);
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
@@ -158,7 +163,7 @@ export function QuestionsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full flex-col gap-6">
       <ListPageHeader
         filters={
           <FilterPopover
@@ -198,7 +203,12 @@ export function QuestionsPage() {
         </div>
       )}
 
-      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('questions.failed_to_load')}>
+      <QueryState
+        className="flex min-h-0 flex-1 flex-col"
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={t('questions.failed_to_load')}
+      >
         {isFilteredEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-muted-foreground">{t('questions.no_results')}</p>
@@ -207,16 +217,32 @@ export function QuestionsPage() {
             </Button>
           </div>
         ) : (
-          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-            <QuestionsTable
-              data={items}
-              sort={sort}
-              onSort={handleSort}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-            />
-            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-          </div>
+          <ResponsiveSplitPane
+            storageKey="questions-preview-split-ratio"
+            defaultRatio={0.6}
+            bleed
+            main={
+              <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+                <QuestionsTable
+                  data={items}
+                  sort={sort}
+                  onSort={handleSort}
+                  selectedIds={selectedIds}
+                  onSelectionChange={setSelectedIds}
+                  onPreview={setPreviewId}
+                  previewId={previewQuestion?.id ?? null}
+                />
+                <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+              </div>
+            }
+            side={
+              previewQuestion ? (
+                <QuestionPreviewPanel question={previewQuestion} onClose={() => setPreviewId(null)} />
+              ) : null
+            }
+            onSideClose={() => setPreviewId(null)}
+            insetDrawerBody={false}
+          />
         )}
       </QueryState>
 

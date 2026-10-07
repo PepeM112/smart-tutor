@@ -1,9 +1,10 @@
 'use client';
 
-import { RotateCcw, Trash2 } from 'lucide-react';
+import { EllipsisVertical, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
+import { ActionsMenu } from '@/components/shared/ActionsMenu';
 import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
 import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
 import { Button } from '@/components/ui/button';
@@ -19,35 +20,37 @@ type Props = {
   name: string;
 };
 
-/** Hover actions of a Trash row, shown like the actions of a Files row. */
+/** Hover actions of a Trash row: one `⋮` menu, like a Files row. */
 export function TrashRowActions({ target, name }: Props) {
   const t = useTranslations();
   const { restoreItem, hardDeleteItem, isBusy } = useTrashTable();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // The actions cell shows only on hover. Keep it visible while the menu is open.
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <RowEventBoundary>
-      <TreeActionsCell widthClass={TRASH_ACTIONS_CELL_WIDTH_CLASS} forceVisible={deleteOpen}>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          tooltip={t('trash.restore')}
-          aria-label={t('trash.restore')}
-          disabled={isBusy}
-          onClick={() => restoreItem(target)}
-        >
-          <RotateCcw className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          tooltip={t('trash.delete_forever')}
-          aria-label={t('trash.delete_forever')}
-          disabled={isBusy}
-          onClick={() => setDeleteOpen(true)}
-        >
-          <Trash2 className="size-4" />
-        </Button>
+      <TreeActionsCell widthClass={TRASH_ACTIONS_CELL_WIDTH_CLASS} forceVisible={menuOpen || deleteOpen}>
+        <ActionsMenu
+          actions={[
+            [{ label: t('trash.restore'), icon: RotateCcw, disabled: isBusy, onClick: () => restoreItem(target) }],
+            [
+              {
+                label: t('trash.delete_forever'),
+                icon: Trash2,
+                variant: 'destructive',
+                disabled: isBusy,
+                onClick: () => setDeleteOpen(true),
+              },
+            ],
+          ]}
+          onOpenChange={setMenuOpen}
+          trigger={
+            <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label={t('common.action')}>
+              <EllipsisVertical className="size-4" />
+            </Button>
+          }
+        />
       </TreeActionsCell>
 
       <ConfirmDialog

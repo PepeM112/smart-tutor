@@ -1,13 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { X } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
+import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
 import { QueryState } from '@/components/shared/QueryState';
-import { Button } from '@/components/ui/button';
+import { FavoriteButton } from '@/features/notes/components/FavoriteButton';
 import { RichNoteEditor } from '@/features/notes/editor/RichNoteEditor';
 import { sdk } from '@/lib/apiClient';
 import { displayTitle } from '@/lib/displayTitle';
@@ -24,13 +22,9 @@ type Props = {
  * Read-only preview of a note, rendered in the SplitPane right pane or a mobile Drawer.
  * Keyed by `noteId + updatedAt` so the editor remounts when a different note is shown.
  * No autosave, no AI actions — editable={false}.
- *
- * The header stays fixed; only the body scrolls. The body crossfades (120ms opacity)
- * when the previewed note changes. No fade on mount: SplitPane already fades the panel in.
  */
 export function NotePreviewPanel({ noteId, onClose }: Props) {
   const t = useTranslations();
-  const prefersReduced = useReducedMotion();
 
   const {
     data: noteRes,
@@ -44,47 +38,23 @@ export function NotePreviewPanel({ noteId, onClose }: Props) {
   const note = noteRes?.data;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* Header — stays put when the note changes; only the body crossfades. */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
-        <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{displayTitle(note?.title, t)}</p>
-        {/* A real link gives prefetch, middle-click and open in a new tab. */}
-        {note ? (
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={noteHref(note)}>{t('files.open')}</Link>
-          </Button>
-        ) : (
-          <Button variant="ghost" size="sm" disabled>
-            {t('files.open')}
-          </Button>
+    <PreviewPanelFrame
+      title={displayTitle(note?.title, t)}
+      openHref={note ? noteHref(note) : undefined}
+      headerActions={<FavoriteButton noteId={noteId} fallbackIsFavorite={note?.isFavorite} />}
+      onClose={onClose}
+      contentKey={noteId}
+    >
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
+        {/* Key remounts the editor when a different note or version is shown. */}
+        {note && (
+          <RichNoteEditor
+            key={`${note.id}-${String(note.updatedAt)}`}
+            editable={false}
+            initialContent={note.content ?? ''}
+          />
         )}
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('files.close_preview')}>
-          <X className="size-4" />
-        </Button>
-      </div>
-
-      {/* Body — crossfades when noteId changes (mode="wait": old fades out, new fades in). */}
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={noteId}
-          className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: prefersReduced ? 0 : 0.12 }}
-        >
-          <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
-            {/* Key remounts the editor when a different note or version is shown. */}
-            {note && (
-              <RichNoteEditor
-                key={`${note.id}-${String(note.updatedAt)}`}
-                editable={false}
-                initialContent={note.content ?? ''}
-              />
-            )}
-          </QueryState>
-        </motion.div>
-      </AnimatePresence>
-    </div>
+      </QueryState>
+    </PreviewPanelFrame>
   );
 }

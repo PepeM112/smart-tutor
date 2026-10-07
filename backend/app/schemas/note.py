@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 
-from app.core.enums import NoteLength, NoteSource
+from app.core.enums import NoteLength
 from app.schemas.base import BaseSchema
 from app.schemas.pagination import PaginatedResponse
 
@@ -72,8 +72,9 @@ class NoteRead(NoteBase):
     id: str
     user_id: str
     folder_id: str | None
-    source: NoteSource
     is_indexed: bool
+    is_favorite: bool
+    favorited_at: datetime | None
     version: int
     deleted_at: datetime | None
     created_at: datetime
@@ -101,6 +102,19 @@ NoteSortBy = Literal["title", "updated_at", "created_at"]
 SortOrder = Literal["asc", "desc"]
 
 PaginatedNoteRead = PaginatedResponse[NoteRead]
+
+
+class NoteFavoriteUpdate(BaseSchema):
+    is_favorite: bool
+
+
+class NoteContentMatch(BaseSchema):
+    """A note whose content matches a search, with a short text around the first hit."""
+
+    id: str
+    title: str
+    folder_id: str | None
+    snippet: str
 
 
 class NoteMove(BaseSchema):

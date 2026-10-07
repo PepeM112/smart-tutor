@@ -41,6 +41,40 @@ export function buildSettingsPayload(form: SettingsForm, user: UserRead | null):
   return payload;
 }
 
+export const SETTINGS_TABS = ['profile', 'ai', 'appearance', 'srs'] as const;
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+export const DEFAULT_SETTINGS_TAB: SettingsTab = 'profile';
+
+/** Returns a valid tab, or the default tab for a missing or unknown value. */
+export function parseSettingsTab(value: string | null | undefined): SettingsTab {
+  return SETTINGS_TABS.find(tab => tab === value) ?? DEFAULT_SETTINGS_TAB;
+}
+
+const PAYLOAD_KEY_TAB: Record<keyof UserUpdate & keyof SettingsForm, SettingsTab> = {
+  displayName: 'profile',
+  aiProvider: 'ai',
+  anthropicApiKey: 'ai',
+  openaiApiKey: 'ai',
+  dailyReviewLimit: 'srs',
+  initialEaseFactor: 'srs',
+};
+
+/**
+ * Returns the tabs that have unsaved changes. A tab is dirty when the settings payload has one of its
+ * keys, or (for the AI tab) when the permission draft is not empty. Appearance and language are not in
+ * the payload: they save on their own, so that tab is never dirty. Pure — no side effects.
+ */
+export function getDirtyTabs(
+  settingsPayload: UserUpdate,
+  permissionsPayload: Record<string, boolean>
+): Set<SettingsTab> {
+  const tabs = Object.keys(settingsPayload).flatMap(key => {
+    const tab = PAYLOAD_KEY_TAB[key as keyof typeof PAYLOAD_KEY_TAB];
+    return tab ? [tab] : [];
+  });
+  return new Set<SettingsTab>(Object.keys(permissionsPayload).length > 0 ? [...tabs, 'ai'] : tabs);
+}
+
 /** Draft of the AI tool permissions: only the tools the user changed, as `tool name -> autoApprove`. */
 export type PermissionDraft = Record<string, boolean>;
 

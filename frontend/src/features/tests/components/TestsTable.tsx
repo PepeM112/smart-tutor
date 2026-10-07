@@ -9,10 +9,8 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
-import { DataTable, type MobileAction } from '@/components/shared/DataTable';
+import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
 import { sdk } from '@/lib/apiClient';
@@ -23,9 +21,11 @@ type Props = {
   data: TestRead[];
   sort?: SortState;
   onSort?: (column: string | null, order: SortDirection) => void;
+  onPreview: (id: string) => void;
+  previewId: string | null;
 };
 
-export function TestsTable({ data, sort, onSort }: Props) {
+export function TestsTable({ data, sort, onSort, onPreview, previewId }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -38,7 +38,7 @@ export function TestsTable({ data, sort, onSort }: Props) {
     onError: () => toast.error(t('tests.failed_to_delete')),
   });
 
-  const columns = useTestsColumns({ deleteTest, isDeleting: deleteIsPending });
+  const columns = useTestsColumns();
 
   const renderPreview = useCallback((test: TestRead) => {
     const questions = getAllQuestions(test);
@@ -62,42 +62,47 @@ export function TestsTable({ data, sort, onSort }: Props) {
   }, []);
 
   const renderActions = useCallback(
-    (test: TestRead): MobileAction[] => [
-      {
-        label: t('common.edit'),
-        icon: Pencil,
-        onClick: () => router.push(Routes.TEST_EDIT(test.id)),
-      },
-      {
-        label: t('tests.copy_id'),
-        icon: Copy,
-        onClick: () => {
-          void navigator.clipboard.writeText(test.id);
-          toast.success(t('common.copied'));
+    (test: TestRead): MobileAction[][] => [
+      [
+        {
+          label: t('common.edit'),
+          icon: Pencil,
+          onClick: () => router.push(Routes.TEST_EDIT(test.id)),
         },
-      },
-      {
-        label: t('tests.take_test_action'),
-        icon: Dumbbell,
-        className: 'text-feedback-partial',
-        onClick: () => router.push(Routes.TEST_DETAIL(test.id)),
-      },
-      {
-        label: t('common.delete'),
-        icon: Trash2,
-        variant: 'destructive',
-        onClick: () => deleteTest(test.id),
-        confirm: {
-          title: t('tests.delete_test'),
-          description: t('tests.delete_test_confirm', { title: test.title }),
+        {
+          label: t('tests.take_test_action'),
+          icon: Dumbbell,
+          className: 'text-feedback-partial',
+          onClick: () => router.push(Routes.TEST_DETAIL(test.id)),
         },
-      },
+        {
+          label: t('tests.copy_id'),
+          icon: Copy,
+          onClick: () => {
+            void navigator.clipboard.writeText(test.id);
+            toast.success(t('common.copied'));
+          },
+        },
+      ],
+      [
+        {
+          label: t('common.delete'),
+          icon: Trash2,
+          variant: 'destructive',
+          disabled: deleteIsPending,
+          onClick: () => deleteTest(test.id),
+          confirm: {
+            title: t('tests.delete_test'),
+            description: t('tests.delete_test_confirm', { title: test.title }),
+          },
+        },
+      ],
     ],
-    [t, router, deleteTest]
+    [t, router, deleteTest, deleteIsPending]
   );
 
   return (
-    <DataTable
+    <DataTableV2
       columns={columns}
       data={data}
       sort={sort}
@@ -106,6 +111,9 @@ export function TestsTable({ data, sort, onSort }: Props) {
       onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
       renderPreview={renderPreview}
       renderActions={renderActions}
+      getRowId={test => test.id}
+      onPreview={test => onPreview(test.id)}
+      previewId={previewId}
       renderDescription={test =>
         test.description ? { label: t('tests.column_description'), value: test.description } : undefined
       }
@@ -132,26 +140,20 @@ function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number 
   );
 }
 
-type ColumnDeps = {
-  deleteTest: (id: string) => void;
-  isDeleting: boolean;
-};
-
-function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<TestRead, unknown>[] {
+function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
   const t = useTranslations();
-  const router = useRouter();
 
   return [
     {
       accessorKey: 'title',
       header: t('tests.column_title'),
-      meta: { sortKey: 'title', hideOnMobile: true },
+      meta: { sortKey: 'title', hideOnMobile: true, grow: true },
       cell: ({ row }) => {
         const { title, description } = row.original;
         return (
           <div className="min-w-0">
             <p className="font-medium text-foreground truncate">{title}</p>
-            {description && <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-xs">{description}</p>}
+            {description && <p className="mt-0.5 text-xs text-muted-foreground truncate">{description}</p>}
           </div>
         );
       },
@@ -159,6 +161,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
     {
       id: 'questions',
       header: t('tests.column_questions'),
+      meta: { widthClass: 'w-24 text-right' },
       cell: ({ row }) => {
         const questions = getAllQuestions(row.original);
         return <span className="tabular-nums text-muted-foreground">{questions.length}</span>;
@@ -167,6 +170,7 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
     {
       id: 'types',
       header: t('tests.column_types'),
+      meta: { widthClass: 'w-40' },
       cell: ({ row }) => {
         const questions = getAllQuestions(row.original);
         const simple = countByType(questions, QuestionType.SIMPLE);
@@ -189,75 +193,9 @@ function useTestsColumns({ deleteTest, isDeleting }: ColumnDeps): ColumnDef<Test
     {
       id: 'created',
       header: t('tests.column_created'),
-      meta: { sortKey: 'created_at' },
+      meta: { sortKey: 'created_at', widthClass: 'w-24 text-right' },
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <div className="flex justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            tooltip={t('common.edit')}
-            onClick={e => {
-              e.stopPropagation();
-              router.push(Routes.TEST_EDIT(row.original.id));
-            }}
-            aria-label={t('common.edit')}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            tooltip={t('tests.copy_id')}
-            onClick={e => {
-              e.stopPropagation();
-              void navigator.clipboard.writeText(row.original.id);
-              toast.success(t('common.copied'));
-            }}
-            aria-label={t('tests.copy_id')}
-          >
-            <Copy className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            className="text-feedback-partial hover:text-feedback-partial"
-            tooltip={t('tests.take_test_action')}
-            onClick={e => {
-              e.stopPropagation();
-              router.push(Routes.TEST_DETAIL(row.original.id));
-            }}
-            aria-label={t('tests.take_test_action')}
-          >
-            <Dumbbell className="size-4" />
-          </Button>
-          <ConfirmDialog
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon-lg"
-                className="text-destructive hover:text-destructive"
-                tooltip={t('common.delete')}
-                onClick={e => e.stopPropagation()}
-                disabled={isDeleting}
-                aria-label={t('common.delete')}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            }
-            title={t('tests.delete_test')}
-            description={t('tests.delete_test_confirm', { title: row.original.title })}
-            confirmLabel={t('common.delete')}
-            confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onConfirm={() => deleteTest(row.original.id)}
-          />
-        </div>
       ),
     },
   ];
