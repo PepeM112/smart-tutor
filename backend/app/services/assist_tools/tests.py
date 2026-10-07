@@ -56,7 +56,8 @@ def list_tests(db: Session, *, current_user: User, arguments: dict[str, object])
 
 def get_test_details(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     test_id = str(arguments.get("test_id", ""))
-    test = get_test_or_404(db, test_id=test_id, current_user=current_user, level=AccessLevel.READ)
+    # AUTHOR: the details show the answers, so a course member (VIEWER) must not read them.
+    test = get_test_or_404(db, test_id=test_id, current_user=current_user, level=AccessLevel.AUTHOR)
     lines = [f"**{test.title}** (ID: `{test.id}`)"]
     if test.description:
         lines.append(test.description)

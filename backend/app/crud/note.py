@@ -149,6 +149,9 @@ def create(
     content: str = "",
     tags: list[str] | None = None,
     folder_id: str | None = None,
+    space_id: str | None = None,
+    is_draft: bool = False,
+    draft_of_id: str | None = None,
 ) -> Note:
     note = Note(
         user_id=user_id,
@@ -156,6 +159,9 @@ def create(
         title=title,
         content=content,
         tags=tags or [],
+        space_id=space_id,
+        is_draft=is_draft,
+        draft_of_id=draft_of_id,
     )
     db.add(note)
     db.flush()

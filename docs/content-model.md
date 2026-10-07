@@ -14,10 +14,11 @@ User
 
 Space (course / classroom, see spaces.md)
  ├── Note  (space_id set)
- └── Test  (space_id set) → its questions follow the test
+ ├── Test  (space_id set) → its questions follow the test
+ └── SpaceSection → SpaceItem (points to one note or test: the course structure)
 ```
 
-**Personal vs space content.** `note.space_id` and `test.space_id` are `NULL` for personal content. A row with `space_id` set belongs to a [space](spaces.md): access comes from the role in the space, and `user_id` only records the creator. Space rows also use `is_draft` (members can not see the row yet) and `draft_of_id` (the published row that this draft replaces on publish). CHECK constraints keep `is_draft = false` and `draft_of_id = NULL` on personal rows, and keep space notes out of folders, Trash and favorites. Personal queries filter `space_id IS NULL`. Load single notes, tests and questions through `access_service` (see [Spaces](spaces.md#access-layer-servicesaccess_servicepy)).
+**Personal vs space content.** `note.space_id` and `test.space_id` are `NULL` for personal content. A row with `space_id` set belongs to a [space](spaces.md): access comes from the role in the space, and `user_id` only records the creator. Space rows also use `is_draft` (members can not see the row yet) and `draft_of_id` (the published row that this draft replaces on publish). CHECK constraints keep `is_draft = false` and `draft_of_id = NULL` on personal rows, and keep space notes out of folders, Trash and favorites. Personal queries filter `space_id IS NULL`. The course structure (sections and items) is separate from the content: `space_item` points to a note or a test. The note page shows a published course note read-only; authors change it through a draft twin (see [Spaces](spaces.md#draft-engine-servicesspace_draft_servicepy)). Load single notes, tests and questions through `access_service` (see [Spaces](spaces.md#access-layer-servicesaccess_servicepy)).
 
 Questions have a `user_id` FK for direct ownership. A question's `test_id` is **nullable** — questions with `test_id = NULL` are **bank questions** (standalone, not part of any test). Bank questions are owned via `user_id` directly.
 

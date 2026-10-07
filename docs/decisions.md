@@ -417,3 +417,53 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 **Why:** Before, each service checked `user_id == current_user.id` itself. Space content needs roles, inheritance, drafts and archive, and one copy of these rules is easier to keep correct. The pure function gets a full matrix test with no DB. Missing rows stay 404 and no access stays 403, so existing clients see no change.
 
+---
+
+## Draft Twins for Course Edit Mode
+
+**Decision:** Edit mode clones the published sections and items as draft rows (`draft_of_id`). A note or test gets its draft twin lazily, on the first edit. `space.draft_started_at` marks edit mode. Publish runs a diff and updates the published rows in place.
+
+**Alternative considered:** A JSON snapshot of the course, or versioned content rows.
+
+**Why:** The draft rows use the same tables, editor and access layer as the published rows, so no second code path exists. The published ids do not change on publish, so links, results and `source_note_id` of personal tests still work. Lazy twins keep "enter edit mode" cheap: it copies only structure, not content. `draft_started_at` is a flag because edit mode with zero draft sections is a valid state.
+
+---
+
+## AUTHOR Access Level for the Answer Key
+
+**Decision:** `AccessLevel.AUTHOR` (OWNER or EDITOR, any row, also archived) protects the questions of a space test. VIEWERs take a test only through the exam endpoint.
+
+**Why:** READ is enough for a note, but a test with READ access shows the answers. A separate level keeps the rule in the access layer and does not add role checks to each service.
+
+---
+
+## Join Code Works for Any Visibility
+
+**Decision:** Join by code gives ACTIVE membership, also for a PRIVATE course. Join by link to a PRIVATE course makes a request.
+
+**Why:** The code is the secret: only an author can see it, and the owner can regenerate it. The link has no secret, so a PRIVATE course needs approval.
+
+---
+
+## Up / Down Buttons Instead of Drag and Drop
+
+**Decision:** The draft editor reorders sections and items with up / down buttons. Each click sends the full order.
+
+**Why:** No new dependency, it works with a keyboard and on mobile, and the full-order endpoint is simple to validate (every id once). Drag and drop can come later on the same endpoint.
+
+---
+
+## Publish Options Are Stored Only
+
+**Decision:** `space_publish` stores `notify_members` and `reset_item_ids`, but they have no effect in M2.
+
+**Why:** Notifications (M5) and progress (M3) do not exist yet. Storing the author's choice now means the publish dialog and the log row do not change later.
+
+---
+
+## Only the Owner Manages Members
+
+**Decision:** Only the owner invites, approves, changes roles and removes members. EDITORs can read the member list.
+
+**Why:** An EDITOR who can promote users could give edit access without the owner's agreement. One manager is simple and safe; delegation can come later with a new role.
+

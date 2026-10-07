@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     questions,
     results,
     review,
+    spaces,
     tests,
     token_usage,
     trash,
@@ -47,6 +48,7 @@ app.include_router(notes.router, prefix="/api/v1/notes", tags=["notes"])
 app.include_router(trash.router, prefix="/api/v1/trash", tags=["trash"])
 app.include_router(token_usage.router, prefix="/api/v1/token-usage", tags=["token-usage"])
 app.include_router(assist.router, prefix="/api/v1/assist", tags=["assist"])
+app.include_router(spaces.router, prefix="/api/v1/spaces", tags=["spaces"])
 
 app.add_middleware(
     CORSMiddleware,

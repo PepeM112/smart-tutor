@@ -39,3 +39,6 @@ class Space(Base, CreatedAtMixin, UpdatedAtMixin):
     # NULL = never published (nobody can join yet).
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set while edit mode is on (draft structure rows exist). A flag, because edit mode with
+    # zero draft sections is a valid state.
+    draft_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.core.enums import NoteLength
 from app.crud import note as note_crud
+from app.crud import space as space_crud
 from app.schemas.note import NoteGenerate
 from app.services import folder_service, note_service
 from app.services.access_service import AccessLevel, can_access_note, get_note_or_404
@@ -115,8 +116,13 @@ def get_note_content(db: Session, *, current_user: User, arguments: dict[str, ob
     # get_by_id also returns trashed notes (the note page shows them). The Assistant must not read them.
     if note.deleted_at is not None:
         return ToolResult(output=f"Note `{note_id}` is in Trash. Ask the user to restore it first.")
-    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
-    location = location_label(folders, note.folder_id)
+    if note.space_id is not None:
+        # A space note has no folder: its location is the course.
+        space = space_crud.get_by_id(db, id=note.space_id)
+        location = f"course '{space.title}'" if space else "a course"
+    else:
+        folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
+        location = location_label(folders, note.folder_id)
     content = note.content or "(empty)"
     return ToolResult(output=f"**{note_label(note.title)}** (location: {location})\n\n{content}")
 

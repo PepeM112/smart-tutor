@@ -2,8 +2,8 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import { foldersCreateResponseTransformer, foldersListResponseTransformer, foldersTreeResponseTransformer, foldersUpdateResponseTransformer, notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesMoveResponseTransformer, notesSetFavoriteResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, testsCreateResponseTransformer, testsGetResponseTransformer, testsListResponseTransformer, testsSubmitResponseTransformer, testsUpdateResponseTransformer, trashFolderTreeResponseTransformer, trashListResponseTransformer, trashTreeResponseTransformer } from './transformers.gen';
-import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, AssistAssistData, AssistAssistErrors, AssistAssistResponses, DefaultHealthData, DefaultHealthResponses, FoldersCreateData, FoldersCreateErrors, FoldersCreateResponses, FoldersDeleteData, FoldersDeleteErrors, FoldersDeleteResponses, FoldersListData, FoldersListErrors, FoldersListResponses, FoldersTreeData, FoldersTreeErrors, FoldersTreeResponses, FoldersUpdateData, FoldersUpdateErrors, FoldersUpdateResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesMoveData, NotesMoveErrors, NotesMoveResponses, NotesSearchContentData, NotesSearchContentErrors, NotesSearchContentResponses, NotesSetFavoriteData, NotesSetFavoriteErrors, NotesSetFavoriteResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsAssignToTestData, QuestionsAssignToTestErrors, QuestionsAssignToTestResponses, QuestionsBulkAssignData, QuestionsBulkAssignErrors, QuestionsBulkAssignResponses, QuestionsBulkDeleteData, QuestionsBulkDeleteErrors, QuestionsBulkDeleteResponses, QuestionsBulkRestoreData, QuestionsBulkRestoreErrors, QuestionsBulkRestoreResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsCreateData, QuestionsCreateErrors, QuestionsCreateResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsDuplicateData, QuestionsDuplicateErrors, QuestionsDuplicateResponses, QuestionsGetData, QuestionsGetErrors, QuestionsGetResponses, QuestionsListData, QuestionsListErrors, QuestionsListResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, TrashEmptyData, TrashEmptyErrors, TrashEmptyResponses, TrashFolderTreeData, TrashFolderTreeErrors, TrashFolderTreeResponses, TrashHardDeleteData, TrashHardDeleteErrors, TrashHardDeleteResponses, TrashListData, TrashListErrors, TrashListResponses, TrashRestoreData, TrashRestoreErrors, TrashRestoreResponses, TrashTreeData, TrashTreeErrors, TrashTreeResponses, UsersGetAiToolPermissionsData, UsersGetAiToolPermissionsErrors, UsersGetAiToolPermissionsResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateAiToolPermissionsData, UsersUpdateAiToolPermissionsErrors, UsersUpdateAiToolPermissionsResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
+import { foldersCreateResponseTransformer, foldersListResponseTransformer, foldersTreeResponseTransformer, foldersUpdateResponseTransformer, notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesMoveResponseTransformer, notesSetFavoriteResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, spacesAcceptInvitationResponseTransformer, spacesAddSectionResponseTransformer, spacesArchiveResponseTransformer, spacesCatalogResponseTransformer, spacesCreateResponseTransformer, spacesDeleteItemResponseTransformer, spacesDeleteSectionResponseTransformer, spacesDiscardDraftResponseTransformer, spacesDuplicateResponseTransformer, spacesEnterEditModeResponseTransformer, spacesGetResponseTransformer, spacesInvitationsResponseTransformer, spacesJoinByCodeResponseTransformer, spacesJoinResponseTransformer, spacesListMembersResponseTransformer, spacesListMineResponseTransformer, spacesPublishResponseTransformer, spacesRegenerateJoinCodeResponseTransformer, spacesRenameSectionResponseTransformer, spacesReorderDraftResponseTransformer, spacesUnarchiveResponseTransformer, spacesUpdateResponseTransformer, testsCreateResponseTransformer, testsGetResponseTransformer, testsListResponseTransformer, testsSubmitResponseTransformer, testsUpdateResponseTransformer, trashFolderTreeResponseTransformer, trashListResponseTransformer, trashTreeResponseTransformer } from './transformers.gen';
+import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, AssistAssistData, AssistAssistErrors, AssistAssistResponses, DefaultHealthData, DefaultHealthResponses, FoldersCreateData, FoldersCreateErrors, FoldersCreateResponses, FoldersDeleteData, FoldersDeleteErrors, FoldersDeleteResponses, FoldersListData, FoldersListErrors, FoldersListResponses, FoldersTreeData, FoldersTreeErrors, FoldersTreeResponses, FoldersUpdateData, FoldersUpdateErrors, FoldersUpdateResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesMoveData, NotesMoveErrors, NotesMoveResponses, NotesSearchContentData, NotesSearchContentErrors, NotesSearchContentResponses, NotesSetFavoriteData, NotesSetFavoriteErrors, NotesSetFavoriteResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsAssignToTestData, QuestionsAssignToTestErrors, QuestionsAssignToTestResponses, QuestionsBulkAssignData, QuestionsBulkAssignErrors, QuestionsBulkAssignResponses, QuestionsBulkDeleteData, QuestionsBulkDeleteErrors, QuestionsBulkDeleteResponses, QuestionsBulkRestoreData, QuestionsBulkRestoreErrors, QuestionsBulkRestoreResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsCreateData, QuestionsCreateErrors, QuestionsCreateResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsDuplicateData, QuestionsDuplicateErrors, QuestionsDuplicateResponses, QuestionsGetData, QuestionsGetErrors, QuestionsGetResponses, QuestionsListData, QuestionsListErrors, QuestionsListResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, SpacesAcceptInvitationData, SpacesAcceptInvitationErrors, SpacesAcceptInvitationResponses, SpacesAddSectionData, SpacesAddSectionErrors, SpacesAddSectionResponses, SpacesApproveRequestData, SpacesApproveRequestErrors, SpacesApproveRequestResponses, SpacesArchiveData, SpacesArchiveErrors, SpacesArchiveResponses, SpacesCatalogData, SpacesCatalogErrors, SpacesCatalogResponses, SpacesCopyItemData, SpacesCopyItemErrors, SpacesCopyItemResponses, SpacesCreateData, SpacesCreateErrors, SpacesCreateItemData, SpacesCreateItemErrors, SpacesCreateItemResponses, SpacesCreateResponses, SpacesDeclineInvitationData, SpacesDeclineInvitationErrors, SpacesDeclineInvitationResponses, SpacesDeleteForeverData, SpacesDeleteForeverErrors, SpacesDeleteForeverResponses, SpacesDeleteItemData, SpacesDeleteItemErrors, SpacesDeleteItemResponses, SpacesDeleteSectionData, SpacesDeleteSectionErrors, SpacesDeleteSectionResponses, SpacesDiscardDraftData, SpacesDiscardDraftErrors, SpacesDiscardDraftResponses, SpacesDuplicateData, SpacesDuplicateErrors, SpacesDuplicateResponses, SpacesEnterEditModeData, SpacesEnterEditModeErrors, SpacesEnterEditModeResponses, SpacesGetData, SpacesGetErrors, SpacesGetResponses, SpacesInvitationsData, SpacesInvitationsErrors, SpacesInvitationsResponses, SpacesInviteData, SpacesInviteErrors, SpacesInviteResponses, SpacesJoinByCodeData, SpacesJoinByCodeErrors, SpacesJoinByCodeResponses, SpacesJoinData, SpacesJoinErrors, SpacesJoinResponses, SpacesLeaveData, SpacesLeaveErrors, SpacesLeaveResponses, SpacesListMembersData, SpacesListMembersErrors, SpacesListMembersResponses, SpacesListMineData, SpacesListMineErrors, SpacesListMineResponses, SpacesMakeItemEditableData, SpacesMakeItemEditableErrors, SpacesMakeItemEditableResponses, SpacesPublishData, SpacesPublishErrors, SpacesPublishResponses, SpacesRegenerateJoinCodeData, SpacesRegenerateJoinCodeErrors, SpacesRegenerateJoinCodeResponses, SpacesRemoveMemberData, SpacesRemoveMemberErrors, SpacesRemoveMemberResponses, SpacesRenameSectionData, SpacesRenameSectionErrors, SpacesRenameSectionResponses, SpacesReorderDraftData, SpacesReorderDraftErrors, SpacesReorderDraftResponses, SpacesSetMemberRoleData, SpacesSetMemberRoleErrors, SpacesSetMemberRoleResponses, SpacesUnarchiveData, SpacesUnarchiveErrors, SpacesUnarchiveResponses, SpacesUpdateData, SpacesUpdateErrors, SpacesUpdateResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, TrashEmptyData, TrashEmptyErrors, TrashEmptyResponses, TrashFolderTreeData, TrashFolderTreeErrors, TrashFolderTreeResponses, TrashHardDeleteData, TrashHardDeleteErrors, TrashHardDeleteResponses, TrashListData, TrashListErrors, TrashListResponses, TrashRestoreData, TrashRestoreErrors, TrashRestoreResponses, TrashTreeData, TrashTreeErrors, TrashTreeResponses, UsersGetAiToolPermissionsData, UsersGetAiToolPermissionsErrors, UsersGetAiToolPermissionsResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateAiToolPermissionsData, UsersUpdateAiToolPermissionsErrors, UsersUpdateAiToolPermissionsResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -556,6 +556,329 @@ export const tokenUsageGetUsage = <ThrowOnError extends boolean = false>(options
  */
 export const assistAssist = <ThrowOnError extends boolean = false>(options: Options<AssistAssistData, ThrowOnError>) => (options.client ?? client).post<AssistAssistResponses, AssistAssistErrors, ThrowOnError>({
     url: '/api/v1/assist',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Mine
+ *
+ * Courses the user owns or is an active member of.
+ */
+export const spacesListMine = <ThrowOnError extends boolean = false>(options?: Options<SpacesListMineData, ThrowOnError>) => (options?.client ?? client).get<SpacesListMineResponses, SpacesListMineErrors, ThrowOnError>({
+    responseTransformer: spacesListMineResponseTransformer,
+    url: '/api/v1/spaces',
+    ...options
+});
+
+/**
+ * Create
+ */
+export const spacesCreate = <ThrowOnError extends boolean = false>(options: Options<SpacesCreateData, ThrowOnError>) => (options.client ?? client).post<SpacesCreateResponses, SpacesCreateErrors, ThrowOnError>({
+    responseTransformer: spacesCreateResponseTransformer,
+    url: '/api/v1/spaces',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Catalog
+ */
+export const spacesCatalog = <ThrowOnError extends boolean = false>(options?: Options<SpacesCatalogData, ThrowOnError>) => (options?.client ?? client).get<SpacesCatalogResponses, SpacesCatalogErrors, ThrowOnError>({
+    responseTransformer: spacesCatalogResponseTransformer,
+    url: '/api/v1/spaces/catalog',
+    ...options
+});
+
+/**
+ * Invitations
+ */
+export const spacesInvitations = <ThrowOnError extends boolean = false>(options?: Options<SpacesInvitationsData, ThrowOnError>) => (options?.client ?? client).get<SpacesInvitationsResponses, SpacesInvitationsErrors, ThrowOnError>({
+    responseTransformer: spacesInvitationsResponseTransformer,
+    url: '/api/v1/spaces/invitations',
+    ...options
+});
+
+/**
+ * Join By Code
+ */
+export const spacesJoinByCode = <ThrowOnError extends boolean = false>(options: Options<SpacesJoinByCodeData, ThrowOnError>) => (options.client ?? client).post<SpacesJoinByCodeResponses, SpacesJoinByCodeErrors, ThrowOnError>({
+    responseTransformer: spacesJoinByCodeResponseTransformer,
+    url: '/api/v1/spaces/join',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Forever
+ *
+ * Hard delete. The body must repeat the exact title of the course.
+ */
+export const spacesDeleteForever = <ThrowOnError extends boolean = false>(options: Options<SpacesDeleteForeverData, ThrowOnError>) => (options.client ?? client).delete<SpacesDeleteForeverResponses, SpacesDeleteForeverErrors, ThrowOnError>({
+    url: '/api/v1/spaces/{space_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get
+ */
+export const spacesGet = <ThrowOnError extends boolean = false>(options: Options<SpacesGetData, ThrowOnError>) => (options.client ?? client).get<SpacesGetResponses, SpacesGetErrors, ThrowOnError>({
+    responseTransformer: spacesGetResponseTransformer,
+    url: '/api/v1/spaces/{space_id}',
+    ...options
+});
+
+/**
+ * Update
+ */
+export const spacesUpdate = <ThrowOnError extends boolean = false>(options: Options<SpacesUpdateData, ThrowOnError>) => (options.client ?? client).patch<SpacesUpdateResponses, SpacesUpdateErrors, ThrowOnError>({
+    responseTransformer: spacesUpdateResponseTransformer,
+    url: '/api/v1/spaces/{space_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Archive
+ */
+export const spacesArchive = <ThrowOnError extends boolean = false>(options: Options<SpacesArchiveData, ThrowOnError>) => (options.client ?? client).post<SpacesArchiveResponses, SpacesArchiveErrors, ThrowOnError>({
+    responseTransformer: spacesArchiveResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/archive',
+    ...options
+});
+
+/**
+ * Unarchive
+ */
+export const spacesUnarchive = <ThrowOnError extends boolean = false>(options: Options<SpacesUnarchiveData, ThrowOnError>) => (options.client ?? client).post<SpacesUnarchiveResponses, SpacesUnarchiveErrors, ThrowOnError>({
+    responseTransformer: spacesUnarchiveResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/unarchive',
+    ...options
+});
+
+/**
+ * Regenerate Join Code
+ */
+export const spacesRegenerateJoinCode = <ThrowOnError extends boolean = false>(options: Options<SpacesRegenerateJoinCodeData, ThrowOnError>) => (options.client ?? client).post<SpacesRegenerateJoinCodeResponses, SpacesRegenerateJoinCodeErrors, ThrowOnError>({
+    responseTransformer: spacesRegenerateJoinCodeResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/join-code',
+    ...options
+});
+
+/**
+ * Duplicate
+ */
+export const spacesDuplicate = <ThrowOnError extends boolean = false>(options: Options<SpacesDuplicateData, ThrowOnError>) => (options.client ?? client).post<SpacesDuplicateResponses, SpacesDuplicateErrors, ThrowOnError>({
+    responseTransformer: spacesDuplicateResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/duplicate',
+    ...options
+});
+
+/**
+ * Enter Edit Mode
+ */
+export const spacesEnterEditMode = <ThrowOnError extends boolean = false>(options: Options<SpacesEnterEditModeData, ThrowOnError>) => (options.client ?? client).post<SpacesEnterEditModeResponses, SpacesEnterEditModeErrors, ThrowOnError>({
+    responseTransformer: spacesEnterEditModeResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/draft',
+    ...options
+});
+
+/**
+ * Discard Draft
+ */
+export const spacesDiscardDraft = <ThrowOnError extends boolean = false>(options: Options<SpacesDiscardDraftData, ThrowOnError>) => (options.client ?? client).post<SpacesDiscardDraftResponses, SpacesDiscardDraftErrors, ThrowOnError>({
+    responseTransformer: spacesDiscardDraftResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/draft/discard',
+    ...options
+});
+
+/**
+ * Publish
+ */
+export const spacesPublish = <ThrowOnError extends boolean = false>(options: Options<SpacesPublishData, ThrowOnError>) => (options.client ?? client).post<SpacesPublishResponses, SpacesPublishErrors, ThrowOnError>({
+    responseTransformer: spacesPublishResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/draft/publish',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Reorder Draft
+ */
+export const spacesReorderDraft = <ThrowOnError extends boolean = false>(options: Options<SpacesReorderDraftData, ThrowOnError>) => (options.client ?? client).put<SpacesReorderDraftResponses, SpacesReorderDraftErrors, ThrowOnError>({
+    responseTransformer: spacesReorderDraftResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/draft/order',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Add Section
+ */
+export const spacesAddSection = <ThrowOnError extends boolean = false>(options: Options<SpacesAddSectionData, ThrowOnError>) => (options.client ?? client).post<SpacesAddSectionResponses, SpacesAddSectionErrors, ThrowOnError>({
+    responseTransformer: spacesAddSectionResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/sections',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Section
+ */
+export const spacesDeleteSection = <ThrowOnError extends boolean = false>(options: Options<SpacesDeleteSectionData, ThrowOnError>) => (options.client ?? client).delete<SpacesDeleteSectionResponses, SpacesDeleteSectionErrors, ThrowOnError>({
+    responseTransformer: spacesDeleteSectionResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/sections/{section_id}',
+    ...options
+});
+
+/**
+ * Rename Section
+ */
+export const spacesRenameSection = <ThrowOnError extends boolean = false>(options: Options<SpacesRenameSectionData, ThrowOnError>) => (options.client ?? client).patch<SpacesRenameSectionResponses, SpacesRenameSectionErrors, ThrowOnError>({
+    responseTransformer: spacesRenameSectionResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/sections/{section_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create Item
+ */
+export const spacesCreateItem = <ThrowOnError extends boolean = false>(options: Options<SpacesCreateItemData, ThrowOnError>) => (options.client ?? client).post<SpacesCreateItemResponses, SpacesCreateItemErrors, ThrowOnError>({
+    url: '/api/v1/spaces/{space_id}/items',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Copy Item
+ *
+ * Copy a personal note or test into the course.
+ */
+export const spacesCopyItem = <ThrowOnError extends boolean = false>(options: Options<SpacesCopyItemData, ThrowOnError>) => (options.client ?? client).post<SpacesCopyItemResponses, SpacesCopyItemErrors, ThrowOnError>({
+    url: '/api/v1/spaces/{space_id}/items/copy',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Item
+ */
+export const spacesDeleteItem = <ThrowOnError extends boolean = false>(options: Options<SpacesDeleteItemData, ThrowOnError>) => (options.client ?? client).delete<SpacesDeleteItemResponses, SpacesDeleteItemErrors, ThrowOnError>({
+    responseTransformer: spacesDeleteItemResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/items/{item_id}',
+    ...options
+});
+
+/**
+ * Make Item Editable
+ *
+ * The id of the note / test to edit for this item (its draft twin is made on the first call).
+ */
+export const spacesMakeItemEditable = <ThrowOnError extends boolean = false>(options: Options<SpacesMakeItemEditableData, ThrowOnError>) => (options.client ?? client).post<SpacesMakeItemEditableResponses, SpacesMakeItemEditableErrors, ThrowOnError>({ url: '/api/v1/spaces/{space_id}/items/{item_id}/draft', ...options });
+
+/**
+ * Join
+ *
+ * Join by link: active at once for PUBLIC / UNLISTED, a request for PRIVATE.
+ */
+export const spacesJoin = <ThrowOnError extends boolean = false>(options: Options<SpacesJoinData, ThrowOnError>) => (options.client ?? client).post<SpacesJoinResponses, SpacesJoinErrors, ThrowOnError>({
+    responseTransformer: spacesJoinResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/join',
+    ...options
+});
+
+/**
+ * Leave
+ */
+export const spacesLeave = <ThrowOnError extends boolean = false>(options: Options<SpacesLeaveData, ThrowOnError>) => (options.client ?? client).post<SpacesLeaveResponses, SpacesLeaveErrors, ThrowOnError>({ url: '/api/v1/spaces/{space_id}/leave', ...options });
+
+/**
+ * Accept Invitation
+ */
+export const spacesAcceptInvitation = <ThrowOnError extends boolean = false>(options: Options<SpacesAcceptInvitationData, ThrowOnError>) => (options.client ?? client).post<SpacesAcceptInvitationResponses, SpacesAcceptInvitationErrors, ThrowOnError>({
+    responseTransformer: spacesAcceptInvitationResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/invitation/accept',
+    ...options
+});
+
+/**
+ * Decline Invitation
+ */
+export const spacesDeclineInvitation = <ThrowOnError extends boolean = false>(options: Options<SpacesDeclineInvitationData, ThrowOnError>) => (options.client ?? client).post<SpacesDeclineInvitationResponses, SpacesDeclineInvitationErrors, ThrowOnError>({ url: '/api/v1/spaces/{space_id}/invitation/decline', ...options });
+
+/**
+ * List Members
+ */
+export const spacesListMembers = <ThrowOnError extends boolean = false>(options: Options<SpacesListMembersData, ThrowOnError>) => (options.client ?? client).get<SpacesListMembersResponses, SpacesListMembersErrors, ThrowOnError>({
+    responseTransformer: spacesListMembersResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/members',
+    ...options
+});
+
+/**
+ * Invite
+ */
+export const spacesInvite = <ThrowOnError extends boolean = false>(options: Options<SpacesInviteData, ThrowOnError>) => (options.client ?? client).post<SpacesInviteResponses, SpacesInviteErrors, ThrowOnError>({
+    url: '/api/v1/spaces/{space_id}/members',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Approve Request
+ */
+export const spacesApproveRequest = <ThrowOnError extends boolean = false>(options: Options<SpacesApproveRequestData, ThrowOnError>) => (options.client ?? client).post<SpacesApproveRequestResponses, SpacesApproveRequestErrors, ThrowOnError>({ url: '/api/v1/spaces/{space_id}/members/{user_id}/approve', ...options });
+
+/**
+ * Remove Member
+ *
+ * Remove a member, deny a request or cancel an invitation.
+ */
+export const spacesRemoveMember = <ThrowOnError extends boolean = false>(options: Options<SpacesRemoveMemberData, ThrowOnError>) => (options.client ?? client).delete<SpacesRemoveMemberResponses, SpacesRemoveMemberErrors, ThrowOnError>({ url: '/api/v1/spaces/{space_id}/members/{user_id}', ...options });
+
+/**
+ * Set Member Role
+ */
+export const spacesSetMemberRole = <ThrowOnError extends boolean = false>(options: Options<SpacesSetMemberRoleData, ThrowOnError>) => (options.client ?? client).patch<SpacesSetMemberRoleResponses, SpacesSetMemberRoleErrors, ThrowOnError>({
+    url: '/api/v1/spaces/{space_id}/members/{user_id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',

@@ -16,13 +16,14 @@ from app.services.access_service import AccessLevel, get_note_or_404, get_test_o
 from app.services.versioning_service import version_test_if_needed
 
 
-def get_test(db: Session, *, test_id: str, current_user: User, level: AccessLevel = AccessLevel.READ) -> Test:
+def get_test(db: Session, *, test_id: str, current_user: User, level: AccessLevel = AccessLevel.AUTHOR) -> Test:
+    """AUTHOR by default: the full test has the answer key. Members of a space use `get_takeable_test`."""
     return get_test_or_404(db, test_id=test_id, current_user=current_user, level=level)
 
 
 def get_takeable_test(db: Session, *, test_id: str, current_user: User) -> Test:
     """Fetch a test for an exam (start or submit). A draft is not published content: 409."""
-    test = get_test(db, test_id=test_id, current_user=current_user)
+    test = get_test(db, test_id=test_id, current_user=current_user, level=AccessLevel.READ)
     if test.is_draft:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Draft tests can not be taken")
     return test

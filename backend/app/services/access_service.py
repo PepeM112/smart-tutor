@@ -29,6 +29,9 @@ from app.models.user import User
 class AccessLevel(IntEnum):
     READ = 1
     EDIT = 2
+    # Read the full content of space content, answer keys included: OWNER / EDITOR only.
+    # Members read tests through `/exam` (no answers), so READ alone must not show the answers.
+    AUTHOR = 3
 
 
 _EDIT_ROLES = frozenset({SpaceRole.OWNER, SpaceRole.EDITOR})
@@ -74,12 +77,15 @@ def can_access_space_content(
     """The permission matrix for one row of space content. Pure function (no DB).
 
     READ: any role. Drafts only for OWNER / EDITOR.
+    AUTHOR: OWNER / EDITOR, any row, also in an archived space (it only reads).
     EDIT: OWNER / EDITOR, on a draft only (published rows change through publish), in an ACTIVE space.
     """
     if role is None:
         return False
     if level == AccessLevel.READ:
         return not is_draft or role in _EDIT_ROLES
+    if level == AccessLevel.AUTHOR:
+        return role in _EDIT_ROLES
     return role in _EDIT_ROLES and is_draft and space_status == SpaceStatus.ACTIVE
 
 

@@ -54,8 +54,9 @@ def _validate_stored_content(new_type: QuestionType, raw_content: dict[str, obje
 
 
 def get_question(
-    db: Session, *, question_id: str, current_user: User, level: AccessLevel = AccessLevel.READ
+    db: Session, *, question_id: str, current_user: User, level: AccessLevel = AccessLevel.AUTHOR
 ) -> Question:
+    # AUTHOR by default: a question carries its answer key, so a course member (VIEWER) must not read it.
     # A deleted question is treated as missing: it must not be updated, assigned or checked.
     return get_question_or_404(db, question_id=question_id, current_user=current_user, level=level)
 

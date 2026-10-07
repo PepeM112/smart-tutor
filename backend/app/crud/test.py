@@ -95,9 +95,23 @@ def list_by_user(
 
 
 def create(
-    db: Session, *, user_id: str, title: str, description: str | None, source_note_id: str | None = None
+    db: Session,
+    *,
+    user_id: str,
+    title: str,
+    description: str | None,
+    source_note_id: str | None = None,
+    space_id: str | None = None,
+    is_draft: bool = False,
 ) -> Test:
-    test = Test(user_id=user_id, title=title, description=description, source_note_id=source_note_id)
+    test = Test(
+        user_id=user_id,
+        title=title,
+        description=description,
+        source_note_id=source_note_id,
+        space_id=space_id,
+        is_draft=is_draft,
+    )
     db.add(test)
     db.flush()
     return test

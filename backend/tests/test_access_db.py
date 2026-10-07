@@ -212,13 +212,42 @@ class TestNoteAccess:
 
 
 class TestTestAndQuestionAccess:
-    def test_viewer_reads_published_test_and_question(self, db_session: Session, owner: User, course: Space) -> None:
+    def test_viewer_takes_a_published_test(self, db_session: Session, owner: User, course: Space) -> None:
         viewer = _member(db_session, course, SpaceRole.VIEWER)
+        test = new_test(db_session, user=owner, space=course)
+
+        assert test_service.get_takeable_test(db_session, test_id=test.id, current_user=viewer) is test
+
+    def test_viewer_can_not_read_the_answer_key(self, db_session: Session, owner: User, course: Space) -> None:
+        """P1-2: the full test and question have the answers. Viewers use `/exam` (AUTHOR level)."""
+        viewer = _member(db_session, course, SpaceRole.VIEWER)
+        test = new_test(db_session, user=owner, space=course)
+        question_id = test.questions[0].id
+
+        assert _status_code(test_service.get_test, db_session, test_id=test.id, current_user=viewer) == 403
+        assert (
+            _status_code(question_service.get_question, db_session, question_id=question_id, current_user=viewer) == 403
+        )
+        assert (
+            _status_code(
+                question_service.check_question,
+                db_session,
+                question_id=question_id,
+                current_user=viewer,
+                user_answer="ir",
+            )
+            == 403
+        )
+
+    def test_editor_reads_the_answer_key_of_a_published_test(
+        self, db_session: Session, owner: User, course: Space
+    ) -> None:
+        editor = _member(db_session, course, SpaceRole.EDITOR)
         test = new_test(db_session, user=owner, space=course)
         question = test.questions[0]
 
-        assert test_service.get_test(db_session, test_id=test.id, current_user=viewer) is test
-        assert question_service.get_question(db_session, question_id=question.id, current_user=viewer) is question
+        assert test_service.get_test(db_session, test_id=test.id, current_user=editor) is test
+        assert question_service.get_question(db_session, question_id=question.id, current_user=editor) is question
 
     def test_viewer_can_not_see_a_draft_test(self, db_session: Session, owner: User, course: Space) -> None:
         viewer = _member(db_session, course, SpaceRole.VIEWER)
@@ -262,15 +291,15 @@ class TestTestAndQuestionAccess:
     def test_check_does_not_add_srs_state_for_a_space_question(
         self, db_session: Session, owner: User, course: Space
     ) -> None:
-        viewer = _member(db_session, course, SpaceRole.VIEWER)
+        editor = _member(db_session, course, SpaceRole.EDITOR)
         question = new_test(db_session, user=owner, space=course).questions[0]
 
         result = question_service.check_question(
-            db_session, question_id=question.id, current_user=viewer, user_answer="ir"
+            db_session, question_id=question.id, current_user=editor, user_answer="ir"
         )
 
         assert result.srs_state is None
-        assert db_session.scalars(select(UserQuestionState).where(UserQuestionState.user_id == viewer.id)).all() == []
+        assert db_session.scalars(select(UserQuestionState).where(UserQuestionState.user_id == editor.id)).all() == []
 
 
 # ---------------------------------------------------------------------------

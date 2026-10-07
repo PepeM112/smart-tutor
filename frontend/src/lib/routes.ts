@@ -25,6 +25,9 @@ export const Routes = {
 
   TRASH: '/trash',
 
+  COURSES: '/courses',
+  COURSE_JOIN: (code: string) => `/courses/join/${code}`,
+
   SETTINGS: '/settings',
 
   SANDBOX: '/sandbox',
@@ -48,6 +51,13 @@ export function noteHref(note: { id: string; title: string }): string {
  */
 export function folderHref(folder: { id: string; name: string }): string {
   return `/files/${buildSlug(folder.name)}-${folder.id}`;
+}
+
+/**
+ * Build a canonical course URL: `/courses/<slug>-<id>`.
+ */
+export function courseHref(course: { id: string; title: string }): string {
+  return `/courses/${buildSlug(course.title)}-${course.id}`;
 }
 
 /**

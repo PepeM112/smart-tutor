@@ -931,6 +931,21 @@ export const LongTextLengthSchema = {
     ]
 } as const;
 
+export const MemberStatusSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3
+    ],
+    title: 'MemberStatus',
+    'x-enum-varnames': [
+        'INVITED',
+        'REQUESTED',
+        'ACTIVE'
+    ]
+} as const;
+
 export const MultipleChoiceContentSchema = {
     properties: {
         options: {
@@ -1296,6 +1311,22 @@ export const NoteReadSchema = {
             type: 'string',
             format: 'date-time',
             title: 'Updatedat'
+        },
+        spaceId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Spaceid'
+        },
+        isDraft: {
+            type: 'boolean',
+            title: 'Isdraft',
+            default: false
         }
     },
     type: 'object',
@@ -1451,6 +1482,40 @@ export const PaginatedResponse_QuestionListRead_Schema = {
         'perPage'
     ],
     title: 'PaginatedResponse[QuestionListRead]'
+} as const;
+
+export const PaginatedResponse_SpaceSummary_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/SpaceSummary'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        page: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Page'
+        },
+        perPage: {
+            type: 'integer',
+            minimum: 1,
+            title: 'Perpage'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'page',
+        'perPage'
+    ],
+    title: 'PaginatedResponse[SpaceSummary]'
 } as const;
 
 export const PaginatedResponse_TestRead_Schema = {
@@ -2399,6 +2464,904 @@ export const SimpleContentStrippedSchema = {
     title: 'SimpleContentStripped'
 } as const;
 
+export const SpaceCreateSchema = {
+    properties: {
+        title: {
+            type: 'string',
+            maxLength: 200,
+            minLength: 1,
+            title: 'Title'
+        },
+        description: {
+            type: 'string',
+            maxLength: 5000,
+            title: 'Description',
+            default: ''
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
+        },
+        visibility: {
+            $ref: '#/components/schemas/SpaceVisibility',
+            default: 1
+        }
+    },
+    type: 'object',
+    required: [
+        'title'
+    ],
+    title: 'SpaceCreate'
+} as const;
+
+export const SpaceDeleteConfirmSchema = {
+    properties: {
+        title: {
+            type: 'string',
+            title: 'Title'
+        }
+    },
+    type: 'object',
+    required: [
+        'title'
+    ],
+    title: 'SpaceDeleteConfirm',
+    description: 'Body of the delete-forever request: the exact title of the space.'
+} as const;
+
+export const SpaceDetailSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        kind: {
+            $ref: '#/components/schemas/SpaceKind'
+        },
+        ownerId: {
+            type: 'string',
+            title: 'Ownerid'
+        },
+        ownerName: {
+            type: 'string',
+            title: 'Ownername'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        description: {
+            type: 'string',
+            title: 'Description'
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags'
+        },
+        visibility: {
+            $ref: '#/components/schemas/SpaceVisibility'
+        },
+        status: {
+            $ref: '#/components/schemas/SpaceStatus'
+        },
+        publishedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Publishedat'
+        },
+        archivedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Archivedat'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
+        memberCount: {
+            type: 'integer',
+            title: 'Membercount'
+        },
+        myRole: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SpaceRole'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myStatus: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/MemberStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        canEdit: {
+            type: 'boolean',
+            title: 'Canedit'
+        },
+        isOwner: {
+            type: 'boolean',
+            title: 'Isowner'
+        },
+        isEditing: {
+            type: 'boolean',
+            title: 'Isediting'
+        },
+        joinCode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Joincode'
+        },
+        sections: {
+            items: {
+                $ref: '#/components/schemas/SpaceSectionRead'
+            },
+            type: 'array',
+            title: 'Sections'
+        },
+        draftSections: {
+            anyOf: [
+                {
+                    items: {
+                        $ref: '#/components/schemas/SpaceSectionRead'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Draftsections'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'kind',
+        'ownerId',
+        'ownerName',
+        'title',
+        'description',
+        'tags',
+        'visibility',
+        'status',
+        'publishedAt',
+        'archivedAt',
+        'createdAt',
+        'memberCount',
+        'myRole',
+        'myStatus',
+        'canEdit',
+        'isOwner',
+        'isEditing',
+        'joinCode',
+        'sections',
+        'draftSections'
+    ],
+    title: 'SpaceDetail',
+    description: 'One space with its structure.\n\n`sections` = the published structure (everyone with READ, and non-members of a PUBLIC /\nUNLISTED course as a preview). `draft_sections` = the draft structure, only for an\nOWNER / EDITOR while edit mode is on.'
+} as const;
+
+export const SpaceDraftOrderSchema = {
+    properties: {
+        sections: {
+            items: {
+                $ref: '#/components/schemas/SpaceSectionOrder'
+            },
+            type: 'array',
+            title: 'Sections'
+        }
+    },
+    type: 'object',
+    required: [
+        'sections'
+    ],
+    title: 'SpaceDraftOrder',
+    description: 'The full order of the draft structure: every draft section, each with all its draft items.'
+} as const;
+
+export const SpaceInviteSchema = {
+    properties: {
+        identifier: {
+            type: 'string',
+            maxLength: 320,
+            minLength: 1,
+            title: 'Identifier'
+        }
+    },
+    type: 'object',
+    required: [
+        'identifier'
+    ],
+    title: 'SpaceInvite',
+    description: 'Invite an existing user by username or email.'
+} as const;
+
+export const SpaceItemContentSchema = {
+    properties: {
+        noteId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Noteid'
+        },
+        testId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Testid'
+        }
+    },
+    type: 'object',
+    required: [
+        'noteId',
+        'testId'
+    ],
+    title: 'SpaceItemContent',
+    description: 'The id of the content row the author edits for an item (the draft twin, or the new draft).'
+} as const;
+
+export const SpaceItemCopySchema = {
+    properties: {
+        sectionId: {
+            type: 'string',
+            title: 'Sectionid'
+        },
+        noteId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Noteid'
+        },
+        testId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Testid'
+        }
+    },
+    type: 'object',
+    required: [
+        'sectionId'
+    ],
+    title: 'SpaceItemCopy',
+    description: 'Copy a personal note or test into a section (a new row, no link to the original).'
+} as const;
+
+export const SpaceItemCreateSchema = {
+    properties: {
+        sectionId: {
+            type: 'string',
+            title: 'Sectionid'
+        },
+        kind: {
+            type: 'integer',
+            enum: [
+                1,
+                2
+            ],
+            title: 'Kind'
+        },
+        title: {
+            type: 'string',
+            maxLength: 200,
+            minLength: 1,
+            title: 'Title'
+        }
+    },
+    type: 'object',
+    required: [
+        'sectionId',
+        'kind',
+        'title'
+    ],
+    title: 'SpaceItemCreate',
+    description: 'A new, empty note or test in a section.'
+} as const;
+
+export const SpaceItemKindSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3
+    ],
+    title: 'SpaceItemKind',
+    'x-enum-varnames': [
+        'NOTE',
+        'TEST',
+        'COURSE'
+    ]
+} as const;
+
+export const SpaceItemReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        sectionId: {
+            type: 'string',
+            title: 'Sectionid'
+        },
+        kind: {
+            $ref: '#/components/schemas/SpaceItemKind'
+        },
+        noteId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Noteid'
+        },
+        testId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Testid'
+        },
+        position: {
+            type: 'integer',
+            title: 'Position'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        isDraft: {
+            type: 'boolean',
+            title: 'Isdraft'
+        },
+        draftOfId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Draftofid'
+        },
+        hasChanges: {
+            type: 'boolean',
+            title: 'Haschanges',
+            default: false
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'sectionId',
+        'kind',
+        'noteId',
+        'testId',
+        'position',
+        'title',
+        'isDraft',
+        'draftOfId'
+    ],
+    title: 'SpaceItemRead'
+} as const;
+
+export const SpaceJoinByCodeSchema = {
+    properties: {
+        code: {
+            type: 'string',
+            maxLength: 32,
+            minLength: 1,
+            title: 'Code'
+        }
+    },
+    type: 'object',
+    required: [
+        'code'
+    ],
+    title: 'SpaceJoinByCode'
+} as const;
+
+export const SpaceKindSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2
+    ],
+    title: 'SpaceKind',
+    'x-enum-varnames': [
+        'COURSE',
+        'CLASSROOM'
+    ]
+} as const;
+
+export const SpaceMemberReadSchema = {
+    properties: {
+        userId: {
+            type: 'string',
+            title: 'Userid'
+        },
+        username: {
+            type: 'string',
+            title: 'Username'
+        },
+        displayName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Displayname'
+        },
+        role: {
+            $ref: '#/components/schemas/SpaceRole'
+        },
+        status: {
+            $ref: '#/components/schemas/MemberStatus'
+        },
+        joinedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Joinedat'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        }
+    },
+    type: 'object',
+    required: [
+        'userId',
+        'username',
+        'displayName',
+        'role',
+        'status',
+        'joinedAt',
+        'createdAt'
+    ],
+    title: 'SpaceMemberRead'
+} as const;
+
+export const SpaceMemberRoleUpdateSchema = {
+    properties: {
+        role: {
+            type: 'integer',
+            enum: [
+                2,
+                3
+            ],
+            title: 'Role'
+        }
+    },
+    type: 'object',
+    required: [
+        'role'
+    ],
+    title: 'SpaceMemberRoleUpdate',
+    description: 'OWNER is never stored on a member row (see `space_member`).'
+} as const;
+
+export const SpacePublishRequestSchema = {
+    properties: {
+        message: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 2000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Message'
+        },
+        notifyMembers: {
+            type: 'boolean',
+            title: 'Notifymembers',
+            default: false
+        },
+        resetItemIds: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Resetitemids',
+            default: []
+        }
+    },
+    type: 'object',
+    title: 'SpacePublishRequest'
+} as const;
+
+export const SpaceRoleSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3
+    ],
+    title: 'SpaceRole',
+    'x-enum-varnames': [
+        'OWNER',
+        'EDITOR',
+        'VIEWER'
+    ]
+} as const;
+
+export const SpaceSectionCreateSchema = {
+    properties: {
+        title: {
+            type: 'string',
+            maxLength: 200,
+            minLength: 1,
+            title: 'Title'
+        }
+    },
+    type: 'object',
+    required: [
+        'title'
+    ],
+    title: 'SpaceSectionCreate'
+} as const;
+
+export const SpaceSectionOrderSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        itemIds: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Itemids'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'itemIds'
+    ],
+    title: 'SpaceSectionOrder'
+} as const;
+
+export const SpaceSectionReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        position: {
+            type: 'integer',
+            title: 'Position'
+        },
+        isDraft: {
+            type: 'boolean',
+            title: 'Isdraft'
+        },
+        draftOfId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Draftofid'
+        },
+        items: {
+            items: {
+                $ref: '#/components/schemas/SpaceItemRead'
+            },
+            type: 'array',
+            title: 'Items'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'title',
+        'position',
+        'isDraft',
+        'draftOfId',
+        'items'
+    ],
+    title: 'SpaceSectionRead'
+} as const;
+
+export const SpaceSectionUpdateSchema = {
+    properties: {
+        title: {
+            type: 'string',
+            maxLength: 200,
+            minLength: 1,
+            title: 'Title'
+        }
+    },
+    type: 'object',
+    required: [
+        'title'
+    ],
+    title: 'SpaceSectionUpdate'
+} as const;
+
+export const SpaceStatusSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2
+    ],
+    title: 'SpaceStatus',
+    'x-enum-varnames': [
+        'ACTIVE',
+        'ARCHIVED'
+    ]
+} as const;
+
+export const SpaceSummarySchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        kind: {
+            $ref: '#/components/schemas/SpaceKind'
+        },
+        ownerId: {
+            type: 'string',
+            title: 'Ownerid'
+        },
+        ownerName: {
+            type: 'string',
+            title: 'Ownername'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        description: {
+            type: 'string',
+            title: 'Description'
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags'
+        },
+        visibility: {
+            $ref: '#/components/schemas/SpaceVisibility'
+        },
+        status: {
+            $ref: '#/components/schemas/SpaceStatus'
+        },
+        publishedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Publishedat'
+        },
+        archivedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Archivedat'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
+        memberCount: {
+            type: 'integer',
+            title: 'Membercount'
+        },
+        myRole: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SpaceRole'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myStatus: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/MemberStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'kind',
+        'ownerId',
+        'ownerName',
+        'title',
+        'description',
+        'tags',
+        'visibility',
+        'status',
+        'publishedAt',
+        'archivedAt',
+        'createdAt',
+        'memberCount',
+        'myRole',
+        'myStatus'
+    ],
+    title: 'SpaceSummary',
+    description: 'A space in a list (my courses, catalog, invitations).'
+} as const;
+
+export const SpaceUpdateSchema = {
+    properties: {
+        title: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 200,
+                    minLength: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Title'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 5000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        tags: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Tags'
+        },
+        visibility: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SpaceVisibility'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    title: 'SpaceUpdate'
+} as const;
+
+export const SpaceVisibilitySchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3
+    ],
+    title: 'SpaceVisibility',
+    'x-enum-varnames': [
+        'PRIVATE',
+        'UNLISTED',
+        'PUBLIC'
+    ]
+} as const;
+
 export const TestCreateSchema = {
     properties: {
         title: {
@@ -2761,6 +3724,22 @@ export const TestReadSchema = {
                 }
             ],
             title: 'Parentid'
+        },
+        spaceId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Spaceid'
+        },
+        isDraft: {
+            type: 'boolean',
+            title: 'Isdraft',
+            default: false
         },
         createdAt: {
             type: 'string',

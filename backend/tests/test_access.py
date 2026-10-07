@@ -18,6 +18,9 @@ def _expected(role: SpaceRole | None, space_status: SpaceStatus, is_draft: bool,
     if level == AccessLevel.READ:
         # A VIEWER sees published rows only. Archived spaces stay readable.
         return role in _EDIT_ROLES or not is_draft
+    if level == AccessLevel.AUTHOR:
+        # The answer keys: OWNER / EDITOR only, any row, archived too (it only reads).
+        return role in _EDIT_ROLES
     # EDIT: only drafts, only OWNER / EDITOR, never in an archived space.
     return role in _EDIT_ROLES and is_draft and space_status == SpaceStatus.ACTIVE
 

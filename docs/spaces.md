@@ -6,7 +6,7 @@ A **space** is a shared learning area. There are two kinds:
 
 Personal content (notes, tests, questions, folders, Trash, SRS) does not change. Space content is a separate scope: `space_id IS NOT NULL`.
 
-> **Status:** M1 (ST-66) is done: the schema foundation and the access layer. There are no space endpoints and no UI yet. The sections marked *planned* come in later milestones (M2 Courses, M3 Progress, M4 Classrooms, M5 Feed and notifications).
+> **Status:** M1 and M2 (ST-66) are done: the schema foundation, the access layer, and standalone courses end to end (API + UI). The sections marked *planned* come in later milestones (M3 Progress, M4 Classrooms, M5 Feed and notifications).
 
 ---
 
@@ -90,7 +90,10 @@ Every single-row load of a note, test or question goes through this module. `get
 | Level | Rule |
 |---|---|
 | READ | any role. A draft only for OWNER / EDITOR |
+| AUTHOR | OWNER / EDITOR, any row, also in an archived space (read-only level) |
 | EDIT | OWNER / EDITOR, a draft row only, and an ACTIVE space |
+
+AUTHOR protects the answer key. A VIEWER can read a published note, but not the questions of a test: `GET /tests/{id}`, `GET /questions/{id}`, `POST /questions/{id}/check` and the AI test read tools need AUTHOR for space content. Viewers take a test through `/tests/{id}/exam`, which hides the answers.
 
 Personal content (`space_id IS NULL`): only the user with `user_id` has access, at both levels (the same as before).
 
@@ -118,9 +121,79 @@ Personal content (`space_id IS NULL`): only the user with `user_id` has access, 
 
 ---
 
+## Courses (M2)
+
+### Schema
+| Table | Columns | Notes |
+|---|---|---|
+| `space_section` | `space_id`, `title`, `position`, `is_draft`, `draft_of_id` → `space_section` | the sections of a course |
+| `space_item` | `space_id`, `section_id`, `kind`, `note_id` / `test_id` / `child_space_id`, `position`, `is_draft`, `draft_of_id` → `space_item` | `SpaceItemKind`: NOTE=1, TEST=2, COURSE=3. CHECK: only the target of its kind is set. The API refuses COURSE (M4) |
+| `space_publish` | `space_id`, `published_by`, `message`, `notify_members`, `reset_item_ids` (JSONB) | one log row per publish |
+| `space.draft_started_at` | DateTime, NULL | edit mode is on. A flag, because edit mode with zero draft sections is a valid state |
+
+All FKs to `space` and to the parent rows are `ON DELETE CASCADE`.
+
+### Roles in a course
+- **Owner:** edits the metadata (title, description, tags, visibility), manages members (invite, approve, deny, set role, remove), archives, unarchives, deletes forever, regenerates the join code.
+- **Author** (owner or EDITOR): edit mode, structure, content, publish, discard, duplicate, sees the join code and the member list.
+- **Member** (any ACTIVE role): reads the published structure and content.
+- **Non-member:** sees a preview (structure, no content) of a published PUBLIC or UNLISTED course. A pending row (INVITED or REQUESTED) shows the metadata. Else 403.
+
+### Draft engine (`services/space_draft_service.py`)
+Members see only published rows. Authors change a course in **edit mode**:
+1. **Enter edit mode** (`POST /draft`): clone the published sections and items as draft rows (`draft_of_id` → the published row). A new course starts in edit mode.
+2. **Structure:** add, rename and delete draft sections; delete draft items; `PUT /draft/order` sends the full order (every section and every item id, once).
+3. **Content:**
+   - `POST /items` creates a new empty note or test (`is_draft = true`, `draft_of_id = NULL`).
+   - `POST /items/copy` copies a personal note or test in. It gets new ids and no link to the original (no `source_note_id`, no `origin_id`).
+   - A draft item of a published item points to the **published** content. `POST /items/{id}/draft` makes the content twin lazily (`draft_of_id` → the published note or test) and returns the id to edit. The next calls return the same twin.
+4. **Publish** (`POST /draft/publish`):
+   - Sections and items: a twin updates its published row in place, a new draft row becomes published, a published row with no draft is deleted.
+   - A twin note is copied into the published note (`version + 1`, `is_indexed = false`). The note id does not change, so links to it (for example `source_note_id` of a personal test) still work.
+   - A twin test: `version_test_if_needed` freezes the old results, the old questions and groups are marked DELETED, and the twin's questions and groups move to the published test. The test id does not change.
+   - Content of removed items: notes are hard-deleted, tests are soft-deleted (the results stay).
+   - The remaining draft rows are deleted, `published_at = now`, `draft_started_at = NULL`, and a `space_publish` row is written.
+5. **Discard** (`POST /draft/discard`): delete all draft rows and draft content. The published state does not change.
+
+`notify_members` (M5) and `reset_item_ids` (M3) are stored only: the notification and completion tables do not exist yet. `reset_item_ids` takes draft item ids and stores them as published item ids.
+
+### Visibility and joining
+| | PUBLIC | UNLISTED | PRIVATE |
+|---|---|---|---|
+| In the catalog | yes | no | no |
+| Join by link (`POST /{id}/join`) | ACTIVE at once | ACTIVE at once | a REQUESTED row that the owner approves |
+| Join by code (`POST /join`) | ACTIVE | ACTIVE | ACTIVE (the code is the secret) |
+
+- A course that was never published, or is archived, takes no joins (409).
+- An invitation (by username or email) makes an INVITED row: the user accepts or declines.
+- Leave removes the own row (also a pending request). The owner can not leave.
+- Archived: read-only for all users. Members keep access. The owner can still remove members, unarchive and delete forever.
+- **Delete forever** needs the exact title in the body (400 otherwise). It deletes the test children through the ORM first (answers, SRS state, results, questions, groups, tests including frozen copies). Personal tests made from a course note survive (`source_note_id → NULL`).
+- **Duplicate** copies the published content only, into a new course of the current user in edit mode. No members, results, progress or drafts.
+
+### Endpoints (`/api/v1/spaces`, tag `spaces`)
+| Group | Endpoints |
+|---|---|
+| Lists | `GET ""` (my courses), `GET /catalog` (search, sort `newest` / `members`, page), `GET /invitations` |
+| Course | `POST ""`, `GET /{id}`, `PATCH /{id}`, `DELETE /{id}` (delete forever), `POST /{id}/archive`, `/unarchive`, `/join-code`, `/duplicate` |
+| Edit mode | `POST /{id}/draft`, `/draft/discard`, `/draft/publish`, `PUT /{id}/draft/order` |
+| Structure | `POST /{id}/sections`, `PATCH` / `DELETE /{id}/sections/{sid}`, `POST /{id}/items`, `/items/copy`, `DELETE /{id}/items/{iid}`, `POST /{id}/items/{iid}/draft` |
+| Membership | `POST /join` (code), `POST /{id}/join`, `/leave`, `/invitation/accept`, `/invitation/decline` |
+| Members | `GET` / `POST /{id}/members`, `POST /{id}/members/{uid}/approve`, `PATCH` / `DELETE /{id}/members/{uid}` |
+
+Most writes return the new `SpaceDetail`, so the frontend replaces its cache with no refetch.
+
+### Frontend (`src/features/courses/`)
+- `/courses`: My courses, Catalog, Invitations. Create and Join with code in the header.
+- `/courses/[slug-id]`: header with membership actions, then Content / Members / Settings tabs for authors, and the published outline for members.
+- `/courses/join/[code]`: the join link. The user confirms with a click, so a link preview never adds a membership.
+- Edit mode: up / down buttons reorder sections and items. At the edge of a section an item moves to the next section (`lib/draftOrder.ts`).
+- Note page: a published course note is read-only (`CourseNoteView`). A draft course note uses the normal editor, with a course breadcrumb and no favorite or move actions.
+
+---
+
 ## Planned
 
-- **M2 Courses:** CRUD, sections and items, "Add from my library" (copy), Edit mode + Publish (draft twins), visibility and joining, public catalog, archive and delete forever, duplicate.
 - **M3 Progress:** completion per item, attempt policy for course tests, test variants, student AI / RAG on joined spaces, SRS scope.
 - **M4 Classrooms:** tabs, classroom courses, due dates, co-teachers, gradebook, grade override, Class AI key.
 - **M5 Feed and notifications:** plain-text posts and comments, in-app bell with polling.

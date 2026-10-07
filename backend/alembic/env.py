@@ -14,7 +14,10 @@ from app.models.note import Note  # noqa: F401
 from app.models.note_chunk import NoteChunk  # noqa: F401
 from app.models.question import Question  # noqa: F401
 from app.models.space import Space  # noqa: F401
+from app.models.space_item import SpaceItem  # noqa: F401
 from app.models.space_member import SpaceMember  # noqa: F401
+from app.models.space_publish import SpacePublish  # noqa: F401
+from app.models.space_section import SpaceSection  # noqa: F401
 from app.models.test import Test  # noqa: F401
 from app.models.test_question_group import TestQuestionGroup  # noqa: F401
 from app.models.test_result import TestResult  # noqa: F401

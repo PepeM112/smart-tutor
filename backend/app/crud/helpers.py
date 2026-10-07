@@ -3,7 +3,8 @@ from typing import TypeAlias
 from sqlalchemy import ColumnElement, and_, or_, true
 from sqlalchemy.orm import InstrumentedAttribute
 
-_TextColumn: TypeAlias = InstrumentedAttribute[str] | InstrumentedAttribute[str | None]
+# `ColumnElement[str]`: an expression such as `cast(Space.tags, String)`.
+_TextColumn: TypeAlias = InstrumentedAttribute[str] | InstrumentedAttribute[str | None] | ColumnElement[str]
 
 
 def _escape_ilike(value: str) -> str:

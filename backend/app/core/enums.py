@@ -127,3 +127,10 @@ class MemberStatus(NamedIntEnum):
     INVITED = 1
     REQUESTED = 2
     ACTIVE = 3
+
+
+class SpaceItemKind(NamedIntEnum):
+    NOTE = 1
+    TEST = 2
+    # A course inside a classroom (M4). The course API refuses it.
+    COURSE = 3

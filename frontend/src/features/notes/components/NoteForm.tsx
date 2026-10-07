@@ -10,6 +10,7 @@ import { useAssistCoversPage } from '@/features/assist/hooks/useAssistCoversPage
 import { useAssistAttachmentsStore } from '@/features/assist/store/useAssistAttachmentsStore';
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
 import { useAssistPanelStore } from '@/features/assist/store/useAssistPanelStore';
+import { CourseNoteBreadcrumb } from '@/features/courses/components/CourseNoteBreadcrumb';
 import { FileBreadcrumb } from '@/features/files/components/FileBreadcrumb';
 import { FilePageShell } from '@/features/files/components/FilePageShell';
 import { MoveDialog } from '@/features/files/components/MoveDialog';
@@ -138,14 +139,21 @@ export function NoteForm({ note }: { note: NoteRead }) {
     else clearPendingNoteDiff();
   }
 
+  // A draft course note: the title is edited in the body, and folders and favorites do not apply.
+  const courseId = note.spaceId ?? null;
+
   return (
     <FilePageShell
       breadcrumb={
-        <FileBreadcrumb
-          path={folderPath}
-          current={{ kind: 'note', id: note.id, name: title, parentId: note.folderId }}
-          onRename={handleRename}
-        />
+        courseId ? (
+          <CourseNoteBreadcrumb courseId={courseId} noteTitle={title} />
+        ) : (
+          <FileBreadcrumb
+            path={folderPath}
+            current={{ kind: 'note', id: note.id, name: title, parentId: note.folderId }}
+            onRename={handleRename}
+          />
+        )
       }
       actions={
         <NoteHeaderActions
@@ -154,6 +162,7 @@ export function NoteForm({ note }: { note: NoteRead }) {
           status={status}
           onRetry={() => void flush()}
           onMove={() => setMoveOpen(true)}
+          showFileActions={courseId === null}
           showWidthToggle={isDesktop}
           isFullWidth={isFullWidth}
           onToggleWidth={toggleWidth}
