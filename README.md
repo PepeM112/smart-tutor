@@ -227,4 +227,6 @@ Detailed documentation lives in [`docs/`](docs/):
 
 ## License
 
-This project is not currently licensed for public use. All rights reserved.
+Copyright (C) 2026 PepeM112
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0). If you run a modified version as a network service, you must offer its source code to the users of that service.
