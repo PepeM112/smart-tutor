@@ -60,7 +60,9 @@ export function TrashSearchRows({ query, items }: Props) {
     );
   }
 
-  return <SearchBranch parentId={null} depth={0} index={index} filter={filter} rootInfo={rootInfo} />;
+  return (
+    <SearchBranch key={query.trim()} parentId={null} depth={0} index={index} filter={filter} rootInfo={rootInfo} />
+  );
 }
 
 type BranchProps = {
@@ -109,10 +111,12 @@ function rootCells(
 type FolderRowProps = Omit<BranchProps, 'parentId'> & { folder: TrashTreeFolder };
 
 function SearchFolderRow({ folder, depth, index, filter, rootInfo }: FolderRowProps) {
-  // The user's own toggle. The search opens matches through `forcedExpanded` and never writes here.
-  const [expanded, setExpanded] = useState(false);
+  // The user's own choice, or null = follow the search (it opens the folders on the path to a match).
+  // Without the override, a click on a folder that the search opened would change nothing on screen.
+  // The parent has `key={query}`, so a new query starts with no overrides.
+  const [override, setOverride] = useState<boolean | null>(null);
   const hasChildren = hasChildItems(index, folder.id);
-  const isOpen = expanded || filter.forcedExpanded.has(folder.id);
+  const isOpen = override ?? filter.forcedExpanded.has(folder.id);
 
   return (
     <>
@@ -122,7 +126,7 @@ function SearchFolderRow({ folder, depth, index, filter, rootInfo }: FolderRowPr
         depth={depth}
         hasChildren={hasChildren}
         expanded={isOpen}
-        onToggle={() => setExpanded(open => !open)}
+        onToggle={() => setOverride(!isOpen)}
         {...rootCells(depth, rootInfo.get(`folder-${folder.id}`), folder.deletedAt)}
       />
       {isOpen && hasChildren && (

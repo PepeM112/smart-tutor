@@ -6,7 +6,6 @@ import {
   buildChildrenIndex,
   canDrop,
   filterTree,
-  folderPathNames,
   hasChildItems,
   isDescendantOrSelf,
   isDraggedItem,
@@ -272,17 +271,5 @@ describe('filterTree', () => {
     const result = filterTree(index, null, 'zzz');
     expect(result?.visibleIds.size).toBe(0);
     expect(result?.forcedExpanded.size).toBe(0);
-  });
-});
-
-// ─── folderPathNames ──────────────────────────────────────────────────────────
-
-describe('folderPathNames', () => {
-  it('returns the names from the root down to the folder', () => {
-    expect(folderPathNames(FOLDERS, 'folderB')).toEqual(['folderA', 'folderB']);
-  });
-
-  it('returns an empty list for the root', () => {
-    expect(folderPathNames(FOLDERS, null)).toEqual([]);
   });
 });

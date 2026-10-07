@@ -79,13 +79,6 @@ type SidebarNavProps = {
   onNavigate?: () => void;
 };
 
-/** The note id of a `/notes/<slug>-<id>` path, or null on any other path. */
-function activeNoteId(pathname: string): string | null {
-  if (!pathname.startsWith('/notes/')) return null;
-  const segment = pathname.split('/')[2];
-  return segment ? parseSlugId(segment) : null;
-}
-
 export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const t = useTranslations();
   const pathname = usePathname();
@@ -200,4 +193,11 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
       </div>
     </>
   );
+}
+
+/** The note id of a `/notes/<slug>-<id>` path, or null on any other path. */
+function activeNoteId(pathname: string): string | null {
+  if (!pathname.startsWith('/notes/')) return null;
+  const segment = pathname.split('/')[2];
+  return segment ? parseSlugId(segment) : null;
 }

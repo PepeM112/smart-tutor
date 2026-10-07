@@ -32,6 +32,8 @@ type ConfirmDialogProps = {
   onConfirm: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Runs when the dialog has closed and would return the focus. Call `preventDefault` to move it yourself. */
+  onCloseAutoFocus?: (event: Event) => void;
 };
 
 export function ConfirmDialog({
@@ -46,6 +48,7 @@ export function ConfirmDialog({
   onConfirm,
   open,
   onOpenChange,
+  onCloseAutoFocus,
 }: ConfirmDialogProps) {
   const t = useTranslations();
   const finalConfirmLabel = confirmLabel ?? t('common.confirm');
@@ -56,7 +59,7 @@ export function ConfirmDialog({
   return (
     <AlertDialog {...(isControlled ? { open, onOpenChange } : { onOpenChange })}>
       {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description && <AlertDialogDescription>{description}</AlertDialogDescription>}

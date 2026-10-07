@@ -22,9 +22,7 @@ export function FilePageShell({ breadcrumb, actions, search, children }: Props) 
       {/* Same top padding as PageHeader (p-4 lg:p-8); the layout gives the side padding. */}
       <div className="flex min-h-9 shrink-0 flex-wrap items-center gap-2 mt-4 mb-2 lg:mt-8 lg:mb-4 lg:flex-nowrap">
         <div className={search ? 'min-w-0 flex-1 lg:flex-none' : 'min-w-0 flex-1'}>{breadcrumb}</div>
-        {search && (
-          <div className="order-last w-full lg:order-none lg:min-w-48 lg:max-w-[600px] lg:flex-1">{search}</div>
-        )}
+        {search && <div className="order-last w-full lg:order-none lg:min-w-48 lg:max-w-150 lg:flex-1">{search}</div>}
         {actions && <div className="flex shrink-0 items-center gap-1 lg:ml-auto">{actions}</div>}
       </div>
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>

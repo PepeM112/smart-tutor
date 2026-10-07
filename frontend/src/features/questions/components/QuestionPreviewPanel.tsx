@@ -3,9 +3,9 @@
 import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { type LongTextContent, type QuestionListRead, QuestionType } from '@/client';
+import { type QuestionListRead, QuestionType } from '@/client';
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
-import { isMCContent, isSimpleContent } from '@/features/tests/utils/questionContent';
+import { isLongTextContent, isMCContent, isSimpleContent } from '@/features/tests/utils/questionContent';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
@@ -14,10 +14,6 @@ type Props = {
   question: QuestionListRead;
   onClose: () => void;
 };
-
-function isLongTextContent(content: unknown): content is LongTextContent {
-  return content != null && typeof content === 'object' && 'rubric' in content && Array.isArray(content.rubric);
-}
 
 /**
  * Read-only preview of a question. The list row already has the full content,

@@ -19,7 +19,7 @@ type Props = {
 export function FavoriteButton({ noteId, fallbackIsFavorite = false }: Props) {
   const t = useTranslations();
   const { notes } = useFileTree();
-  const { toggleFavorite } = useToggleFavorite();
+  const { toggleFavorite, isTogglingFavorite } = useToggleFavorite();
 
   const isFavorite = notes.find(n => n.id === noteId)?.isFavorite ?? fallbackIsFavorite;
   const label = isFavorite ? t('notes.remove_favorite') : t('notes.add_favorite');
@@ -31,7 +31,8 @@ export function FavoriteButton({ noteId, fallbackIsFavorite = false }: Props) {
       tooltip={label}
       aria-label={label}
       aria-pressed={isFavorite}
-      onClick={() => toggleFavorite({ id: noteId, isFavorite: !isFavorite })}
+      // Not `disabled`: the star already shows the new state, and a greyed button for ~200 ms would flash.
+      onClick={() => !isTogglingFavorite && toggleFavorite({ id: noteId, isFavorite: !isFavorite })}
     >
       <Star className={cn('size-[18px]', isFavorite && 'fill-current text-feedback-partial')} />
     </Button>

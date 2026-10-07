@@ -53,6 +53,23 @@ class TestFavorite:
         assert unstarred.is_favorite is False
         assert unstarred.favorited_at is None
 
+    def test_repeated_star_does_not_change_favorited_at(self, db_session: Session, user: User) -> None:
+        note = _note(db_session, user, "N")
+        first = note_service.set_favorite(db_session, note_id=note.id, current_user=user, is_favorite=True)
+        favorited_at = first.favorited_at
+        assert favorited_at is not None
+
+        again = note_service.set_favorite(db_session, note_id=note.id, current_user=user, is_favorite=True)
+
+        assert again.favorited_at == favorited_at
+
+    def test_repeated_unstar_is_a_no_op(self, db_session: Session, user: User) -> None:
+        note = _note(db_session, user, "N")
+
+        unstarred = note_service.set_favorite(db_session, note_id=note.id, current_user=user, is_favorite=False)
+
+        assert (unstarred.is_favorite, unstarred.favorited_at) == (False, None)
+
     def test_star_keeps_version_and_updated_at(self, db_session: Session, user: User) -> None:
         note = _note(db_session, user, "N")
         # Make `updated_at` old, so a bump to now() would be visible.
@@ -137,3 +154,45 @@ class TestContentSearch:
 
         assert "needle" in match.snippet
         assert match.snippet.startswith("…") and match.snippet.endswith("…")
+
+    def test_underscore_is_literal(self, db_session: Session, user: User) -> None:
+        _note(db_session, user, "plain", "snakeXcase")
+        _note(db_session, user, "literal", "snake_case")
+
+        matches = note_service.search_notes_content(db_session, current_user=user, query="snake_case")
+
+        assert [m.title for m in matches] == ["literal"]
+
+    def test_title_is_not_searched(self, db_session: Session, user: User) -> None:
+        _note(db_session, user, "Mitochondria", "makes energy")
+        _note(db_session, user, "Cells", "the mitochondria makes energy")
+
+        matches = note_service.search_notes_content(db_session, current_user=user, query="mitochondria")
+
+        assert [m.title for m in matches] == ["Cells"]
+
+    def test_title_matches_with_a_content_hit_come_last(self, db_session: Session, user: User) -> None:
+        _note(db_session, user, "A mitochondria", "the mitochondria makes energy")
+        _note(db_session, user, "Z cells", "the mitochondria makes energy")
+
+        matches = note_service.search_notes_content(db_session, current_user=user, query="mitochondria")
+
+        assert [m.title for m in matches] == ["Z cells", "A mitochondria"]
+
+    def test_title_matches_do_not_use_up_the_limit(self, db_session: Session, user: User) -> None:
+        # "A..." titles sort first by name. Without the title-match order they would fill the 50 slots.
+        for i in range(55):
+            _note(db_session, user, f"A needle {i:02d}", "needle")
+        _note(db_session, user, "Z", "needle")
+
+        matches = note_service.search_notes_content(db_session, current_user=user, query="needle")
+
+        assert matches[0].title == "Z"
+
+    def test_hit_only_in_markup_is_not_a_result(self, db_session: Session, user: User) -> None:
+        _note(db_session, user, "colored", 'A <span data-color="red">cell</span>')
+        _note(db_session, user, "real", "a red cell")
+
+        matches = note_service.search_notes_content(db_session, current_user=user, query="red")
+
+        assert [m.title for m in matches] == ["real"]

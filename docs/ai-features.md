@@ -145,7 +145,7 @@ Embedding generation is deferred to avoid an embedding call on every autosave ke
 
 The `search_user_notes` tool (available to the AI Assistant) embeds the query string, then finds the top-k chunks (default 5, max 10) by cosine similarity, filtered to the current user's live notes (`deleted_at IS NULL`). The Assistant receives the matched note titles and chunk text as context, which it uses to answer questions grounded in the user's own material. Trashed notes are excluded from both indexing and search — `index_note()` skips a note that is in Trash, and the chunk similarity query joins on `note` to filter trashed notes out.
 
-The Files page search does not use embeddings. Its content search (`GET /notes/search`) is a plain `ILIKE` on title and content (see [Study Notes](study-notes.md#search)).
+The Files page search does not use embeddings. Its content search (`GET /notes/search`) is a plain `ILIKE` on the note content. The title is not searched. Notes whose title does not match are listed first (see [Study Notes](study-notes.md#search)).
 
 ## Synchronous vs Asynchronous Features
 

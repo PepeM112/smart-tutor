@@ -5,10 +5,10 @@ import { useMemo, useState } from 'react';
 
 import { type TrashItemRead } from '@/client';
 import { TreeHeaderRow } from '@/components/shared/tree/TreeHeaderRow';
+import { ACTIONS_CELL_ONE_BUTTON_CLASS } from '@/components/shared/tree/treeLayout';
 
 import { TrashTableContext, type TrashTableContextValue } from '../context/TrashTableContext';
 import { useTrashMutations } from '../hooks/useTrashMutations';
-import { TRASH_ACTIONS_CELL_WIDTH_CLASS } from '../lib/constants';
 
 import { TrashRow } from './TrashRow';
 import { TrashSearchRows } from './TrashSearchRows';
@@ -40,7 +40,7 @@ export function TrashTable({ items, query }: Props) {
   return (
     <TrashTableContext.Provider value={context}>
       <div role="treegrid" aria-label={t('trash.title')} className="w-full">
-        <TreeHeaderRow actionsWidthClass={TRASH_ACTIONS_CELL_WIDTH_CLASS}>
+        <TreeHeaderRow actionsWidthClass={ACTIONS_CELL_ONE_BUTTON_CLASS}>
           <span className="flex-1">{t('trash.col_name')}</span>
           <span className="hidden w-48 md:block">{t('trash.col_original_location')}</span>
           <span className="hidden w-28 text-right sm:block">{t('trash.col_deleted')}</span>

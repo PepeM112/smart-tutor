@@ -9,6 +9,7 @@ Run:  pytest tests/test_notes.py
 from __future__ import annotations
 
 import os
+import time
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -24,8 +25,10 @@ from app.services.note_prompts import (
     NOTE_REFINEMENT_SYSTEM_PROMPT,
     build_note_generation_user_prompt,
 )
+from app.services.note_service import _build_snippet
 from app.services.note_text import (
     clean_note_for_embedding,
+    markdown_to_plain_text,
     strip_callouts_and_toggles,
     strip_color_spans,
     tables_to_text,
@@ -953,13 +956,9 @@ class TestGenerateNoteFolderValidation:
 
 class TestBuildSnippet:
     def test_short_content_is_returned_whole(self) -> None:
-        from app.services.note_service import _build_snippet
-
         assert _build_snippet("Cells\nhave a Nucleus", "nucleus") == "Cells have a Nucleus"
 
     def test_long_content_is_cut_around_the_hit_with_ellipses(self) -> None:
-        from app.services.note_service import _build_snippet
-
         snippet = _build_snippet("a" * 200 + "NEEDLE" + "b" * 200, "needle")
 
         assert "NEEDLE" in snippet
@@ -967,15 +966,63 @@ class TestBuildSnippet:
         assert len(snippet) <= 82
 
     def test_markdown_syntax_is_removed(self) -> None:
-        from app.services.note_service import _build_snippet
-
         md = '```python\nprint("Minor")\n```\n\n---\n\n## JavaScript\n\n**JavaScript** powers [the web](https://x.dev).'
 
         assert _build_snippet(md, "powers") == '…Minor") JavaScript JavaScript powers the web.'
 
     def test_editor_html_is_removed(self) -> None:
-        from app.services.note_service import _build_snippet
-
         md = '> [!TIP]\n> A <span data-color="red">red</span> cell: <table><tr><td>ir</td></tr></table>'
 
         assert _build_snippet(md, "red") == "A red cell: ir"
+
+    def test_hit_only_in_hidden_markup_gives_no_snippet(self) -> None:
+        """`red` is in the color span tag only, `table` in the table tag only: no real hit."""
+        md = '<span data-color="red">text</span>\n\n<table><tr><td>cell</td></tr></table>'
+
+        assert _build_snippet(md, "red") is None
+        assert _build_snippet(md, "table") is None
+        assert _build_snippet(md, "cell") == "text cell"
+
+
+class TestMarkdownToPlainText:
+    @pytest.mark.parametrize(
+        ("markdown", "expected"),
+        [
+            # Marks inside a word stay: `_` and `*` are not emphasis there.
+            ("snake_case_names", "snake_case_names"),
+            ("call my_func_name now", "call my_func_name now"),
+            ("2*3*4", "2*3*4"),
+            ("a <b and c> d", "a d"),
+            # A `<` or `>` that is not a tag stays.
+            ("a < b and c > d", "a < b and c > d"),
+            ("x <= y >= z", "x <= y >= z"),
+            # Editor HTML: opening and closing tags go, the text stays.
+            ('A <span data-color="red">red</span> word', "A red word"),
+            # Emphasis at word edges.
+            ("**bold** text", "bold text"),
+            ("a *it* b", "a it b"),
+            ("a _it_ b", "a it b"),
+            ("a __strong__ b", "a strong b"),
+            ("~~gone~~ and `code`", "gone and code"),
+            ("(**bold**)", "(bold)"),
+            ("un**believ**able", "unbelievable"),
+            # Links and images keep their text, lose the URL.
+            ("[the web](https://x.dev) now", "the web now"),
+            ("![alt text](img.png) after", "alt text after"),
+            ("[a](u) and [b](v)", "a and b"),
+            ("[not a link] (but text)", "[not a link] (but text)"),
+            # Line prefixes.
+            ("## Title\n- item\n1. first", "Title item first"),
+        ],
+    )
+    def test_cases(self, markdown: str, expected: str) -> None:
+        assert markdown_to_plain_text(markdown) == expected
+
+    @pytest.mark.parametrize("unit", ["[", "_x ", "*x ", "![", "`x ", "<a ", "<table>", "<table><tr><td>"])
+    def test_many_unclosed_marks_run_in_linear_time(self, unit: str) -> None:
+        text = unit * 50_000
+
+        started = time.perf_counter()
+        markdown_to_plain_text(text)
+
+        assert time.perf_counter() - started < 1.0

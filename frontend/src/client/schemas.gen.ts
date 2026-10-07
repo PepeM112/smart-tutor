@@ -1113,7 +1113,7 @@ export const NoteCreateSchema = {
     title: 'NoteCreate'
 } as const;
 
-export const NoteFavoriteUpdateSchema = {
+export const NoteFavoriteSchema = {
     properties: {
         isFavorite: {
             type: 'boolean',
@@ -1124,7 +1124,8 @@ export const NoteFavoriteUpdateSchema = {
     required: [
         'isFavorite'
     ],
-    title: 'NoteFavoriteUpdate'
+    title: 'NoteFavorite',
+    description: 'Star or unstar a note (body of `PUT /notes/{id}/favorite`).'
 } as const;
 
 export const NoteGenerateSchema = {
@@ -1416,40 +1417,6 @@ export const PageContextSchema = {
         'route'
     ],
     title: 'PageContext'
-} as const;
-
-export const PaginatedResponse_NoteRead_Schema = {
-    properties: {
-        items: {
-            items: {
-                $ref: '#/components/schemas/NoteRead'
-            },
-            type: 'array',
-            title: 'Items'
-        },
-        total: {
-            type: 'integer',
-            title: 'Total'
-        },
-        page: {
-            type: 'integer',
-            minimum: 1,
-            title: 'Page'
-        },
-        perPage: {
-            type: 'integer',
-            minimum: 1,
-            title: 'Perpage'
-        }
-    },
-    type: 'object',
-    required: [
-        'items',
-        'total',
-        'page',
-        'perPage'
-    ],
-    title: 'PaginatedResponse[NoteRead]'
 } as const;
 
 export const PaginatedResponse_QuestionListRead_Schema = {

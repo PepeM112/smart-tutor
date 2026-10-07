@@ -23,11 +23,15 @@ def strip_color_spans(text_content: str) -> str:
 # The note editor stores tables as HTML (`<table><tr><td>..</td></tr></table>`, with data-* and
 # colwidth attributes). Raw tags would add noise tokens and split rows badly, so each table
 # becomes plain text: cells separated by " | ", rows by newlines.
-_TABLE_BLOCK = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
-_TABLE_ROW = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
-_TABLE_CELL = re.compile(r"<t[hd]\b[^>]*>(.*?)</t[hd]>", re.IGNORECASE | re.DOTALL)
+# Tables do not nest in the editor, so a block stops at the next opening tag. Without this, many unclosed
+# `<table>` tags make the run time grow with the square of the input.
+_TABLE_BLOCK = re.compile(r"<table\b[^>]*>(?:(?!<table\b).)*?</table>", re.IGNORECASE | re.DOTALL)
+_TABLE_ROW = re.compile(r"<tr\b[^>]*>((?:(?!<tr\b).)*?)</tr>", re.IGNORECASE | re.DOTALL)
+_TABLE_CELL = re.compile(r"<t[hd]\b[^>]*>((?:(?!<t[hd]\b).)*?)</t[hd]>", re.IGNORECASE | re.DOTALL)
 _BLOCK_BREAK_TAG = re.compile(r"<br\s*/?>|</(?:p|li|pre|blockquote)>", re.IGNORECASE)
-_ANY_TAG = re.compile(r"<[^>]+>")
+# A tag starts with a letter, `/` or `!`, so "a < b and c > d" and "x <= y" are not read as tags. The body
+# has no `<`, so many unclosed `<a ` stop at the next `<` (linear run time).
+_ANY_TAG = re.compile(r"</?[A-Za-z!][^<>]*>")
 
 
 def _cell_to_text(cell_html: str) -> str:
@@ -79,9 +83,14 @@ _LINE_PREFIX = re.compile(
     r"^[ \t]*(?:>[ \t]?)*(?:#{1,6}[ \t]+|[-*+][ \t]+(?:\[[ xX]\][ \t]+)?|\d+[.)][ \t]+)?", re.MULTILINE
 )
 _RULE_LINE = re.compile(r"^[ \t]*(?:[-*_][ \t]*){3,}$", re.MULTILINE)
-_IMAGE = re.compile(r"!\[([^\]]*)\]\([^)]*\)")
-_LINK = re.compile(r"\[([^\]]+)\]\([^)]*\)")
-_EMPHASIS = re.compile(r"(\*\*|__|~~|\*|_|`)(?=\S)(.+?)(?<=\S)\1")
+# Bounded character classes and spans: an unbounded `.+?` or `[^)]*` makes the run time grow with the
+# square of the input on a note with many unclosed marks.
+_IMAGE = re.compile(r"!\[([^\[\]\n]*)\]\([^()\n]*\)")
+_LINK = re.compile(r"\[([^\[\]\n]+)\]\([^()\n]*\)")
+# Marks that are emphasis even inside a word: `**bold**`, `~~strike~~`, `` `code` ``.
+_EMPHASIS_ANYWHERE = re.compile(r"(\*\*|~~|`)(?=\S)(.{1,300}?)(?<=\S)\1")
+# `*` and `_` do not open emphasis inside a word (CommonMark), so `snake_case_name` and `2*3*4` stay as they are.
+_EMPHASIS_AT_WORD_EDGE = re.compile(r"(?<!\w)(\*|__?)(?=\S)(.{1,300}?)(?<=\S)\1(?!\w)")
 
 
 def markdown_to_plain_text(text_content: str) -> str:
@@ -95,6 +104,7 @@ def markdown_to_plain_text(text_content: str) -> str:
     text = _LINE_PREFIX.sub("", text)
     text = _IMAGE.sub(r"\1", text)
     text = _LINK.sub(r"\1", text)
-    text = _EMPHASIS.sub(r"\2", text)
+    text = _EMPHASIS_ANYWHERE.sub(r"\2", text)
+    text = _EMPHASIS_AT_WORD_EDGE.sub(r"\2", text)
     text = html.unescape(_ANY_TAG.sub("", text))
     return " ".join(text.split())

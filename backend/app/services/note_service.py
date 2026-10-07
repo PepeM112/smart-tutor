@@ -11,15 +11,13 @@ from app.database import SessionLocal
 from app.models.note import Note
 from app.models.user import User
 from app.schemas.note import (
+    NOTE_SEARCH_MIN_CHARS,
     NoteChunkEdit,
     NoteChunkEditResponse,
     NoteContentMatch,
     NoteCreate,
     NoteGenerate,
-    NoteRead,
-    NoteSortBy,
     NoteUpdate,
-    SortOrder,
 )
 from app.services import token_usage_service
 from app.services.folder_service import get_live_folder_or_404
@@ -43,7 +41,6 @@ _NOTE_MAX_TOKENS: dict[int, int] = {
 _DEFAULT_MAX_TOKENS = 4096
 
 # Content search (`GET /notes/search`)
-_SEARCH_MIN_CHARS = 3
 _SEARCH_LIMIT = 50
 _SNIPPET_LENGTH = 80
 _SNIPPET_LEAD = 30  # characters of context before the hit
@@ -86,30 +83,6 @@ def schedule_indexing(note_id: str) -> None:
         embedding_service.index_note(db, note_id=note_id)
     finally:
         db.close()
-
-
-def list_notes(
-    db: Session,
-    *,
-    current_user: User,
-    title: str | None = None,
-    content: str | None = None,
-    sort_by: NoteSortBy | None = None,
-    sort_order: SortOrder = "desc",
-    page: int = 1,
-    per_page: int = 20,
-) -> tuple[list[NoteRead], int]:
-    items, total = note_crud.list_by_user(
-        db,
-        user_id=current_user.id,
-        title=title,
-        content=content,
-        sort_by=sort_by,
-        sort_order=sort_order,
-        page=page,
-        per_page=per_page,
-    )
-    return [NoteRead.model_validate(n) for n in items], total
 
 
 def get_note(db: Session, *, note_id: str, current_user: User) -> Note:
@@ -214,21 +187,28 @@ def set_favorite(db: Session, *, note_id: str, current_user: User, is_favorite: 
     A note in Trash gives 409, like every other write.
     """
     note = get_live_note(db, note_id=note_id, current_user=current_user)
+    # A repeated PUT must not change anything: a new `favorited_at` would move the note in the sidebar.
+    if note.is_favorite == is_favorite:
+        return note
     note_crud.set_favorite(db, note=note, is_favorite=is_favorite, now=datetime.now(timezone.utc))
     db.commit()
     db.refresh(note)
     return note
 
 
-def _build_snippet(content: str, query: str) -> str:
+def _build_snippet(content: str, query: str) -> str | None:
     """About `_SNIPPET_LENGTH` characters of `content` around the first hit of `query`.
 
     The markdown is turned into plain text first, so the snippet shows what the reader sees
     (no `#`, `**`, fences or editor HTML). A cut edge gets an ellipsis.
+    Returns None when the plain text has no hit: the query matched only hidden markup
+    (`red` in a color span, `table` in a table tag), so the note is not a real result.
     """
     content = markdown_to_plain_text(content)
     hit = re.search(re.escape(query), content, flags=re.IGNORECASE)
-    start = max(0, hit.start() - _SNIPPET_LEAD) if hit else 0
+    if hit is None:
+        return None
+    start = max(0, hit.start() - _SNIPPET_LEAD)
     end = min(len(content), start + _SNIPPET_LENGTH)
     text = content[start:end].strip()
     return f"{'…' if start > 0 else ''}{text}{'…' if end < len(content) else ''}"
@@ -237,9 +217,13 @@ def _build_snippet(content: str, query: str) -> str:
 def search_notes_content(
     db: Session, *, current_user: User, query: str, folder_id: str | None = None
 ) -> list[NoteContentMatch]:
-    """Find live notes whose content contains `query`. With `folder_id`: only that folder and its sub-folders."""
+    """Find live notes whose content contains `query`. With `folder_id`: only that folder and its sub-folders.
+
+    Notes whose title matches are left out (the client lists them as title matches), and so are notes
+    where the hit is only in markup (see `_build_snippet`).
+    """
     query = query.strip()
-    if len(query) < _SEARCH_MIN_CHARS:
+    if len(query) < NOTE_SEARCH_MIN_CHARS:
         return []
     folder_ids: list[str] | None = None
     if folder_id is not None:
@@ -248,11 +232,11 @@ def search_notes_content(
     rows = note_crud.search_live_content(
         db, user_id=current_user.id, query=query, folder_ids=folder_ids, limit=_SEARCH_LIMIT
     )
+    snippets = ((row, _build_snippet(row.content, query)) for row in rows)
     return [
-        NoteContentMatch(
-            id=row.id, title=row.title, folder_id=row.folder_id, snippet=_build_snippet(row.content, query)
-        )
-        for row in rows
+        NoteContentMatch(id=row.id, title=row.title, folder_id=row.folder_id, snippet=snippet)
+        for row, snippet in snippets
+        if snippet is not None
     ]
 
 

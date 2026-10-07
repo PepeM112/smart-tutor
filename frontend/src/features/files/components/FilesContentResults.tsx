@@ -11,7 +11,7 @@ import { displayTitle } from '@/lib/displayTitle';
 import { noteHref } from '@/lib/routes';
 
 import { useFileTree } from '../hooks/useFileTree';
-import { folderPathNames } from '../lib/fileTree';
+import { buildFolderPath } from '../hooks/useFolderPath';
 import { fileQueryKeys } from '../lib/queryKeys';
 
 /** The API needs at least this many characters. */
@@ -27,9 +27,9 @@ type Props = {
 
 /**
  * "Found in content": notes whose text matches the search, below the tree.
- * It is a separate list, so a late response never moves the tree rows. Notes that already match
- * by title are left out: the tree shows them. The query key holds the text, so a new text
- * cancels and replaces the old request and old results never show.
+ * It is a separate list, so a late response never moves the tree rows. Only the content is searched, so a
+ * note can be in the tree (title) and here (content). The query key holds the text, so a new text cancels
+ * and replaces the old request.
  */
 export function FilesContentResults({ query, folderId }: Props) {
   const t = useTranslations();
@@ -39,7 +39,11 @@ export function FilesContentResults({ query, folderId }: Props) {
   const debounced = useDebouncedValue(trimmed, DEBOUNCE_MS);
   const isLongEnough = debounced.length >= MIN_QUERY_LENGTH && trimmed.length >= MIN_QUERY_LENGTH;
 
-  const { data: res, isFetching } = useQuery({
+  const {
+    data: res,
+    isFetching,
+    isError,
+  } = useQuery({
     queryKey: fileQueryKeys.noteSearch(folderId, debounced),
     queryFn: ({ signal }) =>
       sdk.notesSearchContent({ query: { q: debounced, folder_id: folderId ?? undefined }, signal }),
@@ -50,13 +54,14 @@ export function FilesContentResults({ query, folderId }: Props) {
 
   // Waiting for the debounce also counts as searching.
   const isSearching = trimmed !== debounced || isFetching;
-  const needle = trimmed.toLowerCase();
-  const matches = (isLongEnough ? (res?.data ?? []) : []).filter(match => !match.title.toLowerCase().includes(needle));
+  // During the debounce `res` still holds the data of the previous text, so show it only for the current text.
+  const matches = isLongEnough && trimmed === debounced ? (res?.data ?? []) : [];
+  const hasError = isError && trimmed === debounced;
 
-  if (!isSearching && matches.length === 0) return null;
+  if (!isSearching && !hasError && matches.length === 0) return null;
 
   const pathLabel = (matchFolderId: string | null): string =>
-    [t('files.title'), ...folderPathNames(folders, matchFolderId)].join(' / ');
+    [t('files.title'), ...buildFolderPath(matchFolderId, folders).map(folder => folder.name)].join(' / ');
 
   return (
     <section aria-label={t('files.found_in_content')} className="mt-4 border-t border-border px-2 pt-3 pb-4">
@@ -67,6 +72,7 @@ export function FilesContentResults({ query, folderId }: Props) {
           {t('files.searching_content')}
         </p>
       )}
+      {hasError && <p className="py-1 text-sm text-muted-foreground">{t('files.search_content_failed')}</p>}
       <ul>
         {matches.map(match => (
           <li key={match.id}>

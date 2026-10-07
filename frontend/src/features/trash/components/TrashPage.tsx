@@ -39,7 +39,7 @@ export function TrashPage() {
       <p className="text-sm text-muted-foreground">{t('trash.subtitle')}</p>
       {items.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="min-w-48 max-w-[600px] flex-1">
+          <div className="min-w-48 max-w-150 flex-1">
             <SearchInput value={search} onChange={setSearch} placeholder={t('trash.search_placeholder')} />
           </div>
           <div className="ml-auto">

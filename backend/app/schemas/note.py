@@ -1,11 +1,9 @@
 from datetime import datetime
-from typing import Literal
 
 from pydantic import Field, field_validator
 
 from app.core.enums import NoteLength
 from app.schemas.base import BaseSchema
-from app.schemas.pagination import PaginatedResponse
 
 NOTE_CONTENT_MAX_CHARS = 50_000
 NOTE_MAX_TAGS = 10
@@ -98,13 +96,14 @@ class NoteChunkEditResponse(BaseSchema):
     edited_text: str
 
 
-NoteSortBy = Literal["title", "updated_at", "created_at"]
-SortOrder = Literal["asc", "desc"]
+# Content search (`GET /notes/search`): the limits of the query text, shared by the endpoint and the service.
+NOTE_SEARCH_MIN_CHARS = 3
+NOTE_SEARCH_MAX_CHARS = 200
 
-PaginatedNoteRead = PaginatedResponse[NoteRead]
 
+class NoteFavorite(BaseSchema):
+    """Star or unstar a note (body of `PUT /notes/{id}/favorite`)."""
 
-class NoteFavoriteUpdate(BaseSchema):
     is_favorite: bool
 
 

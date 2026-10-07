@@ -2,8 +2,8 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import { foldersCreateResponseTransformer, foldersListResponseTransformer, foldersTreeResponseTransformer, foldersUpdateResponseTransformer, notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesListResponseTransformer, notesMoveResponseTransformer, notesSetFavoriteResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, testsCreateResponseTransformer, testsGetResponseTransformer, testsListResponseTransformer, testsSubmitResponseTransformer, testsUpdateResponseTransformer, trashFolderTreeResponseTransformer, trashListResponseTransformer, trashTreeResponseTransformer } from './transformers.gen';
-import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, AssistAssistData, AssistAssistErrors, AssistAssistResponses, DefaultHealthData, DefaultHealthResponses, FoldersCreateData, FoldersCreateErrors, FoldersCreateResponses, FoldersDeleteData, FoldersDeleteErrors, FoldersDeleteResponses, FoldersListData, FoldersListErrors, FoldersListResponses, FoldersTreeData, FoldersTreeErrors, FoldersTreeResponses, FoldersUpdateData, FoldersUpdateErrors, FoldersUpdateResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesListData, NotesListErrors, NotesListResponses, NotesMoveData, NotesMoveErrors, NotesMoveResponses, NotesSearchContentData, NotesSearchContentErrors, NotesSearchContentResponses, NotesSetFavoriteData, NotesSetFavoriteErrors, NotesSetFavoriteResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsAssignToTestData, QuestionsAssignToTestErrors, QuestionsAssignToTestResponses, QuestionsBulkAssignData, QuestionsBulkAssignErrors, QuestionsBulkAssignResponses, QuestionsBulkDeleteData, QuestionsBulkDeleteErrors, QuestionsBulkDeleteResponses, QuestionsBulkRestoreData, QuestionsBulkRestoreErrors, QuestionsBulkRestoreResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsCreateData, QuestionsCreateErrors, QuestionsCreateResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsDuplicateData, QuestionsDuplicateErrors, QuestionsDuplicateResponses, QuestionsGetData, QuestionsGetErrors, QuestionsGetResponses, QuestionsListData, QuestionsListErrors, QuestionsListResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, TrashEmptyData, TrashEmptyErrors, TrashEmptyResponses, TrashFolderTreeData, TrashFolderTreeErrors, TrashFolderTreeResponses, TrashHardDeleteData, TrashHardDeleteErrors, TrashHardDeleteResponses, TrashListData, TrashListErrors, TrashListResponses, TrashRestoreData, TrashRestoreErrors, TrashRestoreResponses, TrashTreeData, TrashTreeErrors, TrashTreeResponses, UsersGetAiToolPermissionsData, UsersGetAiToolPermissionsErrors, UsersGetAiToolPermissionsResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateAiToolPermissionsData, UsersUpdateAiToolPermissionsErrors, UsersUpdateAiToolPermissionsResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
+import { foldersCreateResponseTransformer, foldersListResponseTransformer, foldersTreeResponseTransformer, foldersUpdateResponseTransformer, notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesMoveResponseTransformer, notesSetFavoriteResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, testsCreateResponseTransformer, testsGetResponseTransformer, testsListResponseTransformer, testsSubmitResponseTransformer, testsUpdateResponseTransformer, trashFolderTreeResponseTransformer, trashListResponseTransformer, trashTreeResponseTransformer } from './transformers.gen';
+import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, AssistAssistData, AssistAssistErrors, AssistAssistResponses, DefaultHealthData, DefaultHealthResponses, FoldersCreateData, FoldersCreateErrors, FoldersCreateResponses, FoldersDeleteData, FoldersDeleteErrors, FoldersDeleteResponses, FoldersListData, FoldersListErrors, FoldersListResponses, FoldersTreeData, FoldersTreeErrors, FoldersTreeResponses, FoldersUpdateData, FoldersUpdateErrors, FoldersUpdateResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesMoveData, NotesMoveErrors, NotesMoveResponses, NotesSearchContentData, NotesSearchContentErrors, NotesSearchContentResponses, NotesSetFavoriteData, NotesSetFavoriteErrors, NotesSetFavoriteResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsAssignToTestData, QuestionsAssignToTestErrors, QuestionsAssignToTestResponses, QuestionsBulkAssignData, QuestionsBulkAssignErrors, QuestionsBulkAssignResponses, QuestionsBulkDeleteData, QuestionsBulkDeleteErrors, QuestionsBulkDeleteResponses, QuestionsBulkRestoreData, QuestionsBulkRestoreErrors, QuestionsBulkRestoreResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsCreateData, QuestionsCreateErrors, QuestionsCreateResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsDuplicateData, QuestionsDuplicateErrors, QuestionsDuplicateResponses, QuestionsGetData, QuestionsGetErrors, QuestionsGetResponses, QuestionsListData, QuestionsListErrors, QuestionsListResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, TrashEmptyData, TrashEmptyErrors, TrashEmptyResponses, TrashFolderTreeData, TrashFolderTreeErrors, TrashFolderTreeResponses, TrashHardDeleteData, TrashHardDeleteErrors, TrashHardDeleteResponses, TrashListData, TrashListErrors, TrashListResponses, TrashRestoreData, TrashRestoreErrors, TrashRestoreResponses, TrashTreeData, TrashTreeErrors, TrashTreeResponses, UsersGetAiToolPermissionsData, UsersGetAiToolPermissionsErrors, UsersGetAiToolPermissionsResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateAiToolPermissionsData, UsersUpdateAiToolPermissionsErrors, UsersUpdateAiToolPermissionsResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -395,28 +395,6 @@ export const foldersUpdate = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * List
- */
-export const notesList = <ThrowOnError extends boolean = false>(options?: Options<NotesListData, ThrowOnError>) => (options?.client ?? client).get<NotesListResponses, NotesListErrors, ThrowOnError>({
-    responseTransformer: notesListResponseTransformer,
-    url: '/api/v1/notes',
-    ...options
-});
-
-/**
- * Create
- */
-export const notesCreate = <ThrowOnError extends boolean = false>(options: Options<NotesCreateData, ThrowOnError>) => (options.client ?? client).post<NotesCreateResponses, NotesCreateErrors, ThrowOnError>({
-    responseTransformer: notesCreateResponseTransformer,
-    url: '/api/v1/notes',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Search Content
  *
  * Find live notes by content, optionally only inside a folder and its sub-folders.
@@ -456,6 +434,19 @@ export const notesGet = <ThrowOnError extends boolean = false>(options: Options<
 export const notesUpdate = <ThrowOnError extends boolean = false>(options: Options<NotesUpdateData, ThrowOnError>) => (options.client ?? client).patch<NotesUpdateResponses, NotesUpdateErrors, ThrowOnError>({
     responseTransformer: notesUpdateResponseTransformer,
     url: '/api/v1/notes/{note_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create
+ */
+export const notesCreate = <ThrowOnError extends boolean = false>(options: Options<NotesCreateData, ThrowOnError>) => (options.client ?? client).post<NotesCreateResponses, NotesCreateErrors, ThrowOnError>({
+    responseTransformer: notesCreateResponseTransformer,
+    url: '/api/v1/notes',
     ...options,
     headers: {
         'Content-Type': 'application/json',

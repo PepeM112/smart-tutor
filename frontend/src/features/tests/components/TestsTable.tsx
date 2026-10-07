@@ -78,9 +78,12 @@ export function TestsTable({ data, sort, onSort, onPreview, previewId }: Props) 
         {
           label: t('tests.copy_id'),
           icon: Copy,
+          // Toast after the write resolves: the browser can refuse it (no permission, insecure context).
           onClick: () => {
-            void navigator.clipboard.writeText(test.id);
-            toast.success(t('common.copied'));
+            navigator.clipboard.writeText(test.id).then(
+              () => toast.success(t('common.copied')),
+              () => toast.error(t('common.failed_to_copy'))
+            );
           },
         },
       ],

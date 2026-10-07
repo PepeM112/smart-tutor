@@ -525,3 +525,16 @@ class TestTrashTree:
         # The parent id lets the client build the tree below the trash root.
         (node,) = (note for note in tree.notes if note.id == n.id)
         assert node.folder_id == x.id
+
+    def test_expired_items_are_purged_first(self, db_session: Session, user: User) -> None:
+        old = _note(db_session, user, "Old")
+        recent = _note(db_session, user, "Recent")
+        _trash_note(db_session, user, old)
+        _trash_note(db_session, user, recent)
+        old_id, recent_id = old.id, recent.id
+        _age(db_session, Note, [old_id], TRASH_RETENTION_DAYS + 1)
+
+        tree = trash_service.get_trash_tree(db_session, current_user=user)
+
+        assert {note.id for note in tree.notes} == {recent_id}
+        assert _reload(db_session, Note, old_id) is None

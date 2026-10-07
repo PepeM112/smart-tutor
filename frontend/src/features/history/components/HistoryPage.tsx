@@ -1,65 +1,51 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
-import { QuestionType } from '@/client';
 import { FilterPopover } from '@/components/shared/filters/FilterPopover';
 import { ListPageHeader } from '@/components/shared/ListPageHeader';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
 import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
-import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
-import { formatTestsList } from '@/features/assist/utils/formatPageData';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
 import { useRowPreview } from '@/hooks/useRowPreview';
 import { useUrlSort } from '@/hooks/useUrlSort';
 import { sdk } from '@/lib/apiClient';
-import { FilterType, type DateFilterValue, type FilterItem, type Primitive } from '@/lib/filters';
-import { Routes } from '@/lib/routes';
+import { FilterType, type DateFilterValue, type FilterItem, type RangeFilterValue } from '@/lib/filters';
 
-import { QuickTestDialog } from './QuickTestDialog';
-import { TestPreviewPanel } from './TestPreviewPanel';
-import { TestsTable } from './TestsTable';
+import { HistoryTable } from './HistoryTable';
+import { ResultPreviewPanel } from './ResultPreviewPanel';
 
 const PER_PAGE = 20;
 
-const QUESTION_TYPE_OPTIONS = [
-  { label: 'questions.type_simple', value: QuestionType.SIMPLE },
-  { label: 'questions.type_multiple_choice', value: QuestionType.MULTIPLE_CHOICE },
-  { label: 'questions.type_long_text', value: QuestionType.LONG_TEXT },
-];
-
-export function TestsPage() {
+export function HistoryPage() {
   const t = useTranslations();
-  useBreadcrumb(t('tests.title'));
+  useBreadcrumb(t('history.title'));
 
   const [page, setPage] = useState(1);
   const resetPage = useCallback(() => setPage(1), []);
-  const { sort, sortBy, sortOrder, handleSort } = useUrlSort(['title', 'created_at'] as const, resetPage);
+  const { sort, sortBy, sortOrder, handleSort } = useUrlSort(['score', 'created_at'] as const, resetPage);
 
   const filterConfig: FilterItem[] = useMemo(
     () => [
       {
-        label: t('tests.filter_search'),
+        label: t('history.filter_search'),
         key: 'search',
         type: FilterType.SINGLE,
         query: 'search',
       },
       {
-        label: t('tests.filter_type'),
-        key: 'question_type',
-        type: FilterType.MULTIPLE_SELECT,
-        query: 'question_type',
-        options: { items: QUESTION_TYPE_OPTIONS, number: true },
+        label: t('history.filter_score'),
+        key: 'score',
+        type: FilterType.RANGE,
+        query: 'score',
       },
       {
-        label: t('tests.filter_date'),
+        label: t('history.filter_date'),
         key: 'created',
         type: FilterType.DATE,
         query: 'created',
@@ -84,10 +70,10 @@ export function TestsPage() {
   }, [rawClearFilters]);
 
   const search = getValue<string>('search');
-  const questionType = getValue<Primitive[]>('question_type');
+  const score = getValue<RangeFilterValue>('score');
   const created = getValue<DateFilterValue>('created');
 
-  const listParams = { search, questionType, created, page, sortBy, sortOrder };
+  const listParams = { search, score, created, page, sortBy, sortOrder };
 
   const {
     data: response,
@@ -95,12 +81,13 @@ export function TestsPage() {
     isFetching,
     isError,
   } = useQuery({
-    queryKey: ['tests', listParams],
+    queryKey: ['results', listParams],
     queryFn: () =>
-      sdk.testsList({
+      sdk.resultsList({
         query: {
           search: search || undefined,
-          question_type: questionType?.length ? (questionType as number[]) : undefined,
+          score_min: score?.min ?? undefined,
+          score_max: score?.max ?? undefined,
           created_from: created?.from ?? undefined,
           created_to: created?.to ?? undefined,
           page,
@@ -113,17 +100,10 @@ export function TestsPage() {
 
   const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
-  // The pane closes when the view changes (page, sort, filters) or its test leaves the page.
-  const {
-    previewItem: previewTest,
-    previewId,
-    openPreview,
-    closePreview,
-  } = useRowPreview(items, JSON.stringify(listParams));
+  // The pane closes when the view changes (page, sort, filters) or its result leaves the page.
+  const { previewId, openPreview, closePreview } = useRowPreview(items, JSON.stringify(listParams));
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
-
-  useProvidePageData(useMemo(() => (items.length > 0 ? formatTestsList(items) : null), [items]));
 
   return (
     <div className="flex h-full flex-col gap-6">
@@ -136,37 +116,30 @@ export function TestsPage() {
             onClear={clearFilters}
           />
         }
-        actions={
-          <>
-            <QuickTestDialog compact />
-            <Button size="lg" icon={Plus} asChild>
-              <Link href={Routes.TEST_NEW}>{t('tests.create_test')}</Link>
-            </Button>
-          </>
-        }
+        actions={<p className="truncate text-sm text-muted-foreground">{t('history.subtitle')}</p>}
       />
 
       <QueryState
         className="flex min-h-0 flex-1 flex-col"
         isLoading={isLoading}
         isError={isError}
-        errorMessage={t('tests.failed_to_load')}
+        errorMessage={t('history.failed_to_load')}
       >
         {isFilteredEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-muted-foreground">{t('tests.no_results')}</p>
+            <p className="text-sm text-muted-foreground">{t('history.no_results')}</p>
             <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-              {t('tests.clear_filters')}
+              {t('history.clear_filters')}
             </Button>
           </div>
         ) : (
           <ResponsiveSplitPane
-            storageKey="tests-preview-split-ratio"
+            storageKey="history-preview-split-ratio"
             defaultRatio={0.6}
             bleed
             main={
               <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-                <TestsTable
+                <HistoryTable
                   data={items}
                   sort={sort}
                   onSort={handleSort}
@@ -176,7 +149,7 @@ export function TestsPage() {
                 <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
               </div>
             }
-            side={previewTest ? <TestPreviewPanel test={previewTest} onClose={closePreview} /> : null}
+            side={previewId ? <ResultPreviewPanel resultId={previewId} onClose={closePreview} /> : null}
             onSideClose={closePreview}
             insetDrawerBody={false}
           />

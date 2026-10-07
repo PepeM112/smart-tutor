@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import { toGroups } from './actionGroups';
+
 import type { LucideIcon } from 'lucide-react';
 
 export type MobileAction = {
@@ -39,26 +41,26 @@ type Props = {
   onOpenChange?: (open: boolean) => void;
 };
 
-function toGroups(actions: Props['actions']): MobileAction[][] {
-  const groups = isGrouped(actions) ? actions : [actions];
-  return groups.filter(group => group.length > 0);
-}
-
-function isGrouped(actions: Props['actions']): actions is MobileAction[][] {
-  return actions.length > 0 && Array.isArray(actions[0]);
-}
-
 export function ActionsMenu({ actions, trigger, onOpenChange }: Props) {
   const [pendingConfirm, setPendingConfirm] = useState<MobileAction | null>(null);
   // The selected action. It runs when the menu has closed (see `onCloseAutoFocus`).
   const selectedAction = useRef<MobileAction | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const groups = toGroups(actions);
+
+  // `onCloseAutoFocus` skips the default focus return, so an action that does not move focus (export, copy id)
+  // would leave it on <body> and a keyboard user would lose their place.
+  // The next frame lets an action that takes focus (inline rename, a dialog) do it first.
+  const restoreFocusIfLost = () =>
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body) triggerRef.current?.focus();
+    });
 
   return (
     <div data-slot="actions-menu" className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
       {groups.length > 0 && (
         <DropdownMenu onOpenChange={onOpenChange}>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger ref={triggerRef} asChild>
             {trigger ?? (
               <Button variant="ghost" size="icon-lg" className="text-muted-foreground">
                 <EllipsisVertical className="size-5" />
@@ -77,8 +79,12 @@ export function ActionsMenu({ actions, trigger, onOpenChange }: Props) {
               if (!action) return;
               event.preventDefault();
               selectedAction.current = null;
-              if (action.confirm) setPendingConfirm(action);
-              else action.onClick();
+              if (action.confirm) {
+                setPendingConfirm(action);
+              } else {
+                action.onClick();
+                restoreFocusIfLost();
+              }
             }}
           >
             {groups.map((group, index) => (
@@ -109,6 +115,12 @@ export function ActionsMenu({ actions, trigger, onOpenChange }: Props) {
           onOpenChange={open => {
             if (!open) setPendingConfirm(null);
           }}
+          // The dialog would return the focus to the menu item that opened it, which no longer exists.
+          // Radix does this in a timeout after the dialog unmounts, so a focus check on close can run too early.
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            triggerRef.current?.focus();
+          }}
           title={pendingConfirm.confirm.title}
           description={pendingConfirm.confirm.description}
           confirmLabel={pendingConfirm.label}
@@ -118,6 +130,7 @@ export function ActionsMenu({ actions, trigger, onOpenChange }: Props) {
               : undefined
           }
           onConfirm={() => {
+            // The dialog closes itself after this, and `onCloseAutoFocus` restores the focus.
             pendingConfirm.onClick();
             setPendingConfirm(null);
           }}

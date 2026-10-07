@@ -36,12 +36,11 @@ export function SettingsPage() {
   const settingsPayload = useMemo(() => buildSettingsPayload(form, user), [form, user]);
 
   const permissionDraft = usePermissionDraft();
-  const dirty = Object.keys(settingsPayload).length > 0 || Object.keys(permissionDraft.payload).length > 0;
-
   const dirtyTabs = useMemo(
     () => getDirtyTabs(settingsPayload, permissionDraft.payload),
     [settingsPayload, permissionDraft.payload]
   );
+  const dirty = dirtyTabs.size > 0;
 
   // The tab is in the URL, so a link can open a tab. `replace` adds no history entry per click.
   const router = useRouter();

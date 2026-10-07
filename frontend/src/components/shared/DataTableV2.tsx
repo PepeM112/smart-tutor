@@ -11,11 +11,13 @@ import { EllipsisVertical, Eye } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type ReactNode, useState } from 'react';
 
+import { toGroups } from '@/components/shared/actionGroups';
 import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { type DescriptionField, MobileCard } from '@/components/shared/MobileCard';
 import { SortableHeader, type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
 import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
+import { ACTIONS_CELL_ONE_BUTTON_CLASS, ACTIONS_CELL_TWO_BUTTONS_CLASS } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
@@ -43,14 +45,6 @@ type Props<T> = {
   /** The row that is in the preview pane: it gets the highlight. */
   previewId?: string | null;
 };
-
-// Eye button + `⋮` menu, each `size-7` (28px) with a 2px gap.
-const ONE_BUTTON_WIDTH_CLASS = 'w-7';
-const TWO_BUTTONS_WIDTH_CLASS = 'w-15';
-
-function cellClass(meta: ColumnDef<unknown, unknown>['meta']): string {
-  return cn('min-w-0', meta?.grow ? 'flex-1' : 'w-28 shrink-0', meta?.widthClass);
-}
 
 /**
  * Data table with the look of the Files tree: a small header, dense rows, and a hover actions
@@ -110,8 +104,7 @@ export function DataTableV2<T>({
     return (
       <div data-slot="data-table" className="space-y-2">
         {rows.map(row => {
-          const actions = renderActions?.(row.original) ?? [];
-          const groups = Array.isArray(actions[0]) ? (actions as MobileAction[][]) : [actions as MobileAction[]];
+          const groups = toGroups(renderActions?.(row.original) ?? []);
           const previewGroup: MobileAction[][] = onPreview
             ? [[{ label: t('common.preview'), icon: Eye, onClick: () => onPreview(row.original) }]]
             : [];
@@ -122,7 +115,7 @@ export function DataTableV2<T>({
               data={row.original}
               preview={renderPreview(row.original)}
               expandable={expandable}
-              actions={[...previewGroup, ...groups].filter(group => group.length > 0)}
+              actions={[...previewGroup, ...groups]}
               onRowClick={onRowClick}
               description={renderDescription?.(row.original) ?? undefined}
               cells={row
@@ -143,7 +136,7 @@ export function DataTableV2<T>({
   }
 
   const hasActionsCell = !!renderActions || !!onPreview;
-  const actionsWidthClass = renderActions && onPreview ? TWO_BUTTONS_WIDTH_CLASS : ONE_BUTTON_WIDTH_CLASS;
+  const actionsWidthClass = renderActions && onPreview ? ACTIONS_CELL_TWO_BUTTONS_CLASS : ACTIONS_CELL_ONE_BUTTON_CLASS;
 
   return (
     <div data-slot="data-table" role="table" className="w-full">
@@ -196,6 +189,10 @@ export function DataTableV2<T>({
       </div>
     </div>
   );
+}
+
+function cellClass(meta: ColumnDef<unknown, unknown>['meta']): string {
+  return cn('min-w-0', meta?.grow ? 'flex-1' : 'w-28 shrink-0', meta?.widthClass);
 }
 
 type RowActionsProps = {

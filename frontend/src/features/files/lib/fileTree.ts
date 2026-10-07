@@ -224,24 +224,3 @@ export function filterTree(index: SearchableIndex, rootId: string | null, query:
   visitChildren(rootId);
   return { visibleIds, forcedExpanded };
 }
-
-// ─── folderPathNames ──────────────────────────────────────────────────────────
-
-/**
- * Names of the folders from the root down to `folderId` (inclusive). `[]` for the root (null).
- * A visited-set guards against cycles in corrupted data.
- */
-export function folderPathNames(folders: FileTreeFolder[], folderId: string | null): string[] {
-  const byId = new Map(folders.map(f => [f.id, f]));
-  const names: string[] = [];
-  const visited = new Set<string>();
-  let current = folderId === null ? undefined : byId.get(folderId);
-
-  while (current && !visited.has(current.id)) {
-    visited.add(current.id);
-    names.unshift(current.name);
-    current = current.parentId === null ? undefined : byId.get(current.parentId);
-  }
-
-  return names;
-}

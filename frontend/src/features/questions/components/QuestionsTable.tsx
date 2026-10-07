@@ -249,7 +249,7 @@ function useQuestionsColumns({
           checked={selectedIds.has(row.original.id)}
           onCheckedChange={() => onToggleSelect(row.original.id)}
           onClick={e => e.stopPropagation()}
-          aria-label={`Select ${row.original.prompt}`}
+          aria-label={t('questions.select_row', { prompt: row.original.prompt })}
         />
       ),
     },

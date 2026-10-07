@@ -7,12 +7,12 @@ import { useState } from 'react';
 import { ActionsMenu } from '@/components/shared/ActionsMenu';
 import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
 import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
+import { ACTIONS_CELL_ONE_BUTTON_CLASS } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import { useTrashTable } from '../context/TrashTableContext';
 import { type TrashTarget } from '../hooks/useTrashMutations';
-import { TRASH_ACTIONS_CELL_WIDTH_CLASS } from '../lib/constants';
 
 type Props = {
   target: TrashTarget;
@@ -30,7 +30,7 @@ export function TrashRowActions({ target, name }: Props) {
 
   return (
     <RowEventBoundary>
-      <TreeActionsCell widthClass={TRASH_ACTIONS_CELL_WIDTH_CLASS} forceVisible={menuOpen || deleteOpen}>
+      <TreeActionsCell widthClass={ACTIONS_CELL_ONE_BUTTON_CLASS} forceVisible={menuOpen || deleteOpen}>
         <ActionsMenu
           actions={[
             [{ label: t('trash.restore'), icon: RotateCcw, disabled: isBusy, onClick: () => restoreItem(target) }],

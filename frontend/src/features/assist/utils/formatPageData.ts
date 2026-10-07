@@ -12,7 +12,11 @@ import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 import type { MentionCandidate } from '../context/PageDataContext';
 
 /** The Files view the user sees: the folders and notes after the search filter. Ids let the AI call tools on them. */
-export function formatFilesView(folders: FileTreeFolder[], notes: FileTreeNote[], currentFolderName: string | null): string {
+export function formatFilesView(
+  folders: FileTreeFolder[],
+  notes: FileTreeNote[],
+  currentFolderName: string | null
+): string {
   const where = currentFolderName ? `folder "${currentFolderName}"` : 'the root';
   if (folders.length === 0 && notes.length === 0) return `Files view (${where}): nothing to display.`;
   const lines = [`Files view (${where}): ${folders.length} folders, ${notes.length} notes shown.`];

@@ -2,15 +2,15 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, TypeAlias, cast
 
-from sqlalchemy import CursorResult, Row, Select, UnaryExpression, func, or_, select
+from sqlalchemy import CursorResult, Row, Select, func, or_, select
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import update as sql_update  # `update` is taken by the CRUD function below
-from sqlalchemy.orm import InstrumentedAttribute, Session, aliased
+from sqlalchemy.orm import Session, aliased
 
 from app.crud.helpers import ilike_search
 from app.models.folder import Folder
 from app.models.note import Note
-from app.schemas.note import NoteSortBy, NoteUpdate, SortOrder
+from app.schemas.note import NoteUpdate
 
 
 def get_by_id(db: Session, *, id: str) -> Note | None:
@@ -69,9 +69,11 @@ def list_batch_tree_notes(
     return db.execute(stmt).fetchall()
 
 
-def list_trashed_tree_notes(
-    db: Session, *, user_id: str
-) -> Sequence[Row[tuple[str, str, str | None, datetime, bool, datetime | None, datetime | None]]]:
+# `TreeNoteRow` plus `deleted_at`.
+TrashedTreeNoteRow: TypeAlias = Row[tuple[str, str, str | None, datetime, bool, datetime | None, datetime | None]]
+
+
+def list_trashed_tree_notes(db: Session, *, user_id: str) -> Sequence[TrashedTreeNoteRow]:
     """Light note columns (no content) of ALL trashed notes of the user, ordered by title (case-insensitive).
 
     `deleted_at` is included: it is the key of the delete batch.
@@ -89,33 +91,28 @@ def list_trashed_tree_notes(
 def search_live_content(
     db: Session, *, user_id: str, query: str, folder_ids: Sequence[str] | None, limit: int
 ) -> Sequence[Row[tuple[str, str, str | None, str]]]:
-    """Live notes whose content contains `query` (case-insensitive), ordered by title.
+    """Live notes whose content contains `query` (case-insensitive). The title is not searched.
+
+    Notes whose title does not match come first, then by title. The client already lists title
+    matches in the tree, so this order keeps them from using up the limit before the new results.
 
     `folder_ids` limits the search to the notes directly in those folders. None = no limit.
     The content is selected so the service can build the snippet.
     """
     stmt = (
         select(Note.id, Note.title, Note.folder_id, Note.content)
-        .where(Note.user_id == user_id, Note.deleted_at.is_(None), ilike_search(Note.content, value=query))
-        .order_by(func.lower(Note.title), Note.id)
+        .where(
+            Note.user_id == user_id,
+            Note.deleted_at.is_(None),
+            ilike_search(Note.content, value=query),
+        )
+        # False sorts before True: notes found only by content come first.
+        .order_by(ilike_search(Note.title, value=query), func.lower(Note.title), Note.id)
         .limit(limit)
     )
     if folder_ids is not None:
         stmt = stmt.where(Note.folder_id.in_(folder_ids))
     return db.execute(stmt).fetchall()
-
-
-_SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
-    "title": Note.title,
-    "updated_at": Note.updated_at,
-    "created_at": Note.id,  # ULID is time-sortable
-}
-
-
-def _sort_clause(sort_by: NoteSortBy | None, sort_order: SortOrder) -> UnaryExpression[object]:
-    column = _SORT_COLUMNS[sort_by] if sort_by and sort_by in _SORT_COLUMNS else Note.updated_at
-    clause = column.asc() if sort_order == "asc" else column.desc()
-    return cast(UnaryExpression[object], clause)
 
 
 def list_by_user(
@@ -124,8 +121,6 @@ def list_by_user(
     user_id: str,
     title: str | None = None,
     content: str | None = None,
-    sort_by: NoteSortBy | None = None,
-    sort_order: SortOrder = "desc",
     page: int = 1,
     per_page: int = 20,
 ) -> tuple[Sequence[Note], int]:
@@ -140,7 +135,7 @@ def list_by_user(
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0
 
-    stmt = stmt.order_by(_sort_clause(sort_by, sort_order)).offset((page - 1) * per_page).limit(per_page)
+    stmt = stmt.order_by(Note.updated_at.desc()).offset((page - 1) * per_page).limit(per_page)
     notes = db.scalars(stmt).all()
     return notes, total
 

@@ -20,6 +20,7 @@ import { formatQuestionsList } from '@/features/assist/utils/formatPageData';
 import { useAllTests } from '@/features/tests/hooks/useAllTests';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
+import { useRowPreview } from '@/hooks/useRowPreview';
 import { useUrlSort } from '@/hooks/useUrlSort';
 import { sdk } from '@/lib/apiClient';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
@@ -55,7 +56,6 @@ export function QuestionsPage() {
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
-  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const { data: tests } = useAllTests();
 
@@ -118,13 +118,15 @@ export function QuestionsPage() {
   const search = getValue<string>('search');
   const grouping = getValue<string>('grouping') as 'grouped' | 'ungrouped' | undefined;
 
+  const listParams = { questionType, testId, search, grouping, page, sortBy, sortOrder };
+
   const {
     data: response,
     isLoading,
     isFetching,
     isError,
   } = useQuery({
-    queryKey: ['questions', { questionType, testId, search, grouping, page, sortBy, sortOrder }],
+    queryKey: ['questions', listParams],
     queryFn: () =>
       sdk.questionsList({
         query: {
@@ -142,8 +144,13 @@ export function QuestionsPage() {
 
   const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
-  // The pane closes by itself when its question is not in the current page (filter, page, delete).
-  const previewQuestion = items.find(question => question.id === previewId);
+  // The pane closes when the view changes (page, sort, filters) or its question leaves the page.
+  const {
+    previewItem: previewQuestion,
+    previewId,
+    openPreview,
+    closePreview,
+  } = useRowPreview(items, JSON.stringify(listParams));
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
@@ -229,18 +236,14 @@ export function QuestionsPage() {
                   onSort={handleSort}
                   selectedIds={selectedIds}
                   onSelectionChange={setSelectedIds}
-                  onPreview={setPreviewId}
-                  previewId={previewQuestion?.id ?? null}
+                  onPreview={openPreview}
+                  previewId={previewId}
                 />
                 <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
               </div>
             }
-            side={
-              previewQuestion ? (
-                <QuestionPreviewPanel question={previewQuestion} onClose={() => setPreviewId(null)} />
-              ) : null
-            }
-            onSideClose={() => setPreviewId(null)}
+            side={previewQuestion ? <QuestionPreviewPanel question={previewQuestion} onClose={closePreview} /> : null}
+            onSideClose={closePreview}
             insetDrawerBody={false}
           />
         )}

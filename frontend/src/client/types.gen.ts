@@ -675,9 +675,11 @@ export type NoteCreate = {
 };
 
 /**
- * NoteFavoriteUpdate
+ * NoteFavorite
+ *
+ * Star or unstar a note (body of `PUT /notes/{id}/favorite`).
  */
-export type NoteFavoriteUpdate = {
+export type NoteFavorite = {
     /**
      * Isfavorite
      */
@@ -837,28 +839,6 @@ export type PageContext = {
      * Contextdata
      */
     contextData?: string | null;
-};
-
-/**
- * PaginatedResponse[NoteRead]
- */
-export type PaginatedResponseNoteRead = {
-    /**
-     * Items
-     */
-    items: Array<NoteRead>;
-    /**
-     * Total
-     */
-    total: number;
-    /**
-     * Page
-     */
-    page: number;
-    /**
-     * Perpage
-     */
-    perPage: number;
 };
 
 /**
@@ -3288,81 +3268,6 @@ export type FoldersUpdateResponses = {
 
 export type FoldersUpdateResponse = FoldersUpdateResponses[keyof FoldersUpdateResponses];
 
-export type NotesListData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Title
-         */
-        title?: string | null;
-        /**
-         * Content
-         */
-        content?: string | null;
-        /**
-         * Sort By
-         */
-        sort_by?: 'title' | 'updated_at' | 'created_at' | null;
-        /**
-         * Sort Order
-         */
-        sort_order?: 'asc' | 'desc';
-        /**
-         * Page
-         */
-        page?: number;
-        /**
-         * Per Page
-         */
-        per_page?: number;
-    };
-    url: '/api/v1/notes';
-};
-
-export type NotesListErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type NotesListError = NotesListErrors[keyof NotesListErrors];
-
-export type NotesListResponses = {
-    /**
-     * Successful Response
-     */
-    200: PaginatedResponseNoteRead;
-};
-
-export type NotesListResponse = NotesListResponses[keyof NotesListResponses];
-
-export type NotesCreateData = {
-    body: NoteCreate;
-    path?: never;
-    query?: never;
-    url: '/api/v1/notes';
-};
-
-export type NotesCreateErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type NotesCreateError = NotesCreateErrors[keyof NotesCreateErrors];
-
-export type NotesCreateResponses = {
-    /**
-     * Successful Response
-     */
-    201: NoteRead;
-};
-
-export type NotesCreateResponse = NotesCreateResponses[keyof NotesCreateResponses];
-
 export type NotesSearchContentData = {
     body?: never;
     path?: never;
@@ -3514,6 +3419,31 @@ export type NotesUpdateResponses = {
 
 export type NotesUpdateResponse = NotesUpdateResponses[keyof NotesUpdateResponses];
 
+export type NotesCreateData = {
+    body: NoteCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/notes';
+};
+
+export type NotesCreateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotesCreateError = NotesCreateErrors[keyof NotesCreateErrors];
+
+export type NotesCreateResponses = {
+    /**
+     * Successful Response
+     */
+    201: NoteRead;
+};
+
+export type NotesCreateResponse = NotesCreateResponses[keyof NotesCreateResponses];
+
 export type NotesEditChunkData = {
     body: NoteChunkEdit;
     path: {
@@ -3575,7 +3505,7 @@ export type NotesMoveResponses = {
 export type NotesMoveResponse = NotesMoveResponses[keyof NotesMoveResponses];
 
 export type NotesSetFavoriteData = {
-    body: NoteFavoriteUpdate;
+    body: NoteFavorite;
     path: {
         /**
          * Note Id

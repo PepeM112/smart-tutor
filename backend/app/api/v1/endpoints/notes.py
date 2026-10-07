@@ -7,18 +7,17 @@ from app.database import get_session
 from app.dependencies.auth import CurrentUser
 from app.models.note import Note
 from app.schemas.note import (
+    NOTE_SEARCH_MAX_CHARS,
+    NOTE_SEARCH_MIN_CHARS,
     NoteChunkEdit,
     NoteChunkEditResponse,
     NoteContentMatch,
     NoteCreate,
-    NoteFavoriteUpdate,
+    NoteFavorite,
     NoteGenerate,
     NoteMove,
     NoteRead,
-    NoteSortBy,
     NoteUpdate,
-    PaginatedNoteRead,
-    SortOrder,
 )
 from app.services import note_service
 
@@ -27,41 +26,12 @@ router = APIRouter()
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 
 
-@router.get("", response_model=PaginatedNoteRead)
-def list_(
-    db: DbSession,
-    current_user: CurrentUser,
-    title: str | None = None,
-    content: str | None = None,
-    sort_by: Annotated[NoteSortBy | None, Query()] = None,
-    sort_order: Annotated[SortOrder, Query()] = "desc",
-    page: int = Query(default=1, ge=1),
-    per_page: int = Query(default=20, ge=1, le=100),
-) -> PaginatedNoteRead:
-    items, total = note_service.list_notes(
-        db,
-        current_user=current_user,
-        title=title,
-        content=content,
-        sort_by=sort_by,
-        sort_order=sort_order,
-        page=page,
-        per_page=per_page,
-    )
-    return PaginatedNoteRead(
-        items=items,
-        total=total,
-        page=page,
-        per_page=per_page,
-    )
-
-
 # Declared before the `/{note_id}` routes, so "search" is not read as a note id.
 @router.get("/search", response_model=list[NoteContentMatch])
 def search_content(
     db: DbSession,
     current_user: CurrentUser,
-    q: Annotated[str, Query(min_length=3)],
+    q: Annotated[str, Query(min_length=NOTE_SEARCH_MIN_CHARS, max_length=NOTE_SEARCH_MAX_CHARS)],
     folder_id: str | None = None,
 ) -> list[NoteContentMatch]:
     """Find live notes by content, optionally only inside a folder and its sub-folders."""
@@ -107,7 +77,7 @@ def move(note_id: str, data: NoteMove, db: DbSession, current_user: CurrentUser)
 
 
 @router.put("/{note_id}/favorite", response_model=NoteRead)
-def set_favorite(note_id: str, data: NoteFavoriteUpdate, db: DbSession, current_user: CurrentUser) -> Note:
+def set_favorite(note_id: str, data: NoteFavorite, db: DbSession, current_user: CurrentUser) -> Note:
     return note_service.set_favorite(db, note_id=note_id, current_user=current_user, is_favorite=data.is_favorite)
 
 

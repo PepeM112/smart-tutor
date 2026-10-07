@@ -10,7 +10,7 @@ import { type FileTreeFolder, type FileTreeNote } from '@/client';
 import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
 import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
-import { ACTIONS_CELL_WIDTH_CLASS } from '@/components/shared/tree/treeLayout';
+import { ACTIONS_CELL_TWO_BUTTONS_CLASS } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { exportNote } from '@/features/notes/lib/exportNote';
@@ -98,7 +98,7 @@ export function FileRowActions({ item, onStartRename }: Props) {
 
   return (
     <RowEventBoundary>
-      <TreeActionsCell widthClass={ACTIONS_CELL_WIDTH_CLASS} forceVisible={menuOpen || moveOpen || deleteOpen}>
+      <TreeActionsCell widthClass={ACTIONS_CELL_TWO_BUTTONS_CLASS} forceVisible={menuOpen || moveOpen || deleteOpen}>
         {!isFolder && (
           <Button
             variant="ghost"

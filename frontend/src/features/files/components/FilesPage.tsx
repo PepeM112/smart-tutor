@@ -8,6 +8,7 @@ import { SearchInput } from '@/components/shared/SearchInput';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { formatFilesView } from '@/features/assist/utils/formatPageData';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useRowPreview } from '@/hooks/useRowPreview';
 
 import { useFileMutations } from '../hooks/useFileMutations';
 import { useFileTree } from '../hooks/useFileTree';
@@ -29,23 +30,20 @@ type Props = {
 export function FilesPage({ folderId }: Props) {
   const t = useTranslations();
   const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [previewId, setPreviewId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  // Reset the preview when navigating to a different folder.
+  // Reset the search when navigating to a different folder.
   // Using the React "adjust state on prop change" pattern instead of useEffect
   // to avoid a cascading render from setState inside an effect body.
   const [prevFolderId, setPrevFolderId] = useState(folderId);
   if (prevFolderId !== folderId) {
     setPrevFolderId(folderId);
-    setPreviewId(null);
     setSearch('');
   }
 
-  // Show the preview only while its note is still in the tree. A trashed note leaves the tree,
-  // so the pane closes by itself (no effect needed).
+  // The preview closes when the folder changes or when its note leaves the tree (trashed).
   const { notes: treeNotes, folders: treeFolders, childrenIndex } = useFileTree();
-  const activePreviewId = previewId && treeNotes.some(n => n.id === previewId) ? previewId : null;
+  const { previewId, openPreview, closePreview } = useRowPreview(treeNotes, folderId ?? '');
 
   // Root page (/files) uses the standard page header; folder pages use FileBreadcrumb.
   useBreadcrumb(folderId === null ? t('files.title') : '');
@@ -60,11 +58,10 @@ export function FilesPage({ folderId }: Props) {
   const filter = useMemo(() => filterTree(childrenIndex, folderId, search), [childrenIndex, folderId, search]);
 
   const aiPageData = useMemo(() => {
-    const isVisible = (id: string): boolean => !filter || filter.visibleIds.has(id);
     // With a search: everything visible in the subtree. Without: the direct children of the view.
     const inView = (parentId: string | null): boolean => parentId === folderId;
-    const visibleFolders = treeFolders.filter(f => (filter ? isVisible(f.id) : inView(f.parentId)));
-    const visibleNotes = treeNotes.filter(n => (filter ? isVisible(n.id) : inView(n.folderId)));
+    const visibleFolders = treeFolders.filter(f => (filter ? filter.visibleIds.has(f.id) : inView(f.parentId)));
+    const visibleNotes = treeNotes.filter(n => (filter ? filter.visibleIds.has(n.id) : inView(n.folderId)));
     return formatFilesView(visibleFolders, visibleNotes, currentFolder?.name ?? null);
   }, [filter, folderId, treeFolders, treeNotes, currentFolder?.name]);
   useProvidePageData(aiPageData);
@@ -75,17 +72,15 @@ export function FilesPage({ folderId }: Props) {
 
   // ── Preview panel ────────────────────────────────────────────────────────────
 
-  const previewPanel = activePreviewId ? (
-    <NotePreviewPanel noteId={activePreviewId} onClose={() => setPreviewId(null)} />
-  ) : null;
+  const previewPanel = previewId ? <NotePreviewPanel noteId={previewId} onClose={closePreview} /> : null;
 
   // ── Table ────────────────────────────────────────────────────────────────────
 
   const table = (
     <FilesTable
       currentFolderId={folderId}
-      onPreview={setPreviewId}
-      previewId={activePreviewId}
+      onPreview={openPreview}
+      previewId={previewId}
       query={search}
       filter={filter}
     />
@@ -101,7 +96,7 @@ export function FilesPage({ folderId }: Props) {
       bleed
       main={table}
       side={previewPanel}
-      onSideClose={() => setPreviewId(null)}
+      onSideClose={closePreview}
       // The preview panel has its own frame and scroll.
       insetDrawerBody={false}
     />
@@ -114,7 +109,7 @@ export function FilesPage({ folderId }: Props) {
     return (
       <div className="flex h-full flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="min-w-48 max-w-[600px] flex-1">{searchInput}</div>
+          <div className="min-w-48 max-w-150 flex-1">{searchInput}</div>
           <div className="ml-auto">{toolbar}</div>
         </div>
         <div className="flex min-h-0 flex-1 flex-col">{contentArea}</div>

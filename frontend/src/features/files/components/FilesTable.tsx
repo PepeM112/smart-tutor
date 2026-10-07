@@ -21,7 +21,7 @@ import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { QueryState } from '@/components/shared/QueryState';
 import { TreeHeaderRow } from '@/components/shared/tree/TreeHeaderRow';
-import { ACTIONS_CELL_WIDTH_CLASS } from '@/components/shared/tree/treeLayout';
+import { ACTIONS_CELL_TWO_BUTTONS_CLASS } from '@/components/shared/tree/treeLayout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { displayTitle } from '@/lib/displayTitle';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,8 @@ const preferFolderRows: CollisionDetection = args => {
   const folderHits = hits.filter(hit => String(hit.id).startsWith(FOLDER_DROP_PREFIX));
   return folderHits.length > 0 ? folderHits : hits;
 };
+
+const NO_IDS: ReadonlySet<string> = new Set();
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -77,24 +79,35 @@ export function FilesTable({ currentFolderId, onPreview, previewId, query, filte
   // Immutable set of expanded folder IDs — toggled by FolderTreeRow through the tree context.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // Stable identity: rows use it in the hover-to-open effect deps, so a new function would restart the timer.
-  const handleToggleExpand = useCallback((id: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
+  // While a search forces folders open, a click on such a folder cannot change `expanded` (the folder would stay
+  // open on screen, and the saved state would change behind the user's back). It goes in this set instead.
+  // The set belongs to one query: a new query makes it empty again.
+  const [collapsed, setCollapsed] = useState<{ query: string; ids: Set<string> }>({ query, ids: new Set() });
+  const collapsedWhileFiltering = collapsed.query === query ? collapsed.ids : NO_IDS;
 
   const forcedExpanded = filter?.forcedExpanded;
   const visibleIds = filter?.visibleIds;
+
+  // Identity changes only when the search or its result changes. Rows use it in the hover-to-open effect deps.
+  const handleToggleExpand = useCallback(
+    (id: string) => {
+      const toggle = (prev: ReadonlySet<string>): Set<string> => {
+        const next = new Set(prev);
+        if (!next.delete(id)) next.add(id);
+        return next;
+      };
+      if (forcedExpanded?.has(id)) {
+        setCollapsed(prev => ({ query, ids: toggle(prev.query === query ? prev.ids : NO_IDS) }));
+      } else {
+        setExpanded(toggle);
+      }
+    },
+    [forcedExpanded, query]
+  );
+
   const isExpanded = useCallback(
-    (id: string) => expanded.has(id) || (forcedExpanded?.has(id) ?? false),
-    [expanded, forcedExpanded]
+    (id: string) => (forcedExpanded?.has(id) ? !collapsedWhileFiltering.has(id) : expanded.has(id)),
+    [expanded, forcedExpanded, collapsedWhileFiltering]
   );
   const isVisible = useCallback((id: string) => visibleIds === undefined || visibleIds.has(id), [visibleIds]);
 
@@ -260,7 +273,7 @@ function ViewDropZone({ currentFolderId, folders, children }: ViewDropZoneProps)
         highlight && 'bg-primary/5 ring-1 ring-primary/40'
       )}
     >
-      <TreeHeaderRow actionsWidthClass={ACTIONS_CELL_WIDTH_CLASS}>
+      <TreeHeaderRow actionsWidthClass={ACTIONS_CELL_TWO_BUTTONS_CLASS}>
         <span className="flex-1">{highlight ? t('files.drop_here') : t('files.col_name')}</span>
         <span className="hidden w-24 text-right sm:block">{t('notes.column_updated')}</span>
       </TreeHeaderRow>
