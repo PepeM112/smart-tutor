@@ -21,6 +21,7 @@ from app.models.note import Note
 from app.schemas.folder import FileTree, FileTreeFolder, FileTreeNote, FolderCreate
 from app.schemas.trash import TrashItemRead, TrashTree, TrashTreeFolder, TrashTreeNote
 from app.services import folder_service
+from app.services.access_service import AccessLevel, get_note_or_404, require_personal
 from app.services.folder_paths import build_folder_path
 from app.services.service_helpers import get_owned_or_404, is_trash_expired
 
@@ -109,7 +110,8 @@ def _get_trashed_folder_or_404(db: Session, *, folder_id: str, current_user: Use
 
 
 def _get_trashed_note_or_404(db: Session, *, note_id: str, current_user: User) -> Note:
-    note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    note = get_note_or_404(db, note_id=note_id, current_user=current_user, level=AccessLevel.EDIT)
+    require_personal(space_id=note.space_id)
     if note.deleted_at is None or is_trash_expired(note.deleted_at):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found in Trash")
     return note

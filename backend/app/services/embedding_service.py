@@ -118,6 +118,11 @@ def index_note(db: Session, *, note_id: str) -> None:
         logger.info("index_note: note %s is in Trash, skipping", note_id)
         db.rollback()
         return
+    if note.space_id is not None:
+        # Search reads personal notes only. Space RAG (M3) indexes published space notes in its own flow.
+        logger.info("index_note: note %s is course content, skipping", note_id)
+        db.rollback()
+        return
 
     # The embedding call is slow. If an autosave lands meanwhile, the chunks below are
     # already stale, so `mark_indexed` only succeeds while the note is still at this version.

@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from app.core.enums import QuestionType
 from app.services.llm import CompletionResult
-from app.services.test_generation_service import _call_and_validate
+from app.services.test_generation_service import _call_and_validate, _source_note_id
 
 
 def _completion(text: str) -> CompletionResult:
@@ -33,3 +33,15 @@ class TestUsageRecording:
         assert exc.value.status_code == 422
         assert mock_usage.record_usage.call_count == 2
         assert db.commit.call_count == 2
+
+
+class TestSourceNoteId:
+    """A draft twin links to its published note. A new draft note has no link (create_test refuses drafts)."""
+
+    @pytest.mark.parametrize(
+        ("is_draft", "draft_of_id", "expected"),
+        [(False, None, "n1"), (True, "pub", "pub"), (True, None, None)],
+    )
+    def test_source_note_id(self, is_draft: bool, draft_of_id: str | None, expected: str | None) -> None:
+        note = MagicMock(id="n1", is_draft=is_draft, draft_of_id=draft_of_id)
+        assert _source_note_id(note) == expected

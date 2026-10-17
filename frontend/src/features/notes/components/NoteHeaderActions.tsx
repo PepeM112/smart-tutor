@@ -16,6 +16,8 @@ type NoteHeaderActionsProps = {
   status: AutosaveStatus;
   onRetry: () => void;
   onMove: () => void;
+  /** False for a course note: it has no folder and is not a personal favorite. */
+  showFileActions: boolean;
   /** Only desktop has room for a full-width column, so only desktop shows the toggle. */
   showWidthToggle: boolean;
   isFullWidth: boolean;
@@ -29,6 +31,7 @@ export function NoteHeaderActions({
   status,
   onRetry,
   onMove,
+  showFileActions,
   showWidthToggle,
   isFullWidth,
   onToggleWidth,
@@ -38,10 +41,14 @@ export function NoteHeaderActions({
   return (
     <>
       <SaveStatus status={status} onRetry={onRetry} />
-      <FavoriteButton noteId={noteId} fallbackIsFavorite={isFavorite} />
-      <Button variant="ghost" size="icon" onClick={onMove} tooltip={t('files.move')} aria-label={t('files.move')}>
-        <FolderInput className="size-[18px]" />
-      </Button>
+      {showFileActions && (
+        <>
+          <FavoriteButton noteId={noteId} fallbackIsFavorite={isFavorite} />
+          <Button variant="ghost" size="icon" onClick={onMove} tooltip={t('files.move')} aria-label={t('files.move')}>
+            <FolderInput className="size-[18px]" />
+          </Button>
+        </>
+      )}
       {showWidthToggle && <NoteWidthToggle isFullWidth={isFullWidth} onToggle={onToggleWidth} />}
     </>
   );

@@ -10,11 +10,11 @@ NOTE_MAX_TAGS = 10
 NOTE_TAG_MAX_CHARS = 25
 
 
-def _normalize_tags(tags: list[str]) -> list[str]:
+def normalize_tags(tags: list[str]) -> list[str]:
     """Trim, lowercase, drop empty tags and duplicates (first one wins), then check the limits."""
     cleaned = list(dict.fromkeys(tag.strip().lower() for tag in tags if tag.strip()))
     if len(cleaned) > NOTE_MAX_TAGS:
-        raise ValueError(f"A note can have at most {NOTE_MAX_TAGS} tags")
+        raise ValueError(f"You can add at most {NOTE_MAX_TAGS} tags")
     too_long = next((tag for tag in cleaned if len(tag) > NOTE_TAG_MAX_CHARS), None)
     if too_long is not None:
         raise ValueError(f"Tag '{too_long}' is longer than {NOTE_TAG_MAX_CHARS} characters")
@@ -36,7 +36,7 @@ class NoteCreate(NoteBase):
     @field_validator("tags")
     @classmethod
     def _validate_tags(cls, tags: list[str]) -> list[str]:
-        return _normalize_tags(tags)
+        return normalize_tags(tags)
 
 
 class NoteUpdate(BaseSchema):
@@ -63,7 +63,7 @@ class NoteUpdate(BaseSchema):
     @field_validator("tags")
     @classmethod
     def _validate_tags(cls, tags: list[str] | None) -> list[str] | None:
-        return None if tags is None else _normalize_tags(tags)
+        return None if tags is None else normalize_tags(tags)
 
 
 class NoteRead(NoteBase):
@@ -77,6 +77,9 @@ class NoteRead(NoteBase):
     deleted_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    # Course / classroom content (see docs/spaces.md). NULL = personal note.
+    space_id: str | None = None
+    is_draft: bool = False
 
 
 class NoteGenerate(BaseSchema):

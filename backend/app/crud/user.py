@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import select
@@ -16,6 +17,12 @@ def get_by_email(db: Session, *, email: str) -> User | None:
 
 def get_by_username(db: Session, *, username: str) -> User | None:
     return db.scalars(select(User).where(User.username == username)).first()
+
+
+def list_by_ids(db: Session, *, ids: Sequence[str]) -> Sequence[User]:
+    if not ids:
+        return []
+    return db.scalars(select(User).where(User.id.in_(ids))).all()
 
 
 def create(db: Session, *, username: str, email: str, hashed_password: str) -> User:

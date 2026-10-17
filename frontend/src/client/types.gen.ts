@@ -573,6 +573,24 @@ export enum LongTextLength {
 }
 
 /**
+ * MemberStatus
+ */
+export enum MemberStatus {
+    /**
+     * INVITED
+     */
+    INVITED = 1,
+    /**
+     * REQUESTED
+     */
+    REQUESTED = 2,
+    /**
+     * ACTIVE
+     */
+    ACTIVE = 3
+}
+
+/**
  * MultipleChoiceContent
  */
 export type MultipleChoiceContent = {
@@ -791,6 +809,14 @@ export type NoteRead = {
      * Updatedat
      */
     updatedAt: Date;
+    /**
+     * Spaceid
+     */
+    spaceId?: string | null;
+    /**
+     * Isdraft
+     */
+    isDraft?: boolean;
 };
 
 /**
@@ -849,6 +875,28 @@ export type PaginatedResponseQuestionListRead = {
      * Items
      */
     items: Array<QuestionListRead>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Perpage
+     */
+    perPage: number;
+};
+
+/**
+ * PaginatedResponse[SpaceSummary]
+ */
+export type PaginatedResponseSpaceSummary = {
+    /**
+     * Items
+     */
+    items: Array<SpaceSummary>;
     /**
      * Total
      */
@@ -1355,6 +1403,551 @@ export type SimpleContentStripped = {
 };
 
 /**
+ * SpaceCreate
+ */
+export type SpaceCreate = {
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
+    visibility?: SpaceVisibility;
+};
+
+/**
+ * SpaceDeleteConfirm
+ *
+ * Body of the delete-forever request: the exact title of the space.
+ */
+export type SpaceDeleteConfirm = {
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
+ * SpaceDetail
+ *
+ * One space with its structure.
+ *
+ * `sections` = the published structure (everyone with READ, and non-members of a PUBLIC /
+ * UNLISTED course as a preview). `draft_sections` = the draft structure, only for an
+ * OWNER / EDITOR while edit mode is on.
+ */
+export type SpaceDetail = {
+    /**
+     * Id
+     */
+    id: string;
+    kind: SpaceKind;
+    /**
+     * Ownerid
+     */
+    ownerId: string;
+    /**
+     * Ownername
+     */
+    ownerName: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Tags
+     */
+    tags: Array<string>;
+    visibility: SpaceVisibility;
+    status: SpaceStatus;
+    /**
+     * Publishedat
+     */
+    publishedAt: Date | null;
+    /**
+     * Archivedat
+     */
+    archivedAt: Date | null;
+    /**
+     * Createdat
+     */
+    createdAt: Date;
+    /**
+     * Membercount
+     */
+    memberCount: number;
+    myRole: SpaceRole | null;
+    myStatus: MemberStatus | null;
+    /**
+     * Canedit
+     */
+    canEdit: boolean;
+    /**
+     * Isowner
+     */
+    isOwner: boolean;
+    /**
+     * Isediting
+     */
+    isEditing: boolean;
+    /**
+     * Hasunpublishedchanges
+     */
+    hasUnpublishedChanges: boolean;
+    /**
+     * Joincode
+     */
+    joinCode: string | null;
+    /**
+     * Sections
+     */
+    sections: Array<SpaceSectionRead>;
+    /**
+     * Draftsections
+     */
+    draftSections: Array<SpaceSectionRead> | null;
+};
+
+/**
+ * SpaceDraftOrder
+ *
+ * The full order of the draft structure: every draft section, each with all its draft items.
+ */
+export type SpaceDraftOrder = {
+    /**
+     * Sections
+     */
+    sections: Array<SpaceSectionOrder>;
+};
+
+/**
+ * SpaceDuplicateRequest
+ *
+ * The metadata of the new course. The dialog fills it with the values of the source.
+ */
+export type SpaceDuplicateRequest = {
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
+};
+
+/**
+ * SpaceInvite
+ *
+ * Invite an existing user by username or email.
+ */
+export type SpaceInvite = {
+    /**
+     * Identifier
+     */
+    identifier: string;
+};
+
+/**
+ * SpaceItemContent
+ *
+ * The id of the content row the author edits for an item (the draft twin, or the new draft).
+ */
+export type SpaceItemContent = {
+    /**
+     * Noteid
+     */
+    noteId: string | null;
+    /**
+     * Testid
+     */
+    testId: string | null;
+};
+
+/**
+ * SpaceItemCopy
+ *
+ * Copy a personal note or test into a section (a new row, no link to the original).
+ */
+export type SpaceItemCopy = {
+    /**
+     * Sectionid
+     */
+    sectionId: string;
+    /**
+     * Noteid
+     */
+    noteId?: string | null;
+    /**
+     * Testid
+     */
+    testId?: string | null;
+};
+
+/**
+ * SpaceItemCreate
+ *
+ * A new, empty note or test in a section.
+ */
+export type SpaceItemCreate = {
+    /**
+     * Sectionid
+     */
+    sectionId: string;
+    /**
+     * Kind
+     */
+    kind: 1 | 2;
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
+ * SpaceItemKind
+ */
+export enum SpaceItemKind {
+    /**
+     * NOTE
+     */
+    NOTE = 1,
+    /**
+     * TEST
+     */
+    TEST = 2,
+    /**
+     * COURSE
+     */
+    COURSE = 3
+}
+
+/**
+ * SpaceItemRead
+ */
+export type SpaceItemRead = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Sectionid
+     */
+    sectionId: string;
+    kind: SpaceItemKind;
+    /**
+     * Noteid
+     */
+    noteId: string | null;
+    /**
+     * Testid
+     */
+    testId: string | null;
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Isdraft
+     */
+    isDraft: boolean;
+    /**
+     * Draftofid
+     */
+    draftOfId: string | null;
+    /**
+     * Haschanges
+     */
+    hasChanges?: boolean;
+};
+
+/**
+ * SpaceJoinByCode
+ */
+export type SpaceJoinByCode = {
+    /**
+     * Code
+     */
+    code: string;
+};
+
+/**
+ * SpaceKind
+ */
+export enum SpaceKind {
+    /**
+     * COURSE
+     */
+    COURSE = 1,
+    /**
+     * CLASSROOM
+     */
+    CLASSROOM = 2
+}
+
+/**
+ * SpaceMemberRead
+ */
+export type SpaceMemberRead = {
+    /**
+     * Userid
+     */
+    userId: string;
+    /**
+     * Username
+     */
+    username: string;
+    /**
+     * Displayname
+     */
+    displayName: string | null;
+    role: SpaceRole;
+    status: MemberStatus;
+    /**
+     * Joinedat
+     */
+    joinedAt: Date | null;
+    /**
+     * Createdat
+     */
+    createdAt: Date;
+};
+
+/**
+ * SpaceMemberRoleUpdate
+ *
+ * OWNER is never stored on a member row (see `space_member`).
+ */
+export type SpaceMemberRoleUpdate = {
+    /**
+     * Role
+     */
+    role: 2 | 3;
+};
+
+/**
+ * SpacePublishRequest
+ */
+export type SpacePublishRequest = {
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Notifymembers
+     */
+    notifyMembers?: boolean;
+    /**
+     * Resetitemids
+     */
+    resetItemIds?: Array<string>;
+};
+
+/**
+ * SpaceRole
+ */
+export enum SpaceRole {
+    /**
+     * OWNER
+     */
+    OWNER = 1,
+    /**
+     * EDITOR
+     */
+    EDITOR = 2,
+    /**
+     * VIEWER
+     */
+    VIEWER = 3
+}
+
+/**
+ * SpaceSectionCreate
+ */
+export type SpaceSectionCreate = {
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
+ * SpaceSectionOrder
+ */
+export type SpaceSectionOrder = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Itemids
+     */
+    itemIds: Array<string>;
+};
+
+/**
+ * SpaceSectionRead
+ */
+export type SpaceSectionRead = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Isdraft
+     */
+    isDraft: boolean;
+    /**
+     * Draftofid
+     */
+    draftOfId: string | null;
+    /**
+     * Items
+     */
+    items: Array<SpaceItemRead>;
+};
+
+/**
+ * SpaceSectionUpdate
+ */
+export type SpaceSectionUpdate = {
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
+ * SpaceStatus
+ */
+export enum SpaceStatus {
+    /**
+     * ACTIVE
+     */
+    ACTIVE = 1,
+    /**
+     * ARCHIVED
+     */
+    ARCHIVED = 2
+}
+
+/**
+ * SpaceSummary
+ *
+ * A space in a list (my courses, catalog, invitations).
+ */
+export type SpaceSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    kind: SpaceKind;
+    /**
+     * Ownerid
+     */
+    ownerId: string;
+    /**
+     * Ownername
+     */
+    ownerName: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Tags
+     */
+    tags: Array<string>;
+    visibility: SpaceVisibility;
+    status: SpaceStatus;
+    /**
+     * Publishedat
+     */
+    publishedAt: Date | null;
+    /**
+     * Archivedat
+     */
+    archivedAt: Date | null;
+    /**
+     * Createdat
+     */
+    createdAt: Date;
+    /**
+     * Membercount
+     */
+    memberCount: number;
+    myRole: SpaceRole | null;
+    myStatus: MemberStatus | null;
+};
+
+/**
+ * SpaceUpdate
+ */
+export type SpaceUpdate = {
+    /**
+     * Title
+     */
+    title?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Tags
+     */
+    tags?: Array<string> | null;
+    visibility?: SpaceVisibility | null;
+};
+
+/**
+ * SpaceVisibility
+ */
+export enum SpaceVisibility {
+    /**
+     * PRIVATE
+     */
+    PRIVATE = 1,
+    /**
+     * UNLISTED
+     */
+    UNLISTED = 2,
+    /**
+     * PUBLIC
+     */
+    PUBLIC = 3
+}
+
+/**
  * TestCreate
  */
 export type TestCreate = {
@@ -1550,6 +2143,14 @@ export type TestRead = {
      * Parentid
      */
     parentId?: string | null;
+    /**
+     * Spaceid
+     */
+    spaceId?: string | null;
+    /**
+     * Isdraft
+     */
+    isDraft?: boolean;
     /**
      * Createdat
      */
@@ -3773,6 +4374,1005 @@ export type AssistAssistResponses = {
      */
     200: unknown;
 };
+
+export type SpacesListMineData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: 'active' | 'archived' | 'all';
+        /**
+         * Visibility
+         */
+        visibility?: Array<SpaceVisibility> | null;
+        /**
+         * Role
+         */
+        role?: Array<SpaceRole> | null;
+    };
+    url: '/api/v1/spaces';
+};
+
+export type SpacesListMineErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesListMineError = SpacesListMineErrors[keyof SpacesListMineErrors];
+
+export type SpacesListMineResponses = {
+    /**
+     * Response Spaceslistmine
+     *
+     * Successful Response
+     */
+    200: Array<SpaceSummary>;
+};
+
+export type SpacesListMineResponse = SpacesListMineResponses[keyof SpacesListMineResponses];
+
+export type SpacesCreateData = {
+    body: SpaceCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/spaces';
+};
+
+export type SpacesCreateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesCreateError = SpacesCreateErrors[keyof SpacesCreateErrors];
+
+export type SpacesCreateResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceDetail;
+};
+
+export type SpacesCreateResponse = SpacesCreateResponses[keyof SpacesCreateResponses];
+
+export type SpacesCatalogData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Search
+         */
+        search?: string | null;
+        /**
+         * Sort
+         */
+        sort?: 'newest' | 'members';
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Per Page
+         */
+        per_page?: number;
+    };
+    url: '/api/v1/spaces/catalog';
+};
+
+export type SpacesCatalogErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesCatalogError = SpacesCatalogErrors[keyof SpacesCatalogErrors];
+
+export type SpacesCatalogResponses = {
+    /**
+     * Successful Response
+     */
+    200: PaginatedResponseSpaceSummary;
+};
+
+export type SpacesCatalogResponse = SpacesCatalogResponses[keyof SpacesCatalogResponses];
+
+export type SpacesInvitationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/spaces/invitations';
+};
+
+export type SpacesInvitationsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesInvitationsError = SpacesInvitationsErrors[keyof SpacesInvitationsErrors];
+
+export type SpacesInvitationsResponses = {
+    /**
+     * Response Spacesinvitations
+     *
+     * Successful Response
+     */
+    200: Array<SpaceSummary>;
+};
+
+export type SpacesInvitationsResponse = SpacesInvitationsResponses[keyof SpacesInvitationsResponses];
+
+export type SpacesJoinByCodeData = {
+    body: SpaceJoinByCode;
+    path?: never;
+    query?: never;
+    url: '/api/v1/spaces/join';
+};
+
+export type SpacesJoinByCodeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesJoinByCodeError = SpacesJoinByCodeErrors[keyof SpacesJoinByCodeErrors];
+
+export type SpacesJoinByCodeResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesJoinByCodeResponse = SpacesJoinByCodeResponses[keyof SpacesJoinByCodeResponses];
+
+export type SpacesDeleteForeverData = {
+    body: SpaceDeleteConfirm;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}';
+};
+
+export type SpacesDeleteForeverErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesDeleteForeverError = SpacesDeleteForeverErrors[keyof SpacesDeleteForeverErrors];
+
+export type SpacesDeleteForeverResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesDeleteForeverResponse = SpacesDeleteForeverResponses[keyof SpacesDeleteForeverResponses];
+
+export type SpacesGetData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}';
+};
+
+export type SpacesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesGetError = SpacesGetErrors[keyof SpacesGetErrors];
+
+export type SpacesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesGetResponse = SpacesGetResponses[keyof SpacesGetResponses];
+
+export type SpacesUpdateData = {
+    body: SpaceUpdate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}';
+};
+
+export type SpacesUpdateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesUpdateError = SpacesUpdateErrors[keyof SpacesUpdateErrors];
+
+export type SpacesUpdateResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesUpdateResponse = SpacesUpdateResponses[keyof SpacesUpdateResponses];
+
+export type SpacesArchiveData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/archive';
+};
+
+export type SpacesArchiveErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesArchiveError = SpacesArchiveErrors[keyof SpacesArchiveErrors];
+
+export type SpacesArchiveResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesArchiveResponse = SpacesArchiveResponses[keyof SpacesArchiveResponses];
+
+export type SpacesUnarchiveData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/unarchive';
+};
+
+export type SpacesUnarchiveErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesUnarchiveError = SpacesUnarchiveErrors[keyof SpacesUnarchiveErrors];
+
+export type SpacesUnarchiveResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesUnarchiveResponse = SpacesUnarchiveResponses[keyof SpacesUnarchiveResponses];
+
+export type SpacesRegenerateJoinCodeData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/join-code';
+};
+
+export type SpacesRegenerateJoinCodeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesRegenerateJoinCodeError = SpacesRegenerateJoinCodeErrors[keyof SpacesRegenerateJoinCodeErrors];
+
+export type SpacesRegenerateJoinCodeResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesRegenerateJoinCodeResponse = SpacesRegenerateJoinCodeResponses[keyof SpacesRegenerateJoinCodeResponses];
+
+export type SpacesDuplicateData = {
+    body: SpaceDuplicateRequest;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/duplicate';
+};
+
+export type SpacesDuplicateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesDuplicateError = SpacesDuplicateErrors[keyof SpacesDuplicateErrors];
+
+export type SpacesDuplicateResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceDetail;
+};
+
+export type SpacesDuplicateResponse = SpacesDuplicateResponses[keyof SpacesDuplicateResponses];
+
+export type SpacesEnterEditModeData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/draft';
+};
+
+export type SpacesEnterEditModeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesEnterEditModeError = SpacesEnterEditModeErrors[keyof SpacesEnterEditModeErrors];
+
+export type SpacesEnterEditModeResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesEnterEditModeResponse = SpacesEnterEditModeResponses[keyof SpacesEnterEditModeResponses];
+
+export type SpacesDiscardDraftData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/draft/discard';
+};
+
+export type SpacesDiscardDraftErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesDiscardDraftError = SpacesDiscardDraftErrors[keyof SpacesDiscardDraftErrors];
+
+export type SpacesDiscardDraftResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesDiscardDraftResponse = SpacesDiscardDraftResponses[keyof SpacesDiscardDraftResponses];
+
+export type SpacesPublishData = {
+    body: SpacePublishRequest;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/draft/publish';
+};
+
+export type SpacesPublishErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesPublishError = SpacesPublishErrors[keyof SpacesPublishErrors];
+
+export type SpacesPublishResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesPublishResponse = SpacesPublishResponses[keyof SpacesPublishResponses];
+
+export type SpacesReorderDraftData = {
+    body: SpaceDraftOrder;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/draft/order';
+};
+
+export type SpacesReorderDraftErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesReorderDraftError = SpacesReorderDraftErrors[keyof SpacesReorderDraftErrors];
+
+export type SpacesReorderDraftResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesReorderDraftResponse = SpacesReorderDraftResponses[keyof SpacesReorderDraftResponses];
+
+export type SpacesAddSectionData = {
+    body: SpaceSectionCreate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/sections';
+};
+
+export type SpacesAddSectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesAddSectionError = SpacesAddSectionErrors[keyof SpacesAddSectionErrors];
+
+export type SpacesAddSectionResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceDetail;
+};
+
+export type SpacesAddSectionResponse = SpacesAddSectionResponses[keyof SpacesAddSectionResponses];
+
+export type SpacesDeleteSectionData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Section Id
+         */
+        section_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/sections/{section_id}';
+};
+
+export type SpacesDeleteSectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesDeleteSectionError = SpacesDeleteSectionErrors[keyof SpacesDeleteSectionErrors];
+
+export type SpacesDeleteSectionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesDeleteSectionResponse = SpacesDeleteSectionResponses[keyof SpacesDeleteSectionResponses];
+
+export type SpacesRenameSectionData = {
+    body: SpaceSectionUpdate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Section Id
+         */
+        section_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/sections/{section_id}';
+};
+
+export type SpacesRenameSectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesRenameSectionError = SpacesRenameSectionErrors[keyof SpacesRenameSectionErrors];
+
+export type SpacesRenameSectionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesRenameSectionResponse = SpacesRenameSectionResponses[keyof SpacesRenameSectionResponses];
+
+export type SpacesCreateItemData = {
+    body: SpaceItemCreate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items';
+};
+
+export type SpacesCreateItemErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesCreateItemError = SpacesCreateItemErrors[keyof SpacesCreateItemErrors];
+
+export type SpacesCreateItemResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceItemContent;
+};
+
+export type SpacesCreateItemResponse = SpacesCreateItemResponses[keyof SpacesCreateItemResponses];
+
+export type SpacesCopyItemData = {
+    body: SpaceItemCopy;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/copy';
+};
+
+export type SpacesCopyItemErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesCopyItemError = SpacesCopyItemErrors[keyof SpacesCopyItemErrors];
+
+export type SpacesCopyItemResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceItemContent;
+};
+
+export type SpacesCopyItemResponse = SpacesCopyItemResponses[keyof SpacesCopyItemResponses];
+
+export type SpacesDeleteItemData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}';
+};
+
+export type SpacesDeleteItemErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesDeleteItemError = SpacesDeleteItemErrors[keyof SpacesDeleteItemErrors];
+
+export type SpacesDeleteItemResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesDeleteItemResponse = SpacesDeleteItemResponses[keyof SpacesDeleteItemResponses];
+
+export type SpacesMakeItemEditableData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/draft';
+};
+
+export type SpacesMakeItemEditableErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesMakeItemEditableError = SpacesMakeItemEditableErrors[keyof SpacesMakeItemEditableErrors];
+
+export type SpacesMakeItemEditableResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceItemContent;
+};
+
+export type SpacesMakeItemEditableResponse = SpacesMakeItemEditableResponses[keyof SpacesMakeItemEditableResponses];
+
+export type SpacesJoinData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/join';
+};
+
+export type SpacesJoinErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesJoinError = SpacesJoinErrors[keyof SpacesJoinErrors];
+
+export type SpacesJoinResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesJoinResponse = SpacesJoinResponses[keyof SpacesJoinResponses];
+
+export type SpacesLeaveData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/leave';
+};
+
+export type SpacesLeaveErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesLeaveError = SpacesLeaveErrors[keyof SpacesLeaveErrors];
+
+export type SpacesLeaveResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesLeaveResponse = SpacesLeaveResponses[keyof SpacesLeaveResponses];
+
+export type SpacesAcceptInvitationData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/invitation/accept';
+};
+
+export type SpacesAcceptInvitationErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesAcceptInvitationError = SpacesAcceptInvitationErrors[keyof SpacesAcceptInvitationErrors];
+
+export type SpacesAcceptInvitationResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesAcceptInvitationResponse = SpacesAcceptInvitationResponses[keyof SpacesAcceptInvitationResponses];
+
+export type SpacesDeclineInvitationData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/invitation/decline';
+};
+
+export type SpacesDeclineInvitationErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesDeclineInvitationError = SpacesDeclineInvitationErrors[keyof SpacesDeclineInvitationErrors];
+
+export type SpacesDeclineInvitationResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesDeclineInvitationResponse = SpacesDeclineInvitationResponses[keyof SpacesDeclineInvitationResponses];
+
+export type SpacesListMembersData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/members';
+};
+
+export type SpacesListMembersErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesListMembersError = SpacesListMembersErrors[keyof SpacesListMembersErrors];
+
+export type SpacesListMembersResponses = {
+    /**
+     * Response Spaceslistmembers
+     *
+     * Successful Response
+     */
+    200: Array<SpaceMemberRead>;
+};
+
+export type SpacesListMembersResponse = SpacesListMembersResponses[keyof SpacesListMembersResponses];
+
+export type SpacesInviteData = {
+    body: SpaceInvite;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/members';
+};
+
+export type SpacesInviteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesInviteError = SpacesInviteErrors[keyof SpacesInviteErrors];
+
+export type SpacesInviteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesInviteResponse = SpacesInviteResponses[keyof SpacesInviteResponses];
+
+export type SpacesApproveRequestData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/members/{user_id}/approve';
+};
+
+export type SpacesApproveRequestErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesApproveRequestError = SpacesApproveRequestErrors[keyof SpacesApproveRequestErrors];
+
+export type SpacesApproveRequestResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesApproveRequestResponse = SpacesApproveRequestResponses[keyof SpacesApproveRequestResponses];
+
+export type SpacesRemoveMemberData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/members/{user_id}';
+};
+
+export type SpacesRemoveMemberErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesRemoveMemberError = SpacesRemoveMemberErrors[keyof SpacesRemoveMemberErrors];
+
+export type SpacesRemoveMemberResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesRemoveMemberResponse = SpacesRemoveMemberResponses[keyof SpacesRemoveMemberResponses];
+
+export type SpacesSetMemberRoleData = {
+    body: SpaceMemberRoleUpdate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/members/{user_id}';
+};
+
+export type SpacesSetMemberRoleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesSetMemberRoleError = SpacesSetMemberRoleErrors[keyof SpacesSetMemberRoleErrors];
+
+export type SpacesSetMemberRoleResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesSetMemberRoleResponse = SpacesSetMemberRoleResponses[keyof SpacesSetMemberRoleResponses];
 
 export type DefaultHealthData = {
     body?: never;

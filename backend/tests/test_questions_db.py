@@ -31,7 +31,7 @@ from app.schemas.test_question_group import TestQuestionGroupCreate
 from app.services import question_service, test_service
 from app.services.assist_tools.questions import search_questions
 from app.services.assist_tools.tests import edit_test_confirm_context
-from app.services.versioning_service import _clone_test
+from app.services.versioning_service import clone_test
 
 if TYPE_CHECKING:
     # Not imported at runtime: pytest would try to collect a class named `Test*`.
@@ -146,7 +146,15 @@ def test_list_excludes_frozen_versions(db_session: Session, user: User) -> None:
     test = _test_with_group(db_session, user)
     loaded = test_crud.get_by_id(db_session, id=test.id)
     assert loaded is not None
-    _clone_test(db_session, test=loaded)
+    clone_test(
+        db_session,
+        test=loaded,
+        user_id=user.id,
+        parent_id=loaded.id,
+        space_id=None,
+        source_note_id=None,
+        link_origin=True,
+    )
     db_session.flush()
     assert _prompts(db_session, user) == ["grouped", "solo"]
 

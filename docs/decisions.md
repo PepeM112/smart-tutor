@@ -374,3 +374,159 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** The folder path is not stored in the embedding chunk metadata or the RAG chunk header.
 
 **Why:** Embedding is expensive. Adding the folder path to the chunk header would make every note stale when its folder is renamed or moved, forcing a re-embed of all chunks in that subtree. The folder path is not needed for ranking chunks by relevance — that is purely content-based. The AI Assistant reads the live folder path from the database at tool-call time (`list_notes`, `get_note_content`, `search_user_notes`), so the model always sees the current location without stale embeddings.
+
+---
+
+## Generic `space` Table for Courses and Classrooms
+
+**Decision:** Courses and classrooms are rows of one `space` table with a `kind` column. A classroom course points to its classroom with `parent_id`.
+
+**Alternative considered:** Separate `course` and `classroom` tables.
+
+**Why:** Members, invites, the feed, notifications and progress all point to "a space". With one table they use real FKs with `ON DELETE CASCADE`. With two tables they need `target_type + target_id` columns, which Postgres can not enforce.
+
+---
+
+## `space.owner_id` Is the Only Owner Record
+
+**Decision:** The owner is stored only in `space.owner_id`. A CHECK constraint stops `space_member` from storing the OWNER role.
+
+**Why:** One source of truth, so a space can never have two owners. An ownership transfer later changes one column.
+
+---
+
+## Published Space Content Can Not Change Through the Content Endpoints
+
+**Decision:** EDIT access on space content requires a draft row (`is_draft = true`). Publish (M2) is the only way to change what members see.
+
+**Why:** Members never see a half-done edit, and the access layer has one simple rule. The draft notes reuse the normal note editor and autosave.
+
+---
+
+## CHECK Constraints for Personal-Only Flags
+
+**Decision:** CHECK constraints keep drafts off personal rows, and keep space notes out of folders, Trash and favorites.
+
+**Why:** The DB enforces the rule, so no code path can break it. The Trash and folder queries can never return a space note, so they need no `space_id IS NULL` filter, and the M1 diff stays small.
+
+---
+
+## One Access Layer With a Pure Permission Function
+
+**Decision:** `access_service` loads every single note, test and question and decides READ / EDIT. The permission matrix is a pure function, `can_access_space_content`.
+
+**Why:** Before, each service checked `user_id == current_user.id` itself. Space content needs roles, inheritance, drafts and archive, and one copy of these rules is easier to keep correct. The pure function gets a full matrix test with no DB. Missing rows stay 404 and no access stays 403, so existing clients see no change.
+
+---
+
+## Draft Twins for Course Edit Mode
+
+**Decision:** Edit mode clones the published sections and items as draft rows (`draft_of_id`). A note or test gets its draft twin lazily, on the first edit. `space.draft_started_at` marks edit mode. Publish runs a diff and updates the published rows in place.
+
+**Alternative considered:** A JSON snapshot of the course, or versioned content rows.
+
+**Why:** The draft rows use the same tables, editor and access layer as the published rows, so no second code path exists. The published ids do not change on publish, so links, results and `source_note_id` of personal tests still work. Lazy twins keep "enter edit mode" cheap: it copies only structure, not content. `draft_started_at` is a flag because edit mode with zero draft sections is a valid state.
+
+---
+
+## AUTHOR Access Level for the Answer Key
+
+**Decision:** `AccessLevel.AUTHOR` (OWNER or EDITOR, any row, also archived) protects the questions of a space test. VIEWERs take a test only through the exam endpoint.
+
+**Why:** READ is enough for a note, but a test with READ access shows the answers. A separate level keeps the rule in the access layer and does not add role checks to each service.
+
+---
+
+## Join Code Works for Any Visibility
+
+**Decision:** Join by code gives ACTIVE membership, also for a PRIVATE course. Join by link to a PRIVATE course makes a request.
+
+**Why:** The code is the secret: only an author can see it, and the owner can regenerate it. The link has no secret, so a PRIVATE course needs approval.
+
+---
+
+## Up / Down Buttons Instead of Drag and Drop
+
+**Decision:** The draft editor reorders sections and items with up / down buttons. Each click sends the full order.
+
+**Why:** No new dependency, it works with a keyboard and on mobile, and the full-order endpoint is simple to validate (every id once). Drag and drop can come later on the same endpoint.
+
+---
+
+## Publish Options Are Stored Only
+
+**Decision:** `space_publish` stores `notify_members` and `reset_item_ids`, but they have no effect in M2.
+
+**Why:** Notifications (M5) and progress (M3) do not exist yet. Storing the author's choice now means the publish dialog and the log row do not change later.
+
+---
+
+## Only the Owner Manages Members
+
+**Decision:** Only the owner invites, approves, changes roles and removes members. EDITORs can read the member list.
+
+**Why:** An EDITOR who can promote users could give edit access without the owner's agreement. One manager is simple and safe; delegation can come later with a new role.
+
+---
+
+## Autosave to the Draft, Publish Only With Changes
+
+**Decision:** In edit mode each change saves to the draft at once. Publish is the only step that members see, and it is allowed only when the draft is different from the published version (409 otherwise).
+
+**Why:** A Save button on top of Publish gives two "save" steps for the same draft. The change check compares content, not twin rows, because the editor makes a twin when it opens an item, before any change.
+
+---
+
+## Course Settings Is an Owner Sub-Page
+
+**Decision:** Settings is `/courses/[id]/settings`, opened with a cog. Only the owner can open it.
+
+**Why:** Every setting (visibility, join code, archive, delete) is an owner action. A tab that editors see but can not use is noise. Editors lose the Duplicate button; the endpoint still allows it.
+
+---
+
+## No Emails in the Member List
+
+**Decision:** The member list shows the display name and `@username`, never the email.
+
+**Why:** Members of a public course are strangers to each other. The owner invites by username or email, but the list does not show an email to other users.
+
+---
+
+## Course Content Without Cards
+
+**Decision:** Course sections have no card. Each section has a muted header bar (title + item count) and plain item rows below it.
+
+**Why:** The user compared 7 styles in the browser. Cards inside a 720px column add borders and padding but no grouping that the header bar does not give. The same frames serve the outline and the draft editor, so both look the same.
+
+---
+
+## A Tooltip Around a Control Is Not a Button
+
+**Decision:** `Tooltip` has a `wrapsControl` prop. With it, the wrapper span has no `role="button"` and no tab stop. `Button` always sets it.
+
+**Why:** A disabled button gets no pointer events, so a wrapper span must catch the hover. With `role="button"` on that span, screen readers saw two buttons ("Publish" twice). The default stays the same: the other callers wrap text or icons, which need the span to be focusable.
+
+---
+
+## Test Snapshots Reload Their Children
+
+**Decision:** `version_test_if_needed` re-fetches the test with `populate_existing=True` and the ACTIVE-only load options. The course change check (`space_changes_service`) loads tests the same way (`active_children=True`).
+
+**Why:** A loader option does not replace a collection that is already loaded in the session. When a caller held the test with its unfiltered `questions` loaded, the frozen copy got the DELETED rows too, and each publish copied them again. `populate_existing` discards unflushed changes on the reloaded rows, so a caller must flush before it calls `version_test_if_needed` (all current callers do).
+
+---
+
+## Course Detail Is Marked Stale, Not Refetched, After a Draft Edit
+
+**Decision:** A save of a draft course note or test, and a Decline, call `markCourseDetailStale` (`invalidateQueries` with `refetchType: 'none'`).
+
+**Why:** The editor page reads the course query through its breadcrumb, so a normal invalidation refetches the course on every autosave. Stale-only gives a fresh `hasUnpublishedChanges` on the next visit at no cost while the author types.
+
+---
+
+## The Course Save State Follows the Newest Write
+
+**Decision:** The edit-mode header shows "Not saved" when the newest course write failed. A later successful write clears it. Move buttons are disabled while any course write is pending.
+
+**Why:** The error toast goes away, so the header must show that the draft is not saved. A full-order reorder payload comes from the cached course; while a delete is pending that order is old, so a reorder must wait.

@@ -78,6 +78,14 @@ Every AI call is metered — input/output tokens, model, provider, feature, and 
 
 <video src="docs/media/vid_5_stats.mp4" width="100%" autoplay loop muted playsinline></video>
 
+### Courses
+
+- **Create and share courses** — sections of notes and tests, with PUBLIC / UNLISTED / PRIVATE visibility
+- **Edit mode + Publish** — authors change a draft; members see the change only after publish
+- **Join** from the public catalog, an invite link, a join code, or an invitation; owners approve requests to private courses
+- **Roles** — owner, editor and viewer; viewers can take a course test but never see its answer key
+- **Archive, duplicate and delete forever**, with the typed title as a safeguard
+
 ### Additional Features
 
 - **12 color themes** (8 light + 4 dark) with system-preference detection
@@ -224,7 +232,10 @@ Detailed documentation lives in [`docs/`](docs/):
 | [AI Test Generation](docs/test-generation.md)      | Generating tests from notes, preferences, preview                  |
 | [AI Assistant](docs/ai-assistant.md)               | Chat panel, SSE protocol, agentic tool-calling, streaming pipeline |
 | [Token Usage & Cost Tracking](docs/token-usage.md) | Token metering, model pricing, cost calculation                    |
+| [Spaces](docs/spaces.md)                           | Courses, roles, access layer, draft and publish, joining           |
 
 ## License
 
-This project is not currently licensed for public use. All rights reserved.
+Copyright (C) 2026 PepeM112
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0). If you run a modified version as a network service, you must offer its source code to the users of that service.

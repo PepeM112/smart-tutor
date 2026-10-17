@@ -9,11 +9,24 @@ type TooltipProps = {
   children?: React.ReactNode;
   side?: 'top' | 'bottom' | 'left' | 'right';
   className?: string;
+  /**
+   * The child is a control with its own role and focus (a `Button`). The wrapper then only catches the
+   * hover (also on a disabled button, which gets no mouse events): no `role="button"` and no tab stop,
+   * so screen readers do not announce two buttons.
+   */
+  wrapsControl?: boolean;
 };
 
 const HOVER_DELAY = 150;
 
-export function Tooltip({ content, children, side = 'top', className }: TooltipProps) {
+/**
+ * `Popover.Trigger` adds these to its child. A wrapper span with no role must not have them:
+ * a screen reader would read a popup state on a plain `span`. Radix `Slot` lets the child's props win,
+ * and an explicit `undefined` also wins, so the wrapper clears them.
+ */
+const NO_POPUP_ATTRIBUTES = { 'aria-haspopup': undefined, 'aria-expanded': undefined, 'aria-controls': undefined };
+
+export function Tooltip({ content, children, side = 'top', className, wrapsControl = false }: TooltipProps) {
   const [open, setOpen] = useState(false);
   const pinned = useRef(false);
   const hoverTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -52,13 +65,14 @@ export function Tooltip({ content, children, side = 'top', className }: TooltipP
     <Popover.Root data-slot="tooltip" open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
         <span
-          role="button"
-          tabIndex={0}
+          role={wrapsControl ? undefined : 'button'}
+          tabIndex={wrapsControl ? undefined : 0}
           data-slot="tooltip-trigger"
           className="inline-flex cursor-pointer"
           onClick={handleClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          {...(wrapsControl ? NO_POPUP_ATTRIBUTES : {})}
         >
           {children ?? <HelpCircle className="size-3.5 text-muted-foreground/60" />}
         </span>

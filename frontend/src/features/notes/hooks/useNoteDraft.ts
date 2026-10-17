@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type FileTree, type NoteRead } from '@/client';
+import { markCourseDetailStale } from '@/features/courses/lib/queryKeys';
 import { fileQueryKeys } from '@/features/files/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
 
@@ -89,6 +90,8 @@ export function useNoteDraft({ note, editorRef }: UseNoteDraftArgs): UseNoteDraf
           : old
       );
       void queryClient.invalidateQueries({ queryKey: fileQueryKeys.notes(), refetchType: 'none' });
+      // A draft course note: the course page shows its title.
+      if (saved.spaceId) markCourseDetailStale(queryClient, saved.spaceId);
     },
     [queryClient, note.id]
   );

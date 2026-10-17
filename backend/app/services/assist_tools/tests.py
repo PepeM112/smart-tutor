@@ -14,9 +14,9 @@ from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import TestGenerationRequest
 from app.services import question_service, test_generation_service, test_service
+from app.services.access_service import AccessLevel, can_access_note, can_access_test, get_test_or_404
 from app.services.assist_tools._helpers import LIST_LIMIT, confirm_summary, note_label
 from app.services.assist_tools.types import TestCreatedMetadata, TestEditMetadata, ToolResult, ToolSpec
-from app.services.service_helpers import get_owned_or_404
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -56,7 +56,8 @@ def list_tests(db: Session, *, current_user: User, arguments: dict[str, object])
 
 def get_test_details(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     test_id = str(arguments.get("test_id", ""))
-    test = get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
+    # AUTHOR: the question ids lead to the answer-key reads, so a course member (VIEWER) must not get them.
+    test = get_test_or_404(db, test_id=test_id, current_user=current_user, level=AccessLevel.AUTHOR)
     lines = [f"**{test.title}** (ID: `{test.id}`)"]
     if test.description:
         lines.append(test.description)
@@ -172,7 +173,10 @@ def _test_question_ids(test: Test) -> set[str]:
 def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     test_id = str(arguments.get("test_id", ""))
     logger.info("edit_test: user=%s test=%s", current_user.id, test_id)
-    test = test_service.get_test(db, test_id=test_id, current_user=current_user)
+    # Row lock: a course publish waits for this edit, or this edit waits for it (see `update_test`).
+    test = test_service.get_test(
+        db, test_id=test_id, current_user=current_user, level=AccessLevel.EDIT, for_update=True
+    )
 
     changes: list[str] = []
 
@@ -194,13 +198,10 @@ def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) 
     removed_question_ids: list[str] = []
     remove_ids = arguments.get("remove_question_ids")
     if isinstance(remove_ids, list) and remove_ids:
-        str_ids = [str(qid) for qid in remove_ids]
-        test_question_ids = _test_question_ids(test)
-        scoped_ids = [qid for qid in str_ids if qid in test_question_ids]
-        if scoped_ids:
-            removed_question_ids = question_service.bulk_delete_questions(
-                db, question_ids=scoped_ids, current_user=current_user, force_soft_delete=True
-            )
+        removed_question_ids = question_service.delete_test_questions(
+            db, test=test, question_ids=[str(qid) for qid in remove_ids], force_soft_delete=True
+        )
+        if removed_question_ids:
             changes.append(f"{len(removed_question_ids)} question(s) removed")
 
     if not changes:
@@ -222,7 +223,7 @@ def edit_test_confirm_context(db: Session, *, current_user: User, arguments: dic
     context: dict[str, Any] = {}
     test_id = arguments.get("test_id")
     test = test_crud.get_by_id(db, id=str(test_id)) if test_id else None
-    if test is None or test.user_id != current_user.id:
+    if test is None or not can_access_test(db, test=test, current_user=current_user, level=AccessLevel.EDIT):
         return None
     new_title = arguments.get("title")
     if new_title:
@@ -238,9 +239,7 @@ def edit_test_confirm_context(db: Session, *, current_user: User, arguments: dic
         # Same scope as the handler: only active questions of this test are removed.
         in_test = _test_question_ids(test)
         questions = question_crud.list_by_ids(db, ids=[str(qid) for qid in remove_ids])
-        context["questions_to_remove"] = [
-            {"id": q.id, "prompt": q.prompt} for q in questions if q.id in in_test and q.user_id == current_user.id
-        ]
+        context["questions_to_remove"] = [{"id": q.id, "prompt": q.prompt} for q in questions if q.id in in_test]
     return context or None
 
 
@@ -253,7 +252,12 @@ def create_test_confirm_context(db: Session, *, current_user: User, arguments: d
     args = _parse_create_test_args(arguments)
     note = note_crud.get_by_id(db, id=args.note_id) if args.note_id else None
     return confirm_summary(
-        ("note", note_label(note.title) if note and note.user_id == current_user.id else None),
+        (
+            "note",
+            note_label(note.title)
+            if note and can_access_note(db, note=note, current_user=current_user, level=AccessLevel.READ)
+            else None,
+        ),
         ("question_count", str(args.question_count)),
         ("difficulty", args.difficulty),
         ("question_types", ",".join(t.name for t in args.question_types)),

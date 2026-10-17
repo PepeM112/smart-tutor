@@ -13,3 +13,6 @@ build/
 next-env.d.ts
 node_modules/
 src/client/
+e2e/.auth/
+test-results/
+playwright-report/

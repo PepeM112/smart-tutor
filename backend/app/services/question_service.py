@@ -1,4 +1,4 @@
-from functools import partial
+from collections.abc import Sequence
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -22,9 +22,15 @@ from app.schemas.question import (
     SortOrder,
     _validate_content,
 )
+from app.services.access_service import (
+    AccessLevel,
+    get_question_or_404,
+    get_test_or_404,
+    question_space_id,
+    require_personal,
+)
 from app.services.correction_service import correct_question
 from app.services.question_helpers import get_correct_answer_fields
-from app.services.service_helpers import get_owned_or_404
 from app.services.srs_service import record_answer
 from app.services.versioning_service import version_test_if_needed
 
@@ -48,15 +54,24 @@ def _validate_stored_content(new_type: QuestionType, raw_content: dict[str, obje
         ) from exc
 
 
-def get_question(db: Session, *, question_id: str, current_user: User) -> Question:
+def get_question(
+    db: Session, *, question_id: str, current_user: User, level: AccessLevel = AccessLevel.AUTHOR
+) -> Question:
+    # AUTHOR by default: a question carries its answer key, so a course member (VIEWER) must not read it.
     # A deleted question is treated as missing: it must not be updated, assigned or checked.
-    return get_owned_or_404(
-        db,
-        fetch=partial(question_crud.get_by_id, active_only=True),
-        id=question_id,
-        current_user=current_user,
-        entity_name="Question",
-    )
+    return get_question_or_404(db, question_id=question_id, current_user=current_user, level=level)
+
+
+def _get_personal_question(db: Session, *, question_id: str, current_user: User) -> Question:
+    """A question for a bank action (assign, duplicate): personal only, so 400 for space content."""
+    question = get_question(db, question_id=question_id, current_user=current_user)
+    require_personal(space_id=question_space_id(question))
+    return question
+
+
+def _owned_personal(questions: Sequence[Question], *, current_user: User) -> list[Question]:
+    """The questions a bulk action may touch. Others (another user's, course or classroom) are skipped."""
+    return [q for q in questions if q.user_id == current_user.id and question_space_id(q) is None]
 
 
 def list_questions(
@@ -95,8 +110,11 @@ def create_question(db: Session, *, current_user: User, data: QuestionCreateStan
     return question
 
 
-def _get_owned_test_or_404(db: Session, *, test_id: str, current_user: User) -> Test:
-    return get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
+def _get_personal_test_or_404(db: Session, *, test_id: str, current_user: User) -> Test:
+    """The target test of an assign: the bank feeds personal tests only."""
+    test = get_test_or_404(db, test_id=test_id, current_user=current_user, level=AccessLevel.EDIT)
+    require_personal(space_id=test.space_id)
+    return test
 
 
 # Groups and standalone questions share one order sequence per test
@@ -107,8 +125,8 @@ def _next_order_for_test(test: Test) -> int:
 
 
 def assign_question_to_test(db: Session, *, question_id: str, test_id: str, current_user: User) -> Question:
-    question = get_question(db, question_id=question_id, current_user=current_user)
-    test = _get_owned_test_or_404(db, test_id=test_id, current_user=current_user)
+    question = _get_personal_question(db, question_id=question_id, current_user=current_user)
+    test = _get_personal_test_or_404(db, test_id=test_id, current_user=current_user)
 
     assigned = question_crud.copy_to_test(
         db, source=question, user_id=current_user.id, test_id=test.id, order=_next_order_for_test(test)
@@ -119,8 +137,8 @@ def assign_question_to_test(db: Session, *, question_id: str, test_id: str, curr
 
 
 def duplicate_question(db: Session, *, question_id: str, current_user: User) -> Question:
-    """Copy any owned question (test-owned or bank) into the user's bank as a new standalone question."""
-    question = get_question(db, question_id=question_id, current_user=current_user)
+    """Copy any owned personal question (test-owned or bank) into the user's bank as a new standalone question."""
+    question = _get_personal_question(db, question_id=question_id, current_user=current_user)
     duplicate = question_crud.duplicate_to_bank(db, source=question, user_id=current_user.id)
     db.commit()
     db.refresh(duplicate)
@@ -148,11 +166,11 @@ def bulk_delete_questions(
     current_user: User,
     force_soft_delete: bool = False,
 ) -> list[str]:
-    """Delete every owned question in the batch. Questions the user doesn't own are skipped.
+    """Delete every owned personal question in the batch. Other questions are skipped (see `_owned_personal`).
 
     Returns the list of deleted question IDs.
     """
-    owned = [q for q in question_crud.list_by_ids(db, ids=question_ids) if q.user_id == current_user.id]
+    owned = _owned_personal(question_crud.list_by_ids(db, ids=question_ids), current_user=current_user)
     owned_ids = [q.id for q in owned]
     for question in owned:
         _delete_one_question(db, question=question, force_soft_delete=force_soft_delete)
@@ -160,11 +178,28 @@ def bulk_delete_questions(
     return owned_ids
 
 
+def delete_test_questions(
+    db: Session, *, test: Test, question_ids: list[str], force_soft_delete: bool = False
+) -> list[str]:
+    """Delete the active questions of `test` among `question_ids`. Other ids are skipped.
+
+    The caller checks EDIT access on `test` first. Unlike `bulk_delete_questions` (a bank action),
+    this also works for a draft course test, because the access check is on the test.
+    """
+    wanted = set(question_ids)
+    in_test = [*test.questions, *(q for g in test.question_groups for q in g.questions)]
+    selected = [q for q in in_test if q.id in wanted]
+    for question in selected:
+        _delete_one_question(db, question=question, force_soft_delete=force_soft_delete)
+    db.commit()
+    return [q.id for q in selected]
+
+
 def restore_questions(db: Session, *, question_ids: list[str], current_user: User) -> int:
-    """Restore soft-deleted questions. Unowned or non-deleted questions are skipped."""
+    """Restore soft-deleted questions. Unowned, space or non-deleted questions are skipped."""
     all_questions = question_crud.list_by_ids(db, ids=question_ids, active_only=False)
     owned_deleted = [
-        q for q in all_questions if q.user_id == current_user.id and q.status == int(QuestionStatus.DELETED)
+        q for q in _owned_personal(all_questions, current_user=current_user) if q.status == int(QuestionStatus.DELETED)
     ]
     question_crud.bulk_restore(db, questions=owned_deleted)
     db.commit()
@@ -172,9 +207,9 @@ def restore_questions(db: Session, *, question_ids: list[str], current_user: Use
 
 
 def bulk_assign_questions(db: Session, *, question_ids: list[str], test_id: str, current_user: User) -> int:
-    """Copy every owned question in the batch into the target test. Unowned questions are skipped."""
-    test = _get_owned_test_or_404(db, test_id=test_id, current_user=current_user)
-    owned = [q for q in question_crud.list_by_ids(db, ids=question_ids) if q.user_id == current_user.id]
+    """Copy every owned personal question in the batch into the target test. Other questions are skipped."""
+    test = _get_personal_test_or_404(db, test_id=test_id, current_user=current_user)
+    owned = _owned_personal(question_crud.list_by_ids(db, ids=question_ids), current_user=current_user)
 
     start_order = _next_order_for_test(test)
     for offset, question in enumerate(owned):
@@ -208,8 +243,22 @@ def _to_question_list_read(question: Question) -> QuestionListRead:
     return QuestionListRead.model_validate(data)
 
 
+def _lock_owning_space_test(db: Session, *, question: Question) -> None:
+    """Lock the course test of `question` (SELECT ... FOR UPDATE), as `update_test` does.
+
+    A course publish locks its draft tests first. An edit sent during a publish waits, then gets 404
+    (the twin is gone), instead of a change that publish then deletes. Personal tests need no lock.
+    """
+    test = question.owning_test
+    if test is None or test.space_id is None:
+        return
+    if test_crud.get_by_id_for_update(db, id=test.id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
+
+
 def update_question(db: Session, *, question_id: str, current_user: User, data: QuestionUpdate) -> Question:
-    question = get_question(db, question_id=question_id, current_user=current_user)
+    question = get_question(db, question_id=question_id, current_user=current_user, level=AccessLevel.EDIT)
+    _lock_owning_space_test(db, question=question)
     test = question.owning_test
     if test:
         version_test_if_needed(db, test=test)
@@ -224,7 +273,8 @@ def update_question(db: Session, *, question_id: str, current_user: User, data: 
 
 
 def delete_question(db: Session, *, question_id: str, current_user: User) -> None:
-    question = get_question(db, question_id=question_id, current_user=current_user)
+    question = get_question(db, question_id=question_id, current_user=current_user, level=AccessLevel.EDIT)
+    _lock_owning_space_test(db, question=question)
     _delete_one_question(db, question=question)
     db.commit()
 
@@ -241,7 +291,8 @@ def check_question(
     answer_status = correct_question(user_answer, question)
 
     srs_state = None
-    if update_srs:
+    # Space questions are not in SRS (M3 adds an opt-in), so a check must not create SRS state for them.
+    if update_srs and question_space_id(question) is None:
         srs_state = record_answer(
             db,
             user_id=current_user.id,

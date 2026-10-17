@@ -139,6 +139,8 @@ def _make_note(version: int = 1) -> MagicMock:
     note.content = "existing content"
     note.is_indexed = True
     note.deleted_at = None  # live by default
+    note.space_id = None  # personal
+    note.is_draft = False
     return note
 
 
@@ -151,7 +153,7 @@ class TestNoteVersioning:
         note = _make_note(version=2)
 
         with (
-            patch("app.services.note_service.get_owned_or_404", return_value=note),
+            patch("app.services.note_service.get_note_or_404", return_value=note),
             pytest.raises(HTTPException) as exc_info,
         ):
             update_note(
@@ -172,7 +174,7 @@ class TestNoteVersioning:
         note = _make_note(version=3)
 
         with (
-            patch("app.services.note_service.get_owned_or_404", return_value=note),
+            patch("app.services.note_service.get_note_or_404", return_value=note),
             patch("app.services.note_service.note_crud") as mock_crud,
         ):
             mock_crud.update.return_value = note
@@ -194,7 +196,7 @@ class TestNoteVersioning:
         note = _make_note(version=5)
 
         with (
-            patch("app.services.note_service.get_owned_or_404", return_value=note),
+            patch("app.services.note_service.get_note_or_404", return_value=note),
             patch("app.services.note_service.note_crud") as mock_crud,
         ):
             mock_crud.update.return_value = note
@@ -215,7 +217,7 @@ class TestNoteVersioning:
         note = _make_note(version=7)
 
         with (
-            patch("app.services.note_service.get_owned_or_404", return_value=note),
+            patch("app.services.note_service.get_note_or_404", return_value=note),
             patch("app.services.note_service.note_crud") as mock_crud,
         ):
             mock_crud.update.return_value = note
@@ -247,7 +249,7 @@ class TestReindexScheduling:
         note = _make_note(version=1)
 
         with (
-            patch("app.services.note_service.get_owned_or_404", return_value=note),
+            patch("app.services.note_service.get_note_or_404", return_value=note),
             patch("app.services.note_service.note_crud") as mock_crud,
             patch("app.services.note_service.schedule_indexing") as mock_sched,
         ):
@@ -270,7 +272,7 @@ class TestReindexScheduling:
         note.is_indexed = True
 
         with (
-            patch("app.services.note_service.get_owned_or_404", return_value=note),
+            patch("app.services.note_service.get_note_or_404", return_value=note),
             patch("app.services.note_service.note_crud") as mock_crud,
         ):
             mock_crud.update.return_value = note
@@ -293,7 +295,7 @@ class TestUpdateNoteRowLock:
         note = _make_note(version=1)
 
         with (
-            patch("app.services.note_service.get_owned_or_404", return_value=note) as mock_get,
+            patch("app.services.note_service.get_note_or_404", return_value=note) as mock_get,
             patch("app.services.note_service.note_crud") as mock_crud,
         ):
             mock_crud.update.return_value = note
@@ -304,7 +306,7 @@ class TestUpdateNoteRowLock:
                 data=NoteUpdate(title="new", version=1),
             )
 
-        assert mock_get.call_args.kwargs["fetch"] is mock_crud.get_by_id_for_update
+        assert mock_get.call_args.kwargs["for_update"] is True
 
 
 # ---------------------------------------------------------------------------

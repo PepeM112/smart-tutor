@@ -13,7 +13,7 @@ from app.models.test_question_group import TestQuestionGroup
 from app.schemas.test import SortOrder, TestSortBy, TestUpdate
 
 
-def _active_load_options() -> list[selectinload]:  # type: ignore[type-arg]
+def active_load_options() -> list[selectinload]:  # type: ignore[type-arg]
     """Eager-load only active (non-deleted) questions and groups."""
     active_q = int(QuestionStatus.ACTIVE)
     return [
@@ -24,8 +24,22 @@ def _active_load_options() -> list[selectinload]:  # type: ignore[type-arg]
     ]
 
 
-def get_by_id(db: Session, *, id: str) -> Test | None:
-    stmt = select(Test).options(*_active_load_options()).where(Test.id == id, Test.status == TestStatus.ACTIVE)
+def get_by_id(db: Session, *, id: str, populate_existing: bool = False) -> Test | None:
+    """`populate_existing` replaces collections that the session already loaded (for example unfiltered ones)."""
+    stmt = select(Test).options(*active_load_options()).where(Test.id == id, Test.status == TestStatus.ACTIVE)
+    if populate_existing:
+        stmt = stmt.execution_options(populate_existing=True)
+    return db.scalars(stmt).first()
+
+
+def get_by_id_for_update(db: Session, *, id: str) -> Test | None:
+    """Like `get_by_id`, but locks the test row until the transaction ends (SELECT … FOR UPDATE)."""
+    stmt = (
+        select(Test)
+        .options(*active_load_options())
+        .where(Test.id == id, Test.status == TestStatus.ACTIVE)
+        .with_for_update(of=Test)
+    )
     return db.scalars(stmt).first()
 
 
@@ -58,8 +72,13 @@ def list_by_user(
 ) -> tuple[Sequence[Test], int]:
     stmt = (
         select(Test)
-        .options(*_active_load_options())
-        .where(Test.user_id == user_id, Test.status == TestStatus.ACTIVE, Test.parent_id.is_(None))
+        .options(*active_load_options())
+        .where(
+            Test.user_id == user_id,
+            Test.space_id.is_(None),  # personal tests only (see docs/spaces.md)
+            Test.status == TestStatus.ACTIVE,
+            Test.parent_id.is_(None),
+        )
     )
 
     if search:
@@ -90,9 +109,23 @@ def list_by_user(
 
 
 def create(
-    db: Session, *, user_id: str, title: str, description: str | None, source_note_id: str | None = None
+    db: Session,
+    *,
+    user_id: str,
+    title: str,
+    description: str | None,
+    source_note_id: str | None = None,
+    space_id: str | None = None,
+    is_draft: bool = False,
 ) -> Test:
-    test = Test(user_id=user_id, title=title, description=description, source_note_id=source_note_id)
+    test = Test(
+        user_id=user_id,
+        title=title,
+        description=description,
+        source_note_id=source_note_id,
+        space_id=space_id,
+        is_draft=is_draft,
+    )
     db.add(test)
     db.flush()
     return test

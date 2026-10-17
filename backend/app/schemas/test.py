@@ -37,6 +37,9 @@ class TestRead(TestBase):
     source_note_id: str | None = None
     version: int = 1
     parent_id: str | None = None
+    # Course / classroom content (see docs/spaces.md). NULL = personal test.
+    space_id: str | None = None
+    is_draft: bool = False
     created_at: datetime
     questions: list[QuestionRead] = []
     question_groups: list[TestQuestionGroupRead] = []

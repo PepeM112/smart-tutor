@@ -40,7 +40,15 @@ def list_by_ids(db: Session, *, ids: list[str], active_only: bool = True) -> Seq
 
     Only active questions by default. Restore passes `active_only=False` because it needs the deleted rows.
     """
-    stmt = select(Question).options(joinedload(Question.question_group)).where(Question.id.in_(ids))
+    # Eager-load both paths to the owning test: bulk actions call `question_space_id` on each row.
+    stmt = (
+        select(Question)
+        .options(
+            joinedload(Question.test),
+            joinedload(Question.question_group).joinedload(TestQuestionGroup.test),
+        )
+        .where(Question.id.in_(ids))
+    )
     if active_only:
         stmt = stmt.where(Question.status == int(QuestionStatus.ACTIVE))
     return db.scalars(stmt).all()
@@ -100,11 +108,15 @@ def list_by_user(
         .where(
             Question.user_id == user_id,
             Question.status == int(QuestionStatus.ACTIVE),
-            # Bank questions, or questions of a live test: no frozen version snapshot (parent_id set)
-            # and no deleted test.
+            # Bank questions, or questions of a live personal test: no frozen version snapshot
+            # (parent_id set), no deleted test and no course / classroom test (space_id set).
             sa.or_(
                 is_bank,
-                sa.and_(owning_test.parent_id.is_(None), owning_test.status == int(TestStatus.ACTIVE)),
+                sa.and_(
+                    owning_test.parent_id.is_(None),
+                    owning_test.status == int(TestStatus.ACTIVE),
+                    owning_test.space_id.is_(None),
+                ),
             ),
         )
     )
@@ -268,6 +280,7 @@ def _reviewable_base_query(*, user_id: str) -> Select[tuple[Question]]:
         .join(Test, resolved_test_id == Test.id)
         .where(
             Test.user_id == user_id,
+            Test.space_id.is_(None),  # personal tests only; course questions in SRS come later (opt-in)
             Test.status == int(TestStatus.ACTIVE),
             Test.parent_id.is_(None),
             Question.status == int(QuestionStatus.ACTIVE),

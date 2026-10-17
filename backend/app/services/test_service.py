@@ -4,7 +4,6 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import GroupStatus, QuestionStatus
-from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.crud import test_question_group as group_crud
@@ -13,12 +12,28 @@ from app.models.user import User
 from app.schemas.question import QuestionCreate
 from app.schemas.test import SortOrder, TestCreate, TestRead, TestSortBy, TestUpdate
 from app.schemas.test_question_group import TestQuestionGroupCreate
-from app.services.service_helpers import get_owned_or_404
+from app.services.access_service import AccessLevel, get_note_or_404, get_test_or_404, require_personal
 from app.services.versioning_service import version_test_if_needed
 
 
-def get_test(db: Session, *, test_id: str, current_user: User) -> Test:
-    return get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
+def get_test(
+    db: Session,
+    *,
+    test_id: str,
+    current_user: User,
+    level: AccessLevel = AccessLevel.AUTHOR,
+    for_update: bool = False,
+) -> Test:
+    """AUTHOR by default: the full test has the answer key. Members of a space use `get_takeable_test`."""
+    return get_test_or_404(db, test_id=test_id, current_user=current_user, level=level, for_update=for_update)
+
+
+def get_takeable_test(db: Session, *, test_id: str, current_user: User) -> Test:
+    """Fetch a test for an exam (start or submit). A draft is not published content: 409."""
+    test = get_test(db, test_id=test_id, current_user=current_user, level=AccessLevel.READ)
+    if test.is_draft:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Draft tests can not be taken")
+    return test
 
 
 def _validate_order_space(
@@ -71,15 +86,18 @@ def list_tests(
 
 
 def _validate_source_note(db: Session, *, note_id: str | None, current_user: User) -> None:
-    """Raise 404 (403 for another user's note) unless `note_id` is None or a LIVE note of the user.
+    """Raise 404 (403 without access) unless `note_id` is None or a LIVE note the user can read.
 
     Without this check, a test could link to a note of another user or to a note in Trash.
+    A draft twin is refused too: publish deletes it, and the link would become NULL.
     """
     if note_id is None:
         return
-    note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    note = get_note_or_404(db, note_id=note_id, current_user=current_user, level=AccessLevel.READ)
     if note.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    if note.is_draft:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Draft notes can not be a source")
 
 
 def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
@@ -110,7 +128,9 @@ def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
 
 
 def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpdate) -> Test:
-    test = get_test(db, test_id=test_id, current_user=current_user)
+    # Row lock: a course publish locks its draft tests first, so an edit to a twin waits for it
+    # and then gets 404 (the twin is gone), instead of adding questions that publish then deletes.
+    test = get_test(db, test_id=test_id, current_user=current_user, level=AccessLevel.EDIT, for_update=True)
     version_test_if_needed(db, test=test)
 
     replacing_questions = "questions" in data.model_fields_set
@@ -148,7 +168,9 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
 
 
 def delete_test(db: Session, *, test_id: str, current_user: User) -> None:
-    test = get_test(db, test_id=test_id, current_user=current_user)
+    test = get_test(db, test_id=test_id, current_user=current_user, level=AccessLevel.EDIT)
+    # A course test is removed with its course item: a soft delete here leaves the item on a dead test.
+    require_personal(space_id=test.space_id)
     version_test_if_needed(db, test=test)
     test_crud.delete(db, test=test)
     db.commit()

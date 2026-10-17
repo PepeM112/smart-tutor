@@ -10,9 +10,9 @@ from app.crud import question as question_crud
 from app.crud import test as test_crud
 from app.schemas.test_generation import GeneratedQuestionPreview, QuestionEditRequest
 from app.services import test_generation_service
+from app.services.access_service import AccessLevel, can_access_test, get_test_or_404
 from app.services.assist_tools._helpers import SEARCH_LIMIT, clip, confirm_summary, string_list
 from app.services.assist_tools.types import QuestionRefineMetadata, ToolResult, ToolSpec
-from app.services.service_helpers import get_owned_or_404
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -52,7 +52,8 @@ def refine_questions(db: Session, *, current_user: User, arguments: dict[str, ob
     instructions = str(arguments.get("instructions", ""))
 
     logger.info("refine_questions: user=%s test=%s question_ids=%s", current_user.id, test_id, question_ids)
-    test = get_owned_or_404(db, fetch=test_crud.get_by_id, id=test_id, current_user=current_user, entity_name="Test")
+    # EDIT: the refined questions are saved into this test.
+    test = get_test_or_404(db, test_id=test_id, current_user=current_user, level=AccessLevel.EDIT)
 
     ordered_questions: list[Question] = sorted(test.questions or [], key=lambda q: q.order)
     for g in sorted(test.question_groups or [], key=lambda g: g.order):
@@ -91,7 +92,7 @@ def refine_questions_confirm_context(
 ) -> dict[str, Any] | None:
     test_id = arguments.get("test_id")
     test = test_crud.get_by_id(db, id=str(test_id)) if test_id else None
-    owned = test is not None and test.user_id == current_user.id
+    owned = test is not None and can_access_test(db, test=test, current_user=current_user, level=AccessLevel.EDIT)
     count = len(string_list(arguments.get("question_ids")))
     return confirm_summary(
         ("test", test.title if test and owned else None),

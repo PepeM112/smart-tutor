@@ -11,11 +11,12 @@
 
 import { Copy, Plus, Replace, type LucideIcon } from 'lucide-react';
 
+import { copyText } from '@/lib/copyText';
+
 import { buildSetCalloutTypeTransaction } from '../callout/calloutCommands';
 import { CALLOUT_ICONS } from '../callout/calloutIcons';
 import { CALLOUT_TYPES, toCalloutType } from '../callout/calloutTypes';
 import { buildToggleCodeWrapTransaction, isCodeWrapped } from '../codeBlockWrap';
-import { copyText } from '../copyText';
 import { parseTableLayout } from '../table/tableAttributes';
 import { buildInsertTransaction, buildSetLayoutTransaction, tableSize } from '../table/tableCommands';
 

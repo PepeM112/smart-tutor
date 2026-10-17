@@ -74,7 +74,7 @@ def get(test_id: str, db: DbSession, current_user: CurrentUser) -> Test:
 
 @router.get("/{test_id}/exam", response_model=TestReadStripped)
 def get_exam(test_id: str, db: DbSession, current_user: CurrentUser) -> TestReadStripped:
-    test = test_service.get_test(db, test_id=test_id, current_user=current_user)
+    test = test_service.get_takeable_test(db, test_id=test_id, current_user=current_user)
     return build_stripped_test(test)
 
 

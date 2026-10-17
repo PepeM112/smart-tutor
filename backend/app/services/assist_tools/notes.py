@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING, Any
 
 from app.core.enums import NoteLength
 from app.crud import note as note_crud
+from app.crud import space as space_crud
 from app.schemas.note import NoteGenerate
 from app.services import folder_service, note_service
+from app.services.access_service import AccessLevel, can_access_note, get_note_or_404
 from app.services.assist_tools._helpers import (
     LIST_LIMIT,
     ROOT_LOCATION_LABEL,
@@ -19,7 +21,6 @@ from app.services.assist_tools._helpers import (
     note_label,
 )
 from app.services.assist_tools.types import NoteCreatedMetadata, NoteRefineMetadata, ToolResult, ToolSpec
-from app.services.service_helpers import get_owned_or_404
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -111,12 +112,17 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
 
 def get_note_content(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     note_id = str(arguments.get("note_id", ""))
-    note = get_owned_or_404(db, fetch=note_crud.get_by_id, id=note_id, current_user=current_user, entity_name="Note")
+    note = get_note_or_404(db, note_id=note_id, current_user=current_user, level=AccessLevel.READ)
     # get_by_id also returns trashed notes (the note page shows them). The Assistant must not read them.
     if note.deleted_at is not None:
         return ToolResult(output=f"Note `{note_id}` is in Trash. Ask the user to restore it first.")
-    folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
-    location = location_label(folders, note.folder_id)
+    if note.space_id is not None:
+        # A space note has no folder: its location is the course.
+        space = space_crud.get_by_id(db, id=note.space_id)
+        location = f"course '{space.title}'" if space else "a course"
+    else:
+        folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
+        location = location_label(folders, note.folder_id)
     content = note.content or "(empty)"
     return ToolResult(output=f"**{note_label(note.title)}** (location: {location})\n\n{content}")
 
@@ -171,9 +177,11 @@ def refine_note(db: Session, *, current_user: User, arguments: dict[str, object]
     )
 
 
-def _owned_note_title(db: Session, *, current_user: User, note_id: object) -> str | None:
+def _editable_note_title(db: Session, *, current_user: User, note_id: object) -> str | None:
     note = note_crud.get_by_id(db, id=str(note_id)) if note_id else None
-    return note_label(note.title) if note and note.user_id == current_user.id else None
+    if note is None or not can_access_note(db, note=note, current_user=current_user, level=AccessLevel.EDIT):
+        return None
+    return note_label(note.title)
 
 
 def create_note_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
@@ -191,7 +199,7 @@ def create_note_confirm_context(db: Session, *, current_user: User, arguments: d
 
 def refine_note_confirm_context(db: Session, *, current_user: User, arguments: dict[str, Any]) -> dict[str, Any] | None:
     return confirm_summary(
-        ("note", _owned_note_title(db, current_user=current_user, note_id=arguments.get("note_id"))),
+        ("note", _editable_note_title(db, current_user=current_user, note_id=arguments.get("note_id"))),
         ("instructions", clip(arguments.get("instructions"))),
     )
 

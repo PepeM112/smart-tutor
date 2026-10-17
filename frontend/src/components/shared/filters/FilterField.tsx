@@ -179,12 +179,12 @@ function ToggleField({
   const options = useMemo(() => {
     const items = item.options?.items ?? [];
     // '__all__' sentinel maps back to undefined (no filter) on click
-    const all: FilterEntity[] = [{ label: 'common.all', value: '__all__' }];
+    const all: FilterEntity[] = [{ label: item.options?.allLabel ?? 'common.all', value: '__all__' }];
     items.forEach(opt => {
       all.push(isFilterEntity(opt) ? opt : { label: String(opt), value: opt });
     });
     return all;
-  }, [item.options?.items]);
+  }, [item.options?.items, item.options?.allLabel]);
 
   const activeValue = value ?? '__all__';
 
