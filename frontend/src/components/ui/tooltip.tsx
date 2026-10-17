@@ -19,6 +19,13 @@ type TooltipProps = {
 
 const HOVER_DELAY = 150;
 
+/**
+ * `Popover.Trigger` adds these to its child. A wrapper span with no role must not have them:
+ * a screen reader would read a popup state on a plain `span`. Radix `Slot` lets the child's props win,
+ * and an explicit `undefined` also wins, so the wrapper clears them.
+ */
+const NO_POPUP_ATTRIBUTES = { 'aria-haspopup': undefined, 'aria-expanded': undefined, 'aria-controls': undefined };
+
 export function Tooltip({ content, children, side = 'top', className, wrapsControl = false }: TooltipProps) {
   const [open, setOpen] = useState(false);
   const pinned = useRef(false);
@@ -65,6 +72,7 @@ export function Tooltip({ content, children, side = 'top', className, wrapsContr
           onClick={handleClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          {...(wrapsControl ? NO_POPUP_ATTRIBUTES : {})}
         >
           {children ?? <HelpCircle className="size-3.5 text-muted-foreground/60" />}
         </span>

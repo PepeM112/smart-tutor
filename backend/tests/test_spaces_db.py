@@ -316,6 +316,56 @@ class TestDraftEngine:
         assert frozen is not None and frozen.parent_id == test_id
         assert db_session.get(ExamTest, twin_id) is None
 
+    def test_second_publish_freezes_only_active_questions(self, db_session: Session, owner: User) -> None:
+        """The first publish retires the old questions (DELETED). The next frozen copy must not copy them."""
+        course = _create_course(db_session, owner)
+        course = space_draft_service.add_section(
+            db_session, space_id=course.id, current_user=owner, data=SpaceSectionCreate(title="S")
+        )
+        assert course.draft_sections is not None
+        test_id = space_draft_service.copy_item(
+            db_session,
+            space_id=course.id,
+            current_user=owner,
+            data=SpaceItemCopy(section_id=course.draft_sections[0].id, test_id=new_test(db_session, user=owner).id),
+        ).test_id
+        assert test_id is not None
+        course = _publish(db_session, owner, course.id)
+        viewer = _joined_viewer(db_session, course.id)
+        # The session holds the published test with ALL its questions (also DELETED), as a caller that
+        # read `test.questions` through the lazy relationship does. The identity map is weak: without
+        # this strong reference the object would be dropped before publish and the bug would not show.
+        held = db_session.get(ExamTest, test_id)
+        assert held is not None
+
+        def edit_and_publish(prompt: str) -> str:
+            """Add a member result, edit the twin to one question `prompt`, publish. Returns the frozen test id."""
+            result = ResultRow(test_id=test_id, user_id=viewer.id, total_questions=1, correct_answers=1)
+            db_session.add(result)
+            db_session.flush()
+            detail = space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
+            assert detail.draft_sections is not None
+            twin_id = space_draft_service.make_editable(
+                db_session, space_id=course.id, item_id=detail.draft_sections[0].items[0].id, current_user=owner
+            ).test_id
+            assert twin_id is not None
+            test_service.update_test(
+                db_session,
+                test_id=twin_id,
+                current_user=owner,
+                data=TestUpdate(questions=[_simple_question(prompt, "x")]),
+            )
+            assert len(held.questions) >= 1  # load the unfiltered collection again (the commit expired it)
+            _publish(db_session, owner, course.id)
+            db_session.refresh(result)
+            return result.test_id
+
+        edit_and_publish("first")
+        newest_frozen_id = edit_and_publish("second")
+
+        frozen = db_session.scalars(select(Question).where(Question.test_id == newest_frozen_id)).all()
+        assert [(q.prompt, q.status) for q in frozen] == [("first", int(QuestionStatus.ACTIVE))]
+
     def test_discard_restores_the_published_state(self, db_session: Session, owner: User) -> None:
         course, note_id = _course_with_note(db_session, owner)
         course = space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
@@ -712,7 +762,9 @@ def _my_course_ids(
     visibility: Sequence[SpaceVisibility] = (),
     roles: Sequence[SpaceRole] = (),
 ) -> set[str]:
-    courses = space_service.list_my_courses(db, current_user=user, status=status, visibility=visibility, roles=roles)
+    courses = space_service.list_my_courses(
+        db, current_user=user, list_status=status, visibility=visibility, roles=roles
+    )
     return {course.id for course in courses}
 
 

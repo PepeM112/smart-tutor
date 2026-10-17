@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type FileTree, type NoteRead } from '@/client';
-import { courseQueryKeys } from '@/features/courses/lib/queryKeys';
+import { markCourseDetailStale } from '@/features/courses/lib/queryKeys';
 import { fileQueryKeys } from '@/features/files/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
 
@@ -90,11 +90,8 @@ export function useNoteDraft({ note, editorRef }: UseNoteDraftArgs): UseNoteDraf
           : old
       );
       void queryClient.invalidateQueries({ queryKey: fileQueryKeys.notes(), refetchType: 'none' });
-      // A draft course note: the course page shows its title. Only mark it stale, because the breadcrumb
-      // on this page reads the same course query and would refetch on every save.
-      if (saved.spaceId) {
-        void queryClient.invalidateQueries({ queryKey: courseQueryKeys.detail(saved.spaceId), refetchType: 'none' });
-      }
+      // A draft course note: the course page shows its title.
+      if (saved.spaceId) markCourseDetailStale(queryClient, saved.spaceId);
     },
     [queryClient, note.id]
   );

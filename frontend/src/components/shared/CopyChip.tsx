@@ -10,7 +10,10 @@ import { cn } from '@/lib/utils';
 type Props = {
   /** The text that shows in the chip and goes to the clipboard. */
   text: string;
-  /** Accessible name of the button, e.g. "Copy code". Default: the common "Copy" label + the text. */
+  /**
+   * Describes the action, e.g. "Copy code". The accessible name is this label + the visible text
+   * (WCAG 2.5.3: the name must contain the visible label). Default label: the common "Copy".
+   */
   label?: string;
   className?: string;
 };
@@ -37,7 +40,7 @@ export function CopyChip({ text, label, className }: Props) {
     <button
       type="button"
       data-slot="copy-chip"
-      aria-label={label ?? `${t('copy')} ${text}`}
+      aria-label={`${label ?? t('copy')} ${text}`}
       onClick={copy}
       className={cn(
         'inline-flex h-8 items-center gap-2 rounded-md border border-border bg-muted px-2.5 font-mono text-sm',

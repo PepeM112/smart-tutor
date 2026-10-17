@@ -1,20 +1,16 @@
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
-import { expectToast, openCourse } from './helpers';
-import { authFile, type UserKey } from './users';
+import { expectToast, openCourse, reseedCourses, test } from './helpers';
 
 const COURSE = 'Spanish Basics';
 
-async function pageAs(browser: Browser, user: UserKey): Promise<Page> {
-  const context = await browser.newContext({ storageState: authFile(user) });
-  return context.newPage();
-}
-
 // One story in order: the seed leaves the course in edit mode with unpublished changes.
+// The tests change that state, so the file reseeds before it starts and does not need the other files.
 test.describe.configure({ mode: 'serial' });
+test.beforeAll(reseedCourses);
 
-test('a member sees the published version, not the draft', async ({ browser }) => {
-  const viewer = await pageAs(browser, 'viewer');
+test('a member sees the published version, not the draft', async ({ pageAs }) => {
+  const viewer = await pageAs('viewer');
   await openCourse(viewer, COURSE);
   await expect(viewer.getByRole('heading', { name: 'Grammar' })).toBeVisible();
   await expect(viewer.getByText('Extra (draft only)')).toHaveCount(0);
@@ -22,16 +18,16 @@ test('a member sees the published version, not the draft', async ({ browser }) =
   await expect(viewer.getByRole('link', { name: 'Settings', exact: true })).toHaveCount(0);
 });
 
-test('a member opens a note in the preview panel', async ({ browser }) => {
-  const viewer = await pageAs(browser, 'viewer');
+test('a member opens a note in the preview panel', async ({ pageAs }) => {
+  const viewer = await pageAs('viewer');
   await openCourse(viewer, COURSE);
   await viewer.getByRole('button', { name: 'Pronouns' }).click();
   await expect(viewer.getByText('nosotros, vosotros')).toBeVisible();
   await expect(viewer.getByText('DRAFT CHANGE')).toHaveCount(0);
 });
 
-test('the owner discards the draft', async ({ browser }) => {
-  const owner = await pageAs(browser, 'owner');
+test('the owner discards the draft', async ({ pageAs }) => {
+  const owner = await pageAs('owner');
   await openCourse(owner, COURSE);
   await expect(owner.getByText('Extra (draft only)')).toBeVisible();
   await expect(owner.getByRole('button', { name: 'Publish' })).toBeEnabled();
@@ -43,8 +39,8 @@ test('the owner discards the draft', async ({ browser }) => {
   await expect(owner.getByText('Extra (draft only)')).toHaveCount(0);
 });
 
-test('Publish is off until a change, autosave shows Saved, publish reaches members', async ({ browser }) => {
-  const owner = await pageAs(browser, 'owner');
+test('Publish is off until a change, autosave shows Saved, publish reaches members', async ({ pageAs }) => {
+  const owner = await pageAs('owner');
   await openCourse(owner, COURSE);
   await owner.getByRole('button', { name: 'Edit course' }).click();
   // A draft with no changes: nothing to publish. The tooltip wrapper is not a second "Publish" button.
@@ -58,7 +54,12 @@ test('Publish is off until a change, autosave shows Saved, publish reaches membe
   await owner.keyboard.press('Escape');
 
   await owner.getByRole('textbox', { name: 'New section title' }).fill('E2E section');
+  // "Saved" also shows before any write, so wait for the write response first.
+  const sectionWritten = owner.waitForResponse(
+    response => response.request().method() === 'POST' && /\/spaces\/[^/]+\/sections$/.test(response.url())
+  );
   await owner.getByRole('button', { name: 'Add section' }).click();
+  expect((await sectionWritten).ok()).toBe(true);
   await expect(owner.getByRole('heading', { name: 'E2E section' })).toBeVisible();
   await expect(owner.getByText('Saved', { exact: true })).toBeVisible();
   await expect(publish).toBeEnabled();
@@ -68,7 +69,7 @@ test('Publish is off until a change, autosave shows Saved, publish reaches membe
   await expectToast(owner, 'Course published');
   await expect(owner.getByRole('button', { name: 'Edit course' })).toBeVisible();
 
-  const viewer = await pageAs(browser, 'viewer');
+  const viewer = await pageAs('viewer');
   await openCourse(viewer, COURSE);
   await expect(viewer.getByRole('heading', { name: 'E2E section' })).toBeVisible();
 });

@@ -506,3 +506,27 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** `Tooltip` has a `wrapsControl` prop. With it, the wrapper span has no `role="button"` and no tab stop. `Button` always sets it.
 
 **Why:** A disabled button gets no pointer events, so a wrapper span must catch the hover. With `role="button"` on that span, screen readers saw two buttons ("Publish" twice). The default stays the same: the other callers wrap text or icons, which need the span to be focusable.
+
+---
+
+## Test Snapshots Reload Their Children
+
+**Decision:** `version_test_if_needed` re-fetches the test with `populate_existing=True` and the ACTIVE-only load options. The course change check (`space_changes_service`) loads tests the same way (`active_children=True`).
+
+**Why:** A loader option does not replace a collection that is already loaded in the session. When a caller held the test with its unfiltered `questions` loaded, the frozen copy got the DELETED rows too, and each publish copied them again. `populate_existing` discards unflushed changes on the reloaded rows, so a caller must flush before it calls `version_test_if_needed` (all current callers do).
+
+---
+
+## Course Detail Is Marked Stale, Not Refetched, After a Draft Edit
+
+**Decision:** A save of a draft course note or test, and a Decline, call `markCourseDetailStale` (`invalidateQueries` with `refetchType: 'none'`).
+
+**Why:** The editor page reads the course query through its breadcrumb, so a normal invalidation refetches the course on every autosave. Stale-only gives a fresh `hasUnpublishedChanges` on the next visit at no cost while the author types.
+
+---
+
+## The Course Save State Follows the Newest Write
+
+**Decision:** The edit-mode header shows "Not saved" when the newest course write failed. A later successful write clears it. Move buttons are disabled while any course write is pending.
+
+**Why:** The error toast goes away, so the header must show that the draft is not saved. A full-order reorder payload comes from the cached course; while a delete is pending that order is old, so a reorder must wait.

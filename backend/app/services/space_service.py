@@ -411,11 +411,13 @@ def list_my_courses(
     db: Session,
     *,
     current_user: User,
-    status: SpaceListStatus = "active",
+    list_status: SpaceListStatus = "active",
     visibility: Sequence[SpaceVisibility] = (),
     roles: Sequence[SpaceRole] = (),
 ) -> list[SpaceSummary]:
-    spaces = space_crud.list_for_user(db, user_id=current_user.id, status=status, visibility=visibility, roles=roles)
+    spaces = space_crud.list_for_user(
+        db, user_id=current_user.id, status=list_status, visibility=visibility, roles=roles
+    )
     return build_summaries(db, spaces=spaces, current_user=current_user)
 
 

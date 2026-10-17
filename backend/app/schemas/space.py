@@ -23,16 +23,21 @@ def _reject_null(value: object) -> object:
 # ── Space ─────────────────────────────────────────────────────────────────────
 
 
-class SpaceCreate(BaseSchema):
+class _SpaceMetadata(BaseSchema):
+    """The fields that create and duplicate share."""
+
     title: str = Field(min_length=1, max_length=SPACE_TITLE_MAX)
     description: str = Field(default="", max_length=SPACE_DESCRIPTION_MAX)
     tags: list[str] = []
-    visibility: SpaceVisibility = SpaceVisibility.PRIVATE
 
     @field_validator("tags")
     @classmethod
     def _validate_tags(cls, tags: list[str]) -> list[str]:
         return normalize_tags(tags)
+
+
+class SpaceCreate(_SpaceMetadata):
+    visibility: SpaceVisibility = SpaceVisibility.PRIVATE
 
 
 class SpaceUpdate(BaseSchema):
@@ -124,17 +129,8 @@ SpaceListStatus = Literal["active", "archived", "all"]
 PaginatedSpaceSummary = PaginatedResponse[SpaceSummary]
 
 
-class SpaceDuplicateRequest(BaseSchema):
+class SpaceDuplicateRequest(_SpaceMetadata):
     """The metadata of the new course. The dialog fills it with the values of the source."""
-
-    title: str = Field(min_length=1, max_length=SPACE_TITLE_MAX)
-    description: str = Field(default="", max_length=SPACE_DESCRIPTION_MAX)
-    tags: list[str] = []
-
-    @field_validator("tags")
-    @classmethod
-    def _validate_tags(cls, tags: list[str]) -> list[str]:
-        return normalize_tags(tags)
 
 
 class SpaceDeleteConfirm(BaseSchema):

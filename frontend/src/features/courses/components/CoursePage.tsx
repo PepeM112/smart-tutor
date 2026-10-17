@@ -1,7 +1,7 @@
 'use client';
 
-import { useIsMutating } from '@tanstack/react-query';
-import { Archive, Check, Loader2, LogOut, Pencil, Settings } from 'lucide-react';
+import { useIsMutating, useMutationState } from '@tanstack/react-query';
+import { Archive, Check, Loader2, LogOut, Pencil, Settings, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -16,7 +16,7 @@ import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { courseSettingsHref, Routes } from '@/lib/routes';
-import { errorStatus } from '@/lib/utils';
+import { cn, errorStatus } from '@/lib/utils';
 
 import { useCourse } from '../hooks/useCourse';
 import { courseWriteKey, useCourseActions } from '../hooks/useCourseActions';
@@ -27,6 +27,7 @@ import { courseAccess } from '../lib/membership';
 import { CourseDraftEditor } from './CourseDraftEditor';
 import { CourseMembers } from './CourseMembers';
 import { CourseOutline } from './CourseOutline';
+import { CourseUnavailable } from './CourseUnavailable';
 import { PublishDialog } from './PublishDialog';
 
 type Actions = ReturnType<typeof useCourseActions>;
@@ -101,23 +102,6 @@ export function CoursePage({ courseId }: { courseId: string }) {
         // The preview panel has its own frame and scroll.
         insetDrawerBody={false}
       />
-    </div>
-  );
-}
-
-/** A 403 is a course the user can not see (PRIVATE, or not published): they can still ask to join. */
-function CourseUnavailable({ status, actions }: { status: number | undefined; actions: Actions }) {
-  const t = useTranslations();
-
-  if (status !== 403) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">{t('courses.not_found')}</p>;
-  }
-  return (
-    <div className="flex flex-col items-center gap-4 py-12 text-center">
-      <p className="text-sm text-muted-foreground">{t('courses.no_access')}</p>
-      <Button loading={actions.join.isPending} onClick={() => actions.join.mutate()}>
-        {t('courses.request_to_join')}
-      </Button>
     </div>
   );
 }
@@ -278,15 +262,37 @@ function AuthorActions({ course, actions }: { course: SpaceDetail; actions: Acti
   );
 }
 
-/** "Saving…" while any write of this course runs (they share `courseWriteKey`), else "Saved". */
+/**
+ * "Saving…" while any write of this course runs (they share `courseWriteKey`), else "Saved".
+ * If the newest write failed, it shows "Not saved": the toast goes away, but the draft is not saved.
+ * The next write that works (or a new edit session) makes the newest write a success again.
+ */
 function SaveState({ courseId }: { courseId: string }) {
   const t = useTranslations();
   const isSaving = useIsMutating({ mutationKey: courseWriteKey(courseId) }) > 0;
+  const lastWrite = useMutationState({
+    filters: { mutationKey: courseWriteKey(courseId) },
+    select: ({ state }) => ({ status: state.status, submittedAt: state.submittedAt }),
+  }).reduce<{ status: string; submittedAt: number } | undefined>(
+    (newest, write) => (!newest || write.submittedAt > newest.submittedAt ? write : newest),
+    undefined
+  );
+  const isFailed = !isSaving && lastWrite?.status === 'error';
+  const label = isSaving ? 'common.saving' : isFailed ? 'courses.not_saved_state' : 'courses.saved_state';
 
   return (
-    <span className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground" aria-live="polite">
-      {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-      {t(isSaving ? 'common.saving' : 'courses.saved_state')}
+    <span
+      className={cn('flex items-center gap-1.5 px-1 text-xs', isFailed ? 'text-destructive' : 'text-muted-foreground')}
+      aria-live="polite"
+    >
+      {isSaving ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : isFailed ? (
+        <TriangleAlert className="size-3.5" />
+      ) : (
+        <Check className="size-3.5" />
+      )}
+      {t(label)}
     </span>
   );
 }

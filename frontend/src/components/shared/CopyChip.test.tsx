@@ -19,7 +19,7 @@ describe('CopyChip', () => {
     mocks.copyText.mockResolvedValue(true);
     render(<CopyChip text="ABC123" label="Copy code" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy code ABC123' }));
 
     expect(mocks.copyText).toHaveBeenCalledWith('ABC123', { copied: 'copied', failed: 'failed_to_copy' });
     await waitFor(() => expect(document.querySelector('.lucide-check')).toBeTruthy());

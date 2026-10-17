@@ -28,6 +28,7 @@ import {
 } from '@/features/assist/components/diff';
 import { useAssistCoversPage } from '@/features/assist/hooks/useAssistCoversPage';
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
+import { markCourseDetailStale } from '@/features/courses/lib/queryKeys';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useMobileBreadcrumbActions } from '@/hooks/useMobileBreadcrumbActions';
 import { sdk } from '@/lib/apiClient';
@@ -139,6 +140,8 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
     },
     onSuccess: res => {
       void queryClient.invalidateQueries({ queryKey: ['tests'] });
+      // A draft course test: the course page shows "Changed" and enables Publish from this data.
+      if (res.data?.spaceId) markCourseDetailStale(queryClient, res.data.spaceId);
       toast.success(isEdit ? t('tests.test_updated') : t('tests.test_created'));
       // Only advance if the form still matches what was submitted — edits made
       // during the request were not saved, so they must stay dirty.

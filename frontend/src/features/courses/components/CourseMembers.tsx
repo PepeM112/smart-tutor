@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Check, Eye, PenLine, UserMinus, UserPlus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 
 import { MemberStatus, SpaceRole, type SpaceDetail, type SpaceMemberRead } from '@/client';
 import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
@@ -59,17 +59,23 @@ export function CourseMembers({ course, actions }: Props) {
   const sorted = members.toSorted((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
   const columns = useMemberColumns();
 
-  const renderActions = useCallback(
-    (member: SpaceMemberRead): MobileAction[][] =>
-      memberActions(member, { canManage, isBusy, actions, t: (key, values) => t(key, values) }),
-    [canManage, isBusy, actions, t]
-  );
+  const renderActions = (member: SpaceMemberRead): MobileAction[][] =>
+    memberActions(member, { canManage, isBusy, actions, t: (key, values) => t(key, values) });
+  // The list also holds requests and invitations: the count is for active members only.
+  const activeCount = members.filter(member => member.status === MemberStatus.ACTIVE).length;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-foreground">{t('courses.members_count', { count: members.length })}</h2>
-        {canManage && <InviteButton actions={actions} />}
+        {/* No count while the list loads or fails: `members` is empty then, and "0 members" would be wrong. */}
+        {!isLoading && !isError && (
+          <h2 className="text-sm font-medium text-foreground">{t('courses.members_count', { count: activeCount })}</h2>
+        )}
+        {canManage && (
+          <div className="ml-auto">
+            <InviteButton actions={actions} />
+          </div>
+        )}
       </div>
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('courses.failed_to_load_members')}>

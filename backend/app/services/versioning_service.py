@@ -38,8 +38,8 @@ def version_test_if_needed(db: Session, *, test: Test) -> bool:
         return False
 
     # Re-fetch with eager loading so the snapshot only includes active questions/groups,
-    # even when the caller loaded the test via a lazy relationship.
-    loaded = test_crud.get_by_id(db, id=test.id)
+    # even when the session already holds this test with unfiltered collections.
+    loaded = test_crud.get_by_id(db, id=test.id, populate_existing=True)
     if loaded is None:
         return False
 

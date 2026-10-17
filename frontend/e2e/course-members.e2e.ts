@@ -1,10 +1,12 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { expectToast, openCourse } from './helpers';
+import { expectToast, openCourse, reseedCourses } from './helpers';
 import { authFile } from './users';
 
 test.use({ storageState: authFile('owner') });
+// The tests change the members in order (approve, invite, remove). The file reseeds before it starts.
 test.describe.configure({ mode: 'serial' });
+test.beforeAll(reseedCourses);
 
 function memberRow(page: Page, username: string) {
   return page.getByRole('row').filter({ hasText: `@${username}` });
@@ -43,7 +45,6 @@ test('the owner approves a request', async ({ page }) => {
   await expect(memberRow(page, 'outsider')).toContainText('Active');
 });
 
-// It invites the editor first: the viewer's seeded invitation stays for courses-list.e2e.ts.
 test('the owner invites a user, then cancels the invitation after a confirm', async ({ page }) => {
   await openCourse(page, 'Private Study Group');
   await page.getByRole('tab', { name: 'Members' }).click();

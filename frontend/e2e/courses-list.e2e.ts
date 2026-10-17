@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-import { expectToast } from './helpers';
+import { expectToast, reseedCourses } from './helpers';
 import { authFile } from './users';
+
+// The viewer test accepts the seeded invitation. The file reseeds before it starts and does not need the other files.
+test.beforeAll(reseedCourses);
 
 test.describe('owner: /courses', () => {
   test.use({ storageState: authFile('owner') });

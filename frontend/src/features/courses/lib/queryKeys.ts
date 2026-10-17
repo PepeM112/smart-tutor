@@ -31,3 +31,13 @@ export function applyCourseDetail(queryClient: QueryClient, detail: SpaceDetail)
   void queryClient.invalidateQueries({ queryKey: ['courses', 'catalog'] });
   void queryClient.invalidateQueries({ queryKey: courseQueryKeys.invitations() });
 }
+
+/**
+ * Mark one course detail stale only (`refetchType: 'none'`), with no refetch of the page that is open.
+ * Use it for a change the next visit to the course page must show: a draft note or test saved on
+ * another page (its breadcrumb reads the same query and would refetch on every save), or a decline
+ * that leaves the page.
+ */
+export function markCourseDetailStale(queryClient: QueryClient, spaceId: string): void {
+  void queryClient.invalidateQueries({ queryKey: courseQueryKeys.detail(spaceId), refetchType: 'none' });
+}

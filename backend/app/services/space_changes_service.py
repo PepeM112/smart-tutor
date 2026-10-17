@@ -12,7 +12,6 @@ from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import GroupStatus, QuestionStatus
 from app.crud import space_content as space_content_crud
 from app.crud import space_item as space_item_crud
 from app.crud import space_section as space_section_crud
@@ -75,18 +74,23 @@ def _note_key(note: Note) -> tuple[str, str | None, list[str]]:
 
 def _tests_changed(db: Session, *, items: Sequence[SpaceItem]) -> bool:
     published_ids = [i.test_id for i in items if i.test_id]
-    twins = space_content_crud.list_test_twins(db, published_ids=published_ids)
+    # Eager-load the ACTIVE children: `_test_key` reads them (no lazy queries, no DELETED rows).
+    twins = space_content_crud.list_test_twins(db, published_ids=published_ids, active_children=True)
     if not twins:
         return False
-    published = {t.id: t for t in space_content_crud.list_tests(db, ids=[t.draft_of_id or "" for t in twins])}
+    published = {
+        t.id: t
+        for t in space_content_crud.list_tests(db, ids=[t.draft_of_id or "" for t in twins], active_children=True)
+    }
     return any(_test_key(twin) != _test_key(published[twin.draft_of_id or ""]) for twin in twins)
 
 
 def _test_key(test: Test) -> tuple[str, str | None, Sequence[tuple[object, ...]], Sequence[tuple[object, ...]]]:
-    """The visible content of a test. Ids are left out: a twin has new ids for the same content."""
-    groups = sorted(
-        (g for g in test.question_groups if g.status == int(GroupStatus.ACTIVE)), key=lambda g: (g.order, g.id)
-    )
+    """The visible content of a test. Ids are left out: a twin has new ids for the same content.
+
+    The test must have its ACTIVE questions and groups loaded (`active_children=True`).
+    """
+    groups = sorted(test.question_groups, key=lambda g: (g.order, g.id))
     # Group questions have `group_id` and no `test_id`, so they are read through their group.
     rows = [(None, q) for q in test.questions if q.group_id is None] + [
         (g.order, q) for g in groups for q in g.questions
@@ -104,7 +108,6 @@ def _test_key(test: Test) -> tuple[str, str | None, Sequence[tuple[object, ...]]
                 q.points,
             )
             for group_order, q in rows
-            if q.status == int(QuestionStatus.ACTIVE)
         ),
         key=lambda row: (row[0] is not None, row[0] or 0, row[1], row[3]),
     )

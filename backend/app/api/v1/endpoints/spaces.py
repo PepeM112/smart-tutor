@@ -42,13 +42,13 @@ DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 def list_mine(
     db: DbSession,
     current_user: CurrentUser,
-    status: Annotated[SpaceListStatus, Query()] = "active",
+    list_status: Annotated[SpaceListStatus, Query(alias="status")] = "active",
     visibility: Annotated[list[SpaceVisibility] | None, Query()] = None,
     role: Annotated[list[SpaceRole] | None, Query()] = None,
 ) -> list[SpaceSummary]:
     """Courses the user owns or is an active member of. Archived courses are hidden by default."""
     return space_service.list_my_courses(
-        db, current_user=current_user, status=status, visibility=visibility or (), roles=role or ()
+        db, current_user=current_user, list_status=list_status, visibility=visibility or (), roles=role or ()
     )
 
 

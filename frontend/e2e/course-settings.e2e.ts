@@ -1,8 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
-import { expectToast, openCourse, pageHeading } from './helpers';
+import { expectToast, openCourse, pageHeading, reseedCourses, test } from './helpers';
 import { authFile } from './users';
 
+// Each test makes its own copy and deletes it. The reseed removes a copy that an old failed run left.
+test.beforeAll(reseedCourses);
 test.use({ storageState: authFile('owner'), permissions: ['clipboard-read', 'clipboard-write'] });
 
 test('the cog opens Settings, the code copies, duplicate and delete forever work', async ({ page }) => {
@@ -30,11 +32,14 @@ test('the cog opens Settings, the code copies, duplicate and delete forever work
   await confirm.getByLabel('Course title').fill('E2E Copy');
   await confirm.getByRole('button', { name: 'Delete forever' }).click();
   await expect(page).toHaveURL(/\/courses$/);
+  // The list can come from the cache: load it again from the server before the check.
+  await page.reload();
+  await expect(page.getByRole('tabpanel').getByText('World Geography')).toBeVisible();
   await expect(page.getByRole('tabpanel').getByText('E2E Copy')).toHaveCount(0);
 });
 
-test('a non-owner cannot open Settings', async ({ browser }) => {
-  const page = await (await browser.newContext({ storageState: authFile('editor') })).newPage();
+test('a non-owner cannot open Settings', async ({ pageAs }) => {
+  const page = await pageAs('editor');
   await openCourse(page, 'Spanish Basics');
   await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveCount(0);
 });

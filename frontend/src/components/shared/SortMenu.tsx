@@ -44,7 +44,7 @@ export function SortMenu<T extends string>({ options, value, onChange, direction
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" data-slot="sort-menu" aria-label={`${t('sort_by')}: ${current?.label ?? ''}`}>
+        <Button variant="outline" aria-label={`${t('sort_by')}: ${current?.label ?? ''}`}>
           <ArrowDownUp data-icon="inline-start" />
           {current?.label}
         </Button>

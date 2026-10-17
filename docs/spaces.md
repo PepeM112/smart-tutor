@@ -172,7 +172,7 @@ Members see only published rows. Authors change a course in **edit mode**:
 - Leave removes the own row (also a pending request). The owner can not leave.
 - Archived: read-only for all users. Members keep access. The owner can still remove members, unarchive and delete forever.
 - **Delete forever** needs the exact title in the body (400 otherwise). It deletes the test children through the ORM first (answers, SRS state, results, questions, groups, tests including frozen copies). Personal tests made from a course note survive (`source_note_id → NULL`).
-- **Duplicate** copies the published content only, into a new course of the current user in edit mode. No members, results, progress or drafts. The optional body `SpaceDuplicateRequest` (title, description, tags) sets the new course values; the defaults are the values of the source course.
+- **Duplicate** copies the published content only, into a new course of the current user in edit mode. No members, results, progress or drafts. The body `SpaceDuplicateRequest` (title, description, tags) is required and sets the new course values. The title is required; the UI fills the form with the values of the source course.
 
 ### Endpoints (`/api/v1/spaces`, tag `spaces`)
 | Group | Endpoints |

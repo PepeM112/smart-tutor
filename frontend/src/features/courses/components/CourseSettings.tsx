@@ -31,15 +31,15 @@ type Props = {
   actions: Actions;
 };
 
-/** Authors see the join code and Duplicate. The owner also edits the details, archives and deletes. */
+/** The owner page: details, join code, Duplicate, archive and delete. Only the owner reaches it. */
 export function CourseSettings({ course, actions }: Props) {
   return (
     // Flat sections, not cards: they are parts of one settings page (design.md).
     <div className="flex flex-col gap-8">
-      {course.isOwner && course.canEdit && <DetailsForm course={course} actions={actions} />}
+      {course.canEdit && <DetailsForm course={course} actions={actions} />}
       {course.joinCode && <JoinCodeCard course={course} joinCode={course.joinCode} actions={actions} />}
       <DuplicateCard course={course} actions={actions} />
-      {course.isOwner && <DangerZone course={course} actions={actions} />}
+      <DangerZone course={course} actions={actions} />
     </div>
   );
 }
@@ -96,7 +96,7 @@ function DetailsForm({ course, actions }: Props) {
 function JoinCodeCard({ course, joinCode, actions }: Props & { joinCode: string }) {
   const t = useTranslations();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const canManage = course.isOwner && course.canEdit;
+  const canManage = course.canEdit;
 
   const shareActions: MobileAction[] = [
     {

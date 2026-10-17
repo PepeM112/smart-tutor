@@ -2,12 +2,13 @@
 
 from collections.abc import Sequence
 
+from sqlalchemy import Select, or_, select
 from sqlalchemy import delete as sql_delete
-from sqlalchemy import or_, select
 from sqlalchemy import update as sql_update
 from sqlalchemy.orm import Session
 
 from app.core.enums import GroupStatus, QuestionStatus
+from app.crud.test import active_load_options
 from app.models.answer import Answer
 from app.models.note import Note
 from app.models.question import Question
@@ -42,10 +43,19 @@ def list_notes(db: Session, *, ids: Sequence[str]) -> Sequence[Note]:
     return db.scalars(select(Note).where(Note.id.in_(ids))).all()
 
 
-def list_tests(db: Session, *, ids: Sequence[str]) -> Sequence[Test]:
+def _with_active_children(stmt: Select[tuple[Test]], *, active_children: bool) -> Select[tuple[Test]]:
+    """Load only the ACTIVE questions and groups, and replace collections that the session already holds."""
+    if not active_children:
+        return stmt
+    return stmt.options(*active_load_options()).execution_options(populate_existing=True)
+
+
+def list_tests(db: Session, *, ids: Sequence[str], active_children: bool = False) -> Sequence[Test]:
+    """`active_children`: eager-load the ACTIVE questions and groups (for callers that read them)."""
     if not ids:
         return []
-    return db.scalars(select(Test).where(Test.id.in_(ids))).all()
+    stmt = _with_active_children(select(Test).where(Test.id.in_(ids)), active_children=active_children)
+    return db.scalars(stmt).all()
 
 
 def list_note_twins(db: Session, *, published_ids: Sequence[str]) -> Sequence[Note]:
@@ -56,11 +66,14 @@ def list_note_twins(db: Session, *, published_ids: Sequence[str]) -> Sequence[No
     return db.scalars(stmt).all()
 
 
-def list_test_twins(db: Session, *, published_ids: Sequence[str]) -> Sequence[Test]:
-    """The draft twins of the published tests `published_ids`."""
+def list_test_twins(db: Session, *, published_ids: Sequence[str], active_children: bool = False) -> Sequence[Test]:
+    """The draft twins of the published tests `published_ids`. See `list_tests` for `active_children`."""
     if not published_ids:
         return []
-    stmt = select(Test).where(Test.draft_of_id.in_(published_ids), Test.is_draft.is_(True))
+    stmt = _with_active_children(
+        select(Test).where(Test.draft_of_id.in_(published_ids), Test.is_draft.is_(True)),
+        active_children=active_children,
+    )
     return db.scalars(stmt).all()
 
 

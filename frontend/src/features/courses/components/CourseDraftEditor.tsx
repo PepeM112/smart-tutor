@@ -1,5 +1,6 @@
 'use client';
 
+import { useIsMutating } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, ClipboardCopy, ClipboardPlus, FilePlus, Files, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -14,7 +15,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { noteHref, Routes } from '@/lib/routes';
 
-import { type useCourseActions } from '../hooks/useCourseActions';
+import { courseWriteKey, type useCourseActions } from '../hooks/useCourseActions';
 import { moveItem, moveSection, toOrder } from '../lib/draftOrder';
 import { COURSE_LIMITS } from '../lib/limits';
 
@@ -44,7 +45,9 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
   const [addTarget, setAddTarget] = useState<{ sectionId: string; mode: AddItemMode } | null>(null);
   // The "Add item" button of that section: the focus goes back to it when the dialog closes.
   const addButtonRef = useRef<HTMLElement | null>(null);
-  const isReordering = actions.reorder.isPending;
+  // Reorder sends the full order, built from `course` as it is now. While any other write runs
+  // (a delete, for example), `course` is old and the order would bring the deleted item back or fail.
+  const isWriting = useIsMutating({ mutationKey: courseWriteKey(course.id) }) > 0;
 
   function handleAddSection(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -107,7 +110,7 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
             section={section}
             isFirst={sectionIndex === 0}
             isLast={sectionIndex === sections.length - 1}
-            disabled={isReordering}
+            disabled={isWriting}
             onMove={delta => reorder(moveSection(order, sectionIndex, delta))}
             onMoveItem={(itemIndex, delta) => reorder(moveItem(order, sectionIndex, itemIndex, delta))}
             onRename={title => actions.renameSection.mutate({ sectionId: section.id, title })}

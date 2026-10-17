@@ -15,7 +15,7 @@ import { sdk } from '@/lib/apiClient';
 import { courseHref } from '@/lib/routes';
 import { getErrorDetail } from '@/lib/utils';
 
-import { applyCourseDetail, courseQueryKeys } from '../lib/queryKeys';
+import { applyCourseDetail, courseQueryKeys, markCourseDetailStale } from '../lib/queryKeys';
 
 /**
  * The Mail icon in the `/courses` header. The badge shows the number of open invitations.
@@ -46,8 +46,10 @@ export function InvitationsButton() {
 
   const { mutate: declineInvitation, isPending: isDeclining } = useMutation({
     mutationFn: (courseId: string) => sdk.spacesDeclineInvitation({ path: { space_id: courseId }, throwOnError: true }),
-    onSuccess: () => {
+    onSuccess: (_res, courseId) => {
       void queryClient.invalidateQueries({ queryKey: courseQueryKeys.invitations() });
+      // The course page may be cached with `myStatus: INVITED`: it must not show Accept / Decline again.
+      markCourseDetailStale(queryClient, courseId);
       toast.success(t('courses.invitation_declined'));
     },
     onError: err => toast.error(getErrorDetail(err, t('courses.failed_to_save'))),

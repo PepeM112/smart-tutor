@@ -32,9 +32,9 @@ export function CourseCard({ course }: Props) {
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className={cn('line-clamp-2 font-medium', isArchived ? 'text-muted-foreground' : 'text-foreground')}>
+        <h2 className={cn('line-clamp-2 font-medium', isArchived ? 'text-muted-foreground' : 'text-foreground')}>
           {course.title}
-        </h3>
+        </h2>
         <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
           <IconHint icon={VISIBILITY_ICONS[course.visibility]} label={t(VISIBILITY_LABELS[course.visibility])} />
           {course.myRole !== null && (
