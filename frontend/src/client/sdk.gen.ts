@@ -566,7 +566,7 @@ export const assistAssist = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * List Mine
  *
- * Courses the user owns or is an active member of.
+ * Courses the user owns or is an active member of. Archived courses are hidden by default.
  */
 export const spacesListMine = <ThrowOnError extends boolean = false>(options?: Options<SpacesListMineData, ThrowOnError>) => (options?.client ?? client).get<SpacesListMineResponses, SpacesListMineErrors, ThrowOnError>({
     responseTransformer: spacesListMineResponseTransformer,
@@ -687,7 +687,11 @@ export const spacesRegenerateJoinCode = <ThrowOnError extends boolean = false>(o
 export const spacesDuplicate = <ThrowOnError extends boolean = false>(options: Options<SpacesDuplicateData, ThrowOnError>) => (options.client ?? client).post<SpacesDuplicateResponses, SpacesDuplicateErrors, ThrowOnError>({
     responseTransformer: spacesDuplicateResponseTransformer,
     url: '/api/v1/spaces/{space_id}/duplicate',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

@@ -467,3 +467,42 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 **Why:** An EDITOR who can promote users could give edit access without the owner's agreement. One manager is simple and safe; delegation can come later with a new role.
 
+---
+
+## Autosave to the Draft, Publish Only With Changes
+
+**Decision:** In edit mode each change saves to the draft at once. Publish is the only step that members see, and it is allowed only when the draft is different from the published version (409 otherwise).
+
+**Why:** A Save button on top of Publish gives two "save" steps for the same draft. The change check compares content, not twin rows, because the editor makes a twin when it opens an item, before any change.
+
+---
+
+## Course Settings Is an Owner Sub-Page
+
+**Decision:** Settings is `/courses/[id]/settings`, opened with a cog. Only the owner can open it.
+
+**Why:** Every setting (visibility, join code, archive, delete) is an owner action. A tab that editors see but can not use is noise. Editors lose the Duplicate button; the endpoint still allows it.
+
+---
+
+## No Emails in the Member List
+
+**Decision:** The member list shows the display name and `@username`, never the email.
+
+**Why:** Members of a public course are strangers to each other. The owner invites by username or email, but the list does not show an email to other users.
+
+---
+
+## Course Content Without Cards
+
+**Decision:** Course sections have no card. Each section has a muted header bar (title + item count) and plain item rows below it.
+
+**Why:** The user compared 7 styles in the browser. Cards inside a 720px column add borders and padding but no grouping that the header bar does not give. The same frames serve the outline and the draft editor, so both look the same.
+
+---
+
+## A Tooltip Around a Control Is Not a Button
+
+**Decision:** `Tooltip` has a `wrapsControl` prop. With it, the wrapper span has no `role="button"` and no tab stop. `Button` always sets it.
+
+**Why:** A disabled button gets no pointer events, so a wrapper span must catch the hover. With `role="button"` on that span, screen readers saw two buttons ("Publish" twice). The default stays the same: the other callers wrap text or icons, which need the span to be focusable.

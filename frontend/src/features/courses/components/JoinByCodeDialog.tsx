@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -20,9 +20,11 @@ export function JoinByCodeDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button size="lg" variant="outline" icon={KeyRound} onClick={() => setOpen(true)}>
-        {t('courses.join_with_code')}
-      </Button>
+      <DialogTrigger asChild>
+        <Button size="lg" variant="outline" icon={KeyRound}>
+          {t('courses.join_with_code')}
+        </Button>
+      </DialogTrigger>
       {open && <JoinByCodeForm onClose={() => setOpen(false)} />}
     </Dialog>
   );

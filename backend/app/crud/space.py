@@ -5,11 +5,11 @@ from sqlalchemy import ScalarSelect, Select, String, cast, func, or_, select
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.orm import Session
 
-from app.core.enums import MemberStatus, SpaceKind, SpaceStatus, SpaceVisibility
+from app.core.enums import MemberStatus, SpaceKind, SpaceRole, SpaceStatus, SpaceVisibility
 from app.crud.helpers import token_search
 from app.models.space import Space
 from app.models.space_member import SpaceMember
-from app.schemas.space import SpaceCatalogSort, SpaceUpdate
+from app.schemas.space import SpaceCatalogSort, SpaceListStatus, SpaceUpdate
 
 # Standalone courses. Classroom courses (M4) have a parent and never show in these lists.
 STANDALONE_COURSE = (Space.kind == int(SpaceKind.COURSE), Space.parent_id.is_(None))
@@ -99,17 +99,37 @@ def count_active_members(db: Session, *, space_ids: Sequence[str]) -> dict[str, 
     return {space_id: count for space_id, count in db.execute(stmt).all()}
 
 
-def list_for_user(db: Session, *, user_id: str) -> Sequence[Space]:
-    """Standalone courses the user owns or is an ACTIVE member of. Newest first."""
+def list_for_user(
+    db: Session,
+    *,
+    user_id: str,
+    status: SpaceListStatus = "all",
+    visibility: Sequence[SpaceVisibility] = (),
+    roles: Sequence[SpaceRole] = (),
+) -> Sequence[Space]:
+    """Standalone courses the user owns or is an ACTIVE member of. Newest first.
+
+    `roles` filters on the role of the user: OWNER = `owner_id`, EDITOR / VIEWER = the member row.
+    """
+    member_roles = [int(r) for r in roles if r != SpaceRole.OWNER]
     member_of = select(SpaceMember.space_id).where(
         SpaceMember.user_id == user_id, SpaceMember.status == int(MemberStatus.ACTIVE)
     )
-    stmt = (
-        select(Space)
-        .where(*STANDALONE_COURSE, or_(Space.owner_id == user_id, Space.id.in_(member_of)))
-        .order_by(Space.created_at.desc())
-    )
-    return db.scalars(stmt).all()
+    owned = Space.owner_id == user_id
+    if roles:
+        role_filters = [owned] if SpaceRole.OWNER in roles else []
+        if member_roles:
+            role_filters.append(Space.id.in_(member_of.where(SpaceMember.role.in_(member_roles))))
+        access = or_(*role_filters)
+    else:
+        access = or_(owned, Space.id.in_(member_of))
+    stmt = select(Space).where(*STANDALONE_COURSE, access)
+    if status != "all":
+        archived = int(SpaceStatus.ARCHIVED)
+        stmt = stmt.where(Space.status == archived if status == "archived" else Space.status != archived)
+    if visibility:
+        stmt = stmt.where(Space.visibility.in_([int(v) for v in visibility]))
+    return db.scalars(stmt.order_by(Space.created_at.desc())).all()
 
 
 def list_with_member_status(db: Session, *, user_id: str, member_status: MemberStatus) -> Sequence[Space]:

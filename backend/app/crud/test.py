@@ -29,6 +29,17 @@ def get_by_id(db: Session, *, id: str) -> Test | None:
     return db.scalars(stmt).first()
 
 
+def get_by_id_for_update(db: Session, *, id: str) -> Test | None:
+    """Like `get_by_id`, but locks the test row until the transaction ends (SELECT … FOR UPDATE)."""
+    stmt = (
+        select(Test)
+        .options(*_active_load_options())
+        .where(Test.id == id, Test.status == TestStatus.ACTIVE)
+        .with_for_update(of=Test)
+    )
+    return db.scalars(stmt).first()
+
+
 _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
     "title": Test.title,
     "created_at": Test.created_at,

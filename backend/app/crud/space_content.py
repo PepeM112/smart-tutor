@@ -30,6 +30,12 @@ def list_draft_test_ids(db: Session, *, space_id: str) -> Sequence[str]:
     return db.scalars(select(Test.id).where(Test.space_id == space_id, Test.is_draft.is_(True))).all()
 
 
+def lock_draft_content(db: Session, *, space_id: str) -> None:
+    """Lock the draft notes and tests of the space (SELECT ... FOR UPDATE) until the transaction ends."""
+    db.execute(select(Note.id).where(Note.space_id == space_id, Note.is_draft.is_(True)).with_for_update())
+    db.execute(select(Test.id).where(Test.space_id == space_id, Test.is_draft.is_(True)).with_for_update())
+
+
 def list_notes(db: Session, *, ids: Sequence[str]) -> Sequence[Note]:
     if not ids:
         return []

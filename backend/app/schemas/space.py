@@ -109,6 +109,8 @@ class SpaceDetail(SpaceSummary):
     can_edit: bool
     is_owner: bool
     is_editing: bool
+    # Authors in edit mode: publish would change what members see. Publish is refused (409) when false.
+    has_unpublished_changes: bool
     # OWNER / EDITOR only.
     join_code: str | None
     sections: list[SpaceSectionRead]
@@ -116,8 +118,23 @@ class SpaceDetail(SpaceSummary):
 
 
 SpaceCatalogSort = Literal["newest", "members"]
+# My courses: archived courses are hidden by default.
+SpaceListStatus = Literal["active", "archived", "all"]
 
 PaginatedSpaceSummary = PaginatedResponse[SpaceSummary]
+
+
+class SpaceDuplicateRequest(BaseSchema):
+    """The metadata of the new course. The dialog fills it with the values of the source."""
+
+    title: str = Field(min_length=1, max_length=SPACE_TITLE_MAX)
+    description: str = Field(default="", max_length=SPACE_DESCRIPTION_MAX)
+    tags: list[str] = []
+
+    @field_validator("tags")
+    @classmethod
+    def _validate_tags(cls, tags: list[str]) -> list[str]:
+        return normalize_tags(tags)
 
 
 class SpaceDeleteConfirm(BaseSchema):

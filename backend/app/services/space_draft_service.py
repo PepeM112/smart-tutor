@@ -40,6 +40,7 @@ from app.schemas.space import (
     SpaceSectionUpdate,
 )
 from app.services.access_service import AccessLevel, get_note_or_404, get_test_or_404, require_personal
+from app.services.space_changes_service import has_unpublished_changes
 from app.services.space_service import (
     build_detail,
     conflict,
@@ -443,6 +444,11 @@ def _remove_published_content(db: Session, *, removed: Sequence[SpaceItem]) -> N
 def publish(db: Session, *, space_id: str, current_user: User, data: SpacePublishRequest) -> SpaceDetail:
     """Apply the draft to the published state, then leave edit mode."""
     space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    # An autosave that comes during the publish waits, then gets 404: its twin is gone. Without the
+    # lock, publish could copy the older content and then delete the newer one.
+    space_content_crud.lock_draft_content(db, space_id=space.id)
+    if not has_unpublished_changes(db, space=space):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nothing to publish")
     draft_items = space_item_crud.list_by_space(db, space_id=space.id, is_draft=True)
 
     section_map, removed_section_ids = _publish_sections(db, space=space)

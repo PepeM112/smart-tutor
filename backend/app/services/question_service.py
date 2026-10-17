@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import QuestionStatus, QuestionType
 from app.crud import question as question_crud
+from app.crud import test as test_crud
 from app.models.question import Question
 from app.models.test import Test
 from app.models.user import User
@@ -242,8 +243,22 @@ def _to_question_list_read(question: Question) -> QuestionListRead:
     return QuestionListRead.model_validate(data)
 
 
+def _lock_owning_space_test(db: Session, *, question: Question) -> None:
+    """Lock the course test of `question` (SELECT ... FOR UPDATE), as `update_test` does.
+
+    A course publish locks its draft tests first. An edit sent during a publish waits, then gets 404
+    (the twin is gone), instead of a change that publish then deletes. Personal tests need no lock.
+    """
+    test = question.owning_test
+    if test is None or test.space_id is None:
+        return
+    if test_crud.get_by_id_for_update(db, id=test.id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
+
+
 def update_question(db: Session, *, question_id: str, current_user: User, data: QuestionUpdate) -> Question:
     question = get_question(db, question_id=question_id, current_user=current_user, level=AccessLevel.EDIT)
+    _lock_owning_space_test(db, question=question)
     test = question.owning_test
     if test:
         version_test_if_needed(db, test=test)
@@ -259,6 +274,7 @@ def update_question(db: Session, *, question_id: str, current_user: User, data: 
 
 def delete_question(db: Session, *, question_id: str, current_user: User) -> None:
     question = get_question(db, question_id=question_id, current_user=current_user, level=AccessLevel.EDIT)
+    _lock_owning_space_test(db, question=question)
     _delete_one_question(db, question=question)
     db.commit()
 

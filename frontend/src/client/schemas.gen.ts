@@ -2616,6 +2616,10 @@ export const SpaceDetailSchema = {
             type: 'boolean',
             title: 'Isediting'
         },
+        hasUnpublishedChanges: {
+            type: 'boolean',
+            title: 'Hasunpublishedchanges'
+        },
         joinCode: {
             anyOf: [
                 {
@@ -2669,6 +2673,7 @@ export const SpaceDetailSchema = {
         'canEdit',
         'isOwner',
         'isEditing',
+        'hasUnpublishedChanges',
         'joinCode',
         'sections',
         'draftSections'
@@ -2693,6 +2698,37 @@ export const SpaceDraftOrderSchema = {
     ],
     title: 'SpaceDraftOrder',
     description: 'The full order of the draft structure: every draft section, each with all its draft items.'
+} as const;
+
+export const SpaceDuplicateRequestSchema = {
+    properties: {
+        title: {
+            type: 'string',
+            maxLength: 200,
+            minLength: 1,
+            title: 'Title'
+        },
+        description: {
+            type: 'string',
+            maxLength: 5000,
+            title: 'Description',
+            default: ''
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
+        }
+    },
+    type: 'object',
+    required: [
+        'title'
+    ],
+    title: 'SpaceDuplicateRequest',
+    description: 'The metadata of the new course. The dialog fills it with the values of the source.'
 } as const;
 
 export const SpaceInviteSchema = {

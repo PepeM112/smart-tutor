@@ -3,6 +3,7 @@ from typing import Annotated, TypeAlias
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.enums import SpaceRole, SpaceVisibility
 from app.database import get_session
 from app.dependencies.auth import CurrentUser
 from app.schemas.space import (
@@ -12,11 +13,13 @@ from app.schemas.space import (
     SpaceDeleteConfirm,
     SpaceDetail,
     SpaceDraftOrder,
+    SpaceDuplicateRequest,
     SpaceInvite,
     SpaceItemContent,
     SpaceItemCopy,
     SpaceItemCreate,
     SpaceJoinByCode,
+    SpaceListStatus,
     SpaceMemberRead,
     SpaceMemberRoleUpdate,
     SpacePublishRequest,
@@ -36,9 +39,17 @@ DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 
 
 @router.get("", response_model=list[SpaceSummary])
-def list_mine(db: DbSession, current_user: CurrentUser) -> list[SpaceSummary]:
-    """Courses the user owns or is an active member of."""
-    return space_service.list_my_courses(db, current_user=current_user)
+def list_mine(
+    db: DbSession,
+    current_user: CurrentUser,
+    status: Annotated[SpaceListStatus, Query()] = "active",
+    visibility: Annotated[list[SpaceVisibility] | None, Query()] = None,
+    role: Annotated[list[SpaceRole] | None, Query()] = None,
+) -> list[SpaceSummary]:
+    """Courses the user owns or is an active member of. Archived courses are hidden by default."""
+    return space_service.list_my_courses(
+        db, current_user=current_user, status=status, visibility=visibility or (), roles=role or ()
+    )
 
 
 @router.get("/catalog", response_model=PaginatedSpaceSummary)
@@ -106,8 +117,8 @@ def regenerate_join_code(space_id: str, db: DbSession, current_user: CurrentUser
 
 
 @router.post("/{space_id}/duplicate", response_model=SpaceDetail, status_code=status.HTTP_201_CREATED)
-def duplicate(space_id: str, db: DbSession, current_user: CurrentUser) -> SpaceDetail:
-    return space_service.duplicate_course(db, space_id=space_id, current_user=current_user)
+def duplicate(space_id: str, data: SpaceDuplicateRequest, db: DbSession, current_user: CurrentUser) -> SpaceDetail:
+    return space_service.duplicate_course(db, space_id=space_id, current_user=current_user, data=data)
 
 
 # ── Edit mode ─────────────────────────────────────────────────────────────────

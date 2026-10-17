@@ -1,22 +1,27 @@
 'use client';
 
-import { Archive, ArchiveRestore, Copy, Link2, RefreshCw, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Link2, RefreshCw, Share2, Trash2, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { SpaceStatus, type SpaceDetail, type SpaceVisibility } from '@/client';
+import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
+import { CopyChip } from '@/components/shared/CopyChip';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { TagInput } from '@/features/notes/components/TagInput';
-import { copyText } from '@/features/notes/editor/copyText';
+import { SettingsSection } from '@/features/settings/components/SettingsSection';
+import { copyText } from '@/lib/copyText';
 import { Routes } from '@/lib/routes';
 
 import { type useCourseActions } from '../hooks/useCourseActions';
 import { COURSE_LIMITS } from '../lib/limits';
 
+import { DuplicateCourseDialog } from './DuplicateCourseDialog';
+import { InviteUserDialog } from './InviteUserDialog';
 import { VisibilitySelect } from './VisibilitySelect';
 
 type Actions = ReturnType<typeof useCourseActions>;
@@ -29,24 +34,13 @@ type Props = {
 /** Authors see the join code and Duplicate. The owner also edits the details, archives and deletes. */
 export function CourseSettings({ course, actions }: Props) {
   return (
-    <div className="flex flex-col gap-6">
+    // Flat sections, not cards: they are parts of one settings page (design.md).
+    <div className="flex flex-col gap-8">
       {course.isOwner && course.canEdit && <DetailsForm course={course} actions={actions} />}
       {course.joinCode && <JoinCodeCard course={course} joinCode={course.joinCode} actions={actions} />}
-      <DuplicateCard actions={actions} />
+      <DuplicateCard course={course} actions={actions} />
       {course.isOwner && <DangerZone course={course} actions={actions} />}
     </div>
-  );
-}
-
-function SettingsCard({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-card">
-      <div>
-        <h3 className="font-medium text-foreground">{title}</h3>
-        {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
-      </div>
-      {children}
-    </section>
   );
 }
 
@@ -63,7 +57,7 @@ function DetailsForm({ course, actions }: Props) {
   }
 
   return (
-    <SettingsCard title={t('courses.details_title')}>
+    <SettingsSection title={t('courses.details_title')}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="space-y-2">
           <Label htmlFor="course-title">{t('courses.title_label')}</Label>
@@ -95,34 +89,45 @@ function DetailsForm({ course, actions }: Props) {
           </Button>
         </div>
       </form>
-    </SettingsCard>
+    </SettingsSection>
   );
 }
 
 function JoinCodeCard({ course, joinCode, actions }: Props & { joinCode: string }) {
   const t = useTranslations();
-  const messages = { copied: t('courses.copied'), failed: t('courses.copy_failed') };
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const canManage = course.isOwner && course.canEdit;
+
+  const shareActions: MobileAction[] = [
+    {
+      label: t('courses.copy_link'),
+      icon: Link2,
+      // Read the origin on click, not on render: the server has no `window`.
+      onClick: () =>
+        void copyText(`${window.location.origin}${Routes.COURSE_JOIN(joinCode)}`, {
+          copied: t('common.copied'),
+          failed: t('common.failed_to_copy'),
+        }),
+    },
+    // An archived course takes no new members, so there is no invite.
+    ...(canManage ? [{ label: t('courses.invite'), icon: UserPlus, onClick: () => setIsInviteOpen(true) }] : []),
+  ];
 
   return (
-    <SettingsCard title={t('courses.join_code_title')} hint={t('courses.join_code_hint')}>
+    <SettingsSection title={t('courses.join_code_title')} description={t('courses.join_code_hint')}>
       <div className="flex flex-wrap items-center gap-2">
-        <code className="rounded-md bg-muted px-3 py-1.5 font-mono text-sm text-foreground">{joinCode}</code>
-        <Button variant="outline" size="sm" icon={Copy} onClick={() => void copyText(joinCode, messages)}>
-          {t('courses.copy_code')}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          icon={Link2}
-          // Read the origin on click, not on render: the server has no `window`.
-          onClick={() => void copyText(`${window.location.origin}${Routes.COURSE_JOIN(joinCode)}`, messages)}
-        >
-          {t('courses.copy_link')}
-        </Button>
-        {course.isOwner && course.canEdit && (
+        <CopyChip text={joinCode} label={t('courses.copy_code')} />
+        <ActionsMenu
+          actions={shareActions}
+          trigger={
+            <Button variant="outline" icon={Share2}>
+              {t('courses.share')}
+            </Button>
+          }
+        />
+        {canManage && (
           <Button
             variant="ghost"
-            size="sm"
             icon={RefreshCw}
             loading={actions.regenerateJoinCode.isPending}
             onClick={() => actions.regenerateJoinCode.mutate()}
@@ -131,26 +136,20 @@ function JoinCodeCard({ course, joinCode, actions }: Props & { joinCode: string 
           </Button>
         )}
       </div>
-    </SettingsCard>
+      <InviteUserDialog open={isInviteOpen} onOpenChange={setIsInviteOpen} actions={actions} />
+    </SettingsSection>
   );
 }
 
-function DuplicateCard({ actions }: { actions: Actions }) {
+function DuplicateCard({ course, actions }: Props) {
   const t = useTranslations();
 
   return (
-    <SettingsCard title={t('courses.duplicate_title')} hint={t('courses.duplicate_hint')}>
+    <SettingsSection title={t('courses.duplicate_title')} description={t('courses.duplicate_hint')}>
       <div>
-        <Button
-          variant="outline"
-          icon={Copy}
-          loading={actions.duplicate.isPending}
-          onClick={() => actions.duplicate.mutate()}
-        >
-          {t('courses.duplicate')}
-        </Button>
+        <DuplicateCourseDialog course={course} actions={actions} />
       </div>
-    </SettingsCard>
+    </SettingsSection>
   );
 }
 
@@ -160,7 +159,7 @@ function DangerZone({ course, actions }: Props) {
   const isArchived = course.status === SpaceStatus.ARCHIVED;
 
   return (
-    <SettingsCard title={t('courses.danger_zone')}>
+    <SettingsSection title={t('courses.danger_zone')}>
       <div className="flex flex-wrap gap-2">
         {isArchived ? (
           <Button
@@ -195,6 +194,7 @@ function DangerZone({ course, actions }: Props) {
           title={t('courses.delete_forever')}
           description={t('courses.delete_forever_description', { title: course.title })}
           confirmLabel={t('courses.delete_forever')}
+          confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           disableConfirm={confirmTitle !== course.title || actions.deleteForever.isPending}
           onOpenChange={open => !open && setConfirmTitle('')}
           onConfirm={() => actions.deleteForever.mutate(confirmTitle)}
@@ -207,6 +207,6 @@ function DangerZone({ course, actions }: Props) {
           />
         </ConfirmDialog>
       </div>
-    </SettingsCard>
+    </SettingsSection>
   );
 }

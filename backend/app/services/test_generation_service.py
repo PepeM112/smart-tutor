@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, LongTextLength, QuestionType
+from app.models.note import Note
 from app.models.user import User
 from app.schemas.question import LongTextContent, MultipleChoiceContent, RubricItem, SimpleContent
 from app.schemas.test_generation import (
@@ -29,6 +30,15 @@ from app.services.test_generation_prompts import (
 )
 
 logger = logging.getLogger("smarttutor.test_generation")
+
+
+def _source_note_id(note: Note) -> str | None:
+    """The note a test made from `note` links to. A draft twin links to its published note
+    (publish keeps that id). A new draft note has no published note yet, so there is no link:
+    `create_test` refuses a draft note as the source (400).
+    """
+    return note.draft_of_id if note.is_draft else note.id
+
 
 # Empirically tuned per-question token budgets, sized to avoid AI response truncation
 _BASE_TOKENS_PER_QUESTION = 200
@@ -252,7 +262,7 @@ def generate_test_questions(
 
     return TestGenerationResponse(
         questions=result.questions,
-        source_note_id=note.id,
+        source_note_id=_source_note_id(note),
         source_note_title=note.title,
         warning=result.warning,
     )
@@ -295,7 +305,7 @@ def refine_test_questions(
 
     return TestGenerationResponse(
         questions=result.questions,
-        source_note_id=note.id,
+        source_note_id=_source_note_id(note),
         source_note_title=note.title,
         warning=result.warning,
     )

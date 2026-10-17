@@ -33,18 +33,21 @@ from app.schemas.space import (
     SpaceCatalogSort,
     SpaceCreate,
     SpaceDetail,
+    SpaceDuplicateRequest,
     SpaceItemRead,
+    SpaceListStatus,
     SpaceSectionRead,
     SpaceSummary,
     SpaceUpdate,
 )
+from app.services.access_service import EDIT_ROLES
+from app.services.space_changes_service import has_unpublished_changes
 from app.services.versioning_service import clone_test
 
 # Lowercase letters and digits without look-alikes (0/o, 1/l/i), so a code read aloud is not mistyped.
 _JOIN_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 _JOIN_CODE_ATTEMPTS = 10
 
-_EDIT_ROLES = frozenset({SpaceRole.OWNER, SpaceRole.EDITOR})
 # Non-members can preview the structure of a published course with these visibilities.
 _PREVIEW_VISIBILITIES = frozenset({int(SpaceVisibility.PUBLIC), int(SpaceVisibility.UNLISTED)})
 
@@ -58,7 +61,7 @@ class Membership:
 
     @property
     def can_author(self) -> bool:
-        return self.role in _EDIT_ROLES
+        return self.role in EDIT_ROLES
 
     @property
     def is_owner(self) -> bool:
@@ -246,6 +249,7 @@ def build_detail(db: Session, *, space: Space, current_user: User) -> SpaceDetai
         can_edit=membership.can_author and space.status == int(SpaceStatus.ACTIVE),
         is_owner=membership.is_owner,
         is_editing=is_editing,
+        has_unpublished_changes=show_draft and has_unpublished_changes(db, space=space),
         join_code=space.join_code if membership.can_author else None,
         sections=_build_sections(db, space_id=space.id, is_draft=False) if is_member or can_preview else [],
         draft_sections=_build_sections(db, space_id=space.id, is_draft=True) if show_draft else None,
@@ -319,12 +323,13 @@ def regenerate_join_code(db: Session, *, space_id: str, current_user: User) -> S
     """The old code stops working at once."""
     space = get_course_or_404(db, space_id=space_id)
     require_owner(db, space=space, user=current_user)
+    require_active(space)
     space.join_code = _new_join_code(db)
     db.commit()
     return build_detail(db, space=space, current_user=current_user)
 
 
-def duplicate_course(db: Session, *, space_id: str, current_user: User) -> SpaceDetail:
+def duplicate_course(db: Session, *, space_id: str, current_user: User, data: SpaceDuplicateRequest) -> SpaceDetail:
     """Copy the PUBLISHED content into a new course owned by the current user, in edit mode.
 
     No members, drafts, results or progress are copied. The copied content is draft content
@@ -337,9 +342,9 @@ def duplicate_course(db: Session, *, space_id: str, current_user: User) -> Space
         db,
         kind=int(SpaceKind.COURSE),
         owner_id=current_user.id,
-        title=source.title,
-        description=source.description,
-        tags=list(source.tags),
+        title=data.title,
+        description=data.description,
+        tags=data.tags,
         visibility=int(SpaceVisibility.PRIVATE),
         join_code=_new_join_code(db),
         draft_started_at=now(),
@@ -402,8 +407,15 @@ def _copy_item_content(
 # ── Lists ─────────────────────────────────────────────────────────────────────
 
 
-def list_my_courses(db: Session, *, current_user: User) -> list[SpaceSummary]:
-    spaces = space_crud.list_for_user(db, user_id=current_user.id)
+def list_my_courses(
+    db: Session,
+    *,
+    current_user: User,
+    status: SpaceListStatus = "active",
+    visibility: Sequence[SpaceVisibility] = (),
+    roles: Sequence[SpaceRole] = (),
+) -> list[SpaceSummary]:
+    spaces = space_crud.list_for_user(db, user_id=current_user.id, status=status, visibility=visibility, roles=roles)
     return build_summaries(db, spaces=spaces, current_user=current_user)
 
 

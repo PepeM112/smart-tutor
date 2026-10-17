@@ -35,7 +35,7 @@ vi.mock('./scroll', () => ({
   prefersReducedMotion: () => true,
   scrollToHeading: mocks.scrollToHeading,
 }));
-vi.mock('../copyText', () => ({ copyText: mocks.copyText }));
+vi.mock('@/lib/copyText', () => ({ copyText: mocks.copyText }));
 // The card has an exit animation. A plain element keeps the test about the keys, not about the animation.
 vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,

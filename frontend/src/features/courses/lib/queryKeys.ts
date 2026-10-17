@@ -1,13 +1,16 @@
-import { type SpaceDetail } from '@/client';
+import { type SpaceDetail, type SpacesListMineData } from '@/client';
 
 import type { QueryClient } from '@tanstack/react-query';
+
+export type MyCoursesParams = NonNullable<SpacesListMineData['query']>;
 
 /** Central query key definitions for the courses feature. Every key starts with `['courses']`. */
 export const courseQueryKeys = {
   /** ['courses'] — prefix that covers every course query. */
   all: () => ['courses'] as const,
-  /** ['courses', 'mine'] — courses the user owns or is an active member of. */
-  mine: () => ['courses', 'mine'] as const,
+  /** ['courses', 'mine', params?] — courses the user owns or is an active member of. No params = the prefix of every filter. */
+  mine: (params?: MyCoursesParams) =>
+    params ? (['courses', 'mine', params] as const) : (['courses', 'mine'] as const),
   /** ['courses', 'catalog', params] — a page of the public catalog. */
   catalog: (params: { search: string; sort: string; page: number }) => ['courses', 'catalog', params] as const,
   /** ['courses', 'invitations'] — courses that invited the user. */

@@ -1,45 +1,65 @@
 'use client';
 
-import { Archive, LogOut, Pencil } from 'lucide-react';
+import { useIsMutating } from '@tanstack/react-query';
+import { Archive, Check, Loader2, LogOut, Pencil, Settings } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { MemberStatus, SpaceRole, SpaceStatus, SpaceVisibility, type SpaceDetail } from '@/client';
+import { MemberStatus, SpaceStatus, SpaceVisibility, type SpaceDetail } from '@/client';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
-import { Routes } from '@/lib/routes';
+import { useUrlTab } from '@/hooks/useUrlTab';
+import { courseSettingsHref, Routes } from '@/lib/routes';
+import { errorStatus } from '@/lib/utils';
 
 import { useCourse } from '../hooks/useCourse';
-import { useCourseActions } from '../hooks/useCourseActions';
+import { courseWriteKey, useCourseActions } from '../hooks/useCourseActions';
 import { ROLE_LABELS, VISIBILITY_LABELS } from '../lib/labels';
+import { COURSE_COLUMN_CLASS } from '../lib/layout';
+import { courseAccess } from '../lib/membership';
 
 import { CourseDraftEditor } from './CourseDraftEditor';
 import { CourseMembers } from './CourseMembers';
 import { CourseOutline } from './CourseOutline';
-import { CourseSettings } from './CourseSettings';
 import { PublishDialog } from './PublishDialog';
 
 type Actions = ReturnType<typeof useCourseActions>;
 
-/** `/courses/[slug-id]`: header, membership actions, and the Content / Members / Settings tabs. */
+/** The note in the preview pane, and the mode it was opened in. */
+type PreviewNote = { noteId: string; isEditing: boolean };
+
+const AUTHOR_TABS = ['content', 'members'] as const;
+
+/** `/courses/[slug-id]`: header, membership and author actions, and the Content / Members tabs (settings is a sub-page). */
 export function CoursePage({ courseId }: { courseId: string }) {
   const t = useTranslations();
   const { data: course, isLoading, error } = useCourse(courseId);
   const actions = useCourseActions(courseId);
+  const [tab, changeTab] = useUrlTab(AUTHOR_TABS, 'content');
+  const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
 
   useBreadcrumb(course?.title ?? '', [{ label: t('courses.title'), href: Routes.COURSES }], Routes.COURSES);
 
+  const status = errorStatus(error);
+
   if (isLoading) return <LoadingSpinner />;
-  if (!course) return <CourseUnavailable status={(error as { status?: number } | null)?.status} actions={actions} />;
+  // A failed refetch keeps the old `data`: after a leave or a delete, Back must not show the old view.
+  if (!course || status === 403 || status === 404) return <CourseUnavailable status={status} actions={actions} />;
 
-  const isActiveMember = course.myStatus === MemberStatus.ACTIVE;
-  const isAuthor = isActiveMember && (course.myRole === SpaceRole.OWNER || course.myRole === SpaceRole.EDITOR);
+  const { isMember, isAuthor } = courseAccess(course);
+  // Enter edit, publish and discard change the note ids (a draft twin is made or deleted): the preview closes.
+  const previewNoteId = previewNote?.isEditing === course.isEditing ? previewNote.noteId : null;
+  const openNote = (noteId: string) => setPreviewNote({ noteId, isEditing: course.isEditing });
+  const closePreview = () => setPreviewNote(null);
 
-  return (
-    <div className="flex flex-col gap-6">
+  const main = (
+    <div className={COURSE_COLUMN_CLASS}>
       <CourseHeader course={course} actions={actions} />
 
       {course.status === SpaceStatus.ARCHIVED && (
@@ -50,25 +70,37 @@ export function CoursePage({ courseId }: { courseId: string }) {
       )}
 
       {isAuthor ? (
-        <Tabs defaultValue="content">
+        <Tabs value={tab} onValueChange={changeTab}>
           <TabsList>
             <TabsTrigger value="content">{t('courses.tab_content')}</TabsTrigger>
             <TabsTrigger value="members">{t('courses.tab_members')}</TabsTrigger>
-            <TabsTrigger value="settings">{t('courses.tab_settings')}</TabsTrigger>
           </TabsList>
           <TabsContent value="content" className="pt-4">
-            <AuthorContent course={course} actions={actions} />
+            <AuthorContent course={course} actions={actions} onOpenNote={openNote} />
           </TabsContent>
           <TabsContent value="members" className="pt-4">
             <CourseMembers course={course} actions={actions} />
           </TabsContent>
-          <TabsContent value="settings" className="pt-4">
-            <CourseSettings course={course} actions={actions} />
-          </TabsContent>
         </Tabs>
       ) : (
-        <CourseOutline sections={course.sections} linkItems={isActiveMember} />
+        <CourseOutline sections={course.sections} linkItems={isMember} onOpenNote={openNote} />
       )}
+    </div>
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <ResponsiveSplitPane
+        storageKey="course-preview-split-ratio"
+        defaultRatio={0.6}
+        // The course scrolls at the page edge (the layout padding moves inside the pane).
+        bleed
+        main={main}
+        side={previewNoteId ? <NotePreviewPanel noteId={previewNoteId} onClose={closePreview} /> : null}
+        onSideClose={closePreview}
+        // The preview panel has its own frame and scroll.
+        insetDrawerBody={false}
+      />
     </div>
   );
 }
@@ -97,16 +129,18 @@ function CourseHeader({ course, actions }: { course: SpaceDetail; actions: Actio
     <header className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-foreground">{course.title}</h1>
+          <h2 className="text-2xl font-semibold text-foreground">{course.title}</h2>
           <p className="text-sm text-muted-foreground">{t('courses.by_owner', { name: course.ownerName })}</p>
         </div>
-        <MembershipActions course={course} actions={actions} />
+        <div className="flex flex-wrap items-center gap-2">
+          <MembershipActions course={course} actions={actions} />
+          <AuthorActions course={course} actions={actions} />
+        </div>
       </div>
       {course.description && <p className="text-sm whitespace-pre-line text-foreground">{course.description}</p>}
       <div className="flex flex-wrap gap-2 text-xs">
         <Badge>{t(VISIBILITY_LABELS[course.visibility])}</Badge>
-        <Badge>{t('courses.member_count', { count: course.memberCount })}</Badge>
-        {course.myRole && course.myStatus === MemberStatus.ACTIVE && <Badge>{t(ROLE_LABELS[course.myRole])}</Badge>}
+        {course.myRole && <Badge>{t(ROLE_LABELS[course.myRole])}</Badge>}
         {!course.publishedAt && <Badge>{t('courses.not_published')}</Badge>}
         {course.tags.map(tag => (
           <Badge key={tag}>#{tag}</Badge>
@@ -138,9 +172,12 @@ function MembershipActions({ course, actions }: { course: SpaceDetail; actions: 
         >
           {t('courses.decline')}
         </Button>
-        <Button loading={actions.acceptInvitation.isPending} onClick={() => actions.acceptInvitation.mutate()}>
-          {t('courses.accept')}
-        </Button>
+        {/* An archived course takes no new members (the backend gives 409). */}
+        {!isArchived && (
+          <Button loading={actions.acceptInvitation.isPending} onClick={() => actions.acceptInvitation.mutate()}>
+            {t('courses.accept')}
+          </Button>
+        )}
       </div>
     );
   }
@@ -185,58 +222,91 @@ function MembershipActions({ course, actions }: { course: SpaceDetail; actions: 
   );
 }
 
-/** Authors: the draft editor in edit mode, else the published outline with an "Edit course" button. */
-function AuthorContent({ course, actions }: { course: SpaceDetail; actions: Actions }) {
+/**
+ * Authors: the settings cog (owner), then Edit, or in edit mode the save state, Discard and Publish.
+ * Edits save to the draft at once, so there is no Save button: Publish shows the draft to members.
+ */
+function AuthorActions({ course, actions }: { course: SpaceDetail; actions: Actions }) {
   const t = useTranslations();
 
-  if (course.isEditing && course.draftSections) {
+  const settings = course.isOwner && (
+    <Button asChild variant="ghost" size="icon" tooltip={t('courses.tab_settings')}>
+      <Link href={courseSettingsHref(course)} aria-label={t('courses.tab_settings')}>
+        <Settings />
+      </Link>
+    </Button>
+  );
+
+  if (!course.canEdit) return settings || null;
+
+  if (!course.isEditing || !course.draftSections) {
     return (
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-card">
-          <p className="text-sm text-muted-foreground">{t('courses.editing_hint')}</p>
-          {course.canEdit && (
-            <div className="flex gap-2">
-              {course.publishedAt && (
-                <ConfirmDialog
-                  trigger={<Button variant="outline">{t('courses.discard_draft')}</Button>}
-                  title={t('courses.discard_draft')}
-                  description={t('courses.discard_draft_description')}
-                  confirmLabel={t('courses.discard_draft')}
-                  onConfirm={() => actions.discardDraft.mutate()}
-                />
-              )}
-              <PublishDialog
-                draftSections={course.draftSections}
-                isPending={actions.publish.isPending}
-                onPublish={(body, onDone) => actions.publish.mutate(body, { onSuccess: onDone })}
-              />
-            </div>
-          )}
-        </div>
-        {course.canEdit ? (
-          <CourseDraftEditor course={course} actions={actions} />
-        ) : (
-          <CourseOutline sections={course.draftSections} linkItems={false} />
-        )}
-      </div>
+      <>
+        {settings}
+        <Button
+          variant="outline"
+          icon={Pencil}
+          loading={actions.enterEditMode.isPending}
+          onClick={() => actions.enterEditMode.mutate()}
+        >
+          {t('courses.edit_course')}
+        </Button>
+      </>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {course.canEdit && (
-        <div>
-          <Button
-            variant="outline"
-            icon={Pencil}
-            loading={actions.enterEditMode.isPending}
-            onClick={() => actions.enterEditMode.mutate()}
-          >
-            {t('courses.edit_course')}
-          </Button>
-        </div>
+    <>
+      {settings}
+      <SaveState courseId={course.id} />
+      {course.publishedAt && (
+        <ConfirmDialog
+          trigger={<Button variant="outline">{t('courses.discard_draft')}</Button>}
+          title={t('courses.discard_draft')}
+          description={t('courses.discard_draft_description')}
+          confirmLabel={t('courses.discard_draft')}
+          onConfirm={() => actions.discardDraft.mutate()}
+        />
       )}
-      <CourseOutline sections={course.sections} linkItems />
-    </div>
+      <PublishDialog
+        draftSections={course.draftSections}
+        isPending={actions.publish.isPending}
+        hasChanges={course.hasUnpublishedChanges}
+        onPublish={(body, onDone) => actions.publish.mutate(body, { onSuccess: onDone })}
+      />
+    </>
   );
+}
+
+/** "Saving…" while any write of this course runs (they share `courseWriteKey`), else "Saved". */
+function SaveState({ courseId }: { courseId: string }) {
+  const t = useTranslations();
+  const isSaving = useIsMutating({ mutationKey: courseWriteKey(courseId) }) > 0;
+
+  return (
+    <span className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground" aria-live="polite">
+      {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+      {t(isSaving ? 'common.saving' : 'courses.saved_state')}
+    </span>
+  );
+}
+
+/** Authors: the draft editor in edit mode (a read-only draft outline for editors without edit rights), else the published outline. */
+function AuthorContent({
+  course,
+  actions,
+  onOpenNote,
+}: {
+  course: SpaceDetail;
+  actions: Actions;
+  onOpenNote: (noteId: string) => void;
+}) {
+  if (course.isEditing && course.draftSections) {
+    return course.canEdit ? (
+      <CourseDraftEditor course={course} actions={actions} onOpenNote={onOpenNote} />
+    ) : (
+      <CourseOutline sections={course.draftSections} linkItems={false} />
+    );
+  }
+  return <CourseOutline sections={course.sections} linkItems onOpenNote={onOpenNote} />;
 }

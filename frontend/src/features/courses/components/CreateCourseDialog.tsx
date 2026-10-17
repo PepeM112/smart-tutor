@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 
 import { SpaceVisibility } from '@/client';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,9 +28,11 @@ export function CreateCourseDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button size="lg" icon={Plus} onClick={() => setOpen(true)}>
-        {t('courses.create_course')}
-      </Button>
+      <DialogTrigger asChild>
+        <Button size="lg" icon={Plus}>
+          {t('courses.create_course')}
+        </Button>
+      </DialogTrigger>
       {open && <CreateCourseForm onClose={() => setOpen(false)} />}
     </Dialog>
   );

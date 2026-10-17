@@ -16,6 +16,8 @@ import { COURSE_LIMITS } from '../lib/limits';
 type Props = {
   draftSections: SpaceSectionRead[];
   isPending: boolean;
+  /** False when the draft is the same as the published version: publish would give 409. */
+  hasChanges: boolean;
   onPublish: (body: SpacePublishRequest, onDone: () => void) => void;
 };
 
@@ -23,7 +25,7 @@ type Props = {
  * Publish the draft. The message, "notify" and "reset progress" are stored with the publish:
  * notifications come in M5 and progress in M3, so they have no effect yet.
  */
-export function PublishDialog({ draftSections, isPending, onPublish }: Props) {
+export function PublishDialog({ draftSections, isPending, hasChanges, onPublish }: Props) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
@@ -56,7 +58,13 @@ export function PublishDialog({ draftSections, isPending, onPublish }: Props) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button icon={Upload}>{t('courses.publish')}</Button>
+        <Button
+          icon={Upload}
+          disabled={!hasChanges}
+          tooltip={hasChanges ? undefined : t('courses.no_changes_to_publish')}
+        >
+          {t('courses.publish')}
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

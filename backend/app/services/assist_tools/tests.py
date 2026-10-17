@@ -56,7 +56,7 @@ def list_tests(db: Session, *, current_user: User, arguments: dict[str, object])
 
 def get_test_details(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     test_id = str(arguments.get("test_id", ""))
-    # AUTHOR: the details show the answers, so a course member (VIEWER) must not read them.
+    # AUTHOR: the question ids lead to the answer-key reads, so a course member (VIEWER) must not get them.
     test = get_test_or_404(db, test_id=test_id, current_user=current_user, level=AccessLevel.AUTHOR)
     lines = [f"**{test.title}** (ID: `{test.id}`)"]
     if test.description:
@@ -173,7 +173,10 @@ def _test_question_ids(test: Test) -> set[str]:
 def edit_test(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     test_id = str(arguments.get("test_id", ""))
     logger.info("edit_test: user=%s test=%s", current_user.id, test_id)
-    test = test_service.get_test(db, test_id=test_id, current_user=current_user, level=AccessLevel.EDIT)
+    # Row lock: a course publish waits for this edit, or this edit waits for it (see `update_test`).
+    test = test_service.get_test(
+        db, test_id=test_id, current_user=current_user, level=AccessLevel.EDIT, for_update=True
+    )
 
     changes: list[str] = []
 

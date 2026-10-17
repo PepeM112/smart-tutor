@@ -60,6 +60,11 @@ export function courseHref(course: { id: string; title: string }): string {
   return `/courses/${buildSlug(course.title)}-${course.id}`;
 }
 
+/** The settings sub-page of a course (owner only). */
+export function courseSettingsHref(course: { id: string; title: string }): string {
+  return `${courseHref(course)}/settings`;
+}
+
 /**
  * Extract the ID from a URL segment of a note or a folder. The segment can be:
  *   - A bare ULID: `01J9XYZ…`

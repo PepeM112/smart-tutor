@@ -41,6 +41,8 @@ export type FilterOptions = {
   items?: Primitive[] | FilterEntity[];
   number?: boolean;
   returnObject?: boolean;
+  /** TOGGLE only: the translation key of the "no filter" choice. Default `common.all`. Use it when no filter has a default meaning (for example "Active"). */
+  allLabel?: string;
 };
 
 export type FilterValue = Record<

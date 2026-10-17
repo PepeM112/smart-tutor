@@ -24,7 +24,7 @@ const link = vi.hoisted(() => ({
 }));
 const copyText = vi.hoisted(() => vi.fn());
 
-vi.mock('../copyText', () => ({ copyText }));
+vi.mock('@/lib/copyText', () => ({ copyText }));
 
 vi.mock('./useLinkTarget', () => ({
   useLinkTarget: () => ({

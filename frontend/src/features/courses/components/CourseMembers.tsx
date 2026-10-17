@@ -1,24 +1,23 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Check, UserPlus, X } from 'lucide-react';
+import { type ColumnDef } from '@tanstack/react-table';
+import { Check, Eye, PenLine, UserMinus, UserPlus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { MemberStatus, SpaceRole, type SpaceDetail, type SpaceMemberRead } from '@/client';
+import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
 import { sdk } from '@/lib/apiClient';
+import { formatShortDate } from '@/lib/format';
 
 import { type useCourseActions } from '../hooks/useCourseActions';
-import { MEMBER_STATUS_LABELS, ROLE_LABELS } from '../lib/labels';
+import { MEMBER_STATUS_LABELS, ROLE_ICONS, ROLE_LABELS } from '../lib/labels';
 import { courseQueryKeys } from '../lib/queryKeys';
 
-/** Same limit as the backend `identifier` field (an email can be 320 characters). */
-const IDENTIFIER_MAX_LENGTH = 320;
+import { InviteUserDialog } from './InviteUserDialog';
 
 type Actions = ReturnType<typeof useCourseActions>;
 
@@ -27,10 +26,25 @@ type Props = {
   actions: Actions;
 };
 
-/** The member list. Authors can read it; only the owner can invite, approve, change roles and remove. */
+/** Join requests first: they wait for the owner. Then invitations, then active members. */
+const STATUS_ORDER: Record<MemberStatus, number> = {
+  [MemberStatus.REQUESTED]: 0,
+  [MemberStatus.INVITED]: 1,
+  [MemberStatus.ACTIVE]: 2,
+};
+
+/**
+ * The member table. Authors can read it; only the owner can invite, approve, change roles and remove.
+ * No emails and no progress per member (a standalone course shows no data about one user).
+ */
 export function CourseMembers({ course, actions }: Props) {
   const t = useTranslations();
+  // Invite, approve and role changes need an active course. The owner can still remove members
+  // (and deny requests, cancel invitations) in an archived course: the backend allows it.
   const canManage = course.isOwner && course.canEdit;
+  const canRemove = course.isOwner;
+  // One write at a time: a double click would send a second call that gets a 409 / 404.
+  const isBusy = actions.approveRequest.isPending || actions.removeMember.isPending || actions.setMemberRole.isPending;
 
   const {
     data: members = [],
@@ -42,162 +56,162 @@ export function CourseMembers({ course, actions }: Props) {
       (await sdk.spacesListMembers({ path: { space_id: course.id }, throwOnError: true })).data,
   });
 
-  const requests = members.filter(member => member.status === MemberStatus.REQUESTED);
-  const others = members.filter(member => member.status !== MemberStatus.REQUESTED);
+  const sorted = members.toSorted((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+  const columns = useMemberColumns();
+
+  const renderActions = useCallback(
+    (member: SpaceMemberRead): MobileAction[][] =>
+      memberActions(member, { canManage, isBusy, actions, t: (key, values) => t(key, values) }),
+    [canManage, isBusy, actions, t]
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      {canManage && <InviteForm actions={actions} />}
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-medium text-foreground">{t('courses.members_count', { count: members.length })}</h2>
+        {canManage && <InviteButton actions={actions} />}
+      </div>
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('courses.failed_to_load_members')}>
-        {requests.length > 0 && (
-          <MemberSection title={t('courses.join_requests')}>
-            {requests.map(member => (
-              <MemberRow key={member.userId} member={member}>
-                {canManage && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      icon={Check}
-                      tooltip={t('courses.approve')}
-                      aria-label={t('courses.approve')}
-                      onClick={() => actions.approveRequest.mutate(member.userId)}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      icon={X}
-                      tooltip={t('courses.deny')}
-                      aria-label={t('courses.deny')}
-                      onClick={() => actions.removeMember.mutate(member.userId)}
-                    />
-                  </>
-                )}
-              </MemberRow>
-            ))}
-          </MemberSection>
-        )}
-
-        <MemberSection title={t('courses.members_count', { count: others.length })}>
-          {others.map(member => (
-            <MemberRow key={member.userId} member={member}>
-              {canManage && member.role !== SpaceRole.OWNER && <MemberActions member={member} actions={actions} />}
-            </MemberRow>
-          ))}
-        </MemberSection>
+        <DataTableV2
+          columns={columns}
+          data={sorted}
+          getRowId={member => member.userId}
+          emptyMessage={t('courses.no_members')}
+          renderPreview={member => <MemberName member={member} />}
+          renderActions={canRemove ? renderActions : undefined}
+        />
       </QueryState>
     </div>
   );
 }
 
-function InviteForm({ actions }: { actions: Actions }) {
+function InviteButton({ actions }: { actions: Actions }) {
   const t = useTranslations();
-  const [identifier, setIdentifier] = useState('');
-
-  function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const value = identifier.trim();
-    if (!value) return;
-    actions.invite.mutate(value, { onSuccess: () => setIdentifier('') });
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2">
-      <Input
-        value={identifier}
-        onChange={e => setIdentifier(e.target.value)}
-        placeholder={t('courses.invite_placeholder')}
-        aria-label={t('courses.invite_placeholder')}
-        maxLength={IDENTIFIER_MAX_LENGTH}
-        className="max-w-sm"
-      />
-      <Button type="submit" icon={UserPlus} disabled={!identifier.trim()} loading={actions.invite.isPending}>
-        {t('courses.invite')}
-      </Button>
-    </form>
-  );
-}
-
-function MemberSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl border border-border bg-card shadow-card">
-      <h3 className="px-4 pt-4 pb-2 text-sm font-medium text-foreground">{title}</h3>
-      <ul className="pb-2">{children}</ul>
-    </section>
-  );
-}
-
-function MemberRow({ member, children }: { member: SpaceMemberRead; children?: React.ReactNode }) {
-  const t = useTranslations();
-  const name = member.displayName || member.username;
-
-  return (
-    <li className="flex items-center gap-3 px-4 py-2 text-sm">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-foreground">{name}</p>
-        {member.displayName && <p className="truncate text-xs text-muted-foreground">@{member.username}</p>}
-      </div>
-      {member.status !== MemberStatus.ACTIVE && (
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          {t(MEMBER_STATUS_LABELS[member.status])}
-        </span>
-      )}
-      {children}
-    </li>
-  );
-}
-
-/** Role select and remove. An invitation that is not accepted can only be cancelled. */
-function MemberActions({ member, actions }: { member: SpaceMemberRead; actions: Actions }) {
-  const t = useTranslations();
-  const name = member.displayName || member.username;
-  const isInvited = member.status === MemberStatus.INVITED;
-  const removeLabel = t(isInvited ? 'courses.cancel_invitation' : 'courses.remove_member');
-  // Controlled: the Tooltip around a tooltip button does not pass the trigger props through.
-  const [isRemoveOpen, setIsRemoveOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
-      {!isInvited && (
-        <NativeSelect
-          value={member.role}
-          aria-label={t('courses.role_label')}
-          className="w-32"
-          disabled={actions.setMemberRole.isPending}
-          onChange={e =>
-            actions.setMemberRole.mutate({
-              userId: member.userId,
-              // SAFETY: the only options are EDITOR and VIEWER.
-              role: Number(e.target.value),
-            })
-          }
-        >
-          {[SpaceRole.EDITOR, SpaceRole.VIEWER].map(role => (
-            <option key={role} value={role}>
-              {t(ROLE_LABELS[role])}
-            </option>
-          ))}
-        </NativeSelect>
-      )}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        icon={X}
-        tooltip={removeLabel}
-        aria-label={removeLabel}
-        onClick={() => setIsRemoveOpen(true)}
-      />
-      <ConfirmDialog
-        open={isRemoveOpen}
-        onOpenChange={setIsRemoveOpen}
-        title={removeLabel}
-        description={t(isInvited ? 'courses.cancel_invitation_description' : 'courses.remove_member_description', {
-          name,
-        })}
-        confirmLabel={t('common.confirm')}
-        onConfirm={() => actions.removeMember.mutate(member.userId)}
-      />
+      <Button variant="outline" size="sm" icon={UserPlus} onClick={() => setIsOpen(true)}>
+        {t('courses.invite')}
+      </Button>
+      <InviteUserDialog open={isOpen} onOpenChange={setIsOpen} actions={actions} />
     </>
+  );
+}
+
+type Translate = (key: string, values?: Record<string, string>) => string;
+
+/**
+ * The owner's menu for one row.
+ * A request: approve / deny. An invitation: cancel. An active member: change the role / remove.
+ */
+function memberActions(
+  member: SpaceMemberRead,
+  { canManage, isBusy, actions, t }: { canManage: boolean; isBusy: boolean; actions: Actions; t: Translate }
+): MobileAction[][] {
+  const name = member.displayName || member.username;
+  const remove = (label: string, description: string, icon = UserMinus): MobileAction => ({
+    label,
+    icon,
+    variant: 'destructive',
+    disabled: isBusy,
+    onClick: () => actions.removeMember.mutate(member.userId),
+    confirm: { title: label, description },
+  });
+
+  if (member.status === MemberStatus.REQUESTED) {
+    const approve: MobileAction = {
+      label: t('courses.approve'),
+      icon: Check,
+      disabled: isBusy,
+      onClick: () => actions.approveRequest.mutate(member.userId),
+    };
+    // Deny has no confirm: the user can send a new request.
+    const deny: MobileAction = {
+      label: t('courses.deny'),
+      icon: X,
+      variant: 'destructive',
+      disabled: isBusy,
+      onClick: () => actions.removeMember.mutate(member.userId),
+    };
+    return canManage ? [[approve], [deny]] : [[deny]];
+  }
+
+  if (member.status === MemberStatus.INVITED) {
+    return [[remove(t('courses.cancel_invitation'), t('courses.cancel_invitation_description', { name }), X)]];
+  }
+
+  const removeGroup = [remove(t('courses.remove_member'), t('courses.remove_member_description', { name }))];
+  if (!canManage) return [removeGroup];
+
+  const nextRole = member.role === SpaceRole.EDITOR ? SpaceRole.VIEWER : SpaceRole.EDITOR;
+  const changeRole: MobileAction = {
+    label: t(nextRole === SpaceRole.EDITOR ? 'courses.make_editor' : 'courses.make_viewer'),
+    icon: nextRole === SpaceRole.EDITOR ? PenLine : Eye,
+    disabled: isBusy,
+    onClick: () => actions.setMemberRole.mutate({ userId: member.userId, role: nextRole }),
+  };
+  return [[changeRole], removeGroup];
+}
+
+function useMemberColumns(): ColumnDef<SpaceMemberRead, unknown>[] {
+  const t = useTranslations();
+
+  return [
+    {
+      id: 'name',
+      header: t('courses.column_name'),
+      meta: { hideOnMobile: true, grow: true },
+      cell: ({ row }) => <MemberName member={row.original} />,
+    },
+    {
+      id: 'role',
+      header: t('courses.role_label'),
+      meta: { widthClass: 'w-28' },
+      cell: ({ row }) => {
+        const Icon = ROLE_ICONS[row.original.role];
+        return (
+          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Icon className="size-3.5" />
+            {t(ROLE_LABELS[row.original.role])}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'status',
+      header: t('courses.column_status'),
+      meta: { widthClass: 'w-28' },
+      cell: ({ row }) => <MemberStatusBadge status={row.original.status} />,
+    },
+    {
+      id: 'joined',
+      header: t('courses.column_joined'),
+      meta: { widthClass: 'w-24 text-right' },
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {row.original.joinedAt ? formatShortDate(row.original.joinedAt) : '—'}
+        </span>
+      ),
+    },
+  ];
+}
+
+function MemberName({ member }: { member: SpaceMemberRead }) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-sm font-medium text-foreground">{member.displayName || member.username}</p>
+      <p className="truncate text-xs text-muted-foreground">@{member.username}</p>
+    </div>
+  );
+}
+
+function MemberStatusBadge({ status }: { status: MemberStatus }) {
+  const t = useTranslations();
+  return (
+    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+      {t(MEMBER_STATUS_LABELS[status])}
+    </span>
   );
 }

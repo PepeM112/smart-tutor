@@ -3,8 +3,8 @@
 import { useTranslations } from 'next-intl';
 
 import { type SpaceVisibility } from '@/client';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
 
 import { VISIBILITY_HINTS, VISIBILITY_LABELS, VISIBILITY_OPTIONS } from '../lib/labels';
 
@@ -20,20 +20,15 @@ export function VisibilitySelect({ value, onChange, disabled }: Props) {
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="course-visibility">{t('courses.visibility_label')}</Label>
-      <NativeSelect
-        id="course-visibility"
-        value={value}
-        disabled={disabled}
-        // SAFETY: the options are the enum values, so the parsed number is always a SpaceVisibility.
-        onChange={e => onChange(Number(e.target.value))}
-      >
-        {VISIBILITY_OPTIONS.map(option => (
-          <option key={option} value={option}>
-            {t(VISIBILITY_LABELS[option])}
-          </option>
-        ))}
-      </NativeSelect>
+      <Label>{t('courses.visibility_label')}</Label>
+      <div>
+        <ButtonGroup
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          items={VISIBILITY_OPTIONS.map(option => ({ value: option, label: t(VISIBILITY_LABELS[option]) }))}
+        />
+      </div>
       <p className="text-xs text-muted-foreground">{t(VISIBILITY_HINTS[value])}</p>
     </div>
   );

@@ -20,8 +20,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from 'react';
 
 import { HoverHint } from '@/components/ui/hover-hint';
-
-import { copyText } from '../copyText';
+import { copyText } from '@/lib/copyText';
 
 import { normalizeLinkHref, openLink } from './linkHref';
 import { useLinkTarget, type LinkTarget } from './useLinkTarget';

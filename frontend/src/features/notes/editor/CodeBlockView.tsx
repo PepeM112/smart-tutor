@@ -16,11 +16,11 @@ import { useEffect, useRef, useState } from 'react';
 
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { HoverHint } from '@/components/ui/hover-hint';
+import { copyText } from '@/lib/copyText';
 import { cn } from '@/lib/utils';
 
 import { buildToggleCodeWrapTransaction, isCodeWrapped } from './codeBlockWrap';
 import { codeLanguageLabel, normalizeCodeLanguage, searchCodeLanguages } from './codeLanguages';
-import { copyText } from './copyText';
 
 import type { createLowlight } from 'lowlight';
 

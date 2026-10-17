@@ -79,7 +79,11 @@ function Button({
 
   if (!tooltip) return button;
 
-  return <Tooltip content={tooltip}>{button}</Tooltip>;
+  return (
+    <Tooltip content={tooltip} wrapsControl>
+      {button}
+    </Tooltip>
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

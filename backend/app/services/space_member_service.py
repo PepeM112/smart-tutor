@@ -5,6 +5,7 @@ must approve), ACTIVE (access). Only ACTIVE rows give access (see access_service
 """
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.enums import MemberStatus, SpaceRole, SpaceStatus, SpaceVisibility
@@ -50,15 +51,20 @@ def _get_row_or_404(db: Session, *, space_id: str, user_id: str) -> SpaceMember:
 
 
 def _add_viewer(db: Session, *, space: Space, user: User, member_status: MemberStatus, invited_by: str | None) -> None:
-    space_member_crud.create(
-        db,
-        space_id=space.id,
-        user_id=user.id,
-        role=int(SpaceRole.VIEWER),
-        status=int(member_status),
-        invited_by=invited_by,
-        joined_at=now() if member_status == MemberStatus.ACTIVE else None,
-    )
+    """A savepoint: when a parallel call (a double click) added the row first, keep that row, not a 500."""
+    try:
+        with db.begin_nested():
+            space_member_crud.create(
+                db,
+                space_id=space.id,
+                user_id=user.id,
+                role=int(SpaceRole.VIEWER),
+                status=int(member_status),
+                invited_by=invited_by,
+                joined_at=now() if member_status == MemberStatus.ACTIVE else None,
+            )
+    except IntegrityError:
+        pass
 
 
 # ── The current user ──────────────────────────────────────────────────────────

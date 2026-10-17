@@ -34,7 +34,7 @@ class AccessLevel(IntEnum):
     AUTHOR = 3
 
 
-_EDIT_ROLES = frozenset({SpaceRole.OWNER, SpaceRole.EDITOR})
+EDIT_ROLES = frozenset({SpaceRole.OWNER, SpaceRole.EDITOR})
 
 
 @dataclass(frozen=True)
@@ -83,10 +83,10 @@ def can_access_space_content(
     if role is None:
         return False
     if level == AccessLevel.READ:
-        return not is_draft or role in _EDIT_ROLES
+        return not is_draft or role in EDIT_ROLES
     if level == AccessLevel.AUTHOR:
-        return role in _EDIT_ROLES
-    return role in _EDIT_ROLES and is_draft and space_status == SpaceStatus.ACTIVE
+        return role in EDIT_ROLES
+    return role in EDIT_ROLES and is_draft and space_status == SpaceStatus.ACTIVE
 
 
 def _can_access_content(
@@ -155,8 +155,12 @@ def get_note_or_404(
     return note
 
 
-def get_test_or_404(db: Session, *, test_id: str, current_user: User, level: AccessLevel) -> Test:
-    test = test_crud.get_by_id(db, id=test_id)
+def get_test_or_404(
+    db: Session, *, test_id: str, current_user: User, level: AccessLevel, for_update: bool = False
+) -> Test:
+    """`for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE)."""
+    fetch = test_crud.get_by_id_for_update if for_update else test_crud.get_by_id
+    test = fetch(db, id=test_id)
     if test is None:
         raise _not_found("Test")
     if not can_access_test(db, test=test, current_user=current_user, level=level):

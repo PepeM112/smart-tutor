@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { Suspense, use } from 'react';
 
 import { CoursePage } from '@/features/courses/components/CoursePage';
 import { parseSlugId } from '@/lib/routes';
@@ -11,5 +11,10 @@ type Props = {
 
 export default function CourseDetailRoutePage({ params }: Props) {
   const { id } = use(params);
-  return <CoursePage courseId={parseSlugId(id)} />;
+  // CoursePage reads `?tab=` (useSearchParams).
+  return (
+    <Suspense>
+      <CoursePage courseId={parseSlugId(id)} />
+    </Suspense>
+  );
 }

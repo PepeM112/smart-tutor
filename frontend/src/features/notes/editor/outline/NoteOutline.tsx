@@ -32,11 +32,10 @@ import {
 import { createPortal } from 'react-dom';
 
 import { HoverHint } from '@/components/ui/hover-hint';
+import { copyText } from '@/lib/copyText';
 import { PANEL_FADE_DURATION, PANEL_SPRING } from '@/lib/panelMotion';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
-
-import { copyText } from '../copyText';
 
 import { prefersReducedMotion, scrollToHeading } from './scroll';
 import { useHeadingOutline } from './useHeadingOutline';

@@ -22,6 +22,7 @@ export type AddItemMode = { action: 'create' | 'copy'; kind: SpaceItemKind.NOTE 
 type Props = {
   mode: AddItemMode | null;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   isPending: boolean;
   /** `create`: a new empty note / test with this title. */
   onCreate: (title: string) => void;
@@ -30,14 +31,19 @@ type Props = {
 };
 
 /** Add an item to a draft section: a new note / test, or a copy of a personal one. */
-export function AddItemDialog({ mode, onOpenChange, isPending, onCreate, onCopy }: Props) {
+export function AddItemDialog({ mode, onOpenChange, onCloseAutoFocus, isPending, onCreate, onCopy }: Props) {
   return (
     <Dialog open={mode !== null} onOpenChange={onOpenChange}>
       {mode &&
         (mode.action === 'create' ? (
-          <CreateItemForm kind={mode.kind} isPending={isPending} onCreate={onCreate} />
+          <CreateItemForm
+            kind={mode.kind}
+            isPending={isPending}
+            onCreate={onCreate}
+            onCloseAutoFocus={onCloseAutoFocus}
+          />
         ) : (
-          <CopyItemForm kind={mode.kind} isPending={isPending} onCopy={onCopy} />
+          <CopyItemForm kind={mode.kind} isPending={isPending} onCopy={onCopy} onCloseAutoFocus={onCloseAutoFocus} />
         ))}
     </Dialog>
   );
@@ -47,10 +53,12 @@ function CreateItemForm({
   kind,
   isPending,
   onCreate,
+  onCloseAutoFocus,
 }: {
   kind: AddItemMode['kind'];
   isPending: boolean;
   onCreate: (title: string) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const t = useTranslations();
   const [title, setTitle] = useState('');
@@ -61,7 +69,7 @@ function CreateItemForm({
   }
 
   return (
-    <DialogContent>
+    <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
       <form onSubmit={handleSubmit}>
         <DialogHeader>
           <DialogTitle>{t(kind === SpaceItemKind.NOTE ? 'courses.new_note' : 'courses.new_test')}</DialogTitle>
@@ -92,10 +100,12 @@ function CopyItemForm({
   kind,
   isPending,
   onCopy,
+  onCloseAutoFocus,
 }: {
   kind: AddItemMode['kind'];
   isPending: boolean;
   onCopy: (sourceId: string) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const t = useTranslations();
   const isNote = kind === SpaceItemKind.NOTE;
@@ -118,7 +128,7 @@ function CopyItemForm({
   const Icon = isNote ? FileText : BookOpen;
 
   return (
-    <DialogContent className="sm:max-w-lg">
+    <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>{t(isNote ? 'courses.copy_note' : 'courses.copy_test')}</DialogTitle>
       </DialogHeader>

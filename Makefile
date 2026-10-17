@@ -6,6 +6,7 @@ FRONTEND_DIR := ./frontend
 BACKEND_ENV := ./backend/.env
 DOCKER_COMPOSE := docker-compose --env-file ${BACKEND_ENV}
 DOCKER_COMPOSE_DEMO := docker-compose -f docker-compose.yml -f docker-compose.demo.yml --env-file ${BACKEND_ENV}
+DOCKER_COMPOSE_E2E := docker-compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file ${BACKEND_ENV}
 
 # ==============================
 # Main
@@ -50,6 +51,23 @@ demo-clean: ## Stop demo services and delete all data
 demo-restart: ## Restart demo services (picks up .env changes)
 	$(DOCKER_COMPOSE_DEMO) down
 	$(DOCKER_COMPOSE_DEMO) up --build -d
+
+e2e-up: ## E2E: start the stack on a local throwaway DB (never Neon), migrate and seed
+	$(DOCKER_COMPOSE_E2E) up -d
+	@until docker inspect --format='{{.State.Health.Status}}' backend 2>/dev/null | grep -q healthy; do sleep 1; done
+	$(DOCKER_COMPOSE_E2E) exec backend alembic upgrade head
+	@bash backend/scripts/seed.sh
+	@bash backend/scripts/seed_courses.sh
+
+e2e: ## E2E: reseed the courses and run the Playwright specs (needs make e2e-up)
+	@bash backend/scripts/seed_courses.sh > /dev/null
+	@cd $(FRONTEND_DIR) && npx playwright test
+
+# Not `down`: it makes a new frontend container with an empty node_modules volume. Only the backend
+# config changes, so `up -d` recreates only the backend. The e2e DB volume stays for the next run.
+e2e-down: ## E2E: stop the local DB and put the backend back on the dev DB
+	$(DOCKER_COMPOSE_E2E) rm -sf db
+	$(DOCKER_COMPOSE) up -d
 
 up: ## Start all services (backend + frontend)
 	@cd $(FRONTEND_DIR) && npm install --silent
@@ -190,6 +208,9 @@ install-all: install-backend frontend-install ## Install all dependencies (BE + 
 seed: ## Seed database with all sample tests
 	bash backend/scripts/seed.sh
 
+seed-courses: ## Seed courses + 3 extra users for browser testing (run `make seed` first)
+	bash backend/scripts/seed_courses.sh
+
 fetch-prices: ## Fetch model prices from OpenRouter into model_pricing table
 	docker exec backend python3 /app/scripts/fetch_prices.py
 
@@ -219,4 +240,4 @@ restart: ## Restart all services
 help: ## Show this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: up build down rebuild demo demo-stop demo-clean demo-restart frontend-logs frontend-shell frontend-install frontend-gen logs shell test test-db install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint format format-check format-branch format-branch-check type-check type-check-branch pyright seed fetch-prices backfill-costs reindex-notes clean clean-fe clear-cache clean-logs restart help
+.PHONY: up build down rebuild demo demo-stop demo-clean demo-restart frontend-logs frontend-shell frontend-install frontend-gen logs shell test test-db install-backend install-all migrate-create migrate-upgrade migrate-downgrade migrate-current migrate-history lint format format-check format-branch format-branch-check type-check type-check-branch pyright seed seed-courses fetch-prices backfill-costs reindex-notes clean clean-fe clear-cache clean-logs restart help

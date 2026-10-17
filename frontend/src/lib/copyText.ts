@@ -1,5 +1,5 @@
-// Copy text to the clipboard and tell the user. The code block toolbar, the block handle menu, the outline
-// and the link popover share this, so they give the same result and the same toasts. A clipboard that is
+// Copy text to the clipboard and tell the user. The note editor, the course pages and `CopyChip`
+// share this, so they give the same result and the same toasts. A clipboard that is
 // not available (no secure context, or no permission) shows the error toast, and it does not throw.
 
 import { toast } from 'sonner';

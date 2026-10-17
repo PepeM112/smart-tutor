@@ -2,6 +2,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 import { type SpaceDetail } from '@/client';
 import { sdk } from '@/lib/apiClient';
+import { retryUnlessDenied } from '@/lib/utils';
 
 import { courseQueryKeys } from '../lib/queryKeys';
 
@@ -12,5 +13,6 @@ export function useCourse(courseId: string): UseQueryResult<SpaceDetail> {
     // `throwOnError: true` in the call types `data` as always set (the client throws on errors anyway).
     queryFn: async (): Promise<SpaceDetail> =>
       (await sdk.spacesGet({ path: { space_id: courseId }, throwOnError: true })).data,
+    retry: retryUnlessDenied,
   });
 }

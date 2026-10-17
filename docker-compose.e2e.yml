@@ -1,0 +1,28 @@
+# E2E stack: the dev services + a local, throwaway PostgreSQL.
+# `environment` wins over `env_file`, so the backend uses this DB and never the hosted (Neon) one.
+# Start: make e2e-up   Stop and return to the dev DB: make e2e-down
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: smarttutor-e2e-db
+    environment:
+      POSTGRES_USER: smarttutor
+      POSTGRES_PASSWORD: smarttutor
+      POSTGRES_DB: smarttutor
+    volumes:
+      - e2e-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smarttutor"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    environment:
+      - DATABASE_URL=postgresql://smarttutor:smarttutor@db:5432/smarttutor
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  e2e-pgdata:

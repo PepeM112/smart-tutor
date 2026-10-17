@@ -39,3 +39,8 @@ tsconfig.tsbuildinfo
 
 # Other
 frontend/app/(app)/components-ideas/
+
+# Playwright
+frontend/e2e/.auth/
+frontend/test-results/
+frontend/playwright-report/

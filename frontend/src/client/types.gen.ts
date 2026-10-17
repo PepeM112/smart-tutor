@@ -1501,6 +1501,10 @@ export type SpaceDetail = {
      */
     isEditing: boolean;
     /**
+     * Hasunpublishedchanges
+     */
+    hasUnpublishedChanges: boolean;
+    /**
      * Joincode
      */
     joinCode: string | null;
@@ -1524,6 +1528,26 @@ export type SpaceDraftOrder = {
      * Sections
      */
     sections: Array<SpaceSectionOrder>;
+};
+
+/**
+ * SpaceDuplicateRequest
+ *
+ * The metadata of the new course. The dialog fills it with the values of the source.
+ */
+export type SpaceDuplicateRequest = {
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
 };
 
 /**
@@ -4354,7 +4378,20 @@ export type AssistAssistResponses = {
 export type SpacesListMineData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: 'active' | 'archived' | 'all';
+        /**
+         * Visibility
+         */
+        visibility?: Array<SpaceVisibility> | null;
+        /**
+         * Role
+         */
+        role?: Array<SpaceRole> | null;
+    };
     url: '/api/v1/spaces';
 };
 
@@ -4678,7 +4715,7 @@ export type SpacesRegenerateJoinCodeResponses = {
 export type SpacesRegenerateJoinCodeResponse = SpacesRegenerateJoinCodeResponses[keyof SpacesRegenerateJoinCodeResponses];
 
 export type SpacesDuplicateData = {
-    body?: never;
+    body: SpaceDuplicateRequest;
     path: {
         /**
          * Space Id

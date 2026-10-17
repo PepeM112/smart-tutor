@@ -3,7 +3,7 @@
 Each test runs in one outer transaction that is rolled back (see `db_session` in `conftest.py`).
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import pytest
 from fastapi import HTTPException
@@ -26,20 +26,24 @@ from app.models.test import Test as ExamTest
 from app.models.test_result import TestResult as ResultRow
 from app.models.user import User
 from app.schemas.note import NoteUpdate
-from app.schemas.question import QuestionCreate
+from app.schemas.question import QuestionCreate, QuestionUpdate
 from app.schemas.space import (
     SpaceCreate,
     SpaceDetail,
     SpaceDraftOrder,
+    SpaceDuplicateRequest,
     SpaceItemCopy,
     SpaceItemCreate,
+    SpaceListStatus,
     SpacePublishRequest,
     SpaceSectionCreate,
     SpaceSectionOrder,
+    SpaceSectionUpdate,
 )
-from app.schemas.test import TestUpdate
+from app.schemas.test import TestCreate, TestUpdate
 from app.services import (
     note_service,
+    question_service,
     space_draft_service,
     space_member_service,
     space_service,
@@ -91,6 +95,18 @@ def _course_with_note(db: Session, owner: User) -> tuple[SpaceDetail, str]:
     return _publish(db, owner, course.id), content.note_id
 
 
+def _rename_first_section(db: Session, owner: User, course: SpaceDetail) -> SpaceDetail:
+    """A structure-only change, so publish has something to publish."""
+    assert course.draft_sections is not None
+    return space_draft_service.rename_section(
+        db,
+        space_id=course.id,
+        section_id=course.draft_sections[0].id,
+        current_user=owner,
+        data=SpaceSectionUpdate(title="Renamed"),
+    )
+
+
 def _joined_viewer(db: Session, space_id: str) -> User:
     viewer = new_user(db)
     space_member_service.join(db, space_id=space_id, current_user=viewer)
@@ -131,7 +147,12 @@ class TestCreateAndPublish:
         assert course.sections[0].items[0].note_id == note_id
         note = db_session.get(Note, note_id)
         assert note is not None and note.is_draft is False
-        assert db_session.scalars(select(SpaceSection).where(SpaceSection.is_draft.is_(True))).all() == []
+        assert (
+            db_session.scalars(
+                select(SpaceSection).where(SpaceSection.space_id == course.id, SpaceSection.is_draft.is_(True))
+            ).all()
+            == []
+        )
 
     def test_copy_in_makes_a_new_note_with_no_link(self, db_session: Session, owner: User) -> None:
         personal = new_note(db_session, user=owner, content="mitosis")
@@ -317,7 +338,12 @@ class TestDraftEngine:
         assert [i.note_id for s in course.sections for i in s.items] == [note_id]
         assert db_session.scalars(select(Note).where(Note.space_id == course.id, Note.is_draft.is_(True))).all() == []
         assert db_session.scalars(select(ExamTest).where(ExamTest.space_id == course.id)).all() == []
-        assert db_session.scalars(select(SpaceItem).where(SpaceItem.is_draft.is_(True))).all() == []
+        assert (
+            db_session.scalars(
+                select(SpaceItem).where(SpaceItem.space_id == course.id, SpaceItem.is_draft.is_(True))
+            ).all()
+            == []
+        )
 
     def test_publish_removes_deleted_items_and_logs(self, db_session: Session, owner: User) -> None:
         course, note_id = _course_with_note(db_session, owner)
@@ -342,6 +368,7 @@ class TestDraftEngine:
         course = space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
         assert course.draft_sections is not None
         draft_item = course.draft_sections[0].items[0]
+        _rename_first_section(db_session, owner, course)
 
         _publish(db_session, owner, course.id, resetItemIds=[draft_item.id])
 
@@ -441,6 +468,39 @@ class TestMembers:
 
         assert space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=member).is_editing
 
+    def test_archived_course_keeps_its_join_code(self, db_session: Session, owner: User) -> None:
+        course, _ = _course_with_note(db_session, owner)
+        space_service.set_archived(db_session, space_id=course.id, current_user=owner, archived=True)
+
+        code = _status_code(space_service.regenerate_join_code, db_session, space_id=course.id, current_user=owner)
+        assert code == 409
+
+
+class TestCourseContentGuards:
+    def test_draft_course_test_can_not_be_deleted_directly(self, db_session: Session, owner: User) -> None:
+        # The course item removes it. A direct delete would leave a course item to a deleted test.
+        course = _create_course(db_session, owner)
+        space = db_session.get(Space, course.id)
+        assert space is not None
+        test = new_test(db_session, user=owner, space=space, is_draft=True)
+
+        assert _status_code(test_service.delete_test, db_session, test_id=test.id, current_user=owner) == 400
+
+    def test_draft_note_can_not_be_a_test_source(self, db_session: Session, owner: User) -> None:
+        # Publish deletes the draft twin, so the link would become NULL.
+        course = _create_course(db_session, owner)
+        space = db_session.get(Space, course.id)
+        assert space is not None
+        draft_note = new_note(db_session, user=owner, space=space, is_draft=True)
+
+        code = _status_code(
+            test_service.create_test,
+            db_session,
+            current_user=owner,
+            data=TestCreate(title="Quiz", source_note_id=draft_note.id),
+        )
+        assert code == 400
+
 
 # ---------------------------------------------------------------------------
 # C9, C11: delete forever, duplicate
@@ -498,10 +558,15 @@ class TestDeleteAndDuplicate:
         )
         other = new_user(db_session)
 
-        assert _status_code(space_service.duplicate_course, db_session, space_id=course.id, current_user=other) == 403
-        copy = space_service.duplicate_course(db_session, space_id=course.id, current_user=owner)
+        body = SpaceDuplicateRequest(title="Biology II", description="Copy", tags=["Copy"])
+        assert (
+            _status_code(space_service.duplicate_course, db_session, space_id=course.id, current_user=other, data=body)
+            == 403
+        )
+        copy = space_service.duplicate_course(db_session, space_id=course.id, current_user=owner, data=body)
 
         assert copy.id != course.id and copy.is_editing and copy.member_count == 0
+        assert (copy.title, copy.description, copy.tags) == ("Biology II", "Copy", ["copy"])
         assert copy.visibility == SpaceVisibility.PRIVATE
         assert copy.draft_sections is not None
         assert [s.title for s in copy.draft_sections] == ["Intro"]
@@ -511,7 +576,7 @@ class TestDeleteAndDuplicate:
 
 
 def test_question_of_a_published_course_test_stays_active(db_session: Session, owner: User) -> None:
-    """Enter edit mode + publish with no change keeps the questions of a published test as they are."""
+    """Publish with no change to the test keeps the questions of a published test as they are."""
     course = _create_course(db_session, owner)
     course = space_draft_service.add_section(
         db_session, space_id=course.id, current_user=owner, data=SpaceSectionCreate(title="S")
@@ -528,9 +593,146 @@ def test_question_of_a_published_course_test_stays_active(db_session: Session, o
         db_session, test_id=test_id, current_user=owner, data=TestUpdate(questions=[_simple_question("a", "b")])
     )
     _publish(db_session, owner, course.id)
-    space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
+    editing = space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
+    _rename_first_section(db_session, owner, editing)
     _publish(db_session, owner, course.id)
 
     statuses = db_session.scalars(select(Question.status).where(Question.test_id == test_id)).all()
     assert list(statuses) == [int(QuestionStatus.ACTIVE)]
     assert [i.test_id for i in _published_items(db_session, course.id)] == [test_id]
+
+
+# ---------------------------------------------------------------------------
+# M2 UI pass: unpublished changes, list filters, question locks
+# ---------------------------------------------------------------------------
+
+
+def _course_with_test(db: Session, owner: User) -> tuple[SpaceDetail, str]:
+    """A published course with one test of one question. Returns (detail in edit mode, draft item id)."""
+    course = _create_course(db, owner)
+    course = space_draft_service.add_section(
+        db, space_id=course.id, current_user=owner, data=SpaceSectionCreate(title="S")
+    )
+    assert course.draft_sections is not None
+    test_id = space_draft_service.create_item(
+        db,
+        space_id=course.id,
+        current_user=owner,
+        data=SpaceItemCreate(section_id=course.draft_sections[0].id, kind=SpaceItemKind.TEST, title="Quiz"),
+    ).test_id
+    assert test_id is not None
+    test_service.update_test(
+        db, test_id=test_id, current_user=owner, data=TestUpdate(questions=[_simple_question("a", "b")])
+    )
+    _publish(db, owner, course.id)
+    course = space_draft_service.enter_edit_mode(db, space_id=course.id, current_user=owner)
+    assert course.draft_sections is not None
+    return course, course.draft_sections[0].items[0].id
+
+
+class TestUnpublishedChanges:
+    def test_new_course_has_changes(self, db_session: Session, owner: User) -> None:
+        assert _create_course(db_session, owner).has_unpublished_changes is True
+
+    def test_edit_mode_with_no_change_can_not_publish(self, db_session: Session, owner: User) -> None:
+        course, _ = _course_with_note(db_session, owner)
+        assert course.has_unpublished_changes is False
+        course = space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
+        assert course.has_unpublished_changes is False
+        assert (
+            _status_code(
+                space_draft_service.publish,
+                db_session,
+                space_id=course.id,
+                current_user=owner,
+                data=SpacePublishRequest(),
+            )
+            == 409
+        )
+
+    def test_structure_change_is_a_change(self, db_session: Session, owner: User) -> None:
+        course, _ = _course_with_note(db_session, owner)
+        course = space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
+        assert _rename_first_section(db_session, owner, course).has_unpublished_changes is True
+
+    def test_note_twin_counts_only_when_its_content_changes(self, db_session: Session, owner: User) -> None:
+        course, _ = _course_with_note(db_session, owner)
+        course = space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
+        assert course.draft_sections is not None
+        item_id = course.draft_sections[0].items[0].id
+        twin_id = space_draft_service.make_editable(
+            db_session, space_id=course.id, item_id=item_id, current_user=owner
+        ).note_id
+        assert twin_id is not None
+        detail = space_service.get_course(db_session, space_id=course.id, current_user=owner)
+        assert detail.has_unpublished_changes is False
+
+        twin = note_service.get_note(db_session, note_id=twin_id, current_user=owner)
+        note_service.update_note(
+            db_session, note_id=twin_id, current_user=owner, data=NoteUpdate(content="new", version=twin.version)
+        )
+        detail = space_service.get_course(db_session, space_id=course.id, current_user=owner)
+        assert detail.has_unpublished_changes is True
+
+    def test_test_twin_counts_only_when_its_questions_change(self, db_session: Session, owner: User) -> None:
+        course, item_id = _course_with_test(db_session, owner)
+        twin_id = space_draft_service.make_editable(
+            db_session, space_id=course.id, item_id=item_id, current_user=owner
+        ).test_id
+        assert twin_id is not None
+        detail = space_service.get_course(db_session, space_id=course.id, current_user=owner)
+        assert detail.has_unpublished_changes is False
+
+        test_service.update_test(
+            db_session, test_id=twin_id, current_user=owner, data=TestUpdate(questions=[_simple_question("a", "c")])
+        )
+        detail = space_service.get_course(db_session, space_id=course.id, current_user=owner)
+        assert detail.has_unpublished_changes is True
+
+    def test_question_edit_on_a_test_twin_is_a_change(self, db_session: Session, owner: User) -> None:
+        """`update_question` locks the course test and goes through the access layer."""
+        course, item_id = _course_with_test(db_session, owner)
+        twin_id = space_draft_service.make_editable(
+            db_session, space_id=course.id, item_id=item_id, current_user=owner
+        ).test_id
+        assert twin_id is not None
+        twin = test_service.get_test(db_session, test_id=twin_id, current_user=owner)
+        question_service.update_question(
+            db_session, question_id=twin.questions[0].id, current_user=owner, data=QuestionUpdate(prompt="new")
+        )
+        detail = space_service.get_course(db_session, space_id=course.id, current_user=owner)
+        assert detail.has_unpublished_changes is True
+
+
+def _my_course_ids(
+    db: Session,
+    user: User,
+    *,
+    status: SpaceListStatus = "active",
+    visibility: Sequence[SpaceVisibility] = (),
+    roles: Sequence[SpaceRole] = (),
+) -> set[str]:
+    courses = space_service.list_my_courses(db, current_user=user, status=status, visibility=visibility, roles=roles)
+    return {course.id for course in courses}
+
+
+class TestMyCoursesFilters:
+    def test_archived_is_hidden_by_default(self, db_session: Session, owner: User) -> None:
+        active, _ = _course_with_note(db_session, owner)
+        archived, _ = _course_with_note(db_session, owner)
+        space_service.set_archived(db_session, space_id=archived.id, current_user=owner, archived=True)
+
+        assert _my_course_ids(db_session, owner) == {active.id}
+        assert _my_course_ids(db_session, owner, status="archived") == {archived.id}
+        assert _my_course_ids(db_session, owner, status="all") == {active.id, archived.id}
+
+    def test_role_and_visibility_filters(self, db_session: Session, owner: User) -> None:
+        own = _create_course(db_session, owner, SpaceVisibility.PRIVATE)
+        other_owner = new_user(db_session)
+        joined, _ = _course_with_note(db_session, other_owner)
+        space_member_service.join(db_session, space_id=joined.id, current_user=owner)
+
+        assert _my_course_ids(db_session, owner, roles=[SpaceRole.OWNER]) == {own.id}
+        assert _my_course_ids(db_session, owner, roles=[SpaceRole.VIEWER]) == {joined.id}
+        assert _my_course_ids(db_session, owner, roles=[SpaceRole.OWNER, SpaceRole.VIEWER]) == {own.id, joined.id}
+        assert _my_course_ids(db_session, owner, visibility=[SpaceVisibility.PUBLIC]) == {joined.id}

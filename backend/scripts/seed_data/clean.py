@@ -1,10 +1,18 @@
 """Delete all data for a given user."""
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
+
+from app.models.space import Space
+from app.models.user import User
+from app.services import space_service
 
 
 def clean_user_data(db: Session, user_id: str) -> None:
+    # Courses first: their tests can have results of other users, which the SQL below does not delete.
+    user = db.get(User, user_id)
+    if user is not None:
+        clean_user_spaces(db, user)
     uid = {"uid": user_id}
     user_tests = "SELECT id FROM test WHERE user_id = :uid"
     user_groups = f"SELECT id FROM test_question_group WHERE test_id IN ({user_tests})"
@@ -23,3 +31,10 @@ def clean_user_data(db: Session, user_id: str) -> None:
     db.execute(text("DELETE FROM note WHERE user_id = :uid"), uid)
     db.execute(text("DELETE FROM token_usage WHERE user_id = :uid"), uid)
     db.commit()
+
+
+def clean_user_spaces(db: Session, user: User) -> None:
+    """Delete the courses the user owns, through the service: it removes the test children first."""
+    owned = db.scalars(select(Space).where(Space.owner_id == user.id)).all()
+    for space in owned:
+        space_service.delete_course_forever(db, space_id=space.id, current_user=user, confirm_title=space.title)
