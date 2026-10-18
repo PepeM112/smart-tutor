@@ -80,7 +80,7 @@ Every single-row load of a note, test or question goes through this module. `get
 `get_space_access(db, *, space_id, user_id) -> SpaceAccess(role, status)`
 1. The chain is the space, then its parent (if any).
 2. The owner of the space **or** of the parent is OWNER.
-3. Else the ACTIVE member row of the space itself wins over the row of the parent. So a classroom VIEWER can be an EDITOR of one course later, with no schema change.
+3. Else the ACTIVE member row of the space itself wins over the row of the parent. So a classroom VIEWER can be an EDITOR of one course later, with no schema change. The rule works both ways: an old direct VIEWER row on a course (from before the user became a co-teacher of the classroom) wins over the inherited EDITOR role, so the user stays a VIEWER in that course until the row is removed.
 4. Else no role.
 5. `status` is ARCHIVED when the space **or** its parent is archived.
 
@@ -220,6 +220,7 @@ Most writes return the new `SpaceDetail`, so the frontend replaces its cache wit
 - **An archived course is frozen:** no new attempts and no mark (409). Old results and progress stay readable. A visit is allowed (it only moves a pointer).
 - **NOTE done:** "Mark complete" / un-mark, or automatic when the student scrolls to the end of the note (once; after a manual un-mark it stays off).
 - **TEST done:** the best score of all results with this `space_item_id` (all versions) ≥ `pass_threshold`. A PENDING Long Text answer is not a pass. The check runs again after submit, after background grading and after a challenge. A pass is final: only `reset_item_ids` removes it. After a reset, only results created after `space_item.progress_reset_at` count for the best score and the completion check. `progress_reset_at` exists on published items only: a draft twin or a duplicate does not copy it.
+- **A hidden test can have a completion row.** `recheck_test_completion` has no visibility check, so a row can exist for an item with `visible_from` in the future (for example a teacher override on a test the student passed before it was hidden). The row keeps its old `completed_at`. The item counts in the course % only when it is visible. Accepted: only the date is old, no event is shown.
 - **Course %** = done published items / published items, calculated live. `completed_at` is set at 100% and cleared when a publish adds or resets items.
 - **Continue** opens `last_item_id`. If it is not set (or the item was removed), it opens the first item that is not done.
 
@@ -299,6 +300,7 @@ A classroom uses the same tables and the same engine as a course. Only the rules
 | See the member list, the gradebook and student results | yes | yes | no |
 | Grade override | yes | yes | no |
 | Settings, Class key, token usage | yes | no (403 "Only the owner can do this") | no |
+| Rename a course of the classroom (`PATCH`) | yes | no (owner only on purpose; a co-teacher edits the content, not the course data) | no |
 | Add or remove co-teachers (set role, remove an EDITOR) | yes | no | no |
 | Archive, unarchive, delete forever, regenerate the join code | yes | no | no |
 
@@ -309,7 +311,7 @@ An archived classroom is read-only for all users. A course of an archived classr
 - **Add a course** (`POST /classrooms/{id}/courses`): a new empty course at the end of a draft section. The service makes the course (same owner as the classroom, PRIVATE, no join code, in edit mode) and a draft COURSE item. The classroom must be in edit mode.
 - **Duplicate into classroom** (`POST /classrooms/{id}/courses/duplicate`): copies the published content of one of my standalone courses (`copy_published_content`). No members, drafts, results or progress. A source that has a parent is refused (404).
 - **A course publishes on its own.** Publishing the classroom shows the COURSE item. Publishing the course shows its content.
-- **Orphan sweep:** a course that no COURSE item (draft or published) points to is deleted forever (`_sweep_orphan_courses`). The sweep runs after discard, publish and item delete.
+- **Orphan sweep:** a course that no COURSE item (draft or published) points to is deleted forever (`_sweep_orphan_courses`). The sweep runs after discard, publish, item delete and section delete. **It never deletes student data.** If an orphan course has a result or an attempt of a user who is not the owner or a co-teacher of the classroom, the whole call fails with 409 `"A removed course has student results. Delete the course forever first."` (`ORPHAN_HAS_RESULTS`) and nothing changes (the service rolls back). The owner then deletes the course on purpose: `DELETE /spaces/{course id}` with the typed title (`delete_course_forever`; it accepts a course of a classroom too, owner only). The COURSE items that point to it go with the FK cascade, so the next publish succeeds. An orphan with no student data (a new empty course, a discarded course) is swept as before.
 - The classroom page has 5 tabs: Stream (placeholder until M5), Classwork, Members, Grades (teachers), Settings (owner).
 
 ### Scheduling (R32, R32b)
@@ -345,7 +347,7 @@ Four fields on `space_item`. UTC, null = not set. The teacher sets them in Edit 
 - The student sees "Graded by your teacher" and the AI grade.
 
 ### Class key (R36 to R39)
-The owner sets a Class key in `classroom_settings`: a provider and a Fernet-encrypted key, the same as user keys. `GET` and `PATCH /classrooms/{id}/settings` (owner only) never return the key (`hasClassKey` only). An empty `classKey` removes it. A key with no provider gives 400 "Choose a provider for the Class key".
+The owner sets a Class key in `classroom_settings`: a provider and a Fernet-encrypted key, the same as user keys. `GET` and `PATCH /classrooms/{id}/settings` (owner only) never return the key (`hasClassKey` only). An empty `classKey` removes it. A key with no provider gives 400 "Choose a provider for the Class key". Changing `aiProvider` to a different value while a key is stored needs a new `classKey` in the same request (an empty one removes the key); else 422 "Send a new Class key when you change the provider". An **archived** classroom is read-only, with one exception: `PATCH` with exactly `{"classKey": ""}` removes the key (any other body gives 409).
 
 | Setting | Values | Default |
 |---|---|---|
@@ -364,8 +366,13 @@ The owner sets a Class key in `classroom_settings`: a provider and a Fernet-encr
 | yes | yes | `key_priority` decides. STUDENT priority, or over the cap: student key. Else Class key |
 
 - **Only an ACTIVE student (VIEWER) of the classroom uses the Class key.** The owner and the co-teachers use their own key. A student who left uses their own key.
+- **An archived classroom has no usable Class key.** The plan falls back as for "no class key" (student key, or blocked). The key stays stored, so unarchive restores it. The key status and the cap numbers follow the same rule.
+- **A key that cannot be decrypted** (the encryption key changed, or a corrupt row), for a Class key or a user key, gives the normal key error (`AIKeyError`, "The saved AI key cannot be read. Please enter the key again."), not a 500.
 - **Scope.** The `space_id` of a call is the classroom, or a course of it. CLASSROOM_CONTENT: the Class key serves only calls that have a `space_id` of this classroom: grading and challenge of a classroom test, and Assistant requests with `AssistRequest.space_id`. ALL: it also serves personal calls (`space_id` is None, for example note and test generation). Then the **oldest** classroom (by `created_at`, then id) with a usable Class key pays, and the usage is booked on it. A classroom that cannot pay (the cap, or the student key goes first) does not block the next one. If none pays and the student has a key, the student key is used. Else the first block message is returned.
 - **Cap.** It counts only `token_usage` rows with `key_source = CLASS` of the student, in the classroom and its courses, in the current UTC calendar month. Spend with the student key does not count. `used >= cap` means the cap is reached.
+- **Soft cap.** The cap is checked before a call and nothing is reserved. The usage row is written after the call, so parallel calls of one student (for example several Assistant requests, or a grading batch that starts just under the cap) can all pass the check and take the month total a little over the cap. Accepted: the overshoot is small, and the owner sees it in the spend table.
+- **Known limit: deleting a course lowers the cap count.** `token_usage.space_id` is `ON DELETE SET NULL`. When a child course is deleted (the orphan sweep on publish, or delete forever), its usage rows lose the space, so they no longer count in the cap of the classroom and no longer show in the spend table. The student can then spend that part of the cap again. A fix needs a stored classroom id on `token_usage` (a new column and migration); not done.
+- **Assistant `spaceId`.** It comes from the client route (`spaceIdFromRoute`). The server does not check it against the key scope: any Assistant call made from a classroom page counts as classroom content. It is bounded by the membership (only an ACTIVE student of the classroom gets the Class key) and by the monthly cap.
 - **Callers.** Grading (background) and challenge use the student who owns the result and the space of its item. The Assistant uses `AssistRequest.space_id` (the frontend reads it from the route, `spaceIdFromRoute`). The 409 on `/assist` during a live course attempt stays.
 - **Booking.** `token_usage.space_id` is set for a Class-key call (the classroom that pays). For a student-key call it is set only when the user is a member of that space, so nobody can book on a foreign space. `token_usage.key_source` (`KeySource`: STUDENT=1, CLASS=2) says who paid. Rows from before ST-68 are STUDENT.
 - `GET /classrooms/{id}/ai-key-status` (any member; a stranger gets 403) returns `status` (`KeyStatus`: NONE, STUDENT, CLASS), `capReached`, `tokensUsedThisMonth`, `monthlyTokenCap`. The frontend shows a notice when the status is STUDENT.

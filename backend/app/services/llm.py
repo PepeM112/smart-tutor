@@ -16,6 +16,7 @@ from collections.abc import Generator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from cryptography.fernet import InvalidToken
 from fastapi import HTTPException, status
 
 from app.core.enums import AIProvider, KeySource
@@ -31,6 +32,7 @@ NO_KEY_MESSAGE = "AI is not configured. Please add your API key in Settings."
 CAP_REACHED_MESSAGE = (
     "The AI budget of this classroom is used up for this month. Add your own API key in Settings to continue."
 )
+KEY_UNREADABLE_MESSAGE = "The saved AI key cannot be read. Please enter the key again."
 
 
 class AIKeyError(ValueError):
@@ -389,19 +391,29 @@ def get_llm_client() -> LLMClient:
     return _INSTANCES[name]
 
 
-def get_user_llm_client(user: User) -> LLMClient:
-    """Create an LLM client using the user's own API key and preferred provider."""
+def decrypt_key(ciphertext: str) -> str:
+    """Decrypt a stored API key. A key that cannot be read (the encryption key changed, or a corrupt row)
+    gives an `AIKeyError`, so the user gets a normal key error and not a 500."""
     from app.services.encryption import decrypt
 
+    try:
+        return decrypt(ciphertext)
+    except InvalidToken as exc:
+        logger.error("A stored AI key cannot be decrypted")
+        raise AIKeyError(KEY_UNREADABLE_MESSAGE) from exc
+
+
+def get_user_llm_client(user: User) -> LLMClient:
+    """Create an LLM client using the user's own API key and preferred provider."""
     provider = user.ai_provider
     if provider is None or provider == AIProvider.ANTHROPIC:
         if not user.encrypted_anthropic_key:
             raise ValueError("No Anthropic API key configured")
-        return build_client(AIProvider.ANTHROPIC, decrypt(user.encrypted_anthropic_key))
+        return build_client(AIProvider.ANTHROPIC, decrypt_key(user.encrypted_anthropic_key))
     if provider == AIProvider.OPENAI:
         if not user.encrypted_openai_key:
             raise ValueError("No OpenAI API key configured")
-        return build_client(AIProvider.OPENAI, decrypt(user.encrypted_openai_key))
+        return build_client(AIProvider.OPENAI, decrypt_key(user.encrypted_openai_key))
     raise ValueError(f"Unknown AI provider: {provider}")
 
 

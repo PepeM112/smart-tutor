@@ -56,3 +56,20 @@ test('C4: marking a note of the classroom course done shows progress on the COUR
   await openClassroom(page, CLASSROOM);
   await expect(itemRow(page, 'Cell Lab').getByTestId('course-progress')).toContainText('50%');
 });
+
+test('F-P0: a test placed in the classroom itself keeps the Classrooms breadcrumb, not the course route', async ({
+  page,
+}) => {
+  await openClassroom(page, CLASSROOM);
+  await page
+    .getByRole('region', { name: 'Due soon' })
+    .getByRole('link', { name: /Cell quiz/ })
+    .click();
+  await expect(page).toHaveURL(/\/courses\/.+\/tests\//);
+
+  // The breadcrumb sits in the header, next to the h1 (the sidebar has its own "Classrooms" link).
+  const header = page.getByRole('heading', { level: 1 }).locator('..');
+  await expect(header.getByRole('link', { name: 'Classrooms', exact: true })).toHaveAttribute('href', '/classrooms');
+  await expect(header.getByRole('link', { name: CLASSROOM })).toHaveAttribute('href', /^\/classrooms\//);
+  await expect(header.getByRole('link', { name: 'Courses', exact: true })).toHaveCount(0);
+});

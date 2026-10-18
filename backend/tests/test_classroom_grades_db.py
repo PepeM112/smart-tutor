@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException
-from sqlalchemy import event, select
+from sqlalchemy import event, select, update
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -30,6 +30,7 @@ from app.core.enums import (
 from app.crud import space_item_completion as space_item_completion_crud
 from app.crud import token_usage as token_usage_crud
 from app.models.answer import Answer
+from app.models.classroom_settings import ClassroomSettings
 from app.models.question import Question
 from app.models.space import Space
 from app.models.space_item import SpaceItem
@@ -42,6 +43,7 @@ from app.schemas.correction import TestSubmission
 from app.schemas.space import (
     ClassroomCourseCreate,
     ClassroomCreate,
+    ClassroomSettingsRead,
     ClassroomSettingsUpdate,
     SpaceAttemptStart,
     SpaceCreate,
@@ -58,6 +60,7 @@ from app.services import (
     grade_override_service,
     gradebook_service,
     grading_service,
+    llm,
     llm_key_service,
     space_attempt_service,
     space_draft_service,
@@ -66,7 +69,13 @@ from app.services import (
     test_result_service,
     token_usage_service,
 )
-from app.services.llm import CAP_REACHED_MESSAGE, NO_KEY_MESSAGE, AIKeyError, CompletionResult
+from app.services.llm import (
+    CAP_REACHED_MESSAGE,
+    KEY_UNREADABLE_MESSAGE,
+    NO_KEY_MESSAGE,
+    AIKeyError,
+    CompletionResult,
+)
 from tests.llm_fakes import resolve_to
 from tests.space_factories import add_member, new_test, new_user
 
@@ -361,6 +370,62 @@ class TestOverride:
         assert kept is not None and kept.override_score == points and kept.override_status == AnswerStatus.CORRECT
         # The grader skips the answer: no AI grade is stored. Clearing the override grades it later.
         assert kept.status == AnswerStatus.PENDING
+
+    def test_the_grader_skips_an_overridden_answer_before_it_resolves_a_key(
+        self, db_session: Session, owner: User
+    ) -> None:
+        room = _room(db_session, owner, long_text=True)
+        student = _student(db_session, room)
+        result = _take(db_session, room.course_id, room.course_item_id, student, "a long answer")
+        result_id = result.id
+        answer = _answer(db_session, result_id)
+        answer_id, points = answer.id, _points(db_session, answer)
+        grade_override_service.set_override(db_session, answer_id=answer_id, score=points, current_user=owner)
+
+        calls = _grade_in_background(db_session, result_id, NONE_MET)
+
+        # No key lookup: with no key the grader would mark the overridden answer FAILED.
+        assert calls == []
+        kept = db_session.get(Answer, answer_id)
+        assert kept is not None and kept.status == AnswerStatus.PENDING
+
+    def test_an_override_made_during_the_ai_call_is_kept(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner, long_text=True)
+        student = _student(db_session, room)
+        result = _take(db_session, room.course_id, room.course_item_id, student, "a long answer")
+        result_id = result.id
+        answer = _answer(db_session, result_id)
+        answer_id, points = answer.id, _points(db_session, answer)
+
+        class _OverridingLLM(_FakeLLM):
+            """The teacher sets the override while the AI call runs."""
+
+            def complete(self, **kwargs: object) -> CompletionResult:
+                # No commit here: the test session already has its savepoint (older than the one of the grader
+                # session), and a commit would release it while the grader session runs on the same connection.
+                db_session.execute(
+                    update(Answer)
+                    .where(Answer.id == answer_id)
+                    .values(override_score=points, override_status=int(AnswerStatus.CORRECT), overridden_by=owner.id)
+                )
+                return super().complete(**kwargs)
+
+        fake = resolve_to(_OverridingLLM(NONE_MET))
+
+        def factory() -> Session:
+            return Session(bind=db_session.get_bind(), join_transaction_mode="create_savepoint", autoflush=False)
+
+        with (
+            patch.object(grading_service, "SessionLocal", factory),
+            patch.object(grading_service, "resolve_llm", side_effect=fake),
+        ):
+            grading_service.grade_pending_answers(result_id)
+        db_session.expire_all()
+
+        graded = db_session.get(TestResult, result_id)
+        assert graded is not None and graded.score == 100 and graded.pending_answers == 0
+        kept = db_session.get(Answer, answer_id)
+        assert kept is not None and kept.override_score == points
 
     def test_clearing_a_pending_override_makes_the_answer_pending_again(self, db_session: Session, owner: User) -> None:
         room = _room(db_session, owner, long_text=True)
@@ -1002,3 +1067,159 @@ class TestKeyStatusAndSpend:
 
         row = next(s for s in usage.students if s.user_id == student.id)
         assert (row.is_active, row.total_tokens) == (False, 10)
+
+
+# ── Audit fixes: archived key, provider change, unreadable key, teachers in the spend ─────────────
+
+
+def _settings(db: Session, owner: User, room: Room, **fields: object) -> ClassroomSettingsRead:
+    return classroom_service.update_settings(
+        db,
+        classroom_id=room.classroom_id,
+        current_user=owner,
+        data=ClassroomSettingsUpdate.model_validate(fields),
+    )
+
+
+@pytest.mark.usefixtures("fake_clients")
+class TestArchivedClassroomKey:
+    def test_an_archived_classroom_has_no_class_key(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _set_class_key(db_session, owner, room, keyScope=2)
+        assert llm_key_service.plan_key(db_session, student, room.course_id).source == KeySource.CLASS
+
+        space_service.set_archived(db_session, space_id=room.classroom_id, current_user=owner, archived=True)
+
+        # No student key: the same as "no class key".
+        for space_id in (room.classroom_id, room.course_id, None):
+            plan = llm_key_service.plan_key(db_session, student, space_id)
+            assert (plan.source, plan.message) == (None, NO_KEY_MESSAGE)
+            with pytest.raises(AIKeyError):
+                llm_key_service.resolve_llm(db_session, student, space_id)
+        # With a student key: the student key pays, and the key status says so.
+        _give_student_key(student)
+        resolved = llm_key_service.resolve_llm(db_session, student, room.course_id)
+        assert resolved.key_source == KeySource.STUDENT
+        status = classroom_ai_service.get_key_status(db_session, classroom_id=room.classroom_id, current_user=student)
+        assert status.status == KeyStatus.STUDENT
+
+        # Unarchive restores the key (it stayed stored).
+        space_service.set_archived(db_session, space_id=room.classroom_id, current_user=owner, archived=False)
+        _set_class_key(db_session, owner, room, keyPriority=2)
+        assert llm_key_service.plan_key(db_session, student, room.course_id).source == KeySource.CLASS
+
+    def test_an_archived_classroom_only_allows_removing_the_key(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        _set_class_key(db_session, owner, room)
+        space_service.set_archived(db_session, space_id=room.classroom_id, current_user=owner, archived=True)
+        kwargs: dict[str, Any] = {"classroom_id": room.classroom_id, "current_user": owner}
+
+        for body in (
+            {"keyScope": 2},
+            {"classKey": "new-value"},
+            {"classKey": "", "keyScope": 2},
+            {"aiProvider": 2},
+            {"monthlyTokenCapPerStudent": 5},
+        ):
+            code = _status_code(
+                classroom_service.update_settings,
+                db_session,
+                data=ClassroomSettingsUpdate.model_validate(body),
+                **kwargs,
+            )
+            assert code == 409, body
+        assert classroom_service.get_settings(db_session, **kwargs).has_class_key
+
+        assert not _settings(db_session, owner, room, classKey="").has_class_key
+
+    def test_a_co_teacher_cannot_remove_the_key_of_an_archived_classroom(
+        self, db_session: Session, owner: User
+    ) -> None:
+        room = _room(db_session, owner)
+        _set_class_key(db_session, owner, room)
+        space_service.set_archived(db_session, space_id=room.classroom_id, current_user=owner, archived=True)
+        code = _status_code(
+            classroom_service.update_settings,
+            db_session,
+            classroom_id=room.classroom_id,
+            current_user=_teacher(db_session, room),
+            data=ClassroomSettingsUpdate.model_validate({"classKey": ""}),
+        )
+        assert code == 403
+
+
+class TestProviderChange:
+    detail = "Send a new Class key when you change the provider"
+
+    def _change(self, db: Session, owner: User, room: Room, **fields: object) -> str:
+        return _detail(
+            classroom_service.update_settings,
+            db,
+            classroom_id=room.classroom_id,
+            current_user=owner,
+            data=ClassroomSettingsUpdate.model_validate(fields),
+        )
+
+    def test_a_provider_change_needs_a_new_key(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        _set_class_key(db_session, owner, room)  # provider 1 (Anthropic) + key
+
+        assert self._change(db_session, owner, room, aiProvider=2) == self.detail
+        assert self._change(db_session, owner, room, aiProvider=None) == self.detail
+        stored = db_session.get(ClassroomSettings, room.classroom_id)
+        assert stored is not None and stored.ai_provider == 1 and stored.encrypted_class_key
+
+    def test_allowed_provider_changes(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        # No stored key: a provider change is fine.
+        assert _settings(db_session, owner, room, aiProvider=2).ai_provider == 2
+        _set_class_key(db_session, owner, room)  # provider 1 + key
+        # The same provider keeps the key.
+        assert _settings(db_session, owner, room, aiProvider=1, keyScope=2).has_class_key
+        # A new key in the same request.
+        changed = _settings(db_session, owner, room, aiProvider=2, classKey="other-value")
+        assert (changed.ai_provider, changed.has_class_key) == (2, True)
+        # Provider null together with the removal of the key.
+        cleared = _settings(db_session, owner, room, aiProvider=None, classKey="")
+        assert (cleared.ai_provider, cleared.has_class_key) == (None, False)
+
+
+class TestUnreadableKey:
+    def test_a_class_key_that_cannot_be_decrypted_is_a_key_error(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _set_class_key(db_session, owner, room)
+        stored = db_session.get(ClassroomSettings, room.classroom_id)
+        assert stored is not None
+        stored.encrypted_class_key = "not-a-valid-token"
+        db_session.flush()
+
+        with pytest.raises(AIKeyError) as error:
+            llm_key_service.resolve_llm(db_session, student, room.course_id)
+        assert str(error.value) == KEY_UNREADABLE_MESSAGE
+
+    def test_a_user_key_that_cannot_be_decrypted_is_a_key_error(self, db_session: Session) -> None:
+        user = new_user(db_session)
+        user.encrypted_anthropic_key = "not-a-valid-token"
+        user.encrypted_openai_key = "not-a-valid-token"
+        for provider in (None, 1, 2):
+            user.ai_provider = provider
+            with pytest.raises(AIKeyError) as error:
+                llm.get_user_llm_client(user)
+            assert str(error.value) == KEY_UNREADABLE_MESSAGE
+            with pytest.raises(AIKeyError):
+                llm_key_service.resolve_llm(db_session, user)
+
+
+class TestSpendListsStudentsOnly:
+    def test_the_owner_and_co_teachers_are_not_listed(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student, teacher = _student(db_session, room), _teacher(db_session, room)
+        _book_usage(db_session, student, room.course_id, KeySource.CLASS, 10)
+        _book_usage(db_session, teacher, room.classroom_id, KeySource.STUDENT, 7)
+        _book_usage(db_session, owner, room.classroom_id, KeySource.STUDENT, 3)
+
+        usage = classroom_ai_service.get_token_usage(db_session, classroom_id=room.classroom_id, current_user=owner)
+
+        assert [s.user_id for s in usage.students] == [student.id]

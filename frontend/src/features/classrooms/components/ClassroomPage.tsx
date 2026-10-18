@@ -36,16 +36,6 @@ import { PlaceholderTab } from './PlaceholderTab';
 const TABS = ['stream', 'classwork', 'members', 'grades', 'settings'] as const;
 type ClassroomTab = (typeof TABS)[number];
 
-/** The tabs the user may see. Members and Grades are for teachers, Settings for the owner. */
-function visibleTabs(classroom: SpaceDetail): ClassroomTab[] {
-  const { isAuthor } = courseAccess(classroom);
-  return TABS.filter(tab => {
-    if (tab === 'members' || tab === 'grades') return isAuthor;
-    if (tab === 'settings') return classroom.isOwner;
-    return true;
-  });
-}
-
 /** The note in the preview pane, and the mode it was opened in (enter edit, publish and discard change note ids). */
 type PreviewNote = { noteId: string; isEditing: boolean };
 
@@ -208,4 +198,14 @@ function ClassroomHeader({
       </div>
     </header>
   );
+}
+
+/** The tabs the user may see. Members and Grades are for teachers, Settings for the owner. */
+function visibleTabs(classroom: SpaceDetail): ClassroomTab[] {
+  const { isAuthor } = courseAccess(classroom);
+  return TABS.filter(tab => {
+    if (tab === 'members' || tab === 'grades') return isAuthor;
+    if (tab === 'settings') return classroom.isOwner;
+    return true;
+  });
 }

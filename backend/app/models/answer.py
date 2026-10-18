@@ -29,7 +29,7 @@ class Answer(Base, CreatedAtMixin):
     override_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     override_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     overridden_by: Mapped[str | None] = mapped_column(
-        String(26), ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+        String(26), ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True
     )
     overridden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

@@ -25,6 +25,7 @@ import { courseHref, Routes } from '@/lib/routes';
 import { getErrorDetail } from '@/lib/utils';
 
 import { applyCourseDetail, courseQueryKeys } from '../lib/queryKeys';
+import { spaceErrorKey } from '../lib/spaceErrors';
 import { spaceTextKey } from '../lib/spaceText';
 
 /** Where the writes of one space page run: the id, the kind (for the toast text) and the page to go to after a leave or a delete. */
@@ -355,7 +356,7 @@ function useDetailMutation<V>(
       const success = typeof text.success === 'function' ? text.success(detail) : text.success;
       if (success) toast.success(tx(success));
     },
-    onError: err => toast.error(getErrorDetail(err, tx(text.error))),
+    onError: err => toastWriteError(err, tx(text.error), t),
   });
 }
 
@@ -376,7 +377,7 @@ function useInvalidatingMutation<V, R>(
       void queryClient.invalidateQueries({ queryKey: courseQueryKeys.detail(courseId) });
       if (text.success) toast.success(tx(text.success));
     },
-    onError: err => toast.error(getErrorDetail(err, tx(text.error))),
+    onError: err => toastWriteError(err, tx(text.error), t),
   });
 }
 
@@ -403,6 +404,12 @@ function useNavigatingMutation<V, R>(
       void queryClient.invalidateQueries({ queryKey: ['classrooms'], refetchType: 'none' });
       if (text.success) toast.success(tx(text.success));
     },
-    onError: err => toast.error(getErrorDetail(err, tx(text.error))),
+    onError: err => toastWriteError(err, tx(text.error), t),
   });
+}
+
+/** The error toast of a write: an own text for a known refusal, else the backend detail, else the fallback. */
+function toastWriteError(err: unknown, fallback: string, t: ReturnType<typeof useTranslations>): void {
+  const key = spaceErrorKey(getErrorDetail(err, ''));
+  toast.error(key ? t(key) : getErrorDetail(err, fallback));
 }

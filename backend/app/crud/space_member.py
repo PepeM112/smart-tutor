@@ -167,3 +167,13 @@ def list_active_students(db: Session, *, space_id: str) -> Sequence[tuple[SpaceM
         .order_by(User.username, User.id)
     )
     return db.execute(stmt).tuples().all()
+
+
+def list_active_editor_ids(db: Session, *, space_id: str) -> set[str]:
+    """The user ids of the ACTIVE co-teachers (EDITOR) of a space. The owner is not stored in `space_member`."""
+    stmt = select(SpaceMember.user_id).where(
+        SpaceMember.space_id == space_id,
+        SpaceMember.status == int(MemberStatus.ACTIVE),
+        SpaceMember.role == int(SpaceRole.EDITOR),
+    )
+    return set(db.scalars(stmt).all())

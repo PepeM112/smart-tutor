@@ -1107,7 +1107,9 @@
     "spend_inactive": "Salió",
     "key_notice_student": "La IA de esta clase usa tu propia clave de API y tus propios tokens.",
     "key_notice_none": "La IA no está disponible aquí. Añade tu propia clave de API en Ajustes para usarla.",
-    "key_notice_cap_reached": "Has agotado tu presupuesto de IA de este mes. Añade tu propia clave de API en Ajustes para continuar."
+    "key_notice_cap_reached": "Has agotado tu presupuesto de IA de este mes. Añade tu propia clave de API en Ajustes para continuar.",
+    "class_key_provider_needs_key": "Escribe una clave nueva al cambiar de proveedor. La clave guardada es del proveedor anterior.",
+    "error_removed_course_has_results": "Este curso tiene resultados de alumnos, así que no se puede quitar desde aquí. Abre los ajustes del curso y elimínalo para siempre antes. No se puede deshacer."
   },
   "assist": {
     "thinking": "Pensando...",

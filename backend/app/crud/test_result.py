@@ -29,6 +29,15 @@ def lock(db: Session, *, id: str) -> None:
     db.execute(select(TestResult.id).where(TestResult.id == id).with_for_update())
 
 
+def lock_for_grading(db: Session, *, id: str) -> None:
+    """Wait until no other grader works on this result, then keep an advisory lock until the transaction ends.
+
+    The row lock of `lock` can not do this: the grader must not hold it during the (long) AI calls,
+    or a teacher override would wait for them. The advisory lock is a separate key that only graders take.
+    """
+    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(f"grade:{id}", 0))))
+
+
 _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
     "score": TestResult.score,
     "created_at": TestResult.created_at,

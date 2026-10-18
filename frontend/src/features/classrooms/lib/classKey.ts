@@ -29,6 +29,12 @@ export function formFromSettings(settings: ClassroomSettingsRead): ClassKeyForm 
   };
 }
 
+/** Resets the form after a save of the class key fields only. A feed permission save must not clear typed input. */
+export function classKeyFormKey(settings: ClassroomSettingsRead): string {
+  const { hasClassKey, aiProvider, monthlyTokenCapPerStudent, keyPriority, keyScope } = settings;
+  return JSON.stringify([hasClassKey, aiProvider, monthlyTokenCapPerStudent, keyPriority, keyScope]);
+}
+
 /**
  * Builds the PATCH body with only the fields that changed.
  * The key is sent only when the owner typed one, so a saved key is never overwritten by accident.
@@ -54,4 +60,16 @@ export function hasChanges(update: ClassroomSettingsUpdate | null): boolean {
 /** Tokens or cost of one source in a student's usage row. */
 export function usageForSource(bySource: KeySourceUsage[], source: KeySource): KeySourceUsage | undefined {
   return bySource.find(entry => entry.keySource === source);
+}
+
+const PROVIDER_NEEDS_KEY = 'Send a new Class key when you change the provider';
+
+/** True when the owner changed the provider while a key is saved and typed no new key (the key belongs to the old provider). */
+export function providerChangeNeedsKey(form: ClassKeyForm, saved: ClassroomSettingsRead): boolean {
+  return saved.hasClassKey && form.aiProvider !== saved.aiProvider && form.keyInput.trim() === '';
+}
+
+/** The i18n key for a refused settings write that the backend explains in English only. `null` for any other detail. */
+export function classSettingsErrorKey(detail: string | undefined): string | null {
+  return detail === PROVIDER_NEEDS_KEY ? 'classrooms.class_key_provider_needs_key' : null;
 }

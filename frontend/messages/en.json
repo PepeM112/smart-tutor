@@ -1107,7 +1107,9 @@
     "spend_inactive": "Left",
     "key_notice_student": "AI in this classroom uses your own API key and your own tokens.",
     "key_notice_none": "AI is not available here. Add your own API key in Settings to use it.",
-    "key_notice_cap_reached": "Your AI budget for this month is used up. Add your own API key in Settings to continue."
+    "key_notice_cap_reached": "Your AI budget for this month is used up. Add your own API key in Settings to continue.",
+    "class_key_provider_needs_key": "Type a new key when you change the provider. The saved key belongs to the old provider.",
+    "error_removed_course_has_results": "This course has student results, so it cannot be removed here. Open the course settings and delete it forever first. This cannot be undone."
   },
   "assist": {
     "thinking": "Thinking...",

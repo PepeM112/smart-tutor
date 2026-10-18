@@ -66,7 +66,7 @@ def _status_for(score: float, points: float) -> AnswerStatus:
 
 
 def _refresh_result(db: Session, result: TestResult) -> TestResult:
-    """Lock the result, read it again, recalculate it and recheck the completion. The caller commits."""
+    """Lock the result and read it again. The caller changes the answer, recalculates, rechecks and commits."""
     test_result_crud.lock(db, id=result.id)
     # A background grader may have changed the rows while we waited for the lock.
     db.expire_all()

@@ -55,6 +55,12 @@ def is_course_hidden(db: Session, *, course_id: str) -> bool:
     return db.scalar(visible_course_ids().where(SpaceItem.child_space_id == course_id).limit(1)) is None
 
 
+def list_hidden_course_ids(db: Session, *, course_ids: Sequence[str]) -> set[str]:
+    """The ids among `course_ids` that students cannot see yet. One query for any number of courses."""
+    visible = db.scalars(visible_course_ids().where(SpaceItem.child_space_id.in_(course_ids)).distinct()).all()
+    return set(course_ids) - set(visible)
+
+
 def is_note_hidden(db: Session, *, note_id: str) -> bool:
     return db.execute(hidden_note_ids().where(SpaceItem.note_id == note_id).limit(1)).first() is not None
 

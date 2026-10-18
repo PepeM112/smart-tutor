@@ -38,7 +38,12 @@ def joined_space_ids(*, user_id: str) -> Select[tuple[str]]:
 
 
 def editor_space_ids(*, user_id: str) -> Select[tuple[str]]:
-    """The ids of the spaces where `user_id` is an ACTIVE EDITOR, and of the courses of those classrooms."""
+    """The ids of the spaces where `user_id` is an ACTIVE EDITOR, and of the courses of those classrooms.
+
+    A direct row on a course wins over the classroom role in `access_service.resolve_role`. So an old
+    VIEWER row on a course keeps the user a VIEWER there, even after they became a co-teacher of the
+    classroom. This list does not know that rule: it is a coarse filter, the access check decides.
+    """
     editor_of = select(SpaceMember.space_id).where(
         SpaceMember.user_id == user_id,
         SpaceMember.status == int(MemberStatus.ACTIVE),

@@ -29,7 +29,7 @@ from app.models.classroom_settings import ClassroomSettings
 from app.models.space import Space
 from app.models.test_result import TestResult
 from app.models.user import User
-from app.services import access_service, encryption
+from app.services import access_service, space_service
 from app.services.llm import (
     CAP_REACHED_MESSAGE,
     NO_KEY_MESSAGE,
@@ -37,6 +37,7 @@ from app.services.llm import (
     CompletionResult,
     LLMClient,
     build_client,
+    decrypt_key,
     get_user_llm_client,
 )
 
@@ -114,7 +115,22 @@ def is_class_key_student(db: Session, *, classroom_id: str, user_id: str) -> boo
     return roles.get(classroom_id) == int(SpaceRole.VIEWER)
 
 
+def can_use_class_key(db: Session, *, classroom: Space, settings: ClassroomSettings | None, user_id: str) -> bool:
+    """The classroom has a Class key and this user may spend it.
+
+    An archived classroom has no usable Class key (the key stays stored, so unarchive restores it).
+    Else a teacher who archives a classroom to stop it would still pay for the AI use of the students.
+    """
+    return (
+        has_class_key(settings)
+        and not space_service.is_archived(db, space=classroom)
+        and is_class_key_student(db, classroom_id=classroom.id, user_id=user_id)
+    )
+
+
 def _is_over_cap(db: Session, *, user_id: str, classroom_id: str, settings: ClassroomSettings) -> bool:
+    # Soft cap: this check runs before the call and nothing is reserved. Parallel calls of one student can all
+    # pass it, so the month total can go a little over the cap. The usage row is written after the call.
     cap = settings.monthly_token_cap_per_student
     if cap is None:
         return False
@@ -131,8 +147,7 @@ def _plan_for_classroom(
     db: Session, *, user: User, classroom: Space, settings: ClassroomSettings | None, student_key: bool
 ) -> KeyPlan:
     """The R38 matrix for one classroom."""
-    class_key = has_class_key(settings) and is_class_key_student(db, classroom_id=classroom.id, user_id=user.id)
-    if not class_key or settings is None:
+    if settings is None or not can_use_class_key(db, classroom=classroom, settings=settings, user_id=user.id):
         return KeyPlan(KeySource.STUDENT) if student_key else KeyPlan(None, message=NO_KEY_MESSAGE)
 
     over_cap = _is_over_cap(db, user_id=user.id, classroom_id=classroom.id, settings=settings)
@@ -178,7 +193,7 @@ def resolve_llm(db: Session, user: User, space_id: str | None = None) -> Resolve
 
     if plan.source == KeySource.CLASS and plan.settings is not None and plan.settings.encrypted_class_key:
         provider = AIProvider(plan.settings.ai_provider)
-        client = build_client(provider, encryption.decrypt(plan.settings.encrypted_class_key))
+        client = build_client(provider, decrypt_key(plan.settings.encrypted_class_key))
         # A personal call paid by a classroom is booked on the classroom.
         return ResolvedLLM(client, provider, KeySource.CLASS, space_id or plan.classroom_id)
 

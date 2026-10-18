@@ -95,6 +95,11 @@ function DateTimeField({ id, label, hint, value, onCommit }: DateTimeFieldProps)
         type="datetime-local"
         defaultValue={saved}
         onBlur={e => {
+          // A half-typed date reads as '' with `badInput`. It is not "clear": put the saved value back.
+          if (e.target.validity.badInput) {
+            setRevision(r => r + 1);
+            return;
+          }
           if (e.target.value !== saved) onCommit(fromLocalInputValue(e.target.value), () => setRevision(r => r + 1));
         }}
       />

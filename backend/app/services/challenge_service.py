@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.enums import AIFeature, AnswerStatus, QuestionType
 from app.crud import answer as answer_crud
 from app.crud import question as question_crud
+from app.crud import test_result as test_result_crud
 from app.crud import user as user_crud
 from app.database import SessionLocal
 from app.models.answer import Answer
@@ -240,6 +241,11 @@ def process_challenge(answer_id: str) -> None:
             _recalculate_answer_status(answer, content)
 
             if answer.test_result_id is not None:
+                # Lock the result, save the new grade, read all again: a teacher override that
+                # was made during the AI call must stay in the score.
+                test_result_crud.lock(db, id=answer.test_result_id)
+                db.flush()
+                db.expire_all()
                 test_result = answer_crud.get_test_result_with_answers(db, test_result_id=answer.test_result_id)
                 if test_result is not None:
                     recalculate_test_result(db, test_result)

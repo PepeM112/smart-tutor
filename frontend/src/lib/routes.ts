@@ -87,6 +87,11 @@ export function courseItemHref(course: { id: string; title: string }, itemId: st
   return `${courseHref(course)}?${COURSE_ITEM_PARAM}=${encodeURIComponent(itemId)}`;
 }
 
+/** The classroom page (Classwork tab) with one item selected. */
+export function classroomItemHref(classroom: { id: string; title: string }, itemId: string): string {
+  return `${classroomHref(classroom)}?${COURSE_ITEM_PARAM}=${encodeURIComponent(itemId)}`;
+}
+
 const COURSE_ATTEMPT_ROUTE_RE = /^\/courses\/([^/?#]+)\/tests\/([^/?#]+)\/?(?:[?#].*)?$/;
 
 /**

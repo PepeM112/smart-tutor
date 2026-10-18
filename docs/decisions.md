@@ -628,3 +628,11 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** `TestResultRead.can_override` tells the frontend if the viewer is a teacher of the result.
 
 **Why:** First the frontend guessed it from "the result is of another user and has an item". That is a guess, not a rule. The access layer already knows (`can_review_result`), so the API sends it.
+
+---
+
+## The Orphan Sweep Never Deletes Student Results
+
+**Decision:** `_sweep_orphan_courses` (discard, delete section, delete item, publish) refuses with 409 when an orphan classroom course has a result or an attempt of a student. Nothing changes. The owner deletes the course on purpose with "Delete forever" (typed title).
+
+**Why:** A misclick on "Publish" must not delete a term of grades, and the Trash does not cover it. We did not detach or archive the course: that needs a new state for a course that no item points to. A refusal is the smallest change and keeps the explicit path (`delete_course_forever`, which now accepts a course of a classroom).

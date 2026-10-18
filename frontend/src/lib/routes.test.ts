@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { courseItemRouteForAttempt, folderHref, noteHref, parseSlugId, spaceIdFromRoute } from './routes';
+import {
+  classroomItemHref,
+  courseItemRouteForAttempt,
+  folderHref,
+  noteHref,
+  parseSlugId,
+  spaceIdFromRoute,
+} from './routes';
 
 // 26-char Crockford base32 ULID (valid alphabet: 0-9, A-Z minus I, L, O, U)
 const ULID = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
@@ -101,5 +108,13 @@ describe('spaceIdFromRoute', () => {
     expect(spaceIdFromRoute('/courses/join/ABC123')).toBeNull();
     expect(spaceIdFromRoute('/tests/t1')).toBeNull();
     expect(spaceIdFromRoute('/')).toBeNull();
+  });
+});
+
+describe('classroomItemHref', () => {
+  it('points to the classroom page (not the course route) with the item selected', () => {
+    expect(classroomItemHref({ id: 'abc', title: 'Biology 101' }, 'it 1')).toBe(
+      '/classrooms/biology-101-abc?item=it%201'
+    );
   });
 });

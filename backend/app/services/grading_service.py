@@ -13,6 +13,7 @@ from typing_extensions import NotRequired
 
 from app.core.enums import AIFeature, AnswerStatus, QuestionType
 from app.crud import answer as answer_crud
+from app.crud import test_result as test_result_crud
 from app.crud import user as user_crud
 from app.database import SessionLocal
 from app.models.answer import Answer
@@ -161,7 +162,7 @@ def _mark_all_pending_as_failed(db: Session, test_result_id: str) -> None:
         if test_result is None:
             return
         for answer in test_result.answers:
-            if answer.status == int(AnswerStatus.PENDING):
+            if answer.status == int(AnswerStatus.PENDING) and not is_overridden(answer):
                 answer.status = int(AnswerStatus.FAILED)
         recalculate_test_result(db, test_result)
         space_progress_service.recheck_result_completion(db, test_result=test_result)
@@ -173,9 +174,15 @@ def _mark_all_pending_as_failed(db: Session, test_result_id: str) -> None:
 
 
 def grade_pending_answers(test_result_id: str) -> None:
-    """Background task: grade all PENDING long-text answers for a TestResult."""
+    """Background task: grade all PENDING long-text answers for a TestResult.
+
+    One grader per result: a second call (e.g. a teacher clears an override while the first grader runs)
+    waits for the first one to end, then finds only the answers that are still PENDING. Waiting is better than
+    skipping: a skipped call could leave an answer PENDING that the first grader had already passed over.
+    """
     db = SessionLocal()
     try:
+        test_result_crud.lock_for_grading(db, id=test_result_id)
         test_result = answer_crud.get_test_result_with_answers(db, test_result_id=test_result_id)
 
         if test_result is None:
@@ -187,7 +194,10 @@ def grade_pending_answers(test_result_id: str) -> None:
             logger.error("User not found for TestResult %s", test_result_id)
             return
 
-        pending_answers = [a for a in test_result.answers if a.status == int(AnswerStatus.PENDING)]
+        # A teacher grade replaces the AI grade: no AI call, and no key needed when nothing else is left.
+        pending_answers = [
+            a for a in test_result.answers if a.status == int(AnswerStatus.PENDING) and not is_overridden(a)
+        ]
         if not pending_answers:
             return
 
@@ -270,9 +280,12 @@ def grade_pending_answers(test_result_id: str) -> None:
                 logger.exception("FAILED Q%d/%d -- UNEXPECTED ERROR", idx, total)
                 answer.status = int(AnswerStatus.FAILED)
 
-        # Override columns of the other answers may have changed during the grading: read them again.
-        for answer in test_result.answers:
-            db.expire(answer, ["override_score", "override_status"])
+        # A teacher may have set or cleared an override during the AI calls. Lock the result (so an override
+        # in progress ends first), save our grades, then read everything again before the final score.
+        test_result_crud.lock(db, id=test_result_id)
+        db.flush()
+        db.expire_all()
+        test_result = answer_crud.get_test_result_with_answers(db, test_result_id=test_result_id) or test_result
         recalculate_test_result(db, test_result)
         space_progress_service.recheck_result_completion(db, test_result=test_result)
         db.commit()

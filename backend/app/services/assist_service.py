@@ -333,6 +333,9 @@ def _stream_assist_inner(
     system_prompt = build_system_prompt(request.page_context)
 
     # The AI key follows the classroom rules (R36-R39). A Class key can have another provider than the user.
+    # `request.space_id` comes from the client route. It is not checked against the key scope: any Assistant call
+    # from a classroom page counts as classroom content. `resolve_llm` bounds it: only an ACTIVE student of the
+    # classroom gets the Class key, and only up to the monthly cap (a soft cap, see `llm_key_service`).
     resolved = resolve_llm(db, current_user, request.space_id)
     usage.key_source = resolved.key_source
     usage.space_id = resolved.space_id

@@ -29,6 +29,7 @@ from app.crud import space_content as space_content_crud
 from app.crud import space_item as space_item_crud
 from app.crud import space_item_completion as space_item_completion_crud
 from app.crud import space_item_test as space_item_test_crud
+from app.crud import space_member as space_member_crud
 from app.crud import space_publish as space_publish_crud
 from app.crud import space_section as space_section_crud
 from app.crud import test as test_crud
@@ -64,6 +65,9 @@ from app.services.space_service import (
     require_author,
 )
 from app.services.versioning_service import clone_test, version_test_if_needed
+
+# The frontend shows this text as it is.
+ORPHAN_HAS_RESULTS = "A removed course has student results. Delete the course forever first."
 
 
 def _bad_request(detail: str) -> HTTPException:
@@ -109,11 +113,27 @@ def _sweep_orphan_courses(db: Session, *, space: Space) -> None:
 
     Such a course comes from a discarded or deleted draft item, or from a published item removed by a
     publish. Without this, students would still reach the course through the classroom.
+
+    A course with student data (a result or an attempt of a user who is not a teacher) is never swept:
+    the whole operation fails with 409 and nothing changes. The owner deletes such a course on purpose
+    with "Delete forever" (`space_service.delete_course_forever`).
     """
     if space.kind != int(SpaceKind.CLASSROOM):
         return
     linked = [i.child_space_id for i in space_item_crud.list_course_items(db, space_id=space.id) if i.child_space_id]
-    delete_spaces_forever(db, spaces=space_crud.list_orphan_children(db, parent_id=space.id, linked_ids=linked))
+    orphans = space_crud.list_orphan_children(db, parent_id=space.id, linked_ids=linked)
+    if not orphans:
+        return
+    teachers = {
+        space.owner_id,
+        *(s.owner_id for s in orphans),
+        *(uid for s in (space, *orphans) for uid in space_member_crud.list_active_editor_ids(db, space_id=s.id)),
+    }
+    if space_content_crud.has_member_data(db, space_ids=[s.id for s in orphans], excluded_user_ids=list(teachers)):
+        # The caller wrote draft rows before this check. Roll them back: a refused call changes nothing.
+        db.rollback()
+        raise conflict(ORPHAN_HAS_RESULTS)
+    delete_spaces_forever(db, spaces=orphans)
 
 
 def _delete_draft_content(db: Session, *, space_id: str) -> None:

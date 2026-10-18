@@ -35,10 +35,8 @@ def get_key_status(db: Session, *, classroom_id: str, current_user: User) -> AIK
 
     # The cap only applies to a student that can use the Class key. For others the numbers are 0 / None.
     settings = classroom_settings_crud.get(db, space_id=classroom.id)
-    can_use_class_key = (
-        settings is not None
-        and llm_key_service.has_class_key(settings)
-        and llm_key_service.is_class_key_student(db, classroom_id=classroom.id, user_id=current_user.id)
+    can_use_class_key = llm_key_service.can_use_class_key(
+        db, classroom=classroom, settings=settings, user_id=current_user.id
     )
     cap = settings.monthly_token_cap_per_student if settings is not None and can_use_class_key else None
     used = (
@@ -66,14 +64,23 @@ def _sum(values: list[Decimal | None]) -> Decimal | None:
 
 
 def get_token_usage(db: Session, *, classroom_id: str, current_user: User) -> ClassroomTokenUsageRead:
-    """Spend per student, split by key source. Owner only. Students that left keep their past spend."""
+    """Spend per student, split by key source. Owner only. Students that left keep their past spend.
+
+    The owner and the co-teachers are not listed: they have no Class key spend, and their own-key
+    Assistant use in the classroom is not a student cost.
+    """
     classroom = get_classroom_or_404(db, space_id=classroom_id)
     require_owner(db, space=classroom, user=current_user)
 
     start = llm_key_service.month_start()
-    rows = token_usage_crud.spend_by_user_and_source(
-        db, space_ids=llm_key_service.classroom_family_ids(db, classroom.id), month_start=start
-    )
+    teacher_ids = {classroom.owner_id, *space_member_crud.list_active_editor_ids(db, space_id=classroom.id)}
+    rows = [
+        row
+        for row in token_usage_crud.spend_by_user_and_source(
+            db, space_ids=llm_key_service.classroom_family_ids(db, classroom.id), month_start=start
+        )
+        if row.user_id not in teacher_ids
+    ]
     active = {user.id: user for _member, user in space_member_crud.list_active_students(db, space_id=classroom.id)}
     spent_ids = {row.user_id for row in rows}
     users = {u.id: u for u in user_crud.list_by_ids(db, ids=list({*active, *spent_ids}))}

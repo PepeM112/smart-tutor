@@ -34,8 +34,9 @@ export function ClassroomSettingsTab({ classroom, actions }: Props) {
       actions={actions}
       extra={
         <>
-          <FeedPermissionSection classroomId={classroom.id} />
-          <ClassKeySection classroomId={classroom.id} />
+          {/* An archived classroom refuses every settings write, except removing the Class key. */}
+          <FeedPermissionSection classroomId={classroom.id} readOnly={!classroom.canEdit} />
+          <ClassKeySection classroomId={classroom.id} readOnly={!classroom.canEdit} />
           <ClassSpendTable classroomId={classroom.id} />
         </>
       }
@@ -43,7 +44,7 @@ export function ClassroomSettingsTab({ classroom, actions }: Props) {
   );
 }
 
-function FeedPermissionSection({ classroomId }: { classroomId: string }) {
+function FeedPermissionSection({ classroomId, readOnly }: { classroomId: string; readOnly: boolean }) {
   const t = useTranslations();
   const { data: settings, isLoading, isError } = useClassroomSettings(classroomId);
   const { mutate: updateSettings, isPending: isSaving } = useUpdateClassroomSettings(classroomId);
@@ -57,7 +58,7 @@ function FeedPermissionSection({ classroomId }: { classroomId: string }) {
             id="feed-permission"
             className="max-w-sm"
             value={settings?.feedPermission ?? FeedPermission.TEACHERS_ONLY}
-            disabled={isSaving}
+            disabled={readOnly || isSaving}
             onChange={e => updateSettings({ feedPermission: Number(e.target.value) })}
           >
             {FEED_OPTIONS.map(option => (

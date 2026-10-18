@@ -17,10 +17,6 @@ const SOURCES: { source: KeySource; label: string }[] = [
   { source: KeySource.STUDENT, label: 'classrooms.spend_source_student' },
 ];
 
-function costOrDash(cost: string | null): string {
-  return cost == null ? '-' : formatCost(cost);
-}
-
 /** Owner only: AI spend of each student, this month and in total, split by the key that paid. */
 export function ClassSpendTable({ classroomId }: { classroomId: string }) {
   const t = useTranslations();
@@ -91,4 +87,8 @@ function SpendRow({ student }: { student: StudentTokenUsage }) {
       </td>
     </tr>
   );
+}
+
+function costOrDash(cost: string | null): string {
+  return cost == null ? '-' : formatCost(cost);
 }

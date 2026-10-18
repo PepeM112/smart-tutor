@@ -14,6 +14,7 @@ import {
 import { sdk } from '@/lib/apiClient';
 import { getErrorDetail } from '@/lib/utils';
 
+import { classSettingsErrorKey } from '../lib/classKey';
 import { classroomQueryKeys, type MyClassroomsParams } from '../lib/queryKeys';
 
 /** The classrooms the user owns or is an active member of. */
@@ -57,7 +58,10 @@ export function useUpdateClassroomSettings(classroomId: string) {
       void queryClient.invalidateQueries({ queryKey: classroomQueryKeys.aiKeyStatus(classroomId) });
       toast.success(t('classrooms.settings_saved'));
     },
-    onError: err => toast.error(getErrorDetail(err, t('classrooms.failed_to_save_settings'))),
+    onError: err => {
+      const key = classSettingsErrorKey(getErrorDetail(err, ''));
+      toast.error(key ? t(key) : getErrorDetail(err, t('classrooms.failed_to_save_settings')));
+    },
   });
 }
 

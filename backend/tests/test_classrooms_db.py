@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -628,6 +628,121 @@ class TestClassworkEngine:
         assert db_session.get(Space, course_id) is None
         assert db_session.scalar(select(func.count()).select_from(ExamTest).where(ExamTest.space_id == course_id)) == 0
 
+    def _remove_course_item_in_edit_mode(self, db: Session, owner: User, classroom_id: str, course_id: str) -> None:
+        detail = space_draft_service.enter_edit_mode(db, space_id=classroom_id, current_user=owner)
+        assert detail.draft_sections
+        draft_item = next(i for s in detail.draft_sections for i in s.items if i.child_space_id == course_id)
+        space_draft_service.delete_item(db, space_id=classroom_id, item_id=draft_item.id, current_user=owner)
+
+    def test_the_sweep_refuses_a_course_with_student_results(self, db_session: Session, owner: User) -> None:
+        classroom_id, course_id = _published_classroom(db_session, owner, test=True)
+        student = _student(db_session, classroom_id)
+        item = _items(db_session, course_id, SpaceItemKind.TEST)[0]
+        started = space_attempt_service.start_attempt(
+            db_session, space_id=course_id, item_id=item.id, current_user=student
+        )
+        _submit(db_session, course_id, started, student)
+        db_session.commit()
+        self._remove_course_item_in_edit_mode(db_session, owner, classroom_id, course_id)
+
+        detail = _detail(
+            space_draft_service.publish,
+            db_session,
+            space_id=classroom_id,
+            current_user=owner,
+            data=SpacePublishRequest.model_validate({}),
+        )
+
+        assert detail == "A removed course has student results. Delete the course forever first."
+        db_session.expire_all()
+        # Nothing changed: the course, its test and the result are still there, and the classroom stays in edit mode.
+        assert db_session.get(Space, course_id) is not None
+        tests_left = db_session.scalar(select(func.count()).select_from(ExamTest).where(ExamTest.space_id == course_id))
+        assert tests_left and tests_left > 0
+        assert db_session.scalars(select(ResultRow).where(ResultRow.user_id == student.id)).first() is not None
+        assert len(_items(db_session, classroom_id, SpaceItemKind.COURSE)) == 1
+        classroom = db_session.get(Space, classroom_id)
+        assert classroom is not None and classroom.draft_started_at is not None
+
+    def test_the_sweep_refuses_a_course_with_a_student_attempt_after_a_section_delete(
+        self, db_session: Session, owner: User
+    ) -> None:
+        classroom_id, course_id = _published_classroom(db_session, owner, test=True)
+        student = _student(db_session, classroom_id)
+        item = _items(db_session, course_id, SpaceItemKind.TEST)[0]
+        space_attempt_service.start_attempt(db_session, space_id=course_id, item_id=item.id, current_user=student)
+        db_session.commit()
+        detail = space_draft_service.enter_edit_mode(db_session, space_id=classroom_id, current_user=owner)
+        assert detail.draft_sections
+        space_draft_service.delete_section(
+            db_session, space_id=classroom_id, section_id=detail.draft_sections[0].id, current_user=owner
+        )
+
+        publish_detail = _detail(
+            space_draft_service.publish,
+            db_session,
+            space_id=classroom_id,
+            current_user=owner,
+            data=SpacePublishRequest.model_validate({}),
+        )
+
+        assert publish_detail == "A removed course has student results. Delete the course forever first."
+        db_session.expire_all()
+        assert db_session.get(Space, course_id) is not None
+
+    def test_delete_forever_removes_a_course_of_a_classroom_and_its_item(
+        self, db_session: Session, owner: User
+    ) -> None:
+        classroom_id, course_id = _published_classroom(db_session, owner, test=True)
+        student = _student(db_session, classroom_id)
+        item = _items(db_session, course_id, SpaceItemKind.TEST)[0]
+        started = space_attempt_service.start_attempt(
+            db_session, space_id=course_id, item_id=item.id, current_user=student
+        )
+        _submit(db_session, course_id, started, student)
+        teacher = _teacher(db_session, classroom_id)
+        assert (
+            _status_code(
+                space_service.delete_course_forever,
+                db_session,
+                space_id=course_id,
+                current_user=teacher,
+                confirm_title="Course",
+            )
+            == 403
+        )
+
+        space_service.delete_course_forever(db_session, space_id=course_id, current_user=owner, confirm_title="Course")
+
+        db_session.expire_all()
+        assert db_session.get(Space, course_id) is None and db_session.get(Space, classroom_id) is not None
+        assert (
+            db_session.scalar(select(func.count()).select_from(SpaceItem).where(SpaceItem.child_space_id == course_id))
+            == 0
+        )
+        assert db_session.scalars(select(ResultRow).where(ResultRow.user_id == student.id)).first() is None
+
+    def test_the_sweep_ignores_the_results_of_teachers(self, db_session: Session, owner: User) -> None:
+        classroom_id, course_id = _published_classroom(db_session, owner, test=True)
+        teacher = _teacher(db_session, classroom_id)
+        item = _items(db_session, course_id, SpaceItemKind.TEST)[0]
+        db_session.add(
+            SpaceAttempt(
+                item_id=item.id,
+                user_id=teacher.id,
+                test_id=db_session.scalars(select(ExamTest.id).where(ExamTest.space_id == course_id)).first(),
+                test_version=1,
+                status=int(AttemptStatus.EXPIRED),
+                started_at=_utcnow(),
+            )
+        )
+        db_session.flush()
+        db_session.commit()
+        self._remove_course_item_in_edit_mode(db_session, owner, classroom_id, course_id)
+        _publish(db_session, owner, classroom_id)
+        db_session.expire_all()
+        assert db_session.get(Space, course_id) is None
+
     def test_discard_deletes_a_course_added_in_the_draft(self, db_session: Session, owner: User) -> None:
         classroom_id, kept_id = _published_classroom(db_session, owner)
         space_draft_service.enter_edit_mode(db_session, space_id=classroom_id, current_user=owner)
@@ -1066,6 +1181,57 @@ class TestDueSoon:
         assert result[0].space_id == classroom_id and result[1].space_id == course_id
         assert all(r.classroom_id == classroom_id for r in result)
         assert result[1].space_title == "Course" and result[0].title == "Note"
+
+    def test_items_of_a_hidden_course_are_not_listed_and_queries_do_not_grow(
+        self, db_session: Session, owner: User
+    ) -> None:
+        classroom = new_space(db_session, owner=owner, kind=SpaceKind.CLASSROOM)
+        student = new_user(db_session)
+        add_member(db_session, space=classroom, user=student, role=SpaceRole.VIEWER)
+        soon = _utcnow() + timedelta(hours=3)
+
+        def add_course(*, hidden: bool) -> Space:
+            course = new_space(db_session, owner=owner, parent=classroom)
+            new_item(
+                db_session,
+                space=classroom,
+                kind=SpaceItemKind.COURSE,
+                child=course,
+                visible_from=_utcnow() + timedelta(days=1) if hidden else None,
+            )
+            new_item(
+                db_session,
+                space=course,
+                kind=SpaceItemKind.NOTE,
+                note=new_note(db_session, user=owner, space=course),
+                due_at=soon,
+            )
+            return course
+
+        def run() -> tuple[list[str], int]:
+            statements: list[str] = []
+
+            def count(_conn: object, _cursor: object, statement: str, *_rest: object) -> None:
+                statements.append(statement)
+
+            event.listen(db_session.get_bind(), "before_cursor_execute", count)
+            try:
+                result = classroom_service.due_soon(db_session, classroom_id=classroom.id, current_user=student)
+            finally:
+                event.remove(db_session.get_bind(), "before_cursor_execute", count)
+            return [r.space_id for r in result], len(statements)
+
+        visible = add_course(hidden=False)
+        add_course(hidden=True)
+        spaces, few = run()
+        assert spaces == [visible.id]
+
+        for _ in range(3):
+            add_course(hidden=True)
+            add_course(hidden=False)
+        spaces, many = run()
+        assert len(spaces) == 4
+        assert many == few
 
     def test_the_list_is_empty_for_teachers_and_strangers_are_refused(self, db_session: Session, owner: User) -> None:
         classroom_id, _ = _published_classroom(db_session, owner)

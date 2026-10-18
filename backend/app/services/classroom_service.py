@@ -49,6 +49,7 @@ from app.services.space_service import (
 )
 
 DUE_SOON_WINDOW = timedelta(hours=24)
+PROVIDER_CHANGE_NEEDS_KEY = "Send a new Class key when you change the provider"
 
 
 def create_classroom(db: Session, *, current_user: User, data: ClassroomCreate) -> SpaceDetail:
@@ -186,9 +187,22 @@ def update_settings(
     """Only the sent fields change. The Class key is stored encrypted and never returned."""
     classroom = get_classroom_or_404(db, space_id=classroom_id)
     require_owner(db, space=classroom, user=current_user)
-    require_active(db, classroom)
-    settings = _get_settings(db, classroom=classroom)
     sent = data.model_fields_set
+    # An archived classroom is read-only, with one exception: the owner can remove the Class key, so that
+    # archiving a classroom never leaves a key that the owner cannot delete (B-P1-1).
+    if not (sent == {"class_key"} and data.class_key is not None and not data.class_key.strip()):
+        require_active(db, classroom)
+    settings = _get_settings(db, classroom=classroom)
+    # A key is bound to its provider. Keeping it after a provider change makes every call fail at the provider (B-P2-8).
+    # Sending `class_key` (a new key, or "" to remove it) in the same request is fine.
+    new_provider = int(data.ai_provider) if data.ai_provider is not None else None
+    if (
+        "ai_provider" in sent
+        and new_provider != settings.ai_provider
+        and settings.encrypted_class_key
+        and data.class_key is None
+    ):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=PROVIDER_CHANGE_NEEDS_KEY)
     if "feed_permission" in sent and data.feed_permission is not None:
         settings.feed_permission = int(data.feed_permission)
     if "key_priority" in sent and data.key_priority is not None:
@@ -219,11 +233,9 @@ def due_soon(db: Session, *, classroom_id: str, current_user: User) -> list[DueS
     classroom = get_classroom_or_404(db, space_id=classroom_id)
     if get_membership(db, space=classroom, user=current_user).role != SpaceRole.VIEWER:
         return []
-    courses = [
-        c
-        for c in space_crud.list_children(db, parent_id=classroom.id)
-        if not space_item_crud.is_course_hidden(db, course_id=c.id)
-    ]
+    children = space_crud.list_children(db, parent_id=classroom.id)
+    hidden = space_item_crud.list_hidden_course_ids(db, course_ids=[c.id for c in children])
+    courses = [c for c in children if c.id not in hidden]
     spaces = {s.id: s for s in [classroom, *courses]}
     start = space_progress_service.utcnow()
     items = space_item_crud.list_due(db, space_ids=list(spaces), start=start, end=start + DUE_SOON_WINDOW)

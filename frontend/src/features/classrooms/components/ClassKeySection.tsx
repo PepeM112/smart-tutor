@@ -15,7 +15,15 @@ import { SettingsSection } from '@/features/settings/components/SettingsSection'
 import { cn } from '@/lib/utils';
 
 import { useClassroomSettings, useUpdateClassroomSettings } from '../hooks/useClassrooms';
-import { buildSettingsUpdate, type ClassKeyForm, formFromSettings, hasChanges, parseTokenCap } from '../lib/classKey';
+import {
+  buildSettingsUpdate,
+  type ClassKeyForm,
+  classKeyFormKey,
+  formFromSettings,
+  hasChanges,
+  parseTokenCap,
+  providerChangeNeedsKey,
+} from '../lib/classKey';
 
 const PROVIDERS = [
   { value: AiProvider.ANTHROPIC, labelKey: 'settings.anthropic', modelKey: 'settings.model_claude_haiku' },
@@ -32,22 +40,35 @@ const SCOPE_OPTIONS: { value: KeyScope; label: string }[] = [
   { value: KeyScope.ALL, label: 'classrooms.key_scope_all' },
 ];
 
+type SectionProps = {
+  classroomId: string;
+  /** An archived classroom: the fields are read-only. Only "Remove key" stays, as the backend allows it. */
+  readOnly: boolean;
+};
+
 /** Owner only: the shared Class key, who pays first, where it may be used and the monthly cap per student. */
-export function ClassKeySection({ classroomId }: { classroomId: string }) {
+export function ClassKeySection({ classroomId, readOnly }: SectionProps) {
   const t = useTranslations();
   const { data: settings, isLoading, isError } = useClassroomSettings(classroomId);
 
   return (
     <SettingsSection title={t('classrooms.class_key_title')} description={t('classrooms.class_key_hint')}>
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('classrooms.failed_to_load_settings')}>
-        {/* The key resets the form after a save: the settings query is updated from the response. */}
-        {settings && <ClassKeyFields key={JSON.stringify(settings)} classroomId={classroomId} settings={settings} />}
+        {/* The key resets the form after a save of these fields. A feed permission save must not reset it. */}
+        {settings && (
+          <ClassKeyFields
+            key={classKeyFormKey(settings)}
+            classroomId={classroomId}
+            settings={settings}
+            readOnly={readOnly}
+          />
+        )}
       </QueryState>
     </SettingsSection>
   );
 }
 
-function ClassKeyFields({ classroomId, settings }: { classroomId: string; settings: ClassroomSettingsRead }) {
+function ClassKeyFields({ classroomId, settings, readOnly }: SectionProps & { settings: ClassroomSettingsRead }) {
   const t = useTranslations();
   const { mutate: updateSettings, isPending: isSaving } = useUpdateClassroomSettings(classroomId);
   const [form, setForm] = useState<ClassKeyForm>(() => formFromSettings(settings));
@@ -58,6 +79,8 @@ function ClassKeyFields({ classroomId, settings }: { classroomId: string; settin
 
   const update = buildSettingsUpdate(form, settings);
   const capInvalid = !parseTokenCap(form.capInput).ok;
+  // The saved key belongs to the old provider: the server refuses the change without a new key.
+  const needsKey = providerChangeNeedsKey(form, settings);
 
   return (
     <div className="space-y-5">
@@ -69,9 +92,10 @@ function ClassKeyFields({ classroomId, settings }: { classroomId: string; settin
               key={value}
               type="button"
               onClick={() => setField('aiProvider', value)}
+              disabled={readOnly}
               aria-pressed={form.aiProvider === value}
               className={cn(
-                'flex flex-col items-start gap-0.5 rounded-lg border px-4 py-2.5 text-sm transition-colors',
+                'flex flex-col items-start gap-0.5 rounded-lg border px-4 py-2.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50',
                 form.aiProvider === value
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -105,6 +129,8 @@ function ClassKeyFields({ classroomId, settings }: { classroomId: string; settin
               value={form.keyInput}
               onChange={e => setField('keyInput', e.target.value)}
               autoComplete="off"
+              disabled={readOnly}
+              aria-invalid={needsKey}
               className={form.keyInput ? 'pr-10' : undefined}
             />
             {form.keyInput && (
@@ -134,7 +160,11 @@ function ClassKeyFields({ classroomId, settings }: { classroomId: string; settin
             />
           )}
         </div>
-        <p className="text-xs text-muted-foreground">{t('classrooms.class_key_never_shown')}</p>
+        {needsKey ? (
+          <p className="text-xs text-destructive">{t('classrooms.class_key_provider_needs_key')}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">{t('classrooms.class_key_never_shown')}</p>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -143,6 +173,7 @@ function ClassKeyFields({ classroomId, settings }: { classroomId: string; settin
           id="key-priority"
           className="max-w-sm"
           value={form.keyPriority}
+          disabled={readOnly}
           onChange={e => setField('keyPriority', Number(e.target.value))}
         >
           {PRIORITY_OPTIONS.map(option => (
@@ -166,6 +197,7 @@ function ClassKeyFields({ classroomId, settings }: { classroomId: string; settin
           id="key-scope"
           className="max-w-sm"
           value={form.keyScope}
+          disabled={readOnly}
           onChange={e => setField('keyScope', Number(e.target.value))}
         >
           {SCOPE_OPTIONS.map(option => (
@@ -188,6 +220,7 @@ function ClassKeyFields({ classroomId, settings }: { classroomId: string; settin
           placeholder={t('classrooms.token_cap_placeholder')}
           value={form.capInput}
           onChange={e => setField('capInput', e.target.value)}
+          disabled={readOnly}
           aria-invalid={capInvalid}
         />
         <p className={cn('text-xs', capInvalid ? 'text-destructive' : 'text-muted-foreground')}>
@@ -198,8 +231,8 @@ function ClassKeyFields({ classroomId, settings }: { classroomId: string; settin
       <Button
         type="button"
         loading={isSaving}
-        disabled={!hasChanges(update)}
-        onClick={() => update && updateSettings(update)}
+        disabled={readOnly || needsKey || !hasChanges(update)}
+        onClick={() => update && !needsKey && updateSettings(update)}
       >
         {t('common.save')}
       </Button>

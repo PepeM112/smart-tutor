@@ -479,8 +479,14 @@ def delete_spaces_forever(db: Session, *, spaces: Sequence[Space]) -> None:
 
 
 def delete_course_forever(db: Session, *, space_id: str, current_user: User, confirm_title: str) -> None:
-    """Hard delete of a course or a classroom (and its courses). The typed title must match exactly."""
-    space = get_joinable_or_404(db, space_id=space_id, for_update=True)
+    """Hard delete of a course, a classroom (with its courses) or one course of a classroom.
+
+    The typed title must match exactly.
+
+    A classroom course is deleted here when the draft engine refused to sweep it (it has student
+    results). The COURSE items that point to it go with the FK cascade; only the owner of the classroom can do it.
+    """
+    space = get_space_or_404(db, space_id=space_id, for_update=True)
     require_owner(db, space=space, user=current_user)
     if confirm_title != space.title:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The title does not match")

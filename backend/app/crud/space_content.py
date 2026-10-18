@@ -12,10 +12,30 @@ from app.crud.test import active_load_options
 from app.models.answer import Answer
 from app.models.note import Note
 from app.models.question import Question
+from app.models.space_attempt import SpaceAttempt
+from app.models.space_item import SpaceItem
 from app.models.test import Test
 from app.models.test_question_group import TestQuestionGroup
 from app.models.test_result import TestResult
 from app.models.user_question_state import UserQuestionState
+
+
+def has_member_data(db: Session, *, space_ids: Sequence[str], excluded_user_ids: Sequence[str]) -> bool:
+    """True if a user outside `excluded_user_ids` has an exam result or an attempt in these spaces.
+
+    Results are found by the item they came from and by the tests of the spaces (a result keeps its
+    test when its item is gone). Attempts are found by item.
+    """
+    item_ids = select(SpaceItem.id).where(SpaceItem.space_id.in_(space_ids))
+    test_ids = select(Test.id).where(Test.space_id.in_(space_ids))
+    result = select(TestResult.id).where(
+        TestResult.user_id.not_in(excluded_user_ids),
+        or_(TestResult.space_item_id.in_(item_ids), TestResult.test_id.in_(test_ids)),
+    )
+    attempt = select(SpaceAttempt.id).where(
+        SpaceAttempt.user_id.not_in(excluded_user_ids), SpaceAttempt.item_id.in_(item_ids)
+    )
+    return bool(db.scalar(select(result.exists())) or db.scalar(select(attempt.exists())))
 
 
 def list_test_ids(db: Session, *, space_id: str) -> Sequence[str]:

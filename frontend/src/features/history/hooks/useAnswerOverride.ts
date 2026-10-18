@@ -9,17 +9,14 @@ import { getErrorDetail } from '@/lib/utils';
 
 import { overrideErrorText } from '../utils/overrideErrors';
 
-/** The cached result query holds the SDK response; the override calls return the new result. */
-function replaceResult(old: unknown, result: TestResultRead): unknown {
-  return typeof old === 'object' && old !== null ? { ...old, data: result } : old;
-}
-
 /** Set or clear the teacher grade of one answer. The response is the whole result, so the cache is replaced. */
 export function useAnswerOverride(resultId: string) {
   const t = useTranslations();
   const queryClient = useQueryClient();
 
-  const onSaved = (result: TestResultRead, message: string): void => {
+  const onSaved = async (result: TestResultRead, message: string): Promise<void> => {
+    // A poll that started before the save must not write the old result over the new one.
+    await queryClient.cancelQueries({ queryKey: ['results', resultId], exact: true });
     queryClient.setQueryData(['results', resultId], (old: unknown) => replaceResult(old, result));
     // The history list has the score. The gradebook has the best score and the status.
     void queryClient.invalidateQueries({
@@ -49,4 +46,9 @@ export function useAnswerOverride(resultId: string) {
   });
 
   return { setOverride, isSettingOverride, clearOverride, isClearingOverride };
+}
+
+/** The cached result query holds the SDK response; the override calls return the new result. */
+function replaceResult(old: unknown, result: TestResultRead): unknown {
+  return typeof old === 'object' && old !== null ? { ...old, data: result } : old;
 }
