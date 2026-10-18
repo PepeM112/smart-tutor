@@ -1,12 +1,29 @@
 'use client';
 
 import { useIsMutating } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, ClipboardCopy, ClipboardPlus, FilePlus, Files, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ClipboardCopy,
+  ClipboardPlus,
+  FilePlus,
+  Files,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 
-import { SpaceItemKind, type SpaceDetail, type SpaceItemRead, type SpaceSectionRead } from '@/client';
+import {
+  SpaceItemKind,
+  type SpaceDetail,
+  type SpaceItemRead,
+  type SpaceItemUpdate,
+  type SpaceSectionRead,
+} from '@/client';
 import { ActionsMenu } from '@/components/shared/ActionsMenu';
 import { InlineRename } from '@/components/shared/InlineRename';
 import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
@@ -22,6 +39,7 @@ import { COURSE_LIMITS } from '../lib/limits';
 import { AddItemDialog, type AddItemMode } from './AddItemDialog';
 import { CourseContentFrame, CourseItemRow, CourseSectionFrame } from './CourseLayout';
 import { ItemIcon } from './CourseOutline';
+import { CourseTestSettings } from './CourseTestSettings';
 
 type Actions = ReturnType<typeof useCourseActions>;
 
@@ -42,7 +60,7 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
   const sections = course.draftSections ?? [];
   const order = toOrder(sections);
   const [newSectionTitle, setNewSectionTitle] = useState('');
-  const [addTarget, setAddTarget] = useState<{ sectionId: string; mode: AddItemMode } | null>(null);
+  const [addTarget, setAddTarget] = useState<{ sectionId: string; mode: AddItemMode; itemId?: string } | null>(null);
   // The "Add item" button of that section: the focus goes back to it when the dialog closes.
   const addButtonRef = useRef<HTMLElement | null>(null);
   // Reorder sends the full order, built from `course` as it is now. While any other write runs
@@ -74,7 +92,12 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
 
   function handleCreate(title: string) {
     if (!addTarget) return;
-    const { sectionId, mode } = addTarget;
+    const { sectionId, mode, itemId } = addTarget;
+    // With an item id the new test becomes a variant of that TEST item.
+    if (itemId) {
+      actions.addVariant.mutate({ itemId, body: { title } }, { onSuccess: () => setAddTarget(null) });
+      return;
+    }
     actions.createItem.mutate(
       { sectionId, kind: mode.kind, title },
       {
@@ -88,7 +111,11 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
 
   function handleCopy(sourceId: string) {
     if (!addTarget) return;
-    const { sectionId, mode } = addTarget;
+    const { sectionId, mode, itemId } = addTarget;
+    if (itemId) {
+      actions.addVariant.mutate({ itemId, body: { testId: sourceId } }, { onSuccess: () => setAddTarget(null) });
+      return;
+    }
     const source = mode.kind === SpaceItemKind.NOTE ? { noteId: sourceId } : { testId: sourceId };
     actions.copyItem.mutate({ sectionId, ...source }, { onSuccess: () => setAddTarget(null) });
   }
@@ -120,6 +147,19 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
               setAddTarget({ sectionId: section.id, mode });
             }}
             onEditItem={handleEditItem}
+            onUpdateItem={(item, body, onError) => actions.updateItem.mutate({ itemId: item.id, body }, { onError })}
+            onAddVariant={(item, action) => {
+              addButtonRef.current = null;
+              setAddTarget({ sectionId: section.id, itemId: item.id, mode: { action, kind: SpaceItemKind.TEST } });
+            }}
+            onReorderVariants={(item, testIds) => actions.reorderVariants.mutate({ itemId: item.id, testIds })}
+            onRemoveVariant={(item, testId) => actions.removeVariant.mutate({ itemId: item.id, testId })}
+            onEditVariant={(item, testId) =>
+              actions.makeEditable.mutate(
+                { itemId: item.id, testId },
+                { onSuccess: content => openContent(item, content) }
+              )
+            }
             onDeleteItem={item => actions.deleteItem.mutate(item.id)}
             canMoveItem={(itemIndex, delta) => moveItem(order, sectionIndex, itemIndex, delta) !== null}
             onOpenNote={onOpenNote}
@@ -154,7 +194,7 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
           event.preventDefault();
           addButtonRef.current?.focus();
         }}
-        isPending={actions.createItem.isPending || actions.copyItem.isPending}
+        isPending={actions.createItem.isPending || actions.copyItem.isPending || actions.addVariant.isPending}
         onCreate={handleCreate}
         onCopy={handleCopy}
       />
@@ -175,6 +215,11 @@ type DraftSectionProps = {
   /** `trigger`: the "Add item" button, for the focus return. */
   onAdd: (mode: AddItemMode, trigger: HTMLElement | null) => void;
   onEditItem: (item: SpaceItemRead) => void;
+  onUpdateItem: (item: SpaceItemRead, body: SpaceItemUpdate, onError?: () => void) => void;
+  onAddVariant: (item: SpaceItemRead, action: 'create' | 'copy') => void;
+  onReorderVariants: (item: SpaceItemRead, testIds: string[]) => void;
+  onRemoveVariant: (item: SpaceItemRead, testId: string) => void;
+  onEditVariant: (item: SpaceItemRead, testId: string) => void;
   onDeleteItem: (item: SpaceItemRead) => void;
   onOpenNote?: (noteId: string) => void;
 };
@@ -191,6 +236,11 @@ function DraftSection({
   onDelete,
   onAdd,
   onEditItem,
+  onUpdateItem,
+  onAddVariant,
+  onReorderVariants,
+  onRemoveVariant,
+  onEditVariant,
   onDeleteItem,
   onOpenNote,
 }: DraftSectionProps) {
@@ -204,6 +254,8 @@ function DraftSection({
   // The trash button of that item. A ref, not state: the state is null before the dialog has closed.
   const removeButtonRef = useRef<HTMLElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  // The TEST item whose attempt rules and variants are open.
+  const [settingsItemId, setSettingsItemId] = useState<string | null>(null);
   const add = (mode: AddItemMode) => onAdd(mode, addButtonRef.current);
 
   return (
@@ -330,63 +382,93 @@ function DraftSection({
     >
       {section.items.map((item, itemIndex) => {
         const { noteId } = item;
+        const isTest = item.kind === SpaceItemKind.TEST;
         return (
-          <CourseItemRow
-            key={item.id}
-            icon={<ItemIcon item={item} />}
-            title={item.title}
-            badge={<ItemBadge item={item} />}
-            action={
-              item.kind === SpaceItemKind.NOTE && noteId && onOpenNote
-                ? { onClick: () => onOpenNote(noteId) }
-                : undefined
-            }
-            actions={
-              <TreeActionsCell widthClass="" forceVisible={itemToRemove?.id === item.id}>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  tooltip={t('common.edit')}
-                  aria-label={t('common.edit')}
-                  onClick={() => onEditItem(item)}
+          <Fragment key={item.id}>
+            <CourseItemRow
+              icon={<ItemIcon item={item} />}
+              title={item.title}
+              badge={<ItemBadge item={item} />}
+              action={
+                item.kind === SpaceItemKind.NOTE && noteId && onOpenNote
+                  ? { onClick: () => onOpenNote(noteId) }
+                  : undefined
+              }
+              actions={
+                <TreeActionsCell
+                  widthClass=""
+                  forceVisible={itemToRemove?.id === item.id || settingsItemId === item.id}
                 >
-                  <Pencil />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  tooltip={t('courses.move_up')}
-                  aria-label={t('courses.move_up')}
-                  disabled={disabled || !canMoveItem(itemIndex, -1)}
-                  onClick={() => onMoveItem(itemIndex, -1)}
-                >
-                  <ArrowUp />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  tooltip={t('courses.move_down')}
-                  aria-label={t('courses.move_down')}
-                  disabled={disabled || !canMoveItem(itemIndex, 1)}
-                  onClick={() => onMoveItem(itemIndex, 1)}
-                >
-                  <ArrowDown />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  tooltip={t('courses.remove_item')}
-                  aria-label={t('courses.remove_item')}
-                  onClick={e => {
-                    removeButtonRef.current = e.currentTarget;
-                    setItemToRemove(item);
-                  }}
-                >
-                  <Trash2 />
-                </Button>
-              </TreeActionsCell>
-            }
-          />
+                  {isTest && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      tooltip={t('courses.policy_title')}
+                      aria-label={t('courses.policy_title')}
+                      aria-expanded={settingsItemId === item.id}
+                      onClick={() => setSettingsItemId(current => (current === item.id ? null : item.id))}
+                    >
+                      <SlidersHorizontal />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    tooltip={t('common.edit')}
+                    aria-label={t('common.edit')}
+                    onClick={() => onEditItem(item)}
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    tooltip={t('courses.move_up')}
+                    aria-label={t('courses.move_up')}
+                    disabled={disabled || !canMoveItem(itemIndex, -1)}
+                    onClick={() => onMoveItem(itemIndex, -1)}
+                  >
+                    <ArrowUp />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    tooltip={t('courses.move_down')}
+                    aria-label={t('courses.move_down')}
+                    disabled={disabled || !canMoveItem(itemIndex, 1)}
+                    onClick={() => onMoveItem(itemIndex, 1)}
+                  >
+                    <ArrowDown />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    tooltip={t('courses.remove_item')}
+                    aria-label={t('courses.remove_item')}
+                    onClick={e => {
+                      removeButtonRef.current = e.currentTarget;
+                      setItemToRemove(item);
+                    }}
+                  >
+                    <Trash2 />
+                  </Button>
+                </TreeActionsCell>
+              }
+            />
+            {isTest && settingsItemId === item.id && (
+              <li className="list-none">
+                <CourseTestSettings
+                  item={item}
+                  disabled={disabled}
+                  onUpdate={(body, onError) => onUpdateItem(item, body, onError)}
+                  onAddVariant={action => onAddVariant(item, action)}
+                  onReorderVariants={testIds => onReorderVariants(item, testIds)}
+                  onRemoveVariant={testId => onRemoveVariant(item, testId)}
+                  onEditVariant={testId => onEditVariant(item, testId)}
+                />
+              </li>
+            )}
+          </Fragment>
         );
       })}
     </CourseSectionFrame>

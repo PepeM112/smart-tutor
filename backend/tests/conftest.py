@@ -43,13 +43,14 @@ def db_session() -> Iterator[Session]:
 
     `create_savepoint`: each `db.commit()` in the services only releases a SAVEPOINT, so the
     code runs as in production, but nothing stays in the DB after the test.
+    `autoflush=False` as in `app/database.py`: a stale read in the app code then fails here too.
     """
     # Imported here: `app.database` raises at import time when DATABASE_URL is not set.
     from app.database import engine
 
     connection = engine.connect()
     outer = connection.begin()
-    session = Session(bind=connection, join_transaction_mode="create_savepoint")
+    session = Session(bind=connection, join_transaction_mode="create_savepoint", autoflush=False)
     try:
         yield session
     finally:

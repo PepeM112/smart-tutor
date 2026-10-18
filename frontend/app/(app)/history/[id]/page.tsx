@@ -1,6 +1,5 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { use, useMemo } from 'react';
 
@@ -8,9 +7,9 @@ import { QueryState } from '@/components/shared/QueryState';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { formatResultDetail } from '@/features/assist/utils/formatPageData';
 import { ResultDetail } from '@/features/history/components/ResultDetail';
+import { useResultTest } from '@/features/history/hooks/useResultTest';
 import { useTestResult } from '@/features/history/hooks/useTestResult';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
-import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -44,15 +43,7 @@ export default function ResultDetailPage({ params }: Props) {
     )
   );
 
-  const {
-    data: testResponse,
-    isLoading: isLoadingTest,
-    isError: isTestError,
-  } = useQuery({
-    queryKey: ['tests', result?.testId],
-    queryFn: () => sdk.testsGet({ path: { test_id: result!.testId } }),
-    enabled: !!result?.testId,
-  });
+  const { data: testResponse, isLoading: isLoadingTest, isError: isTestError } = useResultTest(id);
 
   const test = testResponse?.data;
 

@@ -212,11 +212,13 @@ class TestNoteAccess:
 
 
 class TestTestAndQuestionAccess:
-    def test_viewer_takes_a_published_test(self, db_session: Session, owner: User, course: Space) -> None:
+    def test_viewer_can_not_take_a_course_test_directly(self, db_session: Session, owner: User, course: Space) -> None:
+        """D1: a VIEWER starts a course test through its attempt, so the attempt limits can not be bypassed."""
         viewer = _member(db_session, course, SpaceRole.VIEWER)
         test = new_test(db_session, user=owner, space=course)
 
-        assert test_service.get_takeable_test(db_session, test_id=test.id, current_user=viewer) is test
+        assert _status_code(test_service.get_takeable_test, db_session, test_id=test.id, current_user=viewer) == 403
+        assert test_service.get_takeable_test(db_session, test_id=test.id, current_user=owner) is test
 
     def test_viewer_can_not_read_the_answer_key(self, db_session: Session, owner: User, course: Space) -> None:
         """P1-2: the full test and question have the answers. Viewers use `/exam` (AUTHOR level)."""
@@ -433,12 +435,11 @@ class TestExamAndVersioning:
         draft = new_test(db_session, user=owner, space=course, is_draft=True)
         assert _status_code(test_service.get_takeable_test, db_session, test_id=draft.id, current_user=owner) == 409
 
-    def test_published_space_test_can_be_taken_by_a_viewer(
+    def test_published_space_test_can_be_previewed_by_an_author(
         self, db_session: Session, owner: User, course: Space
     ) -> None:
-        viewer = _member(db_session, course, SpaceRole.VIEWER)
         test = new_test(db_session, user=owner, space=course)
-        assert test_service.get_takeable_test(db_session, test_id=test.id, current_user=viewer) is test
+        assert test_service.get_takeable_test(db_session, test_id=test.id, current_user=owner) is test
 
     def test_frozen_copy_keeps_the_space(self, db_session: Session, owner: User, course: Space) -> None:
         from app.models.test import Test

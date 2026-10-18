@@ -227,6 +227,7 @@ Recorded exactly like the other six AI features (see [Token Usage & Cost Trackin
 ## Known Behavior Notes
 
 - There's no cancel/abort endpoint — the client drops the SSE connection to stop a stream, and there's nothing server-side that reacts specially to the disconnect.
+- Course content: read tools and `search_user_notes` see the published notes of joined courses (READ). Write tools need EDIT, so they refuse published course content and every course the user only views.
 - Because the backend is stateless, every round-trip (including every confirmation) resends the full conversation history. This is simple and correct at normal conversation lengths; a very long-running conversation would pay for that history on every call, which would be worth revisiting if it ever becomes a real cost or latency concern.
 
 ## Related Docs

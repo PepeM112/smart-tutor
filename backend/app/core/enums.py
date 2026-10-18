@@ -134,3 +134,22 @@ class SpaceItemKind(NamedIntEnum):
     TEST = 2
     # A course inside a classroom (M4). The course API refuses it.
     COURSE = 3
+
+
+# --- Course progress and attempts (ST-67). See docs/spaces.md. ---
+
+
+class RevealAnswers(NamedIntEnum):
+    """When a student may see the answer key of a course test."""
+
+    ALWAYS = 1
+    # After the item is passed, or when no attempt is left.
+    AFTER_PASS_OR_LAST = 2
+    NEVER = 3
+
+
+class AttemptStatus(NamedIntEnum):
+    OPEN = 1
+    SUBMITTED = 2
+    # Not submitted before the deadline + grace. It counts as a started attempt.
+    EXPIRED = 3

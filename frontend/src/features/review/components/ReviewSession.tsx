@@ -25,9 +25,11 @@ type SessionPhase = 'answering' | 'checked' | 'batch-done';
 type Props = {
   initialQuestions: QuestionReadStripped[];
   mode: 'review' | 'practice';
+  /** 'all', 'personal' or a course id. The next batches use the same scope. */
+  scope: string;
 };
 
-export function ReviewSession({ initialQuestions, mode }: Props) {
+export function ReviewSession({ initialQuestions, mode, scope }: Props) {
   const t = useTranslations();
   const [questions, setQuestions] = useState<QuestionReadStripped[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -62,7 +64,7 @@ export function ReviewSession({ initialQuestions, mode }: Props) {
   });
 
   const { mutate: loadNextBatch, isPending: isLoadingBatch } = useMutation({
-    mutationFn: () => sdk.reviewList({ query: { limit: REVIEW_BATCH_SIZE, mode } }),
+    mutationFn: () => sdk.reviewList({ query: { limit: REVIEW_BATCH_SIZE, mode, scope } }),
     onSuccess: response => {
       const data = response.data;
       if (!data || data.questions.length === 0) {

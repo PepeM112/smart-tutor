@@ -2,8 +2,8 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import { foldersCreateResponseTransformer, foldersListResponseTransformer, foldersTreeResponseTransformer, foldersUpdateResponseTransformer, notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesMoveResponseTransformer, notesSetFavoriteResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, spacesAcceptInvitationResponseTransformer, spacesAddSectionResponseTransformer, spacesArchiveResponseTransformer, spacesCatalogResponseTransformer, spacesCreateResponseTransformer, spacesDeleteItemResponseTransformer, spacesDeleteSectionResponseTransformer, spacesDiscardDraftResponseTransformer, spacesDuplicateResponseTransformer, spacesEnterEditModeResponseTransformer, spacesGetResponseTransformer, spacesInvitationsResponseTransformer, spacesJoinByCodeResponseTransformer, spacesJoinResponseTransformer, spacesListMembersResponseTransformer, spacesListMineResponseTransformer, spacesPublishResponseTransformer, spacesRegenerateJoinCodeResponseTransformer, spacesRenameSectionResponseTransformer, spacesReorderDraftResponseTransformer, spacesUnarchiveResponseTransformer, spacesUpdateResponseTransformer, testsCreateResponseTransformer, testsGetResponseTransformer, testsListResponseTransformer, testsSubmitResponseTransformer, testsUpdateResponseTransformer, trashFolderTreeResponseTransformer, trashListResponseTransformer, trashTreeResponseTransformer } from './transformers.gen';
-import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, AssistAssistData, AssistAssistErrors, AssistAssistResponses, DefaultHealthData, DefaultHealthResponses, FoldersCreateData, FoldersCreateErrors, FoldersCreateResponses, FoldersDeleteData, FoldersDeleteErrors, FoldersDeleteResponses, FoldersListData, FoldersListErrors, FoldersListResponses, FoldersTreeData, FoldersTreeErrors, FoldersTreeResponses, FoldersUpdateData, FoldersUpdateErrors, FoldersUpdateResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesMoveData, NotesMoveErrors, NotesMoveResponses, NotesSearchContentData, NotesSearchContentErrors, NotesSearchContentResponses, NotesSetFavoriteData, NotesSetFavoriteErrors, NotesSetFavoriteResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsAssignToTestData, QuestionsAssignToTestErrors, QuestionsAssignToTestResponses, QuestionsBulkAssignData, QuestionsBulkAssignErrors, QuestionsBulkAssignResponses, QuestionsBulkDeleteData, QuestionsBulkDeleteErrors, QuestionsBulkDeleteResponses, QuestionsBulkRestoreData, QuestionsBulkRestoreErrors, QuestionsBulkRestoreResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsCreateData, QuestionsCreateErrors, QuestionsCreateResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsDuplicateData, QuestionsDuplicateErrors, QuestionsDuplicateResponses, QuestionsGetData, QuestionsGetErrors, QuestionsGetResponses, QuestionsListData, QuestionsListErrors, QuestionsListResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, SpacesAcceptInvitationData, SpacesAcceptInvitationErrors, SpacesAcceptInvitationResponses, SpacesAddSectionData, SpacesAddSectionErrors, SpacesAddSectionResponses, SpacesApproveRequestData, SpacesApproveRequestErrors, SpacesApproveRequestResponses, SpacesArchiveData, SpacesArchiveErrors, SpacesArchiveResponses, SpacesCatalogData, SpacesCatalogErrors, SpacesCatalogResponses, SpacesCopyItemData, SpacesCopyItemErrors, SpacesCopyItemResponses, SpacesCreateData, SpacesCreateErrors, SpacesCreateItemData, SpacesCreateItemErrors, SpacesCreateItemResponses, SpacesCreateResponses, SpacesDeclineInvitationData, SpacesDeclineInvitationErrors, SpacesDeclineInvitationResponses, SpacesDeleteForeverData, SpacesDeleteForeverErrors, SpacesDeleteForeverResponses, SpacesDeleteItemData, SpacesDeleteItemErrors, SpacesDeleteItemResponses, SpacesDeleteSectionData, SpacesDeleteSectionErrors, SpacesDeleteSectionResponses, SpacesDiscardDraftData, SpacesDiscardDraftErrors, SpacesDiscardDraftResponses, SpacesDuplicateData, SpacesDuplicateErrors, SpacesDuplicateResponses, SpacesEnterEditModeData, SpacesEnterEditModeErrors, SpacesEnterEditModeResponses, SpacesGetData, SpacesGetErrors, SpacesGetResponses, SpacesInvitationsData, SpacesInvitationsErrors, SpacesInvitationsResponses, SpacesInviteData, SpacesInviteErrors, SpacesInviteResponses, SpacesJoinByCodeData, SpacesJoinByCodeErrors, SpacesJoinByCodeResponses, SpacesJoinData, SpacesJoinErrors, SpacesJoinResponses, SpacesLeaveData, SpacesLeaveErrors, SpacesLeaveResponses, SpacesListMembersData, SpacesListMembersErrors, SpacesListMembersResponses, SpacesListMineData, SpacesListMineErrors, SpacesListMineResponses, SpacesMakeItemEditableData, SpacesMakeItemEditableErrors, SpacesMakeItemEditableResponses, SpacesPublishData, SpacesPublishErrors, SpacesPublishResponses, SpacesRegenerateJoinCodeData, SpacesRegenerateJoinCodeErrors, SpacesRegenerateJoinCodeResponses, SpacesRemoveMemberData, SpacesRemoveMemberErrors, SpacesRemoveMemberResponses, SpacesRenameSectionData, SpacesRenameSectionErrors, SpacesRenameSectionResponses, SpacesReorderDraftData, SpacesReorderDraftErrors, SpacesReorderDraftResponses, SpacesSetMemberRoleData, SpacesSetMemberRoleErrors, SpacesSetMemberRoleResponses, SpacesUnarchiveData, SpacesUnarchiveErrors, SpacesUnarchiveResponses, SpacesUpdateData, SpacesUpdateErrors, SpacesUpdateResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, TrashEmptyData, TrashEmptyErrors, TrashEmptyResponses, TrashFolderTreeData, TrashFolderTreeErrors, TrashFolderTreeResponses, TrashHardDeleteData, TrashHardDeleteErrors, TrashHardDeleteResponses, TrashListData, TrashListErrors, TrashListResponses, TrashRestoreData, TrashRestoreErrors, TrashRestoreResponses, TrashTreeData, TrashTreeErrors, TrashTreeResponses, UsersGetAiToolPermissionsData, UsersGetAiToolPermissionsErrors, UsersGetAiToolPermissionsResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateAiToolPermissionsData, UsersUpdateAiToolPermissionsErrors, UsersUpdateAiToolPermissionsResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
+import { foldersCreateResponseTransformer, foldersListResponseTransformer, foldersTreeResponseTransformer, foldersUpdateResponseTransformer, notesCopyToLibraryResponseTransformer, notesCreateResponseTransformer, notesGenerateResponseTransformer, notesGetResponseTransformer, notesMoveResponseTransformer, notesSetFavoriteResponseTransformer, notesUpdateResponseTransformer, questionsCheckResponseTransformer, resultsGetResponseTransformer, resultsListResponseTransformer, spacesAcceptInvitationResponseTransformer, spacesAddSectionResponseTransformer, spacesArchiveResponseTransformer, spacesCatalogResponseTransformer, spacesCreateResponseTransformer, spacesDeleteItemResponseTransformer, spacesDeleteSectionResponseTransformer, spacesDiscardDraftResponseTransformer, spacesDuplicateResponseTransformer, spacesEnterEditModeResponseTransformer, spacesGetResponseTransformer, spacesInvitationsResponseTransformer, spacesJoinByCodeResponseTransformer, spacesJoinResponseTransformer, spacesListMembersResponseTransformer, spacesListMineResponseTransformer, spacesMarkDoneResponseTransformer, spacesPublishResponseTransformer, spacesRegenerateJoinCodeResponseTransformer, spacesRemoveVariantResponseTransformer, spacesRenameSectionResponseTransformer, spacesReorderDraftResponseTransformer, spacesReorderVariantsResponseTransformer, spacesStartAttemptResponseTransformer, spacesSubmitAttemptResponseTransformer, spacesUnarchiveResponseTransformer, spacesUnmarkDoneResponseTransformer, spacesUpdateItemResponseTransformer, spacesUpdateMembershipResponseTransformer, spacesUpdateResponseTransformer, testsCreateResponseTransformer, testsGetResponseTransformer, testsListResponseTransformer, testsSubmitResponseTransformer, testsUpdateResponseTransformer, trashFolderTreeResponseTransformer, trashListResponseTransformer, trashTreeResponseTransformer } from './transformers.gen';
+import type { AnswersChallengeData, AnswersChallengeErrors, AnswersChallengeResponses, AssistAssistData, AssistAssistErrors, AssistAssistResponses, DefaultHealthData, DefaultHealthResponses, FoldersCreateData, FoldersCreateErrors, FoldersCreateResponses, FoldersDeleteData, FoldersDeleteErrors, FoldersDeleteResponses, FoldersListData, FoldersListErrors, FoldersListResponses, FoldersTreeData, FoldersTreeErrors, FoldersTreeResponses, FoldersUpdateData, FoldersUpdateErrors, FoldersUpdateResponses, NotesCopyToLibraryData, NotesCopyToLibraryErrors, NotesCopyToLibraryResponses, NotesCreateData, NotesCreateErrors, NotesCreateResponses, NotesDeleteData, NotesDeleteErrors, NotesDeleteResponses, NotesEditChunkData, NotesEditChunkErrors, NotesEditChunkResponses, NotesGenerateData, NotesGenerateErrors, NotesGenerateResponses, NotesGetData, NotesGetErrors, NotesGetResponses, NotesMoveData, NotesMoveErrors, NotesMoveResponses, NotesSearchContentData, NotesSearchContentErrors, NotesSearchContentResponses, NotesSetFavoriteData, NotesSetFavoriteErrors, NotesSetFavoriteResponses, NotesUpdateData, NotesUpdateErrors, NotesUpdateResponses, QuestionsAssignToTestData, QuestionsAssignToTestErrors, QuestionsAssignToTestResponses, QuestionsBulkAssignData, QuestionsBulkAssignErrors, QuestionsBulkAssignResponses, QuestionsBulkDeleteData, QuestionsBulkDeleteErrors, QuestionsBulkDeleteResponses, QuestionsBulkRestoreData, QuestionsBulkRestoreErrors, QuestionsBulkRestoreResponses, QuestionsCheckData, QuestionsCheckErrors, QuestionsCheckResponses, QuestionsCreateData, QuestionsCreateErrors, QuestionsCreateResponses, QuestionsDeleteData, QuestionsDeleteErrors, QuestionsDeleteResponses, QuestionsDuplicateData, QuestionsDuplicateErrors, QuestionsDuplicateResponses, QuestionsGetData, QuestionsGetErrors, QuestionsGetResponses, QuestionsListData, QuestionsListErrors, QuestionsListResponses, QuestionsUpdateData, QuestionsUpdateErrors, QuestionsUpdateResponses, ResultsGetData, ResultsGetErrors, ResultsGetResponses, ResultsGetTestData, ResultsGetTestErrors, ResultsGetTestResponses, ResultsListData, ResultsListErrors, ResultsListResponses, ReviewListData, ReviewListErrors, ReviewListResponses, SpacesAcceptInvitationData, SpacesAcceptInvitationErrors, SpacesAcceptInvitationResponses, SpacesAddSectionData, SpacesAddSectionErrors, SpacesAddSectionResponses, SpacesAddVariantData, SpacesAddVariantErrors, SpacesAddVariantResponses, SpacesApproveRequestData, SpacesApproveRequestErrors, SpacesApproveRequestResponses, SpacesArchiveData, SpacesArchiveErrors, SpacesArchiveResponses, SpacesCatalogData, SpacesCatalogErrors, SpacesCatalogResponses, SpacesCopyItemData, SpacesCopyItemErrors, SpacesCopyItemResponses, SpacesCreateData, SpacesCreateErrors, SpacesCreateItemData, SpacesCreateItemErrors, SpacesCreateItemResponses, SpacesCreateResponses, SpacesDeclineInvitationData, SpacesDeclineInvitationErrors, SpacesDeclineInvitationResponses, SpacesDeleteForeverData, SpacesDeleteForeverErrors, SpacesDeleteForeverResponses, SpacesDeleteItemData, SpacesDeleteItemErrors, SpacesDeleteItemResponses, SpacesDeleteSectionData, SpacesDeleteSectionErrors, SpacesDeleteSectionResponses, SpacesDiscardDraftData, SpacesDiscardDraftErrors, SpacesDiscardDraftResponses, SpacesDuplicateData, SpacesDuplicateErrors, SpacesDuplicateResponses, SpacesEnterEditModeData, SpacesEnterEditModeErrors, SpacesEnterEditModeResponses, SpacesGetData, SpacesGetErrors, SpacesGetResponses, SpacesInvitationsData, SpacesInvitationsErrors, SpacesInvitationsResponses, SpacesInviteData, SpacesInviteErrors, SpacesInviteResponses, SpacesJoinByCodeData, SpacesJoinByCodeErrors, SpacesJoinByCodeResponses, SpacesJoinData, SpacesJoinErrors, SpacesJoinResponses, SpacesLeaveData, SpacesLeaveErrors, SpacesLeaveResponses, SpacesListMembersData, SpacesListMembersErrors, SpacesListMembersResponses, SpacesListMineData, SpacesListMineErrors, SpacesListMineResponses, SpacesMakeItemEditableData, SpacesMakeItemEditableErrors, SpacesMakeItemEditableResponses, SpacesMarkDoneData, SpacesMarkDoneErrors, SpacesMarkDoneResponses, SpacesPublishData, SpacesPublishErrors, SpacesPublishResponses, SpacesRegenerateJoinCodeData, SpacesRegenerateJoinCodeErrors, SpacesRegenerateJoinCodeResponses, SpacesRemoveMemberData, SpacesRemoveMemberErrors, SpacesRemoveMemberResponses, SpacesRemoveVariantData, SpacesRemoveVariantErrors, SpacesRemoveVariantResponses, SpacesRenameSectionData, SpacesRenameSectionErrors, SpacesRenameSectionResponses, SpacesReorderDraftData, SpacesReorderDraftErrors, SpacesReorderDraftResponses, SpacesReorderVariantsData, SpacesReorderVariantsErrors, SpacesReorderVariantsResponses, SpacesSetMemberRoleData, SpacesSetMemberRoleErrors, SpacesSetMemberRoleResponses, SpacesStartAttemptData, SpacesStartAttemptErrors, SpacesStartAttemptResponses, SpacesSubmitAttemptData, SpacesSubmitAttemptErrors, SpacesSubmitAttemptResponses, SpacesUnarchiveData, SpacesUnarchiveErrors, SpacesUnarchiveResponses, SpacesUnmarkDoneData, SpacesUnmarkDoneErrors, SpacesUnmarkDoneResponses, SpacesUpdateData, SpacesUpdateErrors, SpacesUpdateItemData, SpacesUpdateItemErrors, SpacesUpdateItemResponses, SpacesUpdateMembershipData, SpacesUpdateMembershipErrors, SpacesUpdateMembershipResponses, SpacesUpdateResponses, SpacesVisitData, SpacesVisitErrors, SpacesVisitResponses, TestsCreateData, TestsCreateErrors, TestsCreateResponses, TestsDeleteData, TestsDeleteErrors, TestsDeleteResponses, TestsEditQuestionsData, TestsEditQuestionsErrors, TestsEditQuestionsResponses, TestsGenerateData, TestsGenerateErrors, TestsGenerateResponses, TestsGetData, TestsGetErrors, TestsGetExamData, TestsGetExamErrors, TestsGetExamResponses, TestsGetResponses, TestsListData, TestsListErrors, TestsListResponses, TestsRefineData, TestsRefineErrors, TestsRefineResponses, TestsSubmitData, TestsSubmitErrors, TestsSubmitResponses, TestsUpdateData, TestsUpdateErrors, TestsUpdateResponses, TokenUsageGetUsageData, TokenUsageGetUsageErrors, TokenUsageGetUsageResponses, TrashEmptyData, TrashEmptyErrors, TrashEmptyResponses, TrashFolderTreeData, TrashFolderTreeErrors, TrashFolderTreeResponses, TrashHardDeleteData, TrashHardDeleteErrors, TrashHardDeleteResponses, TrashListData, TrashListErrors, TrashListResponses, TrashRestoreData, TrashRestoreErrors, TrashRestoreResponses, TrashTreeData, TrashTreeErrors, TrashTreeResponses, UsersGetAiToolPermissionsData, UsersGetAiToolPermissionsErrors, UsersGetAiToolPermissionsResponses, UsersLoginData, UsersLoginErrors, UsersLoginResponses, UsersLogoutData, UsersLogoutResponses, UsersMeData, UsersMeErrors, UsersMeResponses, UsersRefreshData, UsersRefreshErrors, UsersRefreshResponses, UsersSignupData, UsersSignupErrors, UsersSignupResponses, UsersUpdateAiToolPermissionsData, UsersUpdateAiToolPermissionsErrors, UsersUpdateAiToolPermissionsResponses, UsersUpdateMeData, UsersUpdateMeErrors, UsersUpdateMeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -210,6 +210,13 @@ export const resultsGet = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
+ * Get Test
+ *
+ * The test version of a result. A VIEWER of a course gets it without answers until the item reveals them.
+ */
+export const resultsGetTest = <ThrowOnError extends boolean = false>(options: Options<ResultsGetTestData, ThrowOnError>) => (options.client ?? client).get<ResultsGetTestResponses, ResultsGetTestErrors, ThrowOnError>({ url: '/api/v1/results/{result_id}/test', ...options });
+
+/**
  * List
  */
 export const questionsList = <ThrowOnError extends boolean = false>(options?: Options<QuestionsListData, ThrowOnError>) => (options?.client ?? client).get<QuestionsListResponses, QuestionsListErrors, ThrowOnError>({ url: '/api/v1/questions', ...options });
@@ -338,6 +345,8 @@ export const answersChallenge = <ThrowOnError extends boolean = false>(options: 
  * List
  *
  * Fetch questions for review. SRS-prioritised by default, random in practice mode.
+ *
+ * `scope`: `all` (personal + courses with Include in Review on), `personal`, or one course id.
  */
 export const reviewList = <ThrowOnError extends boolean = false>(options?: Options<ReviewListData, ThrowOnError>) => (options?.client ?? client).get<ReviewListResponses, ReviewListErrors, ThrowOnError>({ url: '/api/v1/review/questions', ...options });
 
@@ -464,6 +473,17 @@ export const notesEditChunk = <ThrowOnError extends boolean = false>(options: Op
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Copy To Library
+ *
+ * Copy a readable note (for example a course note) into the personal notes, in the root folder.
+ */
+export const notesCopyToLibrary = <ThrowOnError extends boolean = false>(options: Options<NotesCopyToLibraryData, ThrowOnError>) => (options.client ?? client).post<NotesCopyToLibraryResponses, NotesCopyToLibraryErrors, ThrowOnError>({
+    responseTransformer: notesCopyToLibraryResponseTransformer,
+    url: '/api/v1/notes/{note_id}/copy-to-library',
+    ...options
 });
 
 /**
@@ -809,11 +829,135 @@ export const spacesDeleteItem = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
+ * Update Item
+ *
+ * The attempt policy of a draft TEST item.
+ */
+export const spacesUpdateItem = <ThrowOnError extends boolean = false>(options: Options<SpacesUpdateItemData, ThrowOnError>) => (options.client ?? client).patch<SpacesUpdateItemResponses, SpacesUpdateItemErrors, ThrowOnError>({
+    responseTransformer: spacesUpdateItemResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/items/{item_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Make Item Editable
  *
  * The id of the note / test to edit for this item (its draft twin is made on the first call).
+ *
+ * TEST items: `test_id` picks the variant (default: the first one).
  */
 export const spacesMakeItemEditable = <ThrowOnError extends boolean = false>(options: Options<SpacesMakeItemEditableData, ThrowOnError>) => (options.client ?? client).post<SpacesMakeItemEditableResponses, SpacesMakeItemEditableErrors, ThrowOnError>({ url: '/api/v1/spaces/{space_id}/items/{item_id}/draft', ...options });
+
+/**
+ * Add Variant
+ */
+export const spacesAddVariant = <ThrowOnError extends boolean = false>(options: Options<SpacesAddVariantData, ThrowOnError>) => (options.client ?? client).post<SpacesAddVariantResponses, SpacesAddVariantErrors, ThrowOnError>({
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/variants',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Reorder Variants
+ */
+export const spacesReorderVariants = <ThrowOnError extends boolean = false>(options: Options<SpacesReorderVariantsData, ThrowOnError>) => (options.client ?? client).put<SpacesReorderVariantsResponses, SpacesReorderVariantsErrors, ThrowOnError>({
+    responseTransformer: spacesReorderVariantsResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/variants/order',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove Variant
+ */
+export const spacesRemoveVariant = <ThrowOnError extends boolean = false>(options: Options<SpacesRemoveVariantData, ThrowOnError>) => (options.client ?? client).delete<SpacesRemoveVariantResponses, SpacesRemoveVariantErrors, ThrowOnError>({
+    responseTransformer: spacesRemoveVariantResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/variants/{test_id}',
+    ...options
+});
+
+/**
+ * Unmark Done
+ */
+export const spacesUnmarkDone = <ThrowOnError extends boolean = false>(options: Options<SpacesUnmarkDoneData, ThrowOnError>) => (options.client ?? client).delete<SpacesUnmarkDoneResponses, SpacesUnmarkDoneErrors, ThrowOnError>({
+    responseTransformer: spacesUnmarkDoneResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/completion',
+    ...options
+});
+
+/**
+ * Mark Done
+ *
+ * Mark a note as done.
+ */
+export const spacesMarkDone = <ThrowOnError extends boolean = false>(options: Options<SpacesMarkDoneData, ThrowOnError>) => (options.client ?? client).post<SpacesMarkDoneResponses, SpacesMarkDoneErrors, ThrowOnError>({
+    responseTransformer: spacesMarkDoneResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/completion',
+    ...options
+});
+
+/**
+ * Update Membership
+ *
+ * The own settings of the member: include the course questions in Review (SRS).
+ */
+export const spacesUpdateMembership = <ThrowOnError extends boolean = false>(options: Options<SpacesUpdateMembershipData, ThrowOnError>) => (options.client ?? client).patch<SpacesUpdateMembershipResponses, SpacesUpdateMembershipErrors, ThrowOnError>({
+    responseTransformer: spacesUpdateMembershipResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/membership',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Visit
+ *
+ * Remember the item the student opened last.
+ */
+export const spacesVisit = <ThrowOnError extends boolean = false>(options: Options<SpacesVisitData, ThrowOnError>) => (options.client ?? client).post<SpacesVisitResponses, SpacesVisitErrors, ThrowOnError>({
+    url: '/api/v1/spaces/{space_id}/visit',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Start Attempt
+ *
+ * Start an attempt on a TEST item, or resume the open one.
+ */
+export const spacesStartAttempt = <ThrowOnError extends boolean = false>(options: Options<SpacesStartAttemptData, ThrowOnError>) => (options.client ?? client).post<SpacesStartAttemptResponses, SpacesStartAttemptErrors, ThrowOnError>({
+    responseTransformer: spacesStartAttemptResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/attempts',
+    ...options
+});
+
+/**
+ * Submit Attempt
+ */
+export const spacesSubmitAttempt = <ThrowOnError extends boolean = false>(options: Options<SpacesSubmitAttemptData, ThrowOnError>) => (options.client ?? client).post<SpacesSubmitAttemptResponses, SpacesSubmitAttemptErrors, ThrowOnError>({
+    responseTransformer: spacesSubmitAttemptResponseTransformer,
+    url: '/api/v1/spaces/{space_id}/attempts/{attempt_id}/submit',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Join

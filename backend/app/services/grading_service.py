@@ -19,6 +19,7 @@ from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test_result import TestResult
 from app.schemas.question import LongTextContent, RubricItem
+from app.services import space_progress_service
 from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
 from app.services.llm import CompletionResult, LLMClient, get_user_llm_client
 
@@ -137,6 +138,8 @@ def recalculate_test_result(db: Session, test_result: TestResult) -> None:
     test_result.pending_answers = pending
     test_result.earned_points = round(earned_pts, 2)
     test_result.score = score
+    # Flush so SQL readers (the completion recheck) see the new score; sessions use autoflush=False
+    db.flush()
 
 
 def _mark_all_pending_as_failed(db: Session, test_result_id: str) -> None:
@@ -149,6 +152,7 @@ def _mark_all_pending_as_failed(db: Session, test_result_id: str) -> None:
             if answer.status == int(AnswerStatus.PENDING):
                 answer.status = int(AnswerStatus.FAILED)
         recalculate_test_result(db, test_result)
+        space_progress_service.recheck_result_completion(db, test_result=test_result)
         db.commit()
         logger.error("Marked all pending answers as FAILED for TestResult %s", test_result_id)
     except Exception:
@@ -246,6 +250,7 @@ def grade_pending_answers(test_result_id: str) -> None:
                 answer.status = int(AnswerStatus.FAILED)
 
         recalculate_test_result(db, test_result)
+        space_progress_service.recheck_result_completion(db, test_result=test_result)
         db.commit()
 
         logger.info(

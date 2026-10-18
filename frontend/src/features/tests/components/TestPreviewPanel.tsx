@@ -2,9 +2,9 @@
 
 import { useTranslations } from 'next-intl';
 
-import { type QuestionRead, type TestRead } from '@/client';
+import { type TestRead } from '@/client';
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
-import { buildExamItems, ExamItemType } from '@/features/history/components/resultDetailUtils';
+import { buildExamItems, ExamItemType, type ResultQuestion } from '@/features/history/components/resultDetailUtils';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
 import { Routes } from '@/lib/routes';
 
@@ -57,7 +57,7 @@ export function TestPreviewPanel({ test, onClose }: Props) {
   );
 }
 
-function QuestionLine({ question, number }: { question: QuestionRead; number?: number }) {
+function QuestionLine({ question, number }: { question: ResultQuestion; number?: number }) {
   const t = useTranslations();
   const { icon: Icon, labelKey } = getQuestionTypeInfo(question.questionType);
 

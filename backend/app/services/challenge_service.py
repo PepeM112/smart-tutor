@@ -18,6 +18,7 @@ from app.models.answer import Answer
 from app.models.question import Question
 from app.schemas.answer import ChallengeRequest
 from app.schemas.question import LongTextContent
+from app.services import space_progress_service
 from app.services.challenge_prompts import CHALLENGE_SYSTEM_PROMPT, build_challenge_user_prompt
 from app.services.grading_prompts import strip_code_fences
 from app.services.grading_service import effective_met, recalculate_test_result
@@ -234,6 +235,7 @@ def process_challenge(answer_id: str) -> None:
                 test_result = answer_crud.get_test_result_with_answers(db, test_result_id=answer.test_result_id)
                 if test_result is not None:
                     recalculate_test_result(db, test_result)
+                    space_progress_service.recheck_result_completion(db, test_result=test_result)
 
         db.commit()
 

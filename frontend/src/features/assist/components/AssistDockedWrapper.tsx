@@ -4,6 +4,7 @@ import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 import { useAssistContext } from '../context/AssistContext';
+import { useIsAssistHidden } from '../store/useAssistHiddenStore';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
 
 import { AssistDockedColumn } from './AssistDockedColumn';
@@ -17,9 +18,10 @@ export function AssistDockedWrapper() {
   const { isXl } = useBreakpoint();
   const mode = useAssistPanelStore(s => s.mode);
   const isOpen = useAssistPanelStore(s => s.isOpen);
+  const isHidden = useIsAssistHidden();
   const { turns, isStreaming, send, stop, confirm, clear } = useAssistContext();
 
-  if (!aiAvailable || !isXl || mode !== 'docked' || !isOpen) return null;
+  if (!aiAvailable || isHidden || !isXl || mode !== 'docked' || !isOpen) return null;
 
   return (
     <AssistDockedColumn

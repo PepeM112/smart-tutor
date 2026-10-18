@@ -41,7 +41,13 @@ Users can browse their result history to track progress over time on specific te
 
 If a test is edited after an exam, copy-on-write versioning ensures the result still shows the test as it was when taken. The result's `test_id` points to a frozen version, not the current canonical test. See [Content Model — Test Versioning](content-model.md#test-versioning-copy-on-write) for full details.
 
-On the result detail page, if the result points to a frozen version (`test.parentId != null`), the frontend shows a "newer version exists" indicator. The result content (questions, answers, scores) always reflects the version the user actually took.
+On the result detail page and the history row, if the result points to a frozen version (`isOlderVersion`), the frontend shows an "older version" icon with a tooltip. The result content (questions, answers, scores) always reflects the version the user actually took.
+
+The result page reads its test from `GET /results/{id}/test` (personal and course results). For a course result, the answer key follows the `reveal_answers` policy of the item: when it is hidden, the endpoint removes the correct answers, the rubric and the explanations. A course result shows the course title in the history list.
+
+### Course tests
+
+A course test is taken through a course attempt (`POST /spaces/{id}/items/{iid}/attempts`), not through `GET /tests/{id}/exam` (403 for a VIEWER). The attempt pins the variant and the test version, and can have a timer (`deadline_at`, 60 s grace). The submit grades the version the student started, also after a publish. In-progress answers are kept in `localStorage`. See [Spaces — Progress and course tests](spaces.md#progress-and-course-tests-m3).
 
 ## Weighted Scoring
 

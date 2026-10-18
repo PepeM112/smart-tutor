@@ -15,6 +15,15 @@ from app.schemas.space import SpaceCatalogSort, SpaceListStatus, SpaceUpdate
 STANDALONE_COURSE = (Space.kind == int(SpaceKind.COURSE), Space.parent_id.is_(None))
 
 
+def joined_space_ids(*, user_id: str) -> Select[tuple[str]]:
+    """The ids of the spaces where `user_id` is an ACTIVE member. INVITED, REQUESTED and left spaces
+    are not in it. The owner has no member row, so the spaces they own are not in it either.
+    """
+    return select(SpaceMember.space_id).where(
+        SpaceMember.user_id == user_id, SpaceMember.status == int(MemberStatus.ACTIVE)
+    )
+
+
 def get_by_id(db: Session, *, id: str) -> Space | None:
     stmt = select(Space).where(Space.id == id)
     return db.scalars(stmt).first()

@@ -2,21 +2,23 @@
 
 import { useTranslations } from 'next-intl';
 
-import { type AnswerRead, type QuestionRead } from '@/client';
+import { type AnswerRead } from '@/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong } from './resultDetailUtils';
+import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong, type ResultQuestion } from './resultDetailUtils';
 import { StatusIcon } from './StatusIcon';
 
 export function VocabularyReviewTable({
   questions,
   answerMap,
 }: {
-  questions: QuestionRead[];
+  questions: ResultQuestion[];
   answerMap: Map<string, AnswerRead>;
 }) {
   const t = useTranslations();
+  // A stripped test (a course attempt that hides the answers) has no answer key: the column would be empty (F17).
+  const hasAnswerKey = questions.some(q => getCorrectAnswer(q) !== '');
 
   return (
     <Table>
@@ -25,7 +27,7 @@ export function VocabularyReviewTable({
           <TableHead className="w-12">#</TableHead>
           <TableHead>{t('history.column_question')}</TableHead>
           <TableHead>{t('history.column_your_answer')}</TableHead>
-          <TableHead>{t('history.correct_answer')}</TableHead>
+          {hasAnswerKey && <TableHead>{t('history.correct_answer')}</TableHead>}
           <TableHead className="w-32 text-right">{t('history.column_result')}</TableHead>
         </TableRow>
       </TableHeader>
@@ -46,9 +48,11 @@ export function VocabularyReviewTable({
                   {(answer && getUserAnswerDisplay(q, answer.userAnswer)) ?? t('history.no_answer')}
                 </span>
               </TableCell>
-              <TableCell>
-                <span className="text-feedback-correct font-medium">{getCorrectAnswer(q)}</span>
-              </TableCell>
+              {hasAnswerKey && (
+                <TableCell>
+                  <span className="text-feedback-correct font-medium">{getCorrectAnswer(q)}</span>
+                </TableCell>
+              )}
               <TableCell className="text-right">
                 <StatusIcon status={status} className="ml-auto" />
               </TableCell>

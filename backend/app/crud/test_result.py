@@ -2,11 +2,14 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
 
+import sqlalchemy as sa
 from sqlalchemy import UnaryExpression, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, selectinload
 
 from app.crud.helpers import token_search
 from app.models.answer import Answer
+from app.models.space import Space
+from app.models.space_item import SpaceItem
 from app.models.test import Test
 from app.models.test_result import TestResult
 from app.schemas.test_result import SortOrder, TestResultSortBy
@@ -46,10 +49,14 @@ def list_by_user(
     sort_order: SortOrder = "desc",
     page: int = 1,
     per_page: int = 20,
-) -> tuple[Sequence[TestResult], int]:
+) -> tuple[Sequence[tuple[TestResult, str | None]], int]:
+    """The results of the user, newest first by default. Each row has the title of its course, or None
+    for a personal result. A frozen version keeps the `space_id` of its test, so old attempts keep the label.
+    """
     stmt = (
-        select(TestResult)
+        select(TestResult, Space.title)
         .join(Test, TestResult.test_id == Test.id)
+        .outerjoin(Space, Test.space_id == Space.id)
         .options(contains_eager(TestResult.test))
         .where(TestResult.user_id == user_id)
     )
@@ -69,8 +76,8 @@ def list_by_user(
     total = db.scalar(count_stmt) or 0
 
     stmt = stmt.order_by(_sort_clause(sort_by, sort_order)).offset((page - 1) * per_page).limit(per_page)
-    results = db.scalars(stmt).all()
-    return results, total
+    rows = db.execute(stmt).tuples().all()
+    return rows, total
 
 
 def create(
@@ -85,10 +92,12 @@ def create(
     earned_points: float,
     total_points: float,
     answers: list[Answer],
+    space_item_id: str | None = None,
 ) -> TestResult:
     test_result = TestResult(
         test_id=test_id,
         user_id=user_id,
+        space_item_id=space_item_id,
         score=score,
         total_questions=total_questions,
         correct_answers=correct_answers,
@@ -100,3 +109,24 @@ def create(
     db.add(test_result)
     db.flush()
     return test_result
+
+
+def best_scores_by_item(db: Session, *, user_id: str, item_ids: Sequence[str]) -> dict[str, float]:
+    """`{space item id: best score (0..100)}` of the user. Results with an answer still being graded are skipped.
+
+    Only results created after the item's `progress_reset_at` count (all results when it is NULL).
+    """
+    if not item_ids:
+        return {}
+    stmt = (
+        select(TestResult.space_item_id, func.max(TestResult.score))
+        .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
+        .where(
+            TestResult.user_id == user_id,
+            TestResult.space_item_id.in_(item_ids),
+            TestResult.pending_answers == 0,
+            sa.or_(SpaceItem.progress_reset_at.is_(None), TestResult.created_at > SpaceItem.progress_reset_at),
+        )
+        .group_by(TestResult.space_item_id)
+    )
+    return {item_id: score for item_id, score in db.execute(stmt).all() if item_id is not None}

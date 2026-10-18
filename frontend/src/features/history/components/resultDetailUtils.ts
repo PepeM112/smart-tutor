@@ -2,12 +2,23 @@ import {
   AnswerStatus,
   type AnswerRead,
   type QuestionRead,
+  type QuestionReadStripped,
   type RubricResultItem,
   QuestionType,
   type TestQuestionGroupRead,
+  type TestQuestionGroupReadStripped,
   type TestRead,
+  type TestReadStripped,
 } from '@/client';
 import { isMCContent, isSimpleContent, parseMcAnswer } from '@/features/tests/utils/questionContent';
+
+/**
+ * A result shows the test as it was taken. When the student may not see the answers yet
+ * (course tests, `RevealAnswers`), the API sends the stripped forms: no answer key, no rubric.
+ */
+export type ResultTest = TestRead | TestReadStripped;
+export type ResultQuestion = QuestionRead | QuestionReadStripped;
+export type ResultGroup = TestQuestionGroupRead | TestQuestionGroupReadStripped;
 
 export enum ExamItemType {
   QUESTION = 'question',
@@ -15,10 +26,10 @@ export enum ExamItemType {
 }
 
 export type ExamItem =
-  | { type: ExamItemType.QUESTION; question: QuestionRead; order: number }
-  | { type: ExamItemType.GROUP; group: TestQuestionGroupRead; order: number };
+  | { type: ExamItemType.QUESTION; question: ResultQuestion; order: number }
+  | { type: ExamItemType.GROUP; group: ResultGroup; order: number };
 
-export function buildExamItems(test: TestRead): ExamItem[] {
+export function buildExamItems(test: ResultTest): ExamItem[] {
   const items: ExamItem[] = [
     ...(test.questions ?? []).map(q => ({ type: ExamItemType.QUESTION as const, question: q, order: q.order ?? 0 })),
     ...(test.questionGroups ?? []).map(g => ({ type: ExamItemType.GROUP as const, group: g, order: g.order ?? 0 })),
@@ -36,7 +47,7 @@ export function effectiveMet(item: RubricResultItem): boolean {
 
 export type QuestionScore = { label: string; pct: number };
 
-export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRead): QuestionScore | null {
+export function computeQuestionScore(answer?: AnswerRead, question?: ResultQuestion): QuestionScore | null {
   if (!answer || answer.status === AnswerStatus.PENDING) return null;
 
   const maxPoints = question?.points ?? 1;
@@ -63,7 +74,7 @@ export function computeQuestionScore(answer?: AnswerRead, question?: QuestionRea
   return { label: `${earned.toFixed(2)}/${maxPoints.toFixed(2)}`, pct };
 }
 
-export function getCorrectAnswer(question: QuestionRead): string {
+export function getCorrectAnswer(question: ResultQuestion): string {
   const { content } = question;
   if (question.questionType === QuestionType.SIMPLE && isSimpleContent(content)) {
     return content.answers.join(', ');
@@ -81,11 +92,18 @@ export function parseSelectedIndices(userAnswer: string): number[] {
   return parseMcAnswer(userAnswer);
 }
 
-export function getUserAnswerDisplay(question: QuestionRead, userAnswer: string): string {
+/** The options of a multiple choice question. A stripped question has them too, but no answer key. */
+export function getMcOptions(question: ResultQuestion): string[] | null {
   const { content } = question;
-  if (question.questionType === QuestionType.MULTIPLE_CHOICE && isMCContent(content)) {
+  if (question.questionType !== QuestionType.MULTIPLE_CHOICE) return null;
+  return 'options' in content && Array.isArray(content.options) ? content.options : null;
+}
+
+export function getUserAnswerDisplay(question: ResultQuestion, userAnswer: string): string {
+  const options = getMcOptions(question);
+  if (options) {
     return parseSelectedIndices(userAnswer)
-      .map(i => content.options[i])
+      .map(i => options[i])
       .filter(Boolean)
       .join(', ');
   }
@@ -97,7 +115,7 @@ export function isAnswerWrong(status: AnswerStatus | null): boolean {
 }
 
 // PARTIAL answers earn half credit toward the group's score
-export function countCorrectInGroup(questions: QuestionRead[], answerMap: Map<string, AnswerRead>): number {
+export function countCorrectInGroup(questions: ResultQuestion[], answerMap: Map<string, AnswerRead>): number {
   return questions.reduce((sum, q) => {
     const status = answerMap.get(q.id)?.status;
     if (status === AnswerStatus.CORRECT) return sum + 1;

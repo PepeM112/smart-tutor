@@ -134,16 +134,19 @@ Chunks and their embeddings are stored in a `NoteChunk` model with a `Vector(153
 
 Embedding generation is deferred to avoid an embedding call on every autosave keystroke:
 
-1. A note is created or generated through the API — `index_note()` fires as a `BackgroundTask` immediately. A note made by the Assistant's `create_note` tool is not indexed at once (the embedding call would hold the chat stream); step 4 indexes it.
+1. A note is created or generated through the API — `index_note()` fires as a `BackgroundTask` immediately. A note made by the Assistant's `create_note` tool is not indexed at once (the embedding call would hold the chat stream); step 5 indexes it.
 2. An autosave (`PATCH /notes/{id}` with content/title/tags) sets `note.is_indexed = False` but does **not** schedule indexing.
 3. When the user leaves the note, the frontend sends a final `PATCH` with `reindex: true`. The endpoint then schedules `index_note()` as a `BackgroundTask`.
-4. Before any semantic search, `search_notes()` finds all notes with `is_indexed = False` for that user and indexes them before running the query, each through `note_service.schedule_indexing` (its own session, so the request session is never committed or rolled back by the indexing). A failure on one note is logged and skipped.
+4. A course publish schedules `index_note()` for the changed published notes. Draft notes are never indexed (`index_note()` returns early).
+5. Before any semantic search, `search_notes()` finds all notes with `is_indexed = False` that the user can read (personal + published notes of joined courses) and indexes them before running the query, each through `note_service.schedule_indexing` (its own session, so the request session is never committed or rolled back by the indexing). A failure on one note is logged and skipped.
 
 `index_note()` itself: takes a per-note advisory lock (`pg_try_advisory_xact_lock`; if another run holds it, this run is skipped, so two runs never store two chunk sets) → deletes existing chunks → prepends a title/tags header → splits text into ~500-token chunks → batch-embeds via OpenAI → `bulk_create` chunks → sets `note.is_indexed = True` only if the note is still at the version read at the start (an autosave during the embedding call leaves it stale for the next run) → records token usage under `AIFeature.EMBEDDING`.
 
 ### Semantic search
 
-The `search_user_notes` tool (available to the AI Assistant) embeds the query string, then finds the top-k chunks (default 5, max 10) by cosine similarity, filtered to the current user's live notes (`deleted_at IS NULL`). The Assistant receives the matched note titles and chunk text as context, which it uses to answer questions grounded in the user's own material. Trashed notes are excluded from both indexing and search — `index_note()` skips a note that is in Trash, and the chunk similarity query joins on `note` to filter trashed notes out.
+The `search_user_notes` tool (available to the AI Assistant) embeds the query string, then finds the top-k chunks (default 5, max 10) by cosine similarity, filtered to the notes the user can read (`crud/note.readable_by_assistant`): the live personal notes (`deleted_at IS NULL`) and the published notes of spaces where the user is an ACTIVE member. Never drafts, never a space the user left, never INVITED / REQUESTED. The Assistant receives the matched note titles and chunk text as context, which it uses to answer questions grounded in the user's own material. Trashed notes are excluded from both indexing and search — `index_note()` skips a note that is in Trash, and the chunk similarity query joins on `note` to filter trashed notes out.
+
+AI test generation from a course note creates a **personal** test (`source_note_id` = the course note). "Copy to my library" (`POST /notes/{id}/copy-to-library`) makes a personal copy with no link.
 
 The Files page search does not use embeddings. Its content search (`GET /notes/search`) is a plain `ILIKE` on the note content. The title is not searched. Notes whose title does not match are listed first (see [Study Notes](study-notes.md#search)).
 

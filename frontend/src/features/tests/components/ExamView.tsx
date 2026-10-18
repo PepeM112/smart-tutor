@@ -2,7 +2,7 @@
 
 import { Loader2, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   LongTextLength,
@@ -24,6 +24,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
 import { parseMcAnswer, toggleMcOption } from '../utils/questionContent';
 
+import { Countdown } from './Countdown';
+
 type ExamItem =
   | { kind: 'question'; question: QuestionReadStripped; order: number }
   | { kind: 'group'; group: TestQuestionGroupReadStripped; order: number };
@@ -32,36 +34,67 @@ type Props = {
   test: TestReadStripped;
   onSubmit: (answers: Record<string, string>) => void;
   isSubmitting: boolean;
+  /** Answers to start with, for example the ones saved before a reload. Read once. */
+  initialAnswers?: Record<string, string>;
+  /** Runs with all answers after each change, for example to save them. */
+  onAnswersChange?: (answers: Record<string, string>) => void;
+  /** With a deadline: a countdown shows, and the exam submits itself at 0. */
+  deadlineAt?: Date | null;
 };
 
-export function ExamView({ test, onSubmit, isSubmitting }: Props) {
+export function ExamView({ test, onSubmit, isSubmitting, initialAnswers, onAnswersChange, deadlineAt }: Props) {
   const t = useTranslations();
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers ?? {});
   const items = buildExamItems(test);
 
   const allQuestions = items.flatMap(item =>
     item.kind === 'question' ? [item.question] : (item.group.questions ?? [])
   );
 
+  // The latest values for the timer, which must not restart on each keystroke.
+  const latest = useRef({ answers, onSubmit, onAnswersChange });
+  useEffect(() => {
+    latest.current = { answers, onSubmit, onAnswersChange };
+  });
+
+  const updateAnswers = (update: (prev: Record<string, string>) => Record<string, string>) => {
+    const next = update(latest.current.answers);
+    // Set at once: two changes in one tick must both count.
+    latest.current = { ...latest.current, answers: next };
+    setAnswers(next);
+    onAnswersChange?.(next);
+  };
+
   const handleTextChange = (questionId: string, value: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: value }));
+    updateAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
   const handleCheckboxToggle = (questionId: string, index: number) => {
-    setAnswers(prev => ({
+    updateAnswers(prev => ({
       ...prev,
       [questionId]: toggleMcOption(prev[questionId] ?? '', index),
     }));
   };
 
-  const handleSubmit = () => {
-    onSubmit(answers);
+  // One guard for both submit paths (the button and the timeout): a timeout during a slow manual
+  // submit must not send a second request. A failed submit (`isSubmitting` back to false) opens it again.
+  const hasSubmitted = useRef(false);
+  useEffect(() => {
+    if (!isSubmitting) hasSubmitted.current = false;
+  }, [isSubmitting]);
+
+  const submitOnce = () => {
+    if (hasSubmitted.current) return;
+    hasSubmitted.current = true;
+    latest.current.onSubmit(latest.current.answers);
   };
 
   let itemNumber = 0;
 
   return (
     <div className="space-y-6">
+      {deadlineAt && <Countdown deadlineAt={deadlineAt} onTimeout={submitOnce} />}
+
       {/* Test title */}
       <h2 className="text-2xl font-bold text-balance">{test.title}</h2>
       {test.description && <p className="text-sm text-muted-foreground -mt-4">{test.description}</p>}
@@ -125,7 +158,7 @@ export function ExamView({ test, onSubmit, isSubmitting }: Props) {
         <Button
           size="lg"
           icon={isSubmitting ? Loader2 : Send}
-          onClick={handleSubmit}
+          onClick={submitOnce}
           disabled={isSubmitting || allQuestions.length === 0}
         >
           {isSubmitting ? t('exam.submitting') : t('exam.submit_exam')}

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from app.models.note import Note
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.assist.tools")
@@ -93,17 +94,28 @@ def search_user_notes(db: Session, *, current_user: User, arguments: dict[str, o
     if not relevant:
         return ToolResult(output="No matching notes found.")
 
-    # Resolve folder paths for result note IDs in one pass.
+    # Resolve the location of each result note in one pass: a folder path, or the course of a space note.
     note_ids = list({r.note_id for r in relevant})
-    # `search_by_similarity` already skips trashed notes; this lookup is only for the folder id.
-    notes_map = {n.id: n for n in note_crud.list_live_by_ids(db, user_id=current_user.id, ids=note_ids)}
+    # `search_by_similarity` already skips trashed notes and applies the access rule (personal or
+    # published notes of the user's spaces). The ids come from it, so this lookup has no access check.
+    notes_map = {n.id: n for n in note_crud.list_by_ids(db, ids=note_ids)}
     folders = folder_service.load_folder_map(db, user_id=current_user.id, include_trashed=False)
+    course_titles = {
+        space.id: space.title
+        for space in (
+            space_crud.get_by_id(db, id=sid) for sid in {n.space_id for n in notes_map.values() if n.space_id}
+        )
+        if space is not None
+    }
+
+    def location_of(note: Note | None) -> str:
+        if note is not None and note.space_id is not None:
+            return f"course '{course_titles.get(note.space_id, '')}'"
+        return location_label(folders, note.folder_id if note else None)
 
     lines = [f"Found {len(relevant)} relevant chunk(s):"]
     for r in relevant:
-        note = notes_map.get(r.note_id)
-        folder_id = note.folder_id if note else None
-        location = location_label(folders, folder_id)
+        location = location_of(notes_map.get(r.note_id))
         sim = f"{r.similarity:.3f}"
         lines.append(f"\n**{note_label(r.note_title)}** (ID: `{r.note_id}`, location: {location}, sim: {sim})")
         lines.append(r.chunk_content)
@@ -233,7 +245,8 @@ LIST_NOTES = ToolSpec(
 SEARCH_USER_NOTES = ToolSpec(
     name="search_user_notes",
     description=(
-        "Semantically search the user's study notes using AI embeddings. "
+        "Semantically search the user's study notes, and the published notes of the courses the user joined, "
+        "using AI embeddings. "
         "Returns the most relevant text chunks from notes that match the query meaning — "
         "finds notes by topic, tags, and content, not just title keywords. "
         "PREFERRED tool when the user asks about a subject or topic (e.g. 'history', "

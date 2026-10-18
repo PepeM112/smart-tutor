@@ -10,23 +10,30 @@ import logging
 import sys
 
 from seed_data.clean import clean_user_spaces
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.core.enums import SpaceItemKind, SpaceRole, SpaceVisibility
+from app.core.enums import AnswerStatus, QuestionType, RevealAnswers, SpaceItemKind, SpaceRole, SpaceVisibility
 from app.database import SessionLocal
+from app.models.answer import Answer
 from app.models.note import Note
+from app.models.question import Question
 from app.models.space import Space
+from app.models.space_item import SpaceItem
 from app.models.test import Test
+from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.space import (
     SpaceCreate,
     SpaceItemCopy,
     SpaceItemCreate,
+    SpaceItemUpdate,
     SpacePublishRequest,
     SpaceSectionCreate,
+    SpaceVariantCreate,
 )
 from app.services import space_draft_service, space_member_service, space_service
+from app.services.versioning_service import version_test_if_needed
 
 logging.disable(logging.DEBUG)
 
@@ -169,6 +176,139 @@ def seed_archived(db: Session, owner: User, viewer: User) -> str:
     return space_id
 
 
+def add_question(db: Session, owner: User, test_id: str, prompt: str, answer: str) -> None:
+    question = Question(
+        user_id=owner.id,
+        test_id=test_id,
+        question_type=QuestionType.SIMPLE,
+        prompt=prompt,
+        content={"answers": [answer]},
+    )
+    db.add(question)
+    db.commit()
+
+
+LONG_NOTE_SECTIONS = 40
+
+
+def long_note_content() -> str:
+    """Markdown taller than any screen: the end-of-note sentinel is far below the fold."""
+    body = "\n\n".join(
+        f"## Part {n}\n\nThis paragraph is filler text for part {n}. It only makes the note long, so the student "
+        "must scroll to read the end of it. " * 3
+        for n in range(1, LONG_NOTE_SECTIONS + 1)
+    )
+    return f"# Long note\n\n{body}\n\nEnd of the long note."
+
+
+def seed_progress(db: Session, owner: User, viewer: User) -> str:
+    """PUBLIC, published: two notes (one long) and a test item with 2 variants, for the progress and attempt specs.
+
+    The test item: 2 attempts, 30 minutes, reveal AFTER_PASS_OR_LAST. Variant A asks for "alpha", variant B
+    for "beta", so a spec can tell which variant an attempt got.
+    """
+    space_id = create(db, owner, "Progress Course", "Notes and a test with 2 variants.", SpaceVisibility.PUBLIC, [])
+    section = add_section(db, owner, space_id, "Unit 1")
+    new_note(db, owner, space_id, section, "Intro note", "# Intro note\n\nRead this note, then take the quiz.")
+    new_note(db, owner, space_id, section, "Long note", long_note_content())
+    first = space_draft_service.create_item(
+        db,
+        space_id=space_id,
+        current_user=owner,
+        data=SpaceItemCreate(section_id=section, kind=SpaceItemKind.TEST, title="Unit quiz A"),
+    )
+    assert first.test_id is not None
+    add_question(db, owner, first.test_id, "Variant A: type alpha", "alpha")
+    second = space_draft_service.add_variant(
+        db,
+        space_id=space_id,
+        item_id=test_item_id(db, space_id),
+        current_user=owner,
+        data=SpaceVariantCreate(title="Unit quiz B"),
+    )
+    assert second.test_id is not None
+    add_question(db, owner, second.test_id, "Variant B: type beta", "beta")
+    policy = SpaceItemUpdate(
+        pass_threshold=0.5, max_attempts=2, time_limit_minutes=30, reveal_answers=RevealAnswers.AFTER_PASS_OR_LAST
+    )
+    space_draft_service.update_item(
+        db, space_id=space_id, item_id=test_item_id(db, space_id), current_user=owner, data=policy
+    )
+    publish(db, owner, space_id, "Initial")
+    add_member(db, owner, space_id, viewer, SpaceRole.VIEWER)
+    return space_id
+
+
+def test_item_id(db: Session, space_id: str) -> str:
+    item = db.scalars(
+        select(SpaceItem).where(SpaceItem.space_id == space_id, SpaceItem.kind == int(SpaceItemKind.TEST))
+    ).first()
+    assert item is not None
+    return item.id
+
+
+OLDER_VERSION_TEST = "Older version test"
+
+
+def clean_older_version_test(db: Session, user: User) -> None:
+    """Delete the personal test of `seed_older_version_result`, its snapshot and its results (idempotent).
+
+    The snapshot keeps the first title and the edited test ends with "(edited)", so one LIKE finds both.
+    It does not use `clean_user_data`: that would delete all personal data of the user.
+    """
+    params = {"uid": user.id, "title": f"{OLDER_VERSION_TEST}%"}
+    tests = "SELECT id FROM test WHERE user_id = :uid AND space_id IS NULL AND title LIKE :title"
+    results = f"SELECT id FROM test_result WHERE test_id IN ({tests})"
+    db.execute(text(f"DELETE FROM answer WHERE test_result_id IN ({results})"), params)
+    db.execute(text(f"DELETE FROM test_result WHERE test_id IN ({tests})"), params)
+    db.execute(text(f"DELETE FROM question WHERE test_id IN ({tests})"), params)
+    db.execute(text("DELETE FROM test WHERE user_id = :uid AND space_id IS NULL AND title LIKE :title"), params)
+    db.commit()
+
+
+def seed_older_version_result(db: Session, viewer: User) -> None:
+    """A personal test of the viewer with one result, then an edit of the test.
+
+    The edit goes through `version_test_if_needed`, so the result points to a frozen snapshot and the
+    results table shows the "older version" icon. A personal test is used on purpose: a result on a course
+    test would use an attempt of the Progress Course and change its "attempts left".
+    """
+    clean_older_version_test(db, viewer)
+    test = Test(title=OLDER_VERSION_TEST, description="Edited after its first result.", user_id=viewer.id)
+    db.add(test)
+    db.flush()
+    question = Question(
+        user_id=viewer.id,
+        question_type=int(QuestionType.SIMPLE),
+        prompt="Type gamma",
+        content={"answers": ["gamma"]},
+        test_id=test.id,
+        order=1,
+        points=1.0,
+    )
+    db.add(question)
+    db.flush()
+    db.add(
+        TestResult(
+            test_id=test.id,
+            user_id=viewer.id,
+            total_questions=1,
+            correct_answers=1,
+            pending_answers=0,
+            earned_points=1.0,
+            total_points=1.0,
+            score=100.0,
+            answers=[Answer(question_id=question.id, user_answer="gamma", status=int(AnswerStatus.CORRECT))],
+        )
+    )
+    db.flush()
+    # The edit: the result keeps the old content in the snapshot, the canonical test changes.
+    version_test_if_needed(db, test=test)
+    test.title = f"{OLDER_VERSION_TEST} (edited)"
+    question.prompt = "Type gamma (edited)"
+    db.commit()
+
+
 def seed_other_owner(db: Session, editor: User) -> str:
     """A PUBLIC course of another user: the main user sees it in the catalog as a non-member."""
     space_id = create(
@@ -196,8 +336,13 @@ ids = {
     "Private Study Group": seed_private(db, owner, viewer, outsider),
     "Draft Course": seed_unpublished(db, owner),
     "Old Course": seed_archived(db, owner, viewer),
+    "Progress Course": seed_progress(db, owner, viewer),
     "Intro to Chemistry": seed_other_owner(db, editor),
 }
+print("done\n")
+
+print("Creating the older version result... ", end="", flush=True)
+seed_older_version_result(db, viewer)
 print("done\n")
 
 for title, space_id in ids.items():

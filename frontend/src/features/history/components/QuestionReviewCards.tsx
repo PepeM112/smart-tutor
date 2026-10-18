@@ -2,7 +2,7 @@
 
 import { Loader2 } from 'lucide-react';
 
-import { AnswerStatus, type AnswerRead, type QuestionRead } from '@/client';
+import { AnswerStatus, type AnswerRead } from '@/client';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   getScoreTextColor,
@@ -14,7 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import { NumberedScoreRow } from './NumberedScoreRow';
-import { computeQuestionScore } from './resultDetailUtils';
+import { computeQuestionScore, type ResultQuestion } from './resultDetailUtils';
 
 export function CompactQuestionCard({
   question,
@@ -24,7 +24,7 @@ export function CompactQuestionCard({
   disabled,
   onClick,
 }: {
-  question: QuestionRead;
+  question: ResultQuestion;
   answer?: AnswerRead;
   number: number;
   isSelected: boolean;

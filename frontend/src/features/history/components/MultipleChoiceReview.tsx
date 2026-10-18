@@ -2,30 +2,37 @@
 
 import { CheckCircle2, Circle, MinusCircle, XCircle } from 'lucide-react';
 
-import { type QuestionRead } from '@/client';
 import { isMCContent } from '@/features/tests/utils/questionContent';
 import { cn } from '@/lib/utils';
 
-import { parseSelectedIndices } from './resultDetailUtils';
+import { getMcOptions, parseSelectedIndices, type ResultQuestion } from './resultDetailUtils';
 
-export function MultipleChoiceReview({ question, userAnswer }: { question: QuestionRead; userAnswer: string }) {
+export function MultipleChoiceReview({ question, userAnswer }: { question: ResultQuestion; userAnswer: string }) {
   const { content } = question;
-  if (!isMCContent(content)) return null;
+  const options = getMcOptions(question);
+  if (!options) return null;
 
-  const correctIndices = new Set(content.correctIndices);
+  // A stripped question has no answer key: the review shows only what the student chose.
+  const correctIndices = isMCContent(content) ? new Set(content.correctIndices) : null;
   const selectedIndices = new Set(parseSelectedIndices(userAnswer));
 
   return (
     <div className="space-y-1">
-      {content.options.map((option, idx) => {
+      {options.map((option, idx) => {
         const isSelected = selectedIndices.has(idx);
-        const isCorrect = correctIndices.has(idx);
+        const isCorrect = correctIndices?.has(idx) ?? false;
 
         let bg = '';
         let Icon = Circle;
         let iconColor = 'text-muted-foreground/40';
 
-        if (isSelected && isCorrect) {
+        if (!correctIndices) {
+          if (isSelected) {
+            bg = 'bg-muted';
+            Icon = CheckCircle2;
+            iconColor = 'text-foreground';
+          }
+        } else if (isSelected && isCorrect) {
           bg = 'bg-feedback-correct-bg';
           Icon = CheckCircle2;
           iconColor = 'text-feedback-correct';

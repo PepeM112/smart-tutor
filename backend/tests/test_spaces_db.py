@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.enums import MemberStatus, QuestionStatus, QuestionType, SpaceItemKind, SpaceRole, SpaceVisibility
+from app.crud import space_item_test as space_item_test_crud
 from app.crud import test as test_crud
 from app.models.answer import Answer
 from app.models.note import Note
@@ -285,7 +286,7 @@ class TestDraftEngine:
         course = _publish(db_session, owner, course.id)
 
         viewer = _joined_viewer(db_session, course.id)
-        old_question = test_service.get_takeable_test(db_session, test_id=test_id, current_user=viewer).questions[0]
+        old_question = test_service.get_takeable_test(db_session, test_id=test_id, current_user=owner).questions[0]
         result = ResultRow(test_id=test_id, user_id=viewer.id, total_questions=1, correct_answers=1)
         db_session.add(result)
         db_session.flush()
@@ -307,7 +308,7 @@ class TestDraftEngine:
         _publish(db_session, owner, course.id)
         db_session.expire_all()
 
-        published = test_service.get_takeable_test(db_session, test_id=test_id, current_user=viewer)
+        published = test_service.get_takeable_test(db_session, test_id=test_id, current_user=owner)
         assert published.title == "New"
         assert [q.prompt for q in published.questions] == ["to come"]
         frozen_result = db_session.get(ResultRow, result.id)
@@ -649,7 +650,10 @@ def test_question_of_a_published_course_test_stays_active(db_session: Session, o
 
     statuses = db_session.scalars(select(Question.status).where(Question.test_id == test_id)).all()
     assert list(statuses) == [int(QuestionStatus.ACTIVE)]
-    assert [i.test_id for i in _published_items(db_session, course.id)] == [test_id]
+    links = space_item_test_crud.list_by_items(
+        db_session, item_ids=[i.id for i in _published_items(db_session, course.id)]
+    )
+    assert list(links.values()) == [[test_id]]
 
 
 # ---------------------------------------------------------------------------

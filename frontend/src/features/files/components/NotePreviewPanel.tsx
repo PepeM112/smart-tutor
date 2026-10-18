@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { type ReactNode } from 'react';
 
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
 import { QueryState } from '@/components/shared/QueryState';
@@ -16,6 +17,8 @@ import { fileQueryKeys } from '../lib/queryKeys';
 type Props = {
   noteId: string;
   onClose: () => void;
+  /** Extra header buttons before the favorite button, for example "Mark complete" in a course. */
+  extraActions?: ReactNode;
 };
 
 /**
@@ -23,7 +26,7 @@ type Props = {
  * Keyed by `noteId + updatedAt` so the editor remounts when a different note is shown.
  * No autosave, no AI actions — editable={false}.
  */
-export function NotePreviewPanel({ noteId, onClose }: Props) {
+export function NotePreviewPanel({ noteId, onClose, extraActions }: Props) {
   const t = useTranslations();
 
   const {
@@ -41,7 +44,12 @@ export function NotePreviewPanel({ noteId, onClose }: Props) {
     <PreviewPanelFrame
       title={displayTitle(note?.title, t)}
       openHref={note ? noteHref(note) : undefined}
-      headerActions={<FavoriteButton noteId={noteId} fallbackIsFavorite={note?.isFavorite} />}
+      headerActions={
+        <>
+          {extraActions}
+          <FavoriteButton noteId={noteId} fallbackIsFavorite={note?.isFavorite} />
+        </>
+      }
       onClose={onClose}
       contentKey={noteId}
     >

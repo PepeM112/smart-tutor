@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -63,10 +63,18 @@ type ItemRowProps = {
   actions?: ReactNode;
   /** Leave it out for a static row. */
   action?: ItemRowAction;
+  /** The row that a link or the Assistant pointed at (`?item=`): it is marked and scrolled into view. */
+  isSelected?: boolean;
 };
 
 /** One item row. Lighter than the section header: no band, a hover surface only when it is interactive. */
-export function CourseItemRow({ icon, title, progress, badge, actions, action }: ItemRowProps) {
+export function CourseItemRow({ icon, title, progress, badge, actions, action, isSelected }: ItemRowProps) {
+  const rowRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (isSelected) rowRef.current?.scrollIntoView({ block: 'center' });
+  }, [isSelected]);
+
   const content = (
     <>
       {progress}
@@ -79,8 +87,14 @@ export function CourseItemRow({ icon, title, progress, badge, actions, action }:
 
   return (
     <li
+      ref={rowRef}
+      data-selected={isSelected || undefined}
       // px-3: the row text lines up with the section title in the header bar.
-      className={cn('group flex items-center gap-2 rounded-lg px-3', action && 'transition-colors hover:bg-muted/50')}
+      className={cn(
+        'group flex items-center gap-2 rounded-lg px-3',
+        action && 'transition-colors hover:bg-muted/50',
+        isSelected && 'bg-muted'
+      )}
     >
       {!action ? (
         <div className={bodyClass}>{content}</div>

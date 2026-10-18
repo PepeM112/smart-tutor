@@ -6,7 +6,7 @@ A **space** is a shared learning area. There are two kinds:
 
 Personal content (notes, tests, questions, folders, Trash, SRS) does not change. Space content is a separate scope: `space_id IS NOT NULL`.
 
-> **Status:** M1 and M2 (ST-66) are done: the schema foundation, the access layer, and standalone courses end to end (API + UI). The sections marked *planned* come in later milestones (M3 Progress, M4 Classrooms, M5 Feed and notifications).
+> **Status:** M1 and M2 (ST-66) and M3 (ST-67) are done: the schema foundation, the access layer, standalone courses end to end (API + UI), and progress, course tests with attempt rules, variants and a timer, student AI / RAG and the SRS opt-in. The sections marked *planned* come in later milestones (M4 Classrooms, M5 Feed and notifications).
 
 ---
 
@@ -117,7 +117,7 @@ Personal content (`space_id IS NULL`): only the user with `user_id` has access, 
 - **Source note of a personal test.** A user can generate a personal test from a space note they can read. The test keeps `source_note_id`, so it links to the space note. This is the one link from personal content to space content, and it is intentional (the user can see where the questions came from). No UI shows the link today: only the backend keeps it. A draft note can not be a source (400), because publish deletes the draft twin and the link becomes NULL. The link can break:
   - The user leaves the space → the note load gives 403. The UI shows "You no longer have access to this file".
   - The space or the note is deleted → `source_note_id` becomes NULL (`ondelete="SET NULL"`), so the link is not shown. If the UI still has the old id, the load gives 404 and the UI shows "This file no longer exists".
-- **AI Assistant.** Read tools use READ (a VIEWER can read published space notes). Write tools (`refine_note`, `edit_test`, `refine_questions`) use EDIT, so they refuse published space content. Confirm cards show a name only when the user has access.
+- **AI Assistant.** Read tools use READ (a VIEWER can read published space notes). The RAG search covers the published notes of joined spaces (M3, see below). Write tools (`refine_note`, `edit_test`, `refine_questions`) use EDIT, so they refuse published space content. Confirm cards show a name only when the user has access.
 
 ---
 
@@ -157,7 +157,7 @@ Members see only published rows. Authors change a course in **edit mode**:
 5. **Discard** (`POST /draft/discard`): delete all draft rows and draft content. The published state does not change.
 6. **Change check** (`services/space_changes_service.py`): `SpaceDetail.has_unpublished_changes` is true when publish would change what members see: a new, removed, renamed or moved section or item, or a twin whose content is different from its published row. The editor makes a twin when it opens a published note or test, so a twin with the same content is not a change. A course that was never published always has changes. Publish with no changes gives 409 ("Nothing to publish").
 
-`notify_members` (M5) and `reset_item_ids` (M3) are stored only: the notification and completion tables do not exist yet. `reset_item_ids` takes draft item ids and stores them as published item ids.
+`notify_members` (M5) is stored only. `reset_item_ids` takes draft item ids and stores them as published item ids. Publish deletes the completion rows of those items and sets `space_item.progress_reset_at` to the publish time (M3). Best score, completion and the attempt count use only data after that time (see Rules).
 
 ### Visibility and joining
 | | PUBLIC | UNLISTED | PRIVATE |
@@ -192,7 +192,7 @@ Most writes return the new `SpaceDetail`, so the frontend replaces its cache wit
 - Edit mode: every change saves to the draft at once (no Save button). The header shows "Saving… / Saved" (`useIsMutating` on `courseWriteKey`), Discard and Publish. Publish is disabled when `hasUnpublishedChanges` is false.
 - `/courses/[slug-id]/settings`: owner only (other users go back to the course). Details, visibility (ButtonGroup), join code (`CopyChip` + Share menu: copy link, invite), duplicate (a dialog with title, description and tags), archive and delete forever.
 - Members tab: a `DataTableV2` (name + `@username`, role, status, joined). The owner menu has approve / deny, change role, cancel invitation and remove. No emails and no progress per member.
-- Content layout: `components/CourseLayout.tsx`. No cards: each section has a muted header bar (title + item count), with plain rows below. `CourseItemRow` has a `progress` slot for M3. The outline and the draft editor use the same frames.
+- Content layout: `components/CourseLayout.tsx`. No cards: each section has a muted header bar (title + item count), with plain rows below. `CourseItemRow` has a `progress` slot (M3 fills it). The outline and the draft editor use the same frames.
 - `/courses/join/[code]`: the join link. The user confirms with a click, so a link preview never adds a membership.
 - Edit mode: up / down buttons reorder sections and items. At the edge of a section an item moves to the next section (`lib/draftOrder.ts`).
 - Note page: a published course note is read-only (`CourseNoteView`). A draft course note uses the normal editor, with a course breadcrumb and no favorite or move actions. When the user can not edit the course (for example, it is archived), a draft note is read-only too.
@@ -203,9 +203,72 @@ Most writes return the new `SpaceDetail`, so the frontend replaces its cache wit
 
 ---
 
+## Progress and course tests (M3)
+
+### Schema
+| Table / column | Notes |
+|---|---|
+| `space_item` + `pass_threshold` (0.5), `max_attempts` (NULL = unlimited), `cooldown_hours` (NULL = none), `reveal_answers` (`RevealAnswers`, default AFTER_PASS_OR_LAST), `time_limit_minutes` (NULL = no timer) | the attempt policy of a TEST item |
+| `space_item_test` | PK `item_id` + `test_id`, `position`. The variants of a TEST item (1..N). `space_item.test_id` is gone: this table is the one source of truth |
+| `space_attempt` | `item_id`, `user_id`, `test_id` (the live variant), `test_version`, `status` (`AttemptStatus` OPEN / SUBMITTED / EXPIRED), `started_at`, `deadline_at`, `finished_at`, `test_result_id`. A partial unique index allows one OPEN row per (user, item) |
+| `space_item_completion` | PK `user_id` + `item_id`. Sparse: no row = not done |
+| `space_member` + `include_in_srs` (false), `last_item_id` (SET NULL), `last_accessed_at`, `completed_at` | per-member state |
+| `test_result.space_item_id` | SET NULL, indexed. Links a result to its course item |
+
+### Rules
+- **Progress and limits are for VIEWERs only.** Owners and editors preview a test with no limits and no rows (the exam of the first variant).
+- **An archived course is frozen:** no new attempts and no mark (409). Old results and progress stay readable. A visit is allowed (it only moves a pointer).
+- **NOTE done:** "Mark complete" / un-mark, or automatic when the student scrolls to the end of the note (once; after a manual un-mark it stays off).
+- **TEST done:** the best score of all results with this `space_item_id` (all versions) ≥ `pass_threshold`. A PENDING Long Text answer is not a pass. The check runs again after submit, after background grading and after a challenge. A pass is final: only `reset_item_ids` removes it. After a reset, only results created after `space_item.progress_reset_at` count for the best score and the completion check. `progress_reset_at` exists on published items only: a draft twin or a duplicate does not copy it.
+- **Course %** = done published items / published items, calculated live. `completed_at` is set at 100% and cleared when a publish adds or resets items.
+- **Continue** opens `last_item_id`. If it is not set (or the item was removed), it opens the first item that is not done.
+
+### Attempts (`services/space_attempt_service.py`)
+1. **Start** (`POST /{id}/items/{iid}/attempts`): it locks the membership row, so two parallel starts can not pass the limits. It resumes the OPEN attempt (same variant, same deadline). Else it checks `max_attempts` (started attempts count) and `cooldown_hours` (from the last finished attempt). Both count only attempts started after `progress_reset_at`. A response has `serverNow` (UTC) so the client can correct its clock for the countdown, picks a variant and inserts a row. It returns the attempt and the exam of the pinned version, with no answer key.
+2. **Variant pick:** the variant this student used least (`space_attempt.test_id`), random on a tie. A reload never gives a new variant, because the attempt row pins it.
+3. **Submit** (`POST /{id}/attempts/{aid}/submit`, the same body as `/tests/{id}/submit`): it grades the version the student started. When `test_version` is not the live version, it grades the frozen snapshot (`parent_id` = variant, `version` = `test_version`) and maps the answers by `question.origin_id`. The result is on the snapshot, so it shows the "older version" label (`isOlderVersion`).
+4. **Timer:** `deadline_at = started_at + time_limit_minutes`. The client shows a countdown and submits at 0. A submit after `deadline_at` + `ATTEMPT_GRACE_SECONDS` (60 s) gives 409 "Time is over", and the attempt is EXPIRED (it counts).
+5. **Lazy expiry:** there is no scheduler. Read paths treat an OPEN attempt past the deadline + grace as ended. Start and submit write the EXPIRED status.
+6. **Only way in:** a VIEWER can not call `GET /tests/{id}/exam` on a space test (403). Else the student could bypass the policy.
+7. **Publish:** every publish that changes a test makes a snapshot and adds 1 to `test.version`, also with no results. A removed variant closes its open attempts as EXPIRED. A removed item deletes its attempts (FK CASCADE). A submit on an attempt whose variant is no longer linked (a start that raced with a publish) closes it as EXPIRED and gives 409 "This attempt can not be continued". A changed variant keeps its open attempts (seen-version grading).
+
+### Answer key (`reveal_answers`)
+- ALWAYS: always shown. NEVER: never shown. AFTER_PASS_OR_LAST: shown after the item is passed, or when no attempts are left. With unlimited attempts and no pass, it stays hidden.
+- `GET /results/{id}/test` is the one result-test endpoint (personal results too; a personal result always gets the full test). When hidden, it removes the correct answers, the correct indices, the rubric and the explanations. `GET /results/{id}` blanks the rubric criterion text (`point`) and keeps `met`, `weight` and `reason`.
+- Every payload of an attempt (start, resume, preview) has no explanations (`question_helpers.without_explanations`), because an explanation can give the answer away.
+- The student still sees their own answer, its status, the score and the AI feedback on their own Long Text answer.
+
+### Student AI, copy and SRS (Phase B)
+- **RAG and the Assistant** read the personal notes and the published notes of spaces where the user is an ACTIVE member (`crud/note.readable_by_assistant`). Never drafts, never a space the user left, never INVITED / REQUESTED. Archived spaces stay in (members can still read them).
+- **Indexing:** publish schedules indexing of the changed published notes (system embedding key). `index_note` returns early for drafts.
+- **AI test generation** from a course note creates a **personal** test (`source_note_id` = the course note).
+- **Copy to my library** (`POST /notes/{id}/copy-to-library`, any member with READ): a personal copy in the root folder, with no link.
+- **SRS opt-in:** `PATCH /{id}/membership` sets `include_in_srs` (any ACTIVE member, "Include in Review" in the course header menu). Review (`GET /review/questions?scope=`) takes `all` (personal + opted-in courses), `personal` or one course id. Course questions in Review: published, ACTIVE, live tests only (`parent_id IS NULL`). Strict answer-key rule per item: ALWAYS items are in; AFTER_PASS_OR_LAST items are in only when the user has a completion row for the item; NEVER items are never in.
+- **`/check` on a course question:** a member who opted in gets correct / wrong and the SRS write, but only for a question that follows the same strict rule as the Review pool. The correct answers come back only when `reveal_answers` allows them. A member who did not opt in gets 403.
+- **Assistant during a test:** `POST /assist` gives 409 "The assistant is not available during a course test" while the user has an OPEN attempt that is not past its deadline + grace (an OPEN attempt with no deadline always counts).
+- **Results list:** course attempts stay in the personal results list, with the course title (`spaceTitle`).
+
+### Endpoints (M3)
+| Group | Endpoints |
+|---|---|
+| Policy and variants (edit mode) | `PATCH /{id}/items/{iid}`, variants add / order / remove, `POST /{id}/items/{iid}/draft?test_id=` |
+| Progress | `POST` / `DELETE /{id}/items/{iid}/completion`, `POST /{id}/visit` |
+| Attempts | `POST /{id}/items/{iid}/attempts` (start or resume), `POST /{id}/attempts/{aid}/submit` |
+| Membership | `PATCH /{id}/membership` (`include_in_srs`) |
+| Other routers | `GET /results/{id}/test`, `POST /notes/{id}/copy-to-library`, `GET /review/questions?scope=` |
+
+### Frontend
+- Course attempt page `/courses/[slug-id]/tests/[itemId]` (`CourseAttemptPage`): the start call runs once, then `ExamView` with `initialAnswers`, `onAnswersChange` and `deadlineAt` (countdown, auto-submit at 0). `ExamView` stays generic.
+- In-progress answers live in `localStorage` (`useAttemptDraft`, key = user id + attempt id), cleared on submit. A device change loses them (a server-side save is in `IDEAS.md`).
+- `useLeaveGuard` (`src/hooks/`): `beforeunload` plus a capture-phase click listener on in-app links that opens a `ConfirmDialog`. The browser Back button is not blocked.
+- `CourseProgress.tsx`: the item circle, the course bar, the mark button, the attempt info (attempts left, cooldown, time limit, best score) and Start / Resume.
+- `CourseTestSettings.tsx`: the policy fields (they commit on blur) and the variant list in edit mode.
+- History: an "older version" icon with a tooltip on the result page and the history row, and a course label.
+
+---
+
 ## Planned
 
-- **M3 Progress:** completion per item, attempt policy for course tests, test variants, student AI / RAG on joined spaces, SRS scope.
 - **M4 Classrooms:** tabs, classroom courses, due dates, co-teachers, gradebook, grade override, Class AI key.
 - **M5 Feed and notifications:** plain-text posts and comments, in-app bell with polling.
 

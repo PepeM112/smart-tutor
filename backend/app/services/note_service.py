@@ -146,6 +146,26 @@ def create_note(db: Session, *, current_user: User, data: NoteCreate) -> Note:
     return note
 
 
+def copy_to_library(db: Session, *, note_id: str, current_user: User) -> Note:
+    """Copy a note the user can read (a course note) into their personal notes, in the root folder.
+
+    The copy is a new personal note with no link to the source: later edits of the course do not
+    reach it, and it does not depend on the membership. Any role with READ may copy, authors too.
+    """
+    source = get_live_note(db, note_id=note_id, current_user=current_user, level=AccessLevel.READ)
+    note = note_crud.create(
+        db,
+        user_id=current_user.id,
+        title=source.title,
+        content=source.content,
+        tags=list(source.tags),
+        folder_id=None,
+    )
+    db.commit()
+    db.refresh(note)
+    return note
+
+
 def move_note(db: Session, *, note_id: str, current_user: User, folder_id: str | None) -> Note:
     """Change note.folder_id only. Does not touch version or is_indexed."""
     folder_crud.lock_tree(db, user_id=current_user.id)

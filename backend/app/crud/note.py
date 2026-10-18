@@ -2,11 +2,12 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, TypeAlias, cast
 
-from sqlalchemy import CursorResult, Row, Select, func, or_, select
+from sqlalchemy import ColumnElement, CursorResult, Row, Select, and_, func, or_, select
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import update as sql_update  # `update` is taken by the CRUD function below
 from sqlalchemy.orm import Session, aliased
 
+from app.crud import space as space_crud
 from app.crud.helpers import ilike_search
 from app.models.folder import Folder
 from app.models.note import Note
@@ -15,6 +16,17 @@ from app.schemas.note import NoteUpdate
 # Personal notes only. Course and classroom notes have `space_id` set (see docs/spaces.md).
 # Trash and folder queries need no filter: a CHECK keeps space notes out of folders and Trash.
 PERSONAL_NOTE = Note.space_id.is_(None)
+
+
+def readable_by_assistant(*, user_id: str) -> ColumnElement[bool]:
+    """Notes the Assistant and the RAG search may read: the personal notes of the user, and the
+    PUBLISHED notes of the spaces where the user is an ACTIVE member. Never a draft, never a
+    space the user left or was only invited to. Trashed notes are excluded by the caller (`deleted_at IS NULL`).
+    """
+    return or_(
+        and_(Note.user_id == user_id, PERSONAL_NOTE),
+        and_(Note.space_id.in_(space_crud.joined_space_ids(user_id=user_id)), Note.is_draft.is_(False)),
+    )
 
 
 def get_by_id(db: Session, *, id: str) -> Note | None:
@@ -26,6 +38,11 @@ def get_by_id_for_update(db: Session, *, id: str) -> Note | None:
     """Like `get_by_id`, but locks the row until the transaction ends (SELECT … FOR UPDATE)."""
     stmt = select(Note).where(Note.id == id).with_for_update()
     return db.scalars(stmt).first()
+
+
+def list_by_ids(db: Session, *, ids: Sequence[str]) -> Sequence[Note]:
+    """Notes by id, with no access check: the caller has already filtered the ids."""
+    return db.scalars(select(Note).where(Note.id.in_(ids))).all()
 
 
 def list_live_by_ids(db: Session, *, user_id: str, ids: Sequence[str]) -> Sequence[Note]:
@@ -177,9 +194,12 @@ def update(db: Session, *, note: Note, data: NoteUpdate) -> Note:
 
 
 def list_unindexed_ids_by_user(db: Session, *, user_id: str) -> list[str]:
-    """Return IDs of LIVE personal notes of the user that have not yet been embedded."""
+    """Return IDs of LIVE notes the user can search that have not yet been embedded.
+
+    These are personal notes and published notes of the user's spaces (see `readable_by_assistant`).
+    """
     stmt = select(Note.id).where(
-        Note.user_id == user_id, PERSONAL_NOTE, Note.is_indexed.is_(False), Note.deleted_at.is_(None)
+        readable_by_assistant(user_id=user_id), Note.is_indexed.is_(False), Note.deleted_at.is_(None)
     )
     return list(db.scalars(stmt).all())
 

@@ -2293,6 +2293,22 @@ export const QuestionUpdateSchema = {
     title: 'QuestionUpdate'
 } as const;
 
+export const RevealAnswersSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3
+    ],
+    title: 'RevealAnswers',
+    description: 'When a student may see the answer key of a course test.',
+    'x-enum-varnames': [
+        'ALWAYS',
+        'AFTER_PASS_OR_LAST',
+        'NEVER'
+    ]
+} as const;
+
 export const ReviewResponseSchema = {
     properties: {
         questions: {
@@ -2464,6 +2480,69 @@ export const SimpleContentStrippedSchema = {
     title: 'SimpleContentStripped'
 } as const;
 
+export const SpaceAttemptStartSchema = {
+    properties: {
+        attemptId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Attemptid'
+        },
+        test: {
+            $ref: '#/components/schemas/TestReadStripped'
+        },
+        startedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Startedat'
+        },
+        deadlineAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Deadlineat'
+        },
+        serverNow: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Servernow'
+        },
+        resumed: {
+            type: 'boolean',
+            title: 'Resumed',
+            default: false
+        }
+    },
+    type: 'object',
+    required: [
+        'attemptId',
+        'test',
+        'startedAt',
+        'deadlineAt',
+        'serverNow'
+    ],
+    title: 'SpaceAttemptStart',
+    description: 'The exam of one attempt. `attempt_id` is None for an author preview (no rows, no limits).'
+} as const;
+
 export const SpaceCreateSchema = {
     properties: {
         title: {
@@ -2603,6 +2682,21 @@ export const SpaceDetailSchema = {
                     type: 'null'
                 }
             ]
+        },
+        progress: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SpaceProgress'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        includeInSrs: {
+            type: 'boolean',
+            title: 'Includeinsrs',
+            default: false
         },
         canEdit: {
             type: 'boolean',
@@ -2927,6 +3021,141 @@ export const SpaceItemReadSchema = {
             type: 'boolean',
             title: 'Haschanges',
             default: false
+        },
+        passThreshold: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Passthreshold'
+        },
+        maxAttempts: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Maxattempts'
+        },
+        cooldownHours: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cooldownhours'
+        },
+        revealAnswers: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/RevealAnswers'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        timeLimitMinutes: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Timelimitminutes'
+        },
+        variants: {
+            items: {
+                $ref: '#/components/schemas/SpaceItemVariantRead'
+            },
+            type: 'array',
+            title: 'Variants',
+            default: []
+        },
+        completed: {
+            type: 'boolean',
+            title: 'Completed',
+            default: false
+        },
+        bestScore: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bestscore'
+        },
+        attemptsUsed: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Attemptsused'
+        },
+        attemptsLeft: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Attemptsleft'
+        },
+        nextAttemptAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nextattemptat'
+        },
+        openAttemptId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Openattemptid'
+        },
+        openAttemptDeadlineAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Openattemptdeadlineat'
         }
     },
     type: 'object',
@@ -2942,6 +3171,98 @@ export const SpaceItemReadSchema = {
         'draftOfId'
     ],
     title: 'SpaceItemRead'
+} as const;
+
+export const SpaceItemUpdateSchema = {
+    properties: {
+        passThreshold: {
+            anyOf: [
+                {
+                    type: 'number',
+                    maximum: 1,
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Passthreshold'
+        },
+        maxAttempts: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Maxattempts'
+        },
+        cooldownHours: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cooldownhours'
+        },
+        revealAnswers: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/RevealAnswers'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        timeLimitMinutes: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Timelimitminutes'
+        }
+    },
+    type: 'object',
+    title: 'SpaceItemUpdate',
+    description: 'The attempt policy of a TEST item. Only the sent fields change.\n\n`max_attempts`, `cooldown_hours` and `time_limit_minutes`: null = no limit (a sent null is valid).'
+} as const;
+
+export const SpaceItemVariantReadSchema = {
+    properties: {
+        testId: {
+            type: 'string',
+            title: 'Testid'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        position: {
+            type: 'integer',
+            title: 'Position'
+        }
+    },
+    type: 'object',
+    required: [
+        'testId',
+        'title',
+        'position'
+    ],
+    title: 'SpaceItemVariantRead',
+    description: 'One test (variant) of a TEST item. Authors only.'
 } as const;
 
 export const SpaceJoinByCodeSchema = {
@@ -3048,6 +3369,69 @@ export const SpaceMemberRoleUpdateSchema = {
     ],
     title: 'SpaceMemberRoleUpdate',
     description: 'OWNER is never stored on a member row (see `space_member`).'
+} as const;
+
+export const SpaceMembershipUpdateSchema = {
+    properties: {
+        includeInSrs: {
+            type: 'boolean',
+            title: 'Includeinsrs'
+        }
+    },
+    type: 'object',
+    required: [
+        'includeInSrs'
+    ],
+    title: 'SpaceMembershipUpdate',
+    description: 'The settings of the current user in a course.'
+} as const;
+
+export const SpaceProgressSchema = {
+    properties: {
+        completedItems: {
+            type: 'integer',
+            title: 'Completeditems'
+        },
+        totalItems: {
+            type: 'integer',
+            title: 'Totalitems'
+        },
+        percent: {
+            type: 'integer',
+            title: 'Percent'
+        },
+        lastItemId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Lastitemid'
+        },
+        completedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Completedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'completedItems',
+        'totalItems',
+        'percent'
+    ],
+    title: 'SpaceProgress',
+    description: 'The progress of a VIEWER in a course: done items of the published items.'
 } as const;
 
 export const SpacePublishRequestSchema = {
@@ -3303,6 +3687,21 @@ export const SpaceSummarySchema = {
                     type: 'null'
                 }
             ]
+        },
+        progress: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SpaceProgress'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        includeInSrs: {
+            type: 'boolean',
+            title: 'Includeinsrs',
+            default: false
         }
     },
     type: 'object',
@@ -3383,6 +3782,56 @@ export const SpaceUpdateSchema = {
     title: 'SpaceUpdate'
 } as const;
 
+export const SpaceVariantCreateSchema = {
+    properties: {
+        title: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 200,
+                    minLength: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Title'
+        },
+        testId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Testid'
+        }
+    },
+    type: 'object',
+    title: 'SpaceVariantCreate',
+    description: 'Add a variant to a TEST item: a new empty test (`title`) or a copy of a personal test (`test_id`).'
+} as const;
+
+export const SpaceVariantOrderSchema = {
+    properties: {
+        testIds: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Testids'
+        }
+    },
+    type: 'object',
+    required: [
+        'testIds'
+    ],
+    title: 'SpaceVariantOrder',
+    description: 'The full order of the variants of an item.'
+} as const;
+
 export const SpaceVisibilitySchema = {
     type: 'integer',
     enum: [
@@ -3396,6 +3845,20 @@ export const SpaceVisibilitySchema = {
         'UNLISTED',
         'PUBLIC'
     ]
+} as const;
+
+export const SpaceVisitRequestSchema = {
+    properties: {
+        itemId: {
+            type: 'string',
+            title: 'Itemid'
+        }
+    },
+    type: 'object',
+    required: [
+        'itemId'
+    ],
+    title: 'SpaceVisitRequest'
 } as const;
 
 export const TestCreateSchema = {
@@ -3942,6 +4405,33 @@ export const TestResultListItemSchema = {
             type: 'string',
             format: 'date-time',
             title: 'Createdat'
+        },
+        spaceItemId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Spaceitemid'
+        },
+        isOlderVersion: {
+            type: 'boolean',
+            title: 'Isolderversion',
+            default: false
+        },
+        spaceTitle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Spacetitle'
         }
     },
     type: 'object',
@@ -4005,6 +4495,22 @@ export const TestResultReadSchema = {
             type: 'string',
             format: 'date-time',
             title: 'Createdat'
+        },
+        spaceItemId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Spaceitemid'
+        },
+        isOlderVersion: {
+            type: 'boolean',
+            title: 'Isolderversion',
+            default: false
         },
         answers: {
             items: {
