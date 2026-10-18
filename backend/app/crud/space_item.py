@@ -1,7 +1,9 @@
 from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
+from sqlalchemy import update as sql_update
 from sqlalchemy.orm import Session
 
 from app.crud import space_item_test as space_item_test_crud
@@ -69,6 +71,13 @@ def copy_policy(*, source: SpaceItem, target: SpaceItem) -> None:
     target.cooldown_hours = source.cooldown_hours
     target.reveal_answers = source.reveal_answers
     target.time_limit_minutes = source.time_limit_minutes
+
+
+def set_progress_reset(db: Session, *, item_ids: Sequence[str], at: datetime) -> None:
+    """Mark the items as reset at `at` (a publish with `reset_item_ids`)."""
+    if item_ids:
+        db.execute(sql_update(SpaceItem).where(SpaceItem.id.in_(item_ids)).values(progress_reset_at=at))
+        db.flush()
 
 
 def get(db: Session, *, item_id: str) -> SpaceItem | None:

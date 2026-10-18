@@ -138,6 +138,8 @@ def recalculate_test_result(db: Session, test_result: TestResult) -> None:
     test_result.pending_answers = pending
     test_result.earned_points = round(earned_pts, 2)
     test_result.score = score
+    # Flush so SQL readers (the completion recheck) see the new score; sessions use autoflush=False
+    db.flush()
 
 
 def _mark_all_pending_as_failed(db: Session, test_result_id: str) -> None:
@@ -248,6 +250,7 @@ def grade_pending_answers(test_result_id: str) -> None:
                 answer.status = int(AnswerStatus.FAILED)
 
         recalculate_test_result(db, test_result)
+        space_progress_service.recheck_result_completion(db, test_result=test_result)
         db.commit()
 
         logger.info(

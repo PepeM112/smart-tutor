@@ -51,6 +51,8 @@ export type RichNoteEditorProps = {
    * and `#slug` in the URL scrolls to a heading. Leave it out for the read-only diff and preview editors.
    */
   noteId?: string;
+  /** Runs once, when the initial content is in the editor. Before that the editor is empty. */
+  onReady?: () => void;
   className?: string;
 };
 
@@ -72,6 +74,7 @@ export function RichNoteEditor({
   onSendToAssistant,
   editorRef,
   noteId,
+  onReady,
   className,
 }: RichNoteEditorProps) {
   const t = useTranslations('notes');
@@ -83,6 +86,10 @@ export function RichNoteEditor({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+  const onReadyRef = useRef(onReady);
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   // Memoized: `useEditor` compares extensions by identity, so a new list on each render
   // made it call `setOptions` on every render (and every keystroke re-renders the page).
@@ -107,11 +114,13 @@ export function RichNoteEditor({
     editorProps: EDITOR_PROPS,
 
     onCreate: ({ editor: ed }) => {
-      if (!initialContent) return;
-      const json = parseMarkdown(ed, initialContent);
-      // emitUpdate: false prevents a spurious onChange during the initial load.
-      // addToHistory: false — otherwise the first Cmd+Z undoes the load and empties the note.
-      ed.chain().setMeta('addToHistory', false).setContent(json, { emitUpdate: false }).run();
+      if (initialContent) {
+        const json = parseMarkdown(ed, initialContent);
+        // emitUpdate: false prevents a spurious onChange during the initial load.
+        // addToHistory: false — otherwise the first Cmd+Z undoes the load and empties the note.
+        ed.chain().setMeta('addToHistory', false).setContent(json, { emitUpdate: false }).run();
+      }
+      onReadyRef.current?.();
     },
 
     onUpdate: ({ editor: ed }) => {

@@ -5,9 +5,11 @@ import { BookOpen, PartyPopper } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
+import { type SpaceSummary } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
+import { courseQueryKeys } from '@/features/courses/lib/queryKeys';
 import { ReviewSession } from '@/features/review/components/ReviewSession';
 import { REVIEW_BATCH_SIZE, REVIEW_SCOPE_ALL, resolveReviewScope, reviewScopeOptions } from '@/features/review/helpers';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -19,18 +21,20 @@ export default function ReviewPage() {
   const [mode, setMode] = useState<'review' | 'practice'>('review');
   const [chosenScope, setChosenScope] = useState(REVIEW_SCOPE_ALL);
 
-  // Same query as the Courses page (a cache entry for all of the active courses).
-  const { data: coursesRes } = useQuery({
-    queryKey: ['courses', 'review-scope'],
-    queryFn: () => sdk.spacesListMine({ query: { status: 'active' }, throwOnError: true }),
+  // The Courses page uses the same key when its filter shows active courses only. A change of the
+  // Review toggle refreshes it, because it is under `courseQueryKeys.mine()`.
+  const { data: courses } = useQuery({
+    queryKey: courseQueryKeys.mine({ status: 'active' }),
+    queryFn: async (): Promise<SpaceSummary[]> =>
+      (await sdk.spacesListMine({ query: { status: 'active' }, throwOnError: true })).data,
   });
   const scopeOptions = useMemo(
     () =>
-      reviewScopeOptions(coursesRes?.data ?? [], {
+      reviewScopeOptions(courses ?? [], {
         all: t('review.scope_all'),
         personal: t('review.scope_personal'),
       }),
-    [coursesRes, t]
+    [courses, t]
   );
   const scope = resolveReviewScope(chosenScope, scopeOptions);
 

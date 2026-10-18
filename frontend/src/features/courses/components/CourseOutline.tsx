@@ -19,10 +19,12 @@ type Props = {
   linkItems: boolean;
   /** Opens the note preview pane. A note row is a button when it is set (and `linkItems`). */
   onOpenNote?: (noteId: string) => void;
+  /** The item to mark and scroll to (from `?item=`). */
+  selectedItemId?: string | null;
 };
 
 /** The published structure, as members see it. */
-export function CourseOutline({ sections, course, linkItems, onOpenNote }: Props) {
+export function CourseOutline({ sections, course, linkItems, onOpenNote, selectedItemId }: Props) {
   const t = useTranslations();
   const trackedCourse = course && isCourseViewer(course) ? course : undefined;
 
@@ -40,6 +42,7 @@ export function CourseOutline({ sections, course, linkItems, onOpenNote }: Props
             section.items.map(item => (
               <CourseItemRow
                 key={item.id}
+                isSelected={item.id === selectedItemId}
                 icon={<ItemIcon item={item} />}
                 title={item.title}
                 progress={trackedCourse && <ItemProgressCircle done={item.completed ?? false} />}

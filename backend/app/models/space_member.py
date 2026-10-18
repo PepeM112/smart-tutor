@@ -35,7 +35,7 @@ class SpaceMember(Base, CreatedAtMixin):
     include_in_srs: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     # The item the student opened last ("Continue" opens it). SET NULL when the item is removed.
     last_item_id: Mapped[str | None] = mapped_column(
-        String(26), ForeignKey("space_item.id", ondelete="SET NULL"), nullable=True
+        String(26), ForeignKey("space_item.id", ondelete="SET NULL"), nullable=True, index=True
     )
     last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Set when every published item is done, cleared when a publish adds items or resets them.

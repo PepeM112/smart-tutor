@@ -5,26 +5,6 @@ import { useCallback, useEffect, useState } from 'react';
 
 type ClickInfo = Pick<MouseEvent, 'button' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey' | 'defaultPrevented'>;
 
-/**
- * The in-app href that a click would open, or null when the click does not leave the page:
- * a modified click (new tab), another target, a download, a link to another site, or the same URL.
- * Another site is left to `beforeunload`.
- */
-export function getLeaveHref(event: ClickInfo, target: EventTarget | null, current: URL): string | null {
-  if (event.defaultPrevented || event.button !== 0) return null;
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
-  if (!(target instanceof Element)) return null;
-
-  const anchor = target.closest('a[href]');
-  if (!(anchor instanceof HTMLAnchorElement)) return null;
-  if ((anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download')) return null;
-
-  const url = new URL(anchor.href, current);
-  if (url.origin !== current.origin) return null;
-  if (url.pathname === current.pathname && url.search === current.search) return null;
-  return `${url.pathname}${url.search}${url.hash}`;
-}
-
 type LeaveGuard = {
   /** The link the user clicked. A confirm dialog is open while it is set. */
   pendingHref: string | null;
@@ -75,4 +55,24 @@ export function useLeaveGuard(isActive: boolean): LeaveGuard {
   const cancelLeave = useCallback(() => setPendingHref(null), []);
 
   return { pendingHref, confirmLeave, cancelLeave };
+}
+
+/**
+ * The in-app href that a click would open, or null when the click does not leave the page:
+ * a modified click (new tab), another target, a download, a link to another site, or the same URL.
+ * Another site is left to `beforeunload`.
+ */
+export function getLeaveHref(event: ClickInfo, target: EventTarget | null, current: URL): string | null {
+  if (event.defaultPrevented || event.button !== 0) return null;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
+  if (!(target instanceof Element)) return null;
+
+  const anchor = target.closest('a[href]');
+  if (!(anchor instanceof HTMLAnchorElement)) return null;
+  if ((anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download')) return null;
+
+  const url = new URL(anchor.href, current);
+  if (url.origin !== current.origin) return null;
+  if (url.pathname === current.pathname && url.search === current.search) return null;
+  return `${url.pathname}${url.search}${url.hash}`;
 }

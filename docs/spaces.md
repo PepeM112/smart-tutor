@@ -157,7 +157,7 @@ Members see only published rows. Authors change a course in **edit mode**:
 5. **Discard** (`POST /draft/discard`): delete all draft rows and draft content. The published state does not change.
 6. **Change check** (`services/space_changes_service.py`): `SpaceDetail.has_unpublished_changes` is true when publish would change what members see: a new, removed, renamed or moved section or item, or a twin whose content is different from its published row. The editor makes a twin when it opens a published note or test, so a twin with the same content is not a change. A course that was never published always has changes. Publish with no changes gives 409 ("Nothing to publish").
 
-`notify_members` (M5) is stored only. `reset_item_ids` takes draft item ids and stores them as published item ids. Publish deletes the completion rows of those items (M3).
+`notify_members` (M5) is stored only. `reset_item_ids` takes draft item ids and stores them as published item ids. Publish deletes the completion rows of those items and sets `space_item.progress_reset_at` to the publish time (M3). Best score, completion and the attempt count use only data after that time (see Rules).
 
 ### Visibility and joining
 | | PUBLIC | UNLISTED | PRIVATE |
@@ -219,22 +219,23 @@ Most writes return the new `SpaceDetail`, so the frontend replaces its cache wit
 - **Progress and limits are for VIEWERs only.** Owners and editors preview a test with no limits and no rows (the exam of the first variant).
 - **An archived course is frozen:** no new attempts and no mark (409). Old results and progress stay readable. A visit is allowed (it only moves a pointer).
 - **NOTE done:** "Mark complete" / un-mark, or automatic when the student scrolls to the end of the note (once; after a manual un-mark it stays off).
-- **TEST done:** the best score of all results with this `space_item_id` (all versions) ≥ `pass_threshold`. A PENDING Long Text answer is not a pass. The check runs again after submit, after background grading and after a challenge. A pass is final: only `reset_item_ids` removes it.
+- **TEST done:** the best score of all results with this `space_item_id` (all versions) ≥ `pass_threshold`. A PENDING Long Text answer is not a pass. The check runs again after submit, after background grading and after a challenge. A pass is final: only `reset_item_ids` removes it. After a reset, only results created after `space_item.progress_reset_at` count for the best score and the completion check. `progress_reset_at` exists on published items only: a draft twin or a duplicate does not copy it.
 - **Course %** = done published items / published items, calculated live. `completed_at` is set at 100% and cleared when a publish adds or resets items.
 - **Continue** opens `last_item_id`. If it is not set (or the item was removed), it opens the first item that is not done.
 
 ### Attempts (`services/space_attempt_service.py`)
-1. **Start** (`POST /{id}/items/{iid}/attempts`): it locks the membership row, so two parallel starts can not pass the limits. It resumes the OPEN attempt (same variant, same deadline). Else it checks `max_attempts` (started attempts count) and `cooldown_hours` (from the last finished attempt), picks a variant and inserts a row. It returns the attempt and the exam of the pinned version, with no answer key.
+1. **Start** (`POST /{id}/items/{iid}/attempts`): it locks the membership row, so two parallel starts can not pass the limits. It resumes the OPEN attempt (same variant, same deadline). Else it checks `max_attempts` (started attempts count) and `cooldown_hours` (from the last finished attempt). Both count only attempts started after `progress_reset_at`. A response has `serverNow` (UTC) so the client can correct its clock for the countdown, picks a variant and inserts a row. It returns the attempt and the exam of the pinned version, with no answer key.
 2. **Variant pick:** the variant this student used least (`space_attempt.test_id`), random on a tie. A reload never gives a new variant, because the attempt row pins it.
 3. **Submit** (`POST /{id}/attempts/{aid}/submit`, the same body as `/tests/{id}/submit`): it grades the version the student started. When `test_version` is not the live version, it grades the frozen snapshot (`parent_id` = variant, `version` = `test_version`) and maps the answers by `question.origin_id`. The result is on the snapshot, so it shows the "older version" label (`isOlderVersion`).
 4. **Timer:** `deadline_at = started_at + time_limit_minutes`. The client shows a countdown and submits at 0. A submit after `deadline_at` + `ATTEMPT_GRACE_SECONDS` (60 s) gives 409 "Time is over", and the attempt is EXPIRED (it counts).
 5. **Lazy expiry:** there is no scheduler. Read paths treat an OPEN attempt past the deadline + grace as ended. Start and submit write the EXPIRED status.
 6. **Only way in:** a VIEWER can not call `GET /tests/{id}/exam` on a space test (403). Else the student could bypass the policy.
-7. **Publish:** every publish that changes a test makes a snapshot and adds 1 to `test.version`, also with no results. A removed variant or item closes its open attempts as EXPIRED. A changed variant keeps its open attempts (seen-version grading).
+7. **Publish:** every publish that changes a test makes a snapshot and adds 1 to `test.version`, also with no results. A removed variant closes its open attempts as EXPIRED. A removed item deletes its attempts (FK CASCADE). A submit on an attempt whose variant is no longer linked (a start that raced with a publish) closes it as EXPIRED and gives 409 "This attempt can not be continued". A changed variant keeps its open attempts (seen-version grading).
 
 ### Answer key (`reveal_answers`)
 - ALWAYS: always shown. NEVER: never shown. AFTER_PASS_OR_LAST: shown after the item is passed, or when no attempts are left. With unlimited attempts and no pass, it stays hidden.
 - `GET /results/{id}/test` is the one result-test endpoint (personal results too; a personal result always gets the full test). When hidden, it removes the correct answers, the correct indices, the rubric and the explanations. `GET /results/{id}` blanks the rubric criterion text (`point`) and keeps `met`, `weight` and `reason`.
+- Every payload of an attempt (start, resume, preview) has no explanations (`question_helpers.without_explanations`), because an explanation can give the answer away.
 - The student still sees their own answer, its status, the score and the AI feedback on their own Long Text answer.
 
 ### Student AI, copy and SRS (Phase B)
@@ -242,8 +243,9 @@ Most writes return the new `SpaceDetail`, so the frontend replaces its cache wit
 - **Indexing:** publish schedules indexing of the changed published notes (system embedding key). `index_note` returns early for drafts.
 - **AI test generation** from a course note creates a **personal** test (`source_note_id` = the course note).
 - **Copy to my library** (`POST /notes/{id}/copy-to-library`, any member with READ): a personal copy in the root folder, with no link.
-- **SRS opt-in:** `PATCH /{id}/membership` sets `include_in_srs` (VIEWER, "Include in Review" in the course header menu). Review (`GET /review/questions?scope=`) takes `all` (personal + opted-in courses), `personal` or one course id. Course questions in Review: published, ACTIVE, live tests only (`parent_id IS NULL`), never from NEVER items.
-- **`/check` on a course question:** a VIEWER who opted in gets correct / wrong and the SRS write. The correct answers come back only when `reveal_answers` allows them. A VIEWER who did not opt in gets 403.
+- **SRS opt-in:** `PATCH /{id}/membership` sets `include_in_srs` (any ACTIVE member, "Include in Review" in the course header menu). Review (`GET /review/questions?scope=`) takes `all` (personal + opted-in courses), `personal` or one course id. Course questions in Review: published, ACTIVE, live tests only (`parent_id IS NULL`). Strict answer-key rule per item: ALWAYS items are in; AFTER_PASS_OR_LAST items are in only when the user has a completion row for the item; NEVER items are never in.
+- **`/check` on a course question:** a member who opted in gets correct / wrong and the SRS write, but only for a question that follows the same strict rule as the Review pool. The correct answers come back only when `reveal_answers` allows them. A member who did not opt in gets 403.
+- **Assistant during a test:** `POST /assist` gives 409 "The assistant is not available during a course test" while the user has an OPEN attempt that is not past its deadline + grace (an OPEN attempt with no deadline always counts).
 - **Results list:** course attempts stay in the personal results list, with the course title (`spaceTitle`).
 
 ### Endpoints (M3)

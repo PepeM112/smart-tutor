@@ -1,4 +1,4 @@
-import { AnswerStatus } from '@/client';
+import { AnswerStatus, type SpaceSummary } from '@/client';
 
 export const REVIEW_BATCH_SIZE = 10;
 
@@ -8,7 +8,7 @@ export const REVIEW_SCOPE_PERSONAL = 'personal';
 
 export type ReviewScopeOption = { value: string; label: string };
 
-type ScopeCourse = { id: string; title: string; includeInSrs?: boolean };
+type ScopeCourse = Pick<SpaceSummary, 'id' | 'title' | 'includeInSrs'>;
 
 /**
  * The options of the scope select: All, Personal, then each course with Include in Review on.

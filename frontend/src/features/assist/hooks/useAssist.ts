@@ -7,9 +7,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { sdk } from '@/lib/apiClient';
+import { courseItemRouteForAttempt } from '@/lib/routes';
 
 import { useAssistAttachmentsStore } from '../store/useAssistAttachmentsStore';
 import { useAssistDiffStore } from '../store/useAssistDiffStore';
+import { assistRefusalKey } from '../utils/assistErrors';
 import { buildInterruptedMessages, buildStreamMessages } from '../utils/buildStreamMessages';
 import { consumeSSEStream } from '../utils/sseStream';
 import { getQueryKeysToInvalidate, isWriteTool } from '../utils/toolRegistry';
@@ -203,10 +205,11 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
           const error = (await response.json().catch(() => ({ detail: tAssist('request_failed') }))) as {
             detail?: string;
           };
+          const refusalKey = assistRefusalKey(error.detail);
           const errorSeg: TurnSegment = {
             type: 'error',
             id: nextId(),
-            message: error.detail ?? tAssist('error_generic'),
+            message: refusalKey ? tAssist(refusalKey) : (error.detail ?? tAssist('error_generic')),
           };
           setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
           return;
@@ -320,7 +323,8 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
               // Side effects
               if (tr.name === 'navigate_to' && tr.metadata?.route) {
-                router.push(tr.metadata.route);
+                // A course attempt page starts a timed attempt: go to the course page with that item selected.
+                router.push(courseItemRouteForAttempt(tr.metadata.route) ?? tr.metadata.route);
               }
 
               if (isWriteTool(tr.name)) {

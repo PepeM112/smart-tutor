@@ -1442,6 +1442,10 @@ export type SpaceAttemptStart = {
      */
     deadlineAt: Date | null;
     /**
+     * Servernow
+     */
+    serverNow: Date;
+    /**
      * Resumed
      */
     resumed?: boolean;

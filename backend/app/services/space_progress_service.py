@@ -54,17 +54,22 @@ def attempt_state(item: SpaceItem, attempts: Sequence[SpaceAttempt], *, at: date
 
     An OPEN attempt past its deadline + grace counts as EXPIRED (lazy expiry, see space_attempt_service).
     It ended at its deadline, so the cooldown counts from there.
+
+    Attempts started before `item.progress_reset_at` do not count (used, cooldown). An OPEN one is still
+    found, so the start resumes it and never inserts a second open row.
     """
     open_attempt: SpaceAttempt | None = None
     last_finished: datetime | None = None
+    used = 0
     for attempt in attempts:
+        counts = item.progress_reset_at is None or attempt.started_at > item.progress_reset_at
+        used += int(counts)
         if attempt.status == int(AttemptStatus.OPEN) and not is_past_grace(attempt, at=at):
             open_attempt = attempt
             continue
         ended = attempt.finished_at or attempt.deadline_at
-        if ended is not None and (last_finished is None or ended > last_finished):
+        if counts and ended is not None and (last_finished is None or ended > last_finished):
             last_finished = ended
-    used = len(attempts)
     left = None if item.max_attempts is None else max(item.max_attempts - used, 0)
     next_at = None
     if open_attempt is None and item.cooldown_hours is not None and last_finished is not None:
@@ -146,7 +151,9 @@ def recheck_result_completion(db: Session, *, test_result: TestResult) -> None:
 
 def sync_member_completion(db: Session, *, space_id: str, user_id: str) -> None:
     """`space_member.completed_at` = set when the user is done with every published item, else cleared."""
-    member = space_member_crud.get(db, space_id=space_id, user_id=user_id)
+    # Row lock: two parallel completions (a mark and a background grade) would each count one item
+    # less and both write `completed_at = None`. The second waits and counts after the first commit.
+    member = space_member_crud.get_for_update(db, space_id=space_id, user_id=user_id)
     if member is None:
         return
     total = space_item_crud.count_published_by_space(db, space_ids=[space_id]).get(space_id, 0)

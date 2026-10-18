@@ -70,6 +70,25 @@ export function courseAttemptHref(course: { id: string; title: string }, itemId:
   return `${courseHref(course)}/tests/${itemId}`;
 }
 
+/** Query param of the course page that selects one item (the row is marked, and a note opens in the preview). */
+export const COURSE_ITEM_PARAM = 'item';
+
+/** The course page with one item selected. */
+export function courseItemHref(course: { id: string; title: string }, itemId: string): string {
+  return `${courseHref(course)}?${COURSE_ITEM_PARAM}=${encodeURIComponent(itemId)}`;
+}
+
+const COURSE_ATTEMPT_ROUTE_RE = /^\/courses\/([^/?#]+)\/tests\/([^/?#]+)\/?(?:[?#].*)?$/;
+
+/**
+ * If `route` is the attempt page of a course test (`/courses/{id}/tests/{itemId}`), the course page
+ * with that item selected. Else null. The Assistant uses it, so it never opens an attempt page itself.
+ */
+export function courseItemRouteForAttempt(route: string): string | null {
+  const match = COURSE_ATTEMPT_ROUTE_RE.exec(route);
+  return match ? `/courses/${match[1]}?${COURSE_ITEM_PARAM}=${encodeURIComponent(match[2])}` : null;
+}
+
 /**
  * Extract the ID from a URL segment of a note or a folder. The segment can be:
  *   - A bare ULID: `01J9XYZ…`

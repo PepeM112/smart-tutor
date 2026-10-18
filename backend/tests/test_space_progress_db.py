@@ -1,7 +1,9 @@
 """ST-67 Phase A: policy, variants, attempts, completion, results (real DB, each test is rolled back)."""
 
+import json
 from collections.abc import Callable
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException
@@ -10,21 +12,25 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.enums import AttemptStatus, RevealAnswers, SpaceItemKind, SpaceVisibility
+from app.core.enums import AttemptStatus, QuestionType, RevealAnswers, SpaceItemKind, SpaceVisibility
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_item_completion as space_item_completion_crud
 from app.crud import space_item_test as space_item_test_crud
+from app.models.answer import Answer
+from app.models.question import Question
 from app.models.space_attempt import SpaceAttempt
 from app.models.space_item import SpaceItem
 from app.models.space_member import SpaceMember
 from app.models.test_result import TestResult
 from app.models.user import User
+from app.schemas.answer import ChallengeRequest
 from app.schemas.correction import TestSubmission
 from app.schemas.space import (
     SpaceAttemptStart,
     SpaceCreate,
     SpaceDetail,
     SpaceItemCopy,
+    SpaceItemRead,
     SpaceItemUpdate,
     SpacePublishRequest,
     SpaceSectionCreate,
@@ -33,6 +39,8 @@ from app.schemas.space import (
 )
 from app.schemas.test import TestCreate, TestUpdate
 from app.services import (
+    challenge_service,
+    grading_service,
     space_attempt_service,
     space_draft_service,
     space_member_service,
@@ -41,6 +49,7 @@ from app.services import (
     test_result_service,
     test_service,
 )
+from app.services.llm import CompletionResult
 from tests.space_factories import new_note, new_test, new_user
 
 pytestmark = pytest.mark.db
@@ -50,6 +59,15 @@ def _status_code(service_call: Callable[..., object], db: Session, **kwargs: obj
     with pytest.raises(HTTPException) as exc_info:
         service_call(db, **kwargs)
     return exc_info.value.status_code
+
+
+def _status_code_of(service_call: Callable[..., object], db: Session, **kwargs: object) -> int | None:
+    """The HTTP status of the error the call raises, or None when it does not raise."""
+    try:
+        service_call(db, **kwargs)
+    except HTTPException as error:
+        return error.status_code
+    return None
 
 
 @pytest.fixture
@@ -72,9 +90,10 @@ def _test_items(db: Session, space_id: str, *, is_draft: bool = False) -> list[S
     return list(db.scalars(stmt).all())
 
 
-def _course_with_test(db: Session, owner: User, **policy: object) -> tuple[str, str, str]:
+def _course_with_test(db: Session, owner: User, *, long_text: bool = False, **policy: object) -> tuple[str, str, str]:
     """A published PUBLIC course with one TEST item (one question: "to go" -> "ir").
 
+    `long_text`: the question is a Long Text one with two criteria (weight 0.5 each) instead.
     Returns (space id, published item id, test id).
     """
     data = SpaceCreate(title="Spanish", visibility=SpaceVisibility.PUBLIC)
@@ -83,11 +102,20 @@ def _course_with_test(db: Session, owner: User, **policy: object) -> tuple[str, 
         db, space_id=course.id, current_user=owner, data=SpaceSectionCreate(title="S")
     )
     assert course.draft_sections is not None
+    source = new_test(db, user=owner)
+    if long_text:
+        question = source.questions[0]
+        question.question_type = int(QuestionType.LONG_TEXT)
+        question.content = {
+            "length_limit": 1,
+            "rubric": [{"point": "first", "weight": 0.5}, {"point": "second", "weight": 0.5}],
+        }
+        db.flush()
     test_id = space_draft_service.copy_item(
         db,
         space_id=course.id,
         current_user=owner,
-        data=SpaceItemCopy(section_id=course.draft_sections[0].id, test_id=new_test(db, user=owner).id),
+        data=SpaceItemCopy(section_id=course.draft_sections[0].id, test_id=source.id),
     ).test_id
     assert test_id is not None
     if policy:
@@ -518,6 +546,79 @@ class TestAttempts:
             )
 
 
+class TestRaces:
+    def test_submit_on_a_removed_variant_expires_the_attempt(self, db_session: Session, owner: User) -> None:
+        """A start that raced with a publish keeps an OPEN attempt on a variant that is no longer linked."""
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        assert started.attempt_id is not None
+        space_item_test_crud.replace(db_session, item_id=item_id, test_ids=[])
+
+        assert _status_code(_submit, db_session, space_id=space_id, start=started, user=viewer) == 409
+        attempt = db_session.get(SpaceAttempt, started.attempt_id)
+        assert attempt is not None and attempt.status == int(AttemptStatus.EXPIRED)
+        assert db_session.scalars(select(TestResult).where(TestResult.user_id == viewer.id)).first() is None
+
+    def test_the_completion_sync_locks_the_member_row(self, db_session: Session, owner: User) -> None:
+        space_id, _, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        with patch.object(
+            space_progress_service.space_member_crud,
+            "get_for_update",
+            wraps=space_progress_service.space_member_crud.get_for_update,
+        ) as lock:
+            space_progress_service.sync_member_completion(db_session, space_id=space_id, user_id=viewer.id)
+        lock.assert_called_once_with(db_session, space_id=space_id, user_id=viewer.id)
+
+
+class TestAssistantBlock:
+    def test_open_attempt_blocks_the_assistant_until_deadline_and_grace_pass(
+        self, db_session: Session, owner: User
+    ) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, time_limit_minutes=5)
+        viewer = _viewer(db_session, space_id)
+        assert _status_code_of(space_attempt_service.require_no_open_attempt, db_session, user=viewer) is None
+
+        started = _start(db_session, space_id, item_id, viewer)
+        assert _status_code_of(space_attempt_service.require_no_open_attempt, db_session, user=viewer) == 409
+
+        attempt = db_session.get(SpaceAttempt, started.attempt_id or "")
+        assert attempt is not None
+        # Inside the grace: still blocked. Past the grace: free again.
+        attempt.deadline_at = space_progress_service.utcnow() - timedelta(seconds=30)
+        db_session.flush()
+        assert _status_code_of(space_attempt_service.require_no_open_attempt, db_session, user=viewer) == 409
+        attempt.deadline_at = space_progress_service.utcnow() - timedelta(minutes=5)
+        db_session.flush()
+        assert _status_code_of(space_attempt_service.require_no_open_attempt, db_session, user=viewer) is None
+
+    def test_an_open_attempt_without_deadline_blocks_and_a_submit_frees(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        assert started.deadline_at is None
+        assert _status_code_of(space_attempt_service.require_no_open_attempt, db_session, user=viewer) == 409
+
+        _submit(db_session, space_id, started, viewer)
+        assert _status_code_of(space_attempt_service.require_no_open_attempt, db_session, user=viewer) is None
+
+    def test_the_block_is_per_user(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        _start(db_session, space_id, item_id, viewer)
+        assert _status_code_of(space_attempt_service.require_no_open_attempt, db_session, user=owner) is None
+
+    def test_start_answers_carry_the_server_clock(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, time_limit_minutes=5)
+        viewer = _viewer(db_session, space_id)
+        before = space_progress_service.utcnow()
+        started = _start(db_session, space_id, item_id, viewer)
+        resumed = _start(db_session, space_id, item_id, viewer)
+        assert before <= started.server_now <= space_progress_service.utcnow()
+        assert resumed.resumed is True and resumed.server_now >= started.server_now
+
+
 # ---------------------------------------------------------------------------
 # Publish with open attempts and old results
 # ---------------------------------------------------------------------------
@@ -561,6 +662,69 @@ class TestPublishAndAttempts:
         assert (
             db_session.scalars(select(SpaceMember).where(SpaceMember.user_id == viewer.id)).one().completed_at is None
         )
+
+    def test_a_low_attempt_after_a_reset_does_not_complete_the_item(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        _submit(db_session, space_id, _start(db_session, space_id, item_id, viewer), viewer)
+        draft_item_id = _edit_title_of_first_question(db_session, owner, space_id, item_id)
+        _publish(db_session, owner, space_id, reset_item_ids=[draft_item_id])
+        db_session.expire_all()
+
+        def shown() -> SpaceItemRead:
+            return space_service.get_course(db_session, space_id=space_id, current_user=viewer).sections[0].items[0]
+
+        # Right after the reset the old pass is gone from the score too.
+        assert shown().best_score is None
+        _submit(db_session, space_id, _start(db_session, space_id, item_id, viewer), viewer, "wrong")
+        db_session.expire_all()
+
+        assert shown().completed is False
+        assert shown().best_score == 0
+        member = db_session.scalars(select(SpaceMember).where(SpaceMember.user_id == viewer.id)).one()
+        assert member.completed_at is None
+        # A pass after the reset completes the item again.
+        _submit(db_session, space_id, _start(db_session, space_id, item_id, viewer), viewer, "venir")
+        db_session.expire_all()
+        assert shown().completed is True
+
+    def test_attempts_count_from_zero_after_a_reset(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, max_attempts=1, cooldown_hours=24)
+        viewer = _viewer(db_session, space_id)
+        _submit(db_session, space_id, _start(db_session, space_id, item_id, viewer), viewer)
+        assert _status_code(_start, db_session, space_id=space_id, item_id=item_id, user=viewer) == 409
+
+        draft_item_id = _edit_title_of_first_question(db_session, owner, space_id, item_id)
+        _publish(db_session, owner, space_id, reset_item_ids=[draft_item_id])
+        db_session.expire_all()
+
+        item = space_service.get_course(db_session, space_id=space_id, current_user=viewer).sections[0].items[0]
+        assert (item.attempts_left, item.next_attempt_at, item.best_score) == (1, None, None)
+        # The old attempt does not block: the cooldown and the limit start again.
+        assert _start(db_session, space_id, item_id, viewer).attempt_id is not None
+
+    def test_a_publish_without_a_reset_keeps_the_attempts(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, max_attempts=1)
+        viewer = _viewer(db_session, space_id)
+        _submit(db_session, space_id, _start(db_session, space_id, item_id, viewer), viewer)
+        _edit_title_of_first_question(db_session, owner, space_id, item_id)
+        _publish(db_session, owner, space_id)
+        db_session.expire_all()
+
+        assert _status_code(_start, db_session, space_id=space_id, item_id=item_id, user=viewer) == 409
+        assert db_session.get(SpaceItem, item_id).progress_reset_at is None  # type: ignore[union-attr]
+
+    def test_the_reset_time_is_set_only_on_the_reset_item(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        draft_item_id = _edit_title_of_first_question(db_session, owner, space_id, item_id)
+        _publish(db_session, owner, space_id, reset_item_ids=[draft_item_id])
+        db_session.expire_all()
+        item = db_session.get(SpaceItem, item_id)
+        assert item is not None and item.progress_reset_at is not None
+        # The next edit session starts a draft without the reset time.
+        space_draft_service.enter_edit_mode(db_session, space_id=space_id, current_user=owner)
+        draft = _test_items(db_session, space_id, is_draft=True)[0]
+        assert draft.progress_reset_at is None
 
     def test_no_reset_keeps_completion(self, db_session: Session, owner: User) -> None:
         space_id, item_id, _ = _course_with_test(db_session, owner)
@@ -774,18 +938,144 @@ def test_viewer_cannot_take_a_course_test_through_the_old_route(db_session: Sess
     assert _status_code(test_service.get_takeable_test, db_session, test_id=test_id, current_user=viewer) == 403
 
 
-def test_pending_result_counts_only_after_grading(db_session: Session, owner: User) -> None:
-    """A result with an answer still being graded does not complete the item. The recheck after grading does."""
-    space_id, item_id, _ = _course_with_test(db_session, owner)
-    viewer = _viewer(db_session, space_id)
-    result = _submit(db_session, space_id, _start(db_session, space_id, item_id, viewer), viewer)
-    assert isinstance(result, TestResult)
-    result.pending_answers = 1
-    space_item_completion_crud.remove(db_session, item_id=item_id, user_id=viewer.id)
-    db_session.flush()
-    space_progress_service.recheck_result_completion(db_session, test_result=result)
-    assert space_item_completion_crud.list_completed_ids(db_session, user_id=viewer.id, item_ids=[item_id]) == set()
+class _FakeLLM:
+    """An LLM client that always answers with `reply` (the grading and challenge calls use `complete`)."""
 
-    result.pending_answers = 0
-    space_progress_service.recheck_result_completion(db_session, test_result=result)
-    assert space_item_completion_crud.list_completed_ids(db_session, user_id=viewer.id, item_ids=[item_id]) == {item_id}
+    name = "fake"
+
+    def __init__(self, reply: dict[str, list[dict[str, object]]]) -> None:
+        self._text = json.dumps(reply)
+
+    def complete(self, **_: object) -> CompletionResult:
+        return CompletionResult(text=self._text, input_tokens=1, output_tokens=1, provider="anthropic", model="test")
+
+
+def _background_session_factory(db: Session) -> Callable[[], Session]:
+    """What `SessionLocal` gives a background task: its own session (autoflush off) on the test transaction."""
+    db.flush()
+    return lambda: Session(bind=db.get_bind(), join_transaction_mode="create_savepoint", autoflush=False)
+
+
+def _grade_in_background(db: Session, result_id: str, reply: list[dict[str, object]]) -> None:
+    with (
+        patch.object(grading_service, "SessionLocal", _background_session_factory(db)),
+        patch.object(grading_service, "get_user_llm_client", return_value=_FakeLLM({"results": reply})),
+    ):
+        grading_service.grade_pending_answers(result_id)
+    db.expire_all()
+
+
+def _is_done(db: Session, item_id: str, user: User) -> bool:
+    return item_id in space_item_completion_crud.list_completed_ids(db, user_id=user.id, item_ids=[item_id])
+
+
+def _submit_long_text(db: Session, space_id: str, item_id: str, viewer: User) -> TestResult:
+    result = _submit(db, space_id, _start(db, space_id, item_id, viewer), viewer, "a long answer")
+    assert isinstance(result, TestResult) and result.pending_answers == 1
+    return result
+
+
+class TestExplanationsInAttempt:
+    """An explanation can give the answer away: the exam of an attempt never has it (all policies)."""
+
+    @staticmethod
+    def _explain_the_question(db: Session, test_id: str) -> None:
+        question = db.scalars(select(Question).where(Question.test_id == test_id)).one()
+        question.explanation = "ir means to go"
+        db.flush()
+
+    @pytest.mark.parametrize("policy", list(RevealAnswers))
+    def test_a_new_attempt_has_no_explanation(self, db_session: Session, owner: User, policy: RevealAnswers) -> None:
+        space_id, item_id, test_id = _course_with_test(db_session, owner, reveal_answers=policy)
+        self._explain_the_question(db_session, test_id)
+        start = _start(db_session, space_id, item_id, _viewer(db_session, space_id))
+        assert [q.explanation for q in start.test.questions] == [None]
+
+    def test_a_resumed_attempt_has_no_explanation(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, test_id = _course_with_test(db_session, owner)
+        self._explain_the_question(db_session, test_id)
+        viewer = _viewer(db_session, space_id)
+        _start(db_session, space_id, item_id, viewer)
+        resumed = _start(db_session, space_id, item_id, viewer)
+        assert resumed.resumed is True
+        assert [q.explanation for q in resumed.test.questions] == [None]
+
+    def test_the_author_preview_has_no_explanation(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, test_id = _course_with_test(db_session, owner)
+        self._explain_the_question(db_session, test_id)
+        preview = _start(db_session, space_id, item_id, owner)
+        assert [q.explanation for q in preview.test.questions] == [None]
+
+
+class TestBackgroundGrading:
+    """Completion after the background grading and after a challenge (autoflush is off, as in production)."""
+
+    def test_pending_result_does_not_complete_the_item(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, long_text=True)
+        viewer = _viewer(db_session, space_id)
+        _submit_long_text(db_session, space_id, item_id, viewer)
+        assert _is_done(db_session, item_id, viewer) is False
+
+    def test_a_good_grade_completes_the_item(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, long_text=True)
+        viewer = _viewer(db_session, space_id)
+        result = _submit_long_text(db_session, space_id, item_id, viewer)
+        result_id = result.id
+
+        _grade_in_background(
+            db_session,
+            result_id,
+            [{"index": 0, "met": True, "reason": "ok"}, {"index": 1, "met": True, "reason": "ok"}],
+        )
+
+        assert _is_done(db_session, item_id, viewer) is True
+        graded = db_session.get(TestResult, result_id)
+        assert graded is not None and graded.pending_answers == 0 and graded.score == 100
+
+    def test_a_low_grade_does_not_complete_the_item(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, long_text=True, pass_threshold=0.8)
+        viewer = _viewer(db_session, space_id)
+        result = _submit_long_text(db_session, space_id, item_id, viewer)
+
+        _grade_in_background(
+            db_session,
+            result.id,
+            [{"index": 0, "met": True, "reason": "ok"}, {"index": 1, "met": False, "reason": "missing"}],
+        )
+
+        assert _is_done(db_session, item_id, viewer) is False
+
+    def test_a_challenge_over_the_threshold_completes_the_item(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, long_text=True, pass_threshold=0.8)
+        viewer = _viewer(db_session, space_id)
+        result = _submit_long_text(db_session, space_id, item_id, viewer)
+        result_id = result.id
+        _grade_in_background(
+            db_session,
+            result_id,
+            [{"index": 0, "met": True, "reason": "ok"}, {"index": 1, "met": False, "reason": "missing"}],
+        )
+        assert _is_done(db_session, item_id, viewer) is False
+
+        answer = db_session.scalars(select(Answer).where(Answer.test_result_id == result_id)).one()
+        challenge_service.challenge_answer(
+            db_session,
+            answer_id=answer.id,
+            request=ChallengeRequest.model_validate({"criteria": [{"criterionIndex": 1, "argument": "I wrote it"}]}),
+            user_id=viewer.id,
+        )
+        answer_id = answer.id
+        with (
+            patch.object(challenge_service, "SessionLocal", _background_session_factory(db_session)),
+            patch.object(
+                challenge_service,
+                "get_user_llm_client",
+                return_value=_FakeLLM({"results": [{"index": 1, "met": True, "reason": "fair"}]}),
+            ),
+        ):
+            challenge_service.process_challenge(answer_id)
+        db_session.expire_all()
+
+        assert _is_done(db_session, item_id, viewer) is True
+        rechecked = db_session.get(TestResult, result_id)
+        assert rechecked is not None and rechecked.score == 100

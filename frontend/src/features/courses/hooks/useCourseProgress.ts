@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
-import { type SpaceProgress } from '@/client';
+import { type SpaceDetail, type SpaceProgress } from '@/client';
 import { sdk } from '@/lib/apiClient';
 import { getErrorDetail } from '@/lib/utils';
 
@@ -42,47 +42,25 @@ export function useCourseProgress(courseId: string): { markDone: ItemMutation; u
 /**
  * Tells the server which item the student opened, once per item while `enabled`.
  * It is a hint for "Continue", so a failed call is not shown to the student.
+ * On success the cached course gets the same `lastItemId`, so "Continue" on this page opens this item.
  */
 export function useVisitItem(courseId: string, itemId: string | null | undefined, enabled: boolean): void {
+  const queryClient = useQueryClient();
   const lastVisited = useRef<string | null>(null);
 
   useEffect(() => {
     if (!enabled || !itemId || lastVisited.current === itemId) return;
     lastVisited.current = itemId;
-    sdk.spacesVisit({ path: { space_id: courseId }, body: { itemId }, throwOnError: true }).catch(() => {
-      // Let the next open of the item try again.
-      lastVisited.current = null;
-    });
-  }, [courseId, itemId, enabled]);
-}
-
-type SentinelRef = (element: Element | null) => void;
-
-/**
- * A ref for an element at the end of a note. `onReached` runs once, when the element scrolls into view.
- * Nothing is watched while `enabled` is false (for example, the note is done already).
- */
-export function useEndSentinel(onReached: () => void, enabled: boolean): SentinelRef {
-  const latest = useRef(onReached);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  useEffect(() => {
-    latest.current = onReached;
-  });
-
-  return useCallback<SentinelRef>(
-    element => {
-      // React calls the ref with null on unmount, and when `enabled` changes: stop the old watch first.
-      observerRef.current?.disconnect();
-      observerRef.current = null;
-      if (!element || !enabled || typeof IntersectionObserver === 'undefined') return;
-      const observer = new IntersectionObserver(entries => {
-        if (!entries.some(entry => entry.isIntersecting)) return;
-        observer.disconnect();
-        latest.current();
+    sdk
+      .spacesVisit({ path: { space_id: courseId }, body: { itemId }, throwOnError: true })
+      .then(() => {
+        queryClient.setQueryData<SpaceDetail>(courseQueryKeys.detail(courseId), course =>
+          course?.progress ? { ...course, progress: { ...course.progress, lastItemId: itemId } } : course
+        );
+      })
+      .catch(() => {
+        // Let the next open of the item try again.
+        lastVisited.current = null;
       });
-      observer.observe(element);
-      observerRef.current = observer;
-    },
-    [enabled]
-  );
+  }, [courseId, itemId, enabled, queryClient]);
 }

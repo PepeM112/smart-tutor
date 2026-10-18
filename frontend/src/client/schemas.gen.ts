@@ -2520,6 +2520,11 @@ export const SpaceAttemptStartSchema = {
             ],
             title: 'Deadlineat'
         },
+        serverNow: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Servernow'
+        },
         resumed: {
             type: 'boolean',
             title: 'Resumed',
@@ -2531,7 +2536,8 @@ export const SpaceAttemptStartSchema = {
         'attemptId',
         'test',
         'startedAt',
-        'deadlineAt'
+        'deadlineAt',
+        'serverNow'
     ],
     title: 'SpaceAttemptStart',
     description: 'The exam of one attempt. `attempt_id` is None for an author preview (no rows, no limits).'

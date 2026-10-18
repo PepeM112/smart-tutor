@@ -635,6 +635,8 @@ def publish(
         reset_item_ids=reset_item_ids,
     )
     space_item_completion_crud.remove_for_items(db, item_ids=reset_item_ids)
+    # Old results and attempts stop counting: without this the next recheck finds the old best score.
+    space_item_crud.set_progress_reset(db, item_ids=reset_item_ids, at=at)
     space_progress_service.sync_course_completion(db, space_id=space.id)
     space.published_at = now()
     space.draft_started_at = None

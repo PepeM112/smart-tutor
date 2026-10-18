@@ -2,9 +2,11 @@
 
 import { ArrowDown, ArrowUp, ClipboardCopy, ClipboardPlus, Pencil, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 
 import { RevealAnswers, type SpaceItemRead, type SpaceItemUpdate } from '@/client';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -21,7 +23,8 @@ type Props = {
   item: SpaceItemRead;
   /** Off for the variant buttons while another write runs (they build on the saved order). The rule fields stay on: the writes queue. */
   disabled: boolean;
-  onUpdate: (body: SpaceItemUpdate) => void;
+  /** `onError` runs when the save is refused, so a field can put the saved value back. */
+  onUpdate: (body: SpaceItemUpdate, onError?: () => void) => void;
   /** Opens the add dialog for this item: a new test, or a copy of a personal one. */
   onAddVariant: (action: 'create' | 'copy') => void;
   onReorderVariants: (testIds: string[]) => void;
@@ -64,28 +67,28 @@ export function CourseTestSettings({
             // Required: an empty field restores the saved value.
             value={thresholdToPercent(item.passThreshold)}
             max={100}
-            onCommit={value => value !== null && onUpdate({ passThreshold: value / 100 })}
+            onCommit={(value, onRefused) => value !== null && onUpdate({ passThreshold: value / 100 }, onRefused)}
           />
           <PolicyField
             id={`attempts-${item.id}`}
             label={t('courses.policy_max_attempts')}
             value={item.maxAttempts ?? null}
             placeholder={t('courses.policy_no_limit')}
-            onCommit={value => onUpdate({ maxAttempts: value })}
+            onCommit={(value, onRefused) => onUpdate({ maxAttempts: value }, onRefused)}
           />
           <PolicyField
             id={`cooldown-${item.id}`}
             label={t('courses.policy_cooldown_hours')}
             value={item.cooldownHours ?? null}
             placeholder={t('courses.policy_no_limit')}
-            onCommit={value => onUpdate({ cooldownHours: value })}
+            onCommit={(value, onRefused) => onUpdate({ cooldownHours: value }, onRefused)}
           />
           <PolicyField
             id={`time-${item.id}`}
             label={t('courses.policy_time_limit')}
             value={item.timeLimitMinutes ?? null}
             placeholder={t('courses.policy_no_limit')}
-            onCommit={value => onUpdate({ timeLimitMinutes: value })}
+            onCommit={(value, onRefused) => onUpdate({ timeLimitMinutes: value }, onRefused)}
           />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`reveal-${item.id}`}>{t('courses.policy_reveal_answers')}</Label>
@@ -165,17 +168,26 @@ export function CourseTestSettings({
               >
                 <ArrowDown />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                // The last variant cannot go: a test item needs one test.
-                tooltip={variants.length === 1 ? t('courses.variant_last_cannot_remove') : t('courses.variant_remove')}
-                aria-label={t('courses.variant_remove')}
-                disabled={disabled || variants.length === 1}
-                onClick={() => onRemoveVariant(variant.testId)}
-              >
-                <Trash2 />
-              </Button>
+              <ConfirmDialog
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    // The last variant cannot go: a test item needs one test.
+                    tooltip={
+                      variants.length === 1 ? t('courses.variant_last_cannot_remove') : t('courses.variant_remove')
+                    }
+                    aria-label={t('courses.variant_remove')}
+                    disabled={disabled || variants.length === 1}
+                  >
+                    <Trash2 />
+                  </Button>
+                }
+                title={t('courses.variant_remove_title')}
+                description={t('courses.variant_remove_description')}
+                confirmLabel={t('courses.variant_remove_confirm')}
+                onConfirm={() => onRemoveVariant(variant.testId)}
+              />
             </li>
           ))}
         </ul>
@@ -190,20 +202,23 @@ type PolicyFieldProps = {
   value: number | null;
   placeholder?: string;
   max?: number;
-  /** Runs on blur, only when the value changed. `null` = the field is empty (no limit). */
-  onCommit: (value: number | null) => void;
+  /** Runs on blur, only when the value changed. `null` = the field is empty (no limit). `onRefused` puts the saved value back. */
+  onCommit: (value: number | null, onRefused: () => void) => void;
 };
 
 /**
- * A number field that saves on blur. It is uncontrolled and keyed by the saved value, so a
- * refetch (or a refused value) puts the saved value back.
+ * A number field that saves on blur. It is uncontrolled and keyed by the saved value, so a refetch
+ * puts the saved value back. A refused save does not change the saved value, so it raises a
+ * revision that remounts the field (F18).
  */
 function PolicyField({ id, label, value, placeholder, max, onCommit }: PolicyFieldProps) {
+  const [revision, setRevision] = useState(0);
+
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       <Input
-        key={String(value)}
+        key={`${String(value)}-${revision}`}
         id={id}
         type="number"
         min={1}
@@ -213,7 +228,7 @@ function PolicyField({ id, label, value, placeholder, max, onCommit }: PolicyFie
         placeholder={placeholder}
         onBlur={e => {
           const next = parsePolicyNumber(e.target.value, max);
-          if (next.isValid && next.value !== value) onCommit(next.value);
+          if (next.isValid && next.value !== value) onCommit(next.value, () => setRevision(r => r + 1));
           else if (!next.isValid) e.target.value = String(value ?? '');
         }}
       />

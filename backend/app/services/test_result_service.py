@@ -10,34 +10,17 @@ from app.models.test import Test
 from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.answer import AnswerRead
-from app.schemas.question import QuestionReadStripped
 from app.schemas.test import TestRead, TestReadStripped
 from app.schemas.test_result import SortOrder, TestResultListItem, TestResultRead, TestResultSortBy
 from app.services import space_progress_service
 from app.services.access_service import EDIT_ROLES, get_space_access
-from app.services.question_helpers import build_stripped_test
+from app.services.question_helpers import build_stripped_test, without_explanations
 from app.services.service_helpers import get_owned_or_404
 
 
 def get_result(db: Session, *, result_id: str, current_user: User) -> TestResult:
     return get_owned_or_404(
         db, fetch=test_result_crud.get_by_id, id=result_id, current_user=current_user, entity_name="Test result"
-    )
-
-
-def _without_explanations(test: TestReadStripped) -> TestReadStripped:
-    """The explanation of a question can give the answer away: remove it with the answer key."""
-
-    def clean(question: QuestionReadStripped) -> QuestionReadStripped:
-        return question.model_copy(update={"explanation": None})
-
-    return test.model_copy(
-        update={
-            "questions": [clean(q) for q in test.questions],
-            "question_groups": [
-                g.model_copy(update={"questions": [clean(q) for q in g.questions]}) for g in test.question_groups
-            ],
-        }
     )
 
 
@@ -88,7 +71,7 @@ def get_result_test(db: Session, *, result_id: str, current_user: User) -> TestR
     """
     result, test = _get_result_and_test(db, result_id=result_id, current_user=current_user)
     if _answers_hidden(db, result=result, test=test, current_user=current_user):
-        return _without_explanations(build_stripped_test(test))
+        return without_explanations(build_stripped_test(test))
     return TestRead.model_validate(test)
 
 

@@ -25,13 +25,25 @@ export function flattenItems(sections: SpaceSectionRead[]): SpaceItemRead[] {
 }
 
 /**
- * The item that "Continue" opens: the item the student opened last (`progress.lastItemId`).
- * If there is none, or it is not in the published outline any more, the first item that is not done.
- * No item = the course is empty or done.
+ * The item that "Continue" opens: the item the student opened last (`progress.lastItemId`), if it can go on.
+ * A NOTE can always go on. A TEST can go on only with an open attempt (resume): the student must not start
+ * a new attempt by accident, and a done test, or one with no attempt left, would send the student back.
+ * Else the first item that is not done. No item = the course is empty or done.
  */
 export function continueItem(sections: SpaceSectionRead[], lastItemId?: string | null): SpaceItemRead | null {
   const items = flattenItems(sections);
-  return items.find(item => item.id === lastItemId) ?? items.find(item => !item.completed) ?? null;
+  const last = items.find(item => item.id === lastItemId);
+  if (last && canContinueAt(last)) return last;
+  return items.find(item => !item.completed) ?? null;
+}
+
+function canContinueAt(item: SpaceItemRead): boolean {
+  return item.kind !== SpaceItemKind.TEST || Boolean(item.openAttemptId);
+}
+
+/** One item of the outline by id. */
+export function findItem(sections: SpaceSectionRead[], itemId: string): SpaceItemRead | undefined {
+  return flattenItems(sections).find(item => item.id === itemId);
 }
 
 /** The NOTE item that shows a note, if any. */

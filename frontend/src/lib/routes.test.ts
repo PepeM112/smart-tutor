@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { folderHref, noteHref, parseSlugId } from './routes';
+import { courseItemRouteForAttempt, folderHref, noteHref, parseSlugId } from './routes';
 
 // 26-char Crockford base32 ULID (valid alphabet: 0-9, A-Z minus I, L, O, U)
 const ULID = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
@@ -61,5 +61,25 @@ describe('folderHref', () => {
 
   it('falls back to "untitled" for empty name', () => {
     expect(folderHref({ id: ULID, name: '' })).toBe(`/files/untitled-${ULID}`);
+  });
+});
+
+describe('courseItemRouteForAttempt', () => {
+  it('maps a course attempt route to the course page with the item selected', () => {
+    expect(courseItemRouteForAttempt(`/courses/spanish-${ULID}/tests/ITEM1`)).toBe(
+      `/courses/spanish-${ULID}?item=ITEM1`
+    );
+  });
+
+  it('accepts a trailing slash and a query', () => {
+    expect(courseItemRouteForAttempt('/courses/c1/tests/i1/')).toBe('/courses/c1?item=i1');
+    expect(courseItemRouteForAttempt('/courses/c1/tests/i1?x=1')).toBe('/courses/c1?item=i1');
+  });
+
+  it('returns null for other routes', () => {
+    expect(courseItemRouteForAttempt('/courses/c1')).toBeNull();
+    expect(courseItemRouteForAttempt('/courses/c1/settings')).toBeNull();
+    expect(courseItemRouteForAttempt('/tests/t1')).toBeNull();
+    expect(courseItemRouteForAttempt('/courses/c1/tests/i1/extra')).toBeNull();
   });
 });

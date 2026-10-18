@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SpaceItemKind, SpaceRole, SpaceStatus, type SpaceItemRead, type SpaceSectionRead } from '@/client';
 
-import { attemptAction, canTrackProgress, continueItem, findNoteItem } from './progress';
+import { attemptAction, canTrackProgress, continueItem, findItem, findNoteItem } from './progress';
 
 const item = (id: string, extra: Partial<SpaceItemRead> = {}): SpaceItemRead => ({
   id,
@@ -45,6 +45,42 @@ describe('continueItem', () => {
 
   it('returns null when every item is done', () => {
     expect(continueItem([section([item('a', { completed: true })])])).toBeNull();
+  });
+
+  describe('a TEST item as the last opened item', () => {
+    const test = (id: string, extra: Partial<SpaceItemRead> = {}): SpaceItemRead =>
+      item(id, { kind: SpaceItemKind.TEST, noteId: null, testId: `test-${id}`, ...extra });
+
+    it('resumes it when an attempt is open', () => {
+      const sections = [section([item('a'), test('t', { openAttemptId: 'attempt-1' })])];
+      expect(continueItem(sections, 't')?.id).toBe('t');
+    });
+
+    it('skips a done test and goes to the first item that is not done', () => {
+      const sections = [section([item('a'), test('t', { completed: true }), item('c')])];
+      expect(continueItem(sections, 't')?.id).toBe('a');
+    });
+
+    it('skips a test with no open attempt, so "Continue" never starts a new attempt', () => {
+      const sections = [section([item('a', { completed: true }), test('t'), item('c')])];
+      // The first item not done is the test itself: its page shows a Start screen, not an attempt.
+      expect(continueItem(sections, 't')?.id).toBe('t');
+      const afterPass = [section([item('a', { completed: true }), test('t', { completed: true }), item('c')])];
+      expect(continueItem(afterPass, 't')?.id).toBe('c');
+    });
+
+    it('returns null for a done test when every other item is done too', () => {
+      const sections = [section([item('a', { completed: true }), test('t', { completed: true, attemptsLeft: 0 })])];
+      expect(continueItem(sections, 't')).toBeNull();
+    });
+  });
+});
+
+describe('findItem', () => {
+  it('finds an item of any kind by id', () => {
+    const sections = [section([item('a'), item('b', { kind: SpaceItemKind.TEST, noteId: null })])];
+    expect(findItem(sections, 'b')?.kind).toBe(SpaceItemKind.TEST);
+    expect(findItem(sections, 'missing')).toBeUndefined();
   });
 });
 

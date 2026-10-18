@@ -3,14 +3,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type SpaceAttemptStart } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useHideAssist } from '@/features/assist/store/useAssistHiddenStore';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { ExamView } from '@/features/tests/components/ExamView';
+import { syncServerClock } from '@/features/tests/utils/countdown';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { sdk } from '@/lib/apiClient';
@@ -18,10 +20,13 @@ import { courseHref, Routes } from '@/lib/routes';
 import { errorStatus, getErrorDetail } from '@/lib/utils';
 
 import { useAttemptDraft, type AttemptAnswers } from '../hooks/useAttemptDraft';
+import { useAttemptRefusalMessage } from '../hooks/useAttemptRefusalMessage';
 import { useCourse } from '../hooks/useCourse';
 import { useVisitItem } from '../hooks/useCourseProgress';
-import { isCourseViewer } from '../lib/progress';
-import { courseQueryKeys } from '../lib/queryKeys';
+import { findItem, isCourseViewer } from '../lib/progress';
+import { courseQueryKeys, markCourseDetailStale } from '../lib/queryKeys';
+
+import { AttemptStartCard } from './AttemptStartCard';
 
 type Props = {
   courseId: string;
@@ -32,29 +37,44 @@ type Props = {
 const CONFLICT = 409;
 
 /**
- * One attempt on a TEST item. The page starts the attempt (or resumes the open one: the call is
- * idempotent), shows the exam with a countdown, and sends the answers. The answers also stay in
- * `localStorage` (D11), and a leave guard asks before the student leaves an open attempt (D12).
+ * One attempt on a TEST item. An open attempt resumes at once. Without one, the page shows a start card
+ * and starts the attempt only when the student presses Start (F7). It then shows the exam with a
+ * countdown and sends the answers. The answers also stay in `localStorage` (D11), and a leave guard
+ * asks before the student leaves an open attempt (D12). The Assistant is hidden while the attempt is open.
  */
 export function CourseAttemptPage({ courseId, itemId }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
   const userId = useAuthStore(s => s.user?.id);
-  const { data: course } = useCourse(courseId);
+  const { data: course, isLoading: isCourseLoading } = useCourse(courseId);
   useVisitItem(courseId, itemId, course !== undefined && isCourseViewer(course));
   const courseUrl = course ? courseHref(course) : `${Routes.COURSES}/${courseId}`;
 
+  const item = course ? findItem(course.sections, itemId) : undefined;
+  // An open attempt resumes at once. A new attempt starts only on the click of the student.
+  const [isStartRequested, setIsStartRequested] = useState(false);
+  const isStartEnabled = !isCourseLoading && (Boolean(item?.openAttemptId) || isStartRequested);
+  const refusalMessage = useAttemptRefusalMessage();
+
   const {
     data: attempt,
-    isLoading,
+    isFetching: isStarting,
     isError,
     error,
   } = useQuery({
-    queryKey: ['courses', 'attempt', courseId, itemId],
+    queryKey: courseQueryKeys.attempt(courseId, itemId),
+    enabled: isStartEnabled,
     // The start call is idempotent, but it must not run again on focus or reconnect.
-    queryFn: async (): Promise<SpaceAttemptStart> =>
-      (await sdk.spacesStartAttempt({ path: { space_id: courseId, item_id: itemId }, throwOnError: true })).data,
+    queryFn: async (): Promise<SpaceAttemptStart> => {
+      const { data } = await sdk.spacesStartAttempt({
+        path: { space_id: courseId, item_id: itemId },
+        throwOnError: true,
+      });
+      // The deadline is in server time: the countdown reads the client clock plus this offset.
+      syncServerClock(data.serverNow);
+      return data;
+    },
     staleTime: Infinity,
     gcTime: 0,
     retry: false,
@@ -65,13 +85,23 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
   const attemptId = attempt?.attemptId ?? null;
   const draft = useAttemptDraft(userId, attemptId);
 
+  // The start opened an attempt: the cached course detail does not know it yet (no `openAttemptId`).
+  // Marked stale, the next visit to the course page reads it again.
+  useEffect(() => {
+    if (attemptId) markCourseDetailStale(queryClient, courseId);
+  }, [attemptId, courseId, queryClient]);
+
   const leaveCourse = (message: string) => {
     draft.clear();
     toast.error(message);
     router.replace(courseUrl);
   };
 
-  const { mutate: submitAttempt, isPending: isSubmitting } = useMutation({
+  const {
+    mutate: submitAttempt,
+    isPending: isSubmitPending,
+    isSuccess: isSubmitted,
+  } = useMutation({
     mutationFn: async (answers: AttemptAnswers) => {
       if (!attemptId) return null;
       return (
@@ -100,7 +130,7 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
     },
     onError: (err: unknown) => {
       if (errorStatus(err) === CONFLICT) {
-        leaveCourse(getErrorDetail(err, t('courses.attempt_refused')));
+        leaveCourse(refusalMessage(err));
         return;
       }
       toast.error(getErrorDetail(err, t('tests.failed_to_submit')));
@@ -111,7 +141,7 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
   const startRefused = isError && errorStatus(error) === CONFLICT;
   useEffect(() => {
     if (!startRefused) return;
-    toast.error(getErrorDetail(error, t('courses.attempt_refused')));
+    toast.error(refusalMessage(error));
     router.replace(courseUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startRefused]);
@@ -125,11 +155,22 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
     courseUrl
   );
 
+  // From the success of the submit to the route change, the button and the leave guard stay off (F4).
+  const isSubmitting = isSubmitPending || isSubmitted;
   // The guard is active while an attempt is open and the answers are not on their way.
   const { pendingHref, confirmLeave, cancelLeave } = useLeaveGuard(attemptId !== null && !isSubmitting);
+  // The Assistant must not help during a timed attempt, and its navigation must not leave the page.
+  useHideAssist(attempt !== undefined);
+
+  const isWaiting = isCourseLoading || isStarting || startRefused;
 
   return (
-    <QueryState isLoading={isLoading || startRefused} isError={isError} errorMessage={t('tests.failed_to_load')}>
+    <QueryState
+      isLoading={isWaiting && !attempt}
+      isError={isError && !startRefused}
+      errorMessage={t('tests.failed_to_load')}
+    >
+      {!attempt && <AttemptStartCard item={item} isStarting={isStarting} onStart={() => setIsStartRequested(true)} />}
       {attempt && (
         <>
           <ExamView

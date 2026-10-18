@@ -28,7 +28,7 @@ class SpaceAttempt(Base, CreatedAtMixin):
     )
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
-    item_id: Mapped[str] = mapped_column(String(26), ForeignKey("space_item.id", ondelete="CASCADE"))
+    item_id: Mapped[str] = mapped_column(String(26), ForeignKey("space_item.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id", ondelete="CASCADE"))
     # The LIVE variant (never a snapshot), so the variant counts need no coalesce.
     test_id: Mapped[str] = mapped_column(String(26), ForeignKey("test.id", ondelete="CASCADE"), index=True)
@@ -40,5 +40,5 @@ class SpaceAttempt(Base, CreatedAtMixin):
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     test_result_id: Mapped[str | None] = mapped_column(
-        String(26), ForeignKey("test_result.id", ondelete="SET NULL"), nullable=True
+        String(26), ForeignKey("test_result.id", ondelete="SET NULL"), nullable=True, index=True
     )

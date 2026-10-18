@@ -3,7 +3,7 @@
 import { useIsMutating, useMutationState } from '@tanstack/react-query';
 import { Archive, Check, GraduationCap, Loader2, LogOut, Pencil, Play, Settings, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useUrlTab } from '@/hooks/useUrlTab';
-import { courseAttemptHref, courseSettingsHref, Routes } from '@/lib/routes';
+import { COURSE_ITEM_PARAM, courseAttemptHref, courseSettingsHref, Routes } from '@/lib/routes';
 import { cn, errorStatus } from '@/lib/utils';
 
 import { useCourse } from '../hooks/useCourse';
@@ -26,7 +26,7 @@ import { useVisitItem } from '../hooks/useCourseProgress';
 import { ROLE_LABELS, VISIBILITY_LABELS } from '../lib/labels';
 import { COURSE_COLUMN_CLASS } from '../lib/layout';
 import { courseAccess } from '../lib/membership';
-import { canTrackProgress, continueItem, findNoteItem, isCourseViewer } from '../lib/progress';
+import { canTrackProgress, continueItem, findItem, findNoteItem, isCourseViewer } from '../lib/progress';
 
 import { CopyToLibraryButton } from './CopyToLibraryButton';
 import { CourseDraftEditor } from './CourseDraftEditor';
@@ -51,6 +51,10 @@ export function CoursePage({ courseId }: { courseId: string }) {
   const actions = useCourseActions(courseId);
   const [tab, changeTab] = useUrlTab(AUTHOR_TABS, 'content');
   const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
+  // `?item=<id>`: a link or the Assistant selects one item. A test is only marked (it starts nothing); a note opens.
+  const selectedItemId = useSearchParams().get(COURSE_ITEM_PARAM);
+  // Set when the student closes the preview that `?item=` opened, so it does not open again.
+  const [dismissedItemId, setDismissedItemId] = useState<string | null>(null);
 
   useBreadcrumb(course?.title ?? '', [{ label: t('courses.title'), href: Routes.COURSES }], Routes.COURSES);
 
@@ -66,9 +70,19 @@ export function CoursePage({ courseId }: { courseId: string }) {
 
   const { isMember, isAuthor } = courseAccess(course);
   // Enter edit, publish and discard change the note ids (a draft twin is made or deleted): the preview closes.
-  const previewNoteId = previewNote?.isEditing === course.isEditing ? previewNote.noteId : null;
+  const openedNoteId = previewNote?.isEditing === course.isEditing ? previewNote.noteId : null;
+  // `?item=` on a note opens its preview (derived, not an effect), until the student closes it or opens another note.
+  const selectedItem = selectedItemId ? findItem(course.sections, selectedItemId) : undefined;
+  const selectedNoteId =
+    !course.isEditing && selectedItem?.kind === SpaceItemKind.NOTE && selectedItemId !== dismissedItemId
+      ? selectedItem.noteId
+      : null;
+  const previewNoteId = previewNote ? openedNoteId : selectedNoteId;
   const openNote = (noteId: string) => setPreviewNote({ noteId, isEditing: course.isEditing });
-  const closePreview = () => setPreviewNote(null);
+  const closePreview = () => {
+    setPreviewNote(null);
+    setDismissedItemId(selectedItemId);
+  };
   const openContinue = (): void => {
     const next = continueItem(course.sections, course.progress?.lastItemId);
     if (!next) return;
@@ -95,14 +109,20 @@ export function CoursePage({ courseId }: { courseId: string }) {
             <TabsTrigger value="members">{t('courses.tab_members')}</TabsTrigger>
           </TabsList>
           <TabsContent value="content" className="pt-4">
-            <AuthorContent course={course} actions={actions} onOpenNote={openNote} />
+            <AuthorContent course={course} actions={actions} onOpenNote={openNote} selectedItemId={selectedItemId} />
           </TabsContent>
           <TabsContent value="members" className="pt-4">
             <CourseMembers course={course} actions={actions} />
           </TabsContent>
         </Tabs>
       ) : (
-        <CourseOutline sections={course.sections} course={course} linkItems={isMember} onOpenNote={openNote} />
+        <CourseOutline
+          sections={course.sections}
+          course={course}
+          linkItems={isMember}
+          onOpenNote={openNote}
+          selectedItemId={selectedItemId}
+        />
       )}
     </div>
   );
@@ -359,10 +379,12 @@ function AuthorContent({
   course,
   actions,
   onOpenNote,
+  selectedItemId,
 }: {
   course: SpaceDetail;
   actions: Actions;
   onOpenNote: (noteId: string) => void;
+  selectedItemId: string | null;
 }) {
   if (course.isEditing && course.draftSections) {
     return course.canEdit ? (
@@ -371,5 +393,5 @@ function AuthorContent({
       <CourseOutline sections={course.draftSections} linkItems={false} />
     );
   }
-  return <CourseOutline sections={course.sections} linkItems onOpenNote={onOpenNote} />;
+  return <CourseOutline sections={course.sections} linkItems onOpenNote={onOpenNote} selectedItemId={selectedItemId} />;
 }

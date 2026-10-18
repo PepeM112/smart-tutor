@@ -33,6 +33,20 @@ describe('useAttemptDraft', () => {
     expect(window.localStorage.getItem(attemptDraftKey('u1', 'a1'))).toBeNull();
   });
 
+  it('deletes the drafts of other attempts of the same user on start (F19)', () => {
+    window.localStorage.setItem('st:attempt:u1:old', '{"q1":"x"}');
+    window.localStorage.setItem('st:attempt:u1:a1', '{"q1":"keep"}');
+    window.localStorage.setItem('st:attempt:u2:old', '{"q1":"other user"}');
+    window.localStorage.setItem('unrelated', 'value');
+
+    renderHook(() => useAttemptDraft('u1', 'a1'));
+
+    expect(window.localStorage.getItem('st:attempt:u1:old')).toBeNull();
+    expect(window.localStorage.getItem('st:attempt:u1:a1')).toBe('{"q1":"keep"}');
+    expect(window.localStorage.getItem('st:attempt:u2:old')).not.toBeNull();
+    expect(window.localStorage.getItem('unrelated')).toBe('value');
+  });
+
   it('does nothing before the attempt is known', () => {
     const { result } = renderHook(() => useAttemptDraft('u1', null));
     result.current.save({ q1: 'x' });

@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Send, Timer } from 'lucide-react';
+import { Loader2, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
@@ -20,11 +20,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
-import { formatCountdown, secondsLeft } from '../utils/countdown';
 import { parseMcAnswer, toggleMcOption } from '../utils/questionContent';
+
+import { Countdown } from './Countdown';
 
 type ExamItem =
   | { kind: 'question'; question: QuestionReadStripped; order: number }
@@ -76,17 +76,24 @@ export function ExamView({ test, onSubmit, isSubmitting, initialAnswers, onAnswe
     }));
   };
 
-  const handleSubmit = () => {
-    onSubmit(answers);
-  };
+  // One guard for both submit paths (the button and the timeout): a timeout during a slow manual
+  // submit must not send a second request. A failed submit (`isSubmitting` back to false) opens it again.
+  const hasSubmitted = useRef(false);
+  useEffect(() => {
+    if (!isSubmitting) hasSubmitted.current = false;
+  }, [isSubmitting]);
 
-  const submitOnTimeout = () => latest.current.onSubmit(latest.current.answers);
+  const submitOnce = () => {
+    if (hasSubmitted.current) return;
+    hasSubmitted.current = true;
+    latest.current.onSubmit(latest.current.answers);
+  };
 
   let itemNumber = 0;
 
   return (
     <div className="space-y-6">
-      {deadlineAt && <Countdown deadlineAt={deadlineAt} onTimeout={submitOnTimeout} />}
+      {deadlineAt && <Countdown deadlineAt={deadlineAt} onTimeout={submitOnce} />}
 
       {/* Test title */}
       <h2 className="text-2xl font-bold text-balance">{test.title}</h2>
@@ -151,56 +158,12 @@ export function ExamView({ test, onSubmit, isSubmitting, initialAnswers, onAnswe
         <Button
           size="lg"
           icon={isSubmitting ? Loader2 : Send}
-          onClick={handleSubmit}
+          onClick={submitOnce}
           disabled={isSubmitting || allQuestions.length === 0}
         >
           {isSubmitting ? t('exam.submitting') : t('exam.submit_exam')}
         </Button>
       </div>
-    </div>
-  );
-}
-
-/** A sticky countdown. It calls `onTimeout` once, when the time is over. */
-function Countdown({ deadlineAt, onTimeout }: { deadlineAt: Date; onTimeout: () => void }) {
-  const t = useTranslations();
-  const [remaining, setRemaining] = useState(() => secondsLeft(deadlineAt, Date.now()));
-  const timeoutRef = useRef(onTimeout);
-  const hasFired = useRef(false);
-
-  useEffect(() => {
-    timeoutRef.current = onTimeout;
-  });
-
-  useEffect(() => {
-    const tick = () => {
-      const left = secondsLeft(deadlineAt, Date.now());
-      setRemaining(left);
-      if (left === 0 && !hasFired.current) {
-        hasFired.current = true;
-        timeoutRef.current();
-      }
-    };
-    tick();
-    const id = window.setInterval(tick, 500);
-    return () => window.clearInterval(id);
-  }, [deadlineAt]);
-
-  const isLow = remaining <= 60;
-
-  return (
-    <div
-      role="timer"
-      aria-label={t('exam.time_left')}
-      data-testid="exam-countdown"
-      className={cn(
-        'sticky top-0 z-10 flex items-center justify-end gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium tabular-nums shadow-card',
-        isLow ? 'text-destructive' : 'text-foreground'
-      )}
-    >
-      <Timer className="size-4" />
-      <span>{t('exam.time_left')}</span>
-      <span>{formatCountdown(remaining)}</span>
     </div>
   );
 }

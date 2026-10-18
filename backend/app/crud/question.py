@@ -12,6 +12,7 @@ from app.crud.helpers import token_search
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.space_item import SpaceItem
+from app.models.space_item_completion import SpaceItemCompletion
 from app.models.space_item_test import SpaceItemTest
 from app.models.space_member import SpaceMember
 from app.models.test import Test
@@ -280,7 +281,8 @@ def _reviewable_test_filter(*, user_id: str, scope: str) -> ColumnElement[bool]:
 
     - Personal tests of the user.
     - Course tests of the courses where the user is an ACTIVE member with `include_in_srs` on: published
-      only (never a draft), and linked to a published item that does not hide its answers (reveal NEVER).
+      only (never a draft), and linked to a published item whose answer key the user may see: ALWAYS, or
+      AFTER_PASS_OR_LAST once the user has a completion row for that item. NEVER items are never in.
     """
     personal = sa.and_(Test.user_id == user_id, Test.space_id.is_(None))
     opted_in_spaces = select(SpaceMember.space_id).where(
@@ -288,13 +290,21 @@ def _reviewable_test_filter(*, user_id: str, scope: str) -> ColumnElement[bool]:
         SpaceMember.status == int(MemberStatus.ACTIVE),
         SpaceMember.include_in_srs.is_(True),
     )
+    passed_by_user = (
+        select(SpaceItemCompletion.item_id)
+        .where(SpaceItemCompletion.item_id == SpaceItem.id, SpaceItemCompletion.user_id == user_id)
+        .exists()
+    )
     reviewable_item = (
         select(SpaceItemTest.test_id)
         .join(SpaceItem, SpaceItem.id == SpaceItemTest.item_id)
         .where(
             SpaceItemTest.test_id == Test.id,
             SpaceItem.is_draft.is_(False),
-            SpaceItem.reveal_answers != int(RevealAnswers.NEVER),
+            sa.or_(
+                SpaceItem.reveal_answers == int(RevealAnswers.ALWAYS),
+                sa.and_(SpaceItem.reveal_answers == int(RevealAnswers.AFTER_PASS_OR_LAST), passed_by_user),
+            ),
         )
     )
     course = sa.and_(

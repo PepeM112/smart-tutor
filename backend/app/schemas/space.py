@@ -335,5 +335,8 @@ class SpaceAttemptStart(BaseSchema):
     started_at: datetime | None
     # None = no timer.
     deadline_at: datetime | None
+    # The server clock (UTC) when the response was made. The client uses it to correct its own clock
+    # offset for the countdown.
+    server_now: datetime
     # True when the attempt was already open (a reload or another device).
     resumed: bool = False

@@ -4,7 +4,10 @@ import type { QueryClient } from '@tanstack/react-query';
 
 export type MyCoursesParams = NonNullable<SpacesListMineData['query']>;
 
-/** Central query key definitions for the courses feature. Every key starts with `['courses']`. */
+/**
+ * Central query key definitions for the courses feature. Every key starts with `['courses']`,
+ * except `attempt`: it has its own root, so a refetch of `all()` never sends the start POST again.
+ */
 export const courseQueryKeys = {
   /** ['courses'] — prefix that covers every course query. */
   all: () => ['courses'] as const,
@@ -19,6 +22,8 @@ export const courseQueryKeys = {
   detail: (id: string) => ['courses', 'detail', id] as const,
   /** ['courses', 'detail', id, 'members'] — the member list (authors only). Under the detail key. */
   members: (id: string) => ['courses', 'detail', id, 'members'] as const,
+  /** ['course-attempt', courseId, itemId] — the start call of an attempt (it writes), so it is not under ['courses']. */
+  attempt: (courseId: string, itemId: string) => ['course-attempt', courseId, itemId] as const,
 } as const;
 
 /**

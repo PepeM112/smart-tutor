@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, CheckConstraint, Float, ForeignKey, Integer, String
+from datetime import datetime
+
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.constants import DEFAULT_PASS_THRESHOLD
@@ -61,3 +63,7 @@ class SpaceItem(Base, CreatedAtMixin):
     )
     # NULL = no timer.
     time_limit_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Published rows only. Set by a publish that resets the item: results and attempts from before
+    # this time no longer count (best score, completion, attempts used). NULL = nothing was reset.
+    # Not copied to drafts or duplicates (`copy_policy` leaves it out).
+    progress_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

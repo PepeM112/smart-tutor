@@ -147,7 +147,7 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
               setAddTarget({ sectionId: section.id, mode });
             }}
             onEditItem={handleEditItem}
-            onUpdateItem={(item, body) => actions.updateItem.mutate({ itemId: item.id, body })}
+            onUpdateItem={(item, body, onError) => actions.updateItem.mutate({ itemId: item.id, body }, { onError })}
             onAddVariant={(item, action) => {
               addButtonRef.current = null;
               setAddTarget({ sectionId: section.id, itemId: item.id, mode: { action, kind: SpaceItemKind.TEST } });
@@ -215,7 +215,7 @@ type DraftSectionProps = {
   /** `trigger`: the "Add item" button, for the focus return. */
   onAdd: (mode: AddItemMode, trigger: HTMLElement | null) => void;
   onEditItem: (item: SpaceItemRead) => void;
-  onUpdateItem: (item: SpaceItemRead, body: SpaceItemUpdate) => void;
+  onUpdateItem: (item: SpaceItemRead, body: SpaceItemUpdate, onError?: () => void) => void;
   onAddVariant: (item: SpaceItemRead, action: 'create' | 'copy') => void;
   onReorderVariants: (item: SpaceItemRead, testIds: string[]) => void;
   onRemoveVariant: (item: SpaceItemRead, testId: string) => void;
@@ -460,7 +460,7 @@ function DraftSection({
                 <CourseTestSettings
                   item={item}
                   disabled={disabled}
-                  onUpdate={body => onUpdateItem(item, body)}
+                  onUpdate={(body, onError) => onUpdateItem(item, body, onError)}
                   onAddVariant={action => onAddVariant(item, action)}
                   onReorderVariants={testIds => onReorderVariants(item, testIds)}
                   onRemoveVariant={testId => onRemoveVariant(item, testId)}

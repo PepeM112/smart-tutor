@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.constants import ATTEMPT_GRACE_SECONDS
 from app.core.enums import AttemptStatus, SpaceItemKind, SpaceRole
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_item as space_item_crud
@@ -36,7 +37,7 @@ from app.schemas.test import TestReadStripped
 from app.services import space_progress_service
 from app.services.correction_service import grade_submission
 from app.services.grading_service import grade_pending_answers
-from app.services.question_helpers import build_stripped_test
+from app.services.question_helpers import build_stripped_test, without_explanations
 from app.services.space_service import (
     Membership,
     conflict,
@@ -52,6 +53,14 @@ def _get_published_test_item_or_404(db: Session, *, space: Space, item_id: str) 
     if item is None or item.space_id != space.id or item.is_draft or item.kind != int(SpaceItemKind.TEST):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
     return item
+
+
+def require_no_open_attempt(db: Session, *, user: User) -> None:
+    """Block the AI assistant while a course test is running: it could give the answers away."""
+    if space_attempt_crud.has_live_open(
+        db, user_id=user.id, now=space_progress_service.utcnow(), grace_seconds=ATTEMPT_GRACE_SECONDS
+    ):
+        raise conflict("The assistant is not available during a course test")
 
 
 def _all_questions(test: Test) -> list[Question]:
@@ -70,8 +79,11 @@ def _pinned_test(db: Session, *, attempt: SpaceAttempt) -> Test:
 
 
 def _present(test: Test, *, live_id: str) -> TestReadStripped:
-    """The exam without answers. A frozen copy is shown with the ids of the live test and questions."""
-    stripped = build_stripped_test(test)
+    """The exam without answers and explanations (an explanation can give the answer away).
+
+    A frozen copy is shown with the ids of the live test and questions.
+    """
+    stripped = without_explanations(build_stripped_test(test))
     if test.id == live_id:
         return stripped
     question_ids = {q.id: q.origin_id for q in _all_questions(test) if q.origin_id}
@@ -120,7 +132,7 @@ def _available_variants(db: Session, *, item: SpaceItem) -> list[Test]:
 
 def _pick_variant(db: Session, *, item: SpaceItem, user_id: str, variants: Sequence[Test]) -> Test:
     """The variant the user started least often. A random one among equals."""
-    counts = space_attempt_crud.count_by_variant(db, user_id=user_id, item_id=item.id)
+    counts = space_attempt_crud.count_by_variant(db, user_id=user_id, item_id=item.id, since=item.progress_reset_at)
     fewest = min(counts.get(t.id, 0) for t in variants)
     return random.choice([t for t in variants if counts.get(t.id, 0) == fewest])
 
@@ -158,7 +170,11 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
         if not variants:
             raise conflict("This test has no questions available")
         return SpaceAttemptStart(
-            attempt_id=None, test=build_stripped_test(variants[0]), started_at=None, deadline_at=None
+            attempt_id=None,
+            test=_present(variants[0], live_id=variants[0].id),
+            started_at=None,
+            deadline_at=None,
+            server_now=space_progress_service.utcnow(),
         )
 
     # The row lock serializes parallel starts of one user (a double click, two tabs).
@@ -175,13 +191,19 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
         started_at, deadline_at = open_attempt.started_at, open_attempt.deadline_at
         db.commit()
         return SpaceAttemptStart(
-            attempt_id=open_attempt.id, test=exam, started_at=started_at, deadline_at=deadline_at, resumed=True
+            attempt_id=open_attempt.id,
+            test=exam,
+            started_at=started_at,
+            deadline_at=deadline_at,
+            server_now=at,
+            resumed=True,
         )
     if state.attempts_left == 0:
         db.commit()
         raise conflict("No attempts left")
     if state.next_attempt_at is not None:
         db.commit()
+        # The frontend matches the prefix "The next attempt is possible at " and reads the date after it.
         raise conflict(f"The next attempt is possible at {state.next_attempt_at.isoformat()}")
 
     variants = _available_variants(db, item=item)
@@ -190,7 +212,7 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
         raise conflict("This test has no questions available")
     test = _pick_variant(db, item=item, user_id=current_user.id, variants=variants)
     deadline = at + timedelta(minutes=item.time_limit_minutes) if item.time_limit_minutes else None
-    exam = build_stripped_test(test)
+    exam = _present(test, live_id=test.id)
     attempt = space_attempt_crud.create(
         db,
         item_id=item.id,
@@ -202,7 +224,7 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
     )
     attempt_id = attempt.id
     db.commit()
-    return SpaceAttemptStart(attempt_id=attempt_id, test=exam, started_at=at, deadline_at=deadline)
+    return SpaceAttemptStart(attempt_id=attempt_id, test=exam, started_at=at, deadline_at=deadline, server_now=at)
 
 
 # ── Submit ────────────────────────────────────────────────────────────────────
@@ -235,6 +257,11 @@ def submit_attempt(
         )
         db.commit()
         raise conflict("Time is over")
+    # A start can race with a publish that removes the variant (the publish only expires the attempts it sees).
+    if attempt.test_id not in space_item_test_crud.list_by_items(db, item_ids=[item.id]).get(item.id, []):
+        space_attempt_crud.close(db, attempt=attempt, status=AttemptStatus.EXPIRED, finished_at=at)
+        db.commit()
+        raise conflict("This attempt can not be continued")
 
     pinned = _pinned_test(db, attempt=attempt)
     result = grade_submission(

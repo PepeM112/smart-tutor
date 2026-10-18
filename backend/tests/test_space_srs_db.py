@@ -133,6 +133,28 @@ def _member(db: Session, space_id: str, *, include_in_srs: bool = False) -> User
     return user
 
 
+def _pass_item(db: Session, space_id: str, user: User) -> None:
+    """The user takes the one test item and answers right: the completion row is written."""
+    item = _published_item(db, space_id)
+    start = space_attempt_service.start_attempt(db, space_id=space_id, item_id=item.id, current_user=user)
+    assert start.attempt_id is not None
+    space_attempt_service.submit_attempt(
+        db,
+        space_id=space_id,
+        attempt_id=start.attempt_id,
+        current_user=user,
+        submission=TestSubmission.model_validate(
+            {"answers": [{"question_id": q.id, "user_answer": "ir"} for q in start.test.questions]}
+        ),
+        background_tasks=BackgroundTasks(),
+    )
+
+
+def _review_ids(db: Session, user: User) -> set[str]:
+    rows, _ = review_service.get_review_questions(db, current_user=user, limit=10, mode="practice")
+    return {q.id for q in rows}
+
+
 def _chunk(db: Session, note_id: str) -> None:
     db.add(NoteChunk(note_id=note_id, content="mitochondria", embedding=_EMBEDDING, chunk_index=0))
     db.flush()
@@ -287,7 +309,7 @@ class TestReviewScope:
         assert detail.include_in_srs is False
 
     def test_opt_in_and_out(self, db_session: Session, owner: User) -> None:
-        space_id, question = _course_with_test(db_session, owner)
+        space_id, question = _course_with_test(db_session, owner, reveal_answers=RevealAnswers.ALWAYS)
         member = _member(db_session, space_id)
         on = space_member_service.set_membership(
             db_session, space_id=space_id, current_user=member, include_in_srs=True
@@ -300,7 +322,7 @@ class TestReviewScope:
         assert has is False
 
     def test_scope_filters_the_pool(self, db_session: Session, owner: User) -> None:
-        space_id, question = _course_with_test(db_session, owner)
+        space_id, question = _course_with_test(db_session, owner, reveal_answers=RevealAnswers.ALWAYS)
         member = _member(db_session, space_id, include_in_srs=True)
         personal = new_test(db_session, user=member).questions[0]
 
@@ -326,6 +348,31 @@ class TestReviewScope:
         space_id, _ = _course_with_test(db_session, owner, reveal_answers=RevealAnswers.NEVER)
         member = _member(db_session, space_id, include_in_srs=True)
         assert question_crud.user_has_questions(db_session, user_id=member.id) is False
+
+    def test_an_after_pass_item_enters_review_only_after_the_pass(self, db_session: Session, owner: User) -> None:
+        space_id, question = _course_with_test(db_session, owner)
+        member = _member(db_session, space_id, include_in_srs=True)
+        assert _review_ids(db_session, member) == set()
+        _pass_item(db_session, space_id, member)
+        assert _review_ids(db_session, member) == {question.id}
+
+    def test_the_pass_of_one_member_does_not_open_review_for_another(self, db_session: Session, owner: User) -> None:
+        space_id, _ = _course_with_test(db_session, owner)
+        passed = _member(db_session, space_id, include_in_srs=True)
+        other = _member(db_session, space_id, include_in_srs=True)
+        _pass_item(db_session, space_id, passed)
+        assert _review_ids(db_session, other) == set()
+
+    def test_an_always_item_is_in_review_without_a_pass(self, db_session: Session, owner: User) -> None:
+        space_id, question = _course_with_test(db_session, owner, reveal_answers=RevealAnswers.ALWAYS)
+        member = _member(db_session, space_id, include_in_srs=True)
+        assert _review_ids(db_session, member) == {question.id}
+
+    def test_a_never_item_stays_out_after_the_pass(self, db_session: Session, owner: User) -> None:
+        space_id, _ = _course_with_test(db_session, owner, reveal_answers=RevealAnswers.NEVER)
+        member = _member(db_session, space_id, include_in_srs=True)
+        _pass_item(db_session, space_id, member)
+        assert _review_ids(db_session, member) == set()
 
     def test_the_owner_has_no_membership_to_change(self, db_session: Session, owner: User) -> None:
         space_id, _ = _course_with_test(db_session, owner)
@@ -361,16 +408,42 @@ class TestCheckQuestion:
         assert result.srs_state is not None
         assert result.correct_answers == ["ir"]
 
-    def test_the_key_is_hidden_when_the_policy_hides_it(self, db_session: Session, owner: User) -> None:
-        # AFTER_PASS_OR_LAST (default): a viewer with attempts left and no pass has no key yet.
+    def test_an_after_pass_item_is_refused_before_the_pass(self, db_session: Session, owner: User) -> None:
+        # AFTER_PASS_OR_LAST (default): the key is hidden until the pass, so Review can not use the question.
         space_id, question = _course_with_test(db_session, owner)
         member = _member(db_session, space_id, include_in_srs=True)
+        status = _status_code(
+            question_service.check_question,
+            db_session,
+            question_id=question.id,
+            current_user=member,
+            user_answer="wrong",
+        )
+        assert status == 403
+
+    def test_an_after_pass_item_works_after_the_pass(self, db_session: Session, owner: User) -> None:
+        space_id, question = _course_with_test(db_session, owner)
+        member = _member(db_session, space_id, include_in_srs=True)
+        _pass_item(db_session, space_id, member)
         result = question_service.check_question(
             db_session, question_id=question.id, current_user=member, user_answer="wrong"
         )
         assert result.status == AnswerStatus.WRONG
         assert result.srs_state is not None
-        assert result.correct_answers is None and result.correct_indices is None
+        assert result.correct_answers == ["ir"]
+
+    def test_a_never_item_is_refused_even_after_the_pass(self, db_session: Session, owner: User) -> None:
+        space_id, question = _course_with_test(db_session, owner, reveal_answers=RevealAnswers.NEVER)
+        member = _member(db_session, space_id, include_in_srs=True)
+        _pass_item(db_session, space_id, member)
+        status = _status_code(
+            question_service.check_question,
+            db_session,
+            question_id=question.id,
+            current_user=member,
+            user_answer="ir",
+        )
+        assert status == 403
 
     def test_a_viewer_that_did_not_opt_in_gets_403(self, db_session: Session, owner: User) -> None:
         space_id, question = _course_with_test(db_session, owner, reveal_answers=RevealAnswers.ALWAYS)

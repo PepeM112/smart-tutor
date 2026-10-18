@@ -73,6 +73,22 @@ def build_stripped_test(test: Test) -> TestReadStripped:
     )
 
 
+def without_explanations(test: TestReadStripped) -> TestReadStripped:
+    """The explanation of a question can give the answer away: remove it with the answer key."""
+
+    def clean(question: QuestionReadStripped) -> QuestionReadStripped:
+        return question.model_copy(update={"explanation": None})
+
+    return test.model_copy(
+        update={
+            "questions": [clean(q) for q in test.questions],
+            "question_groups": [
+                g.model_copy(update={"questions": [clean(q) for q in g.questions]}) for g in test.question_groups
+            ],
+        }
+    )
+
+
 class CorrectAnswerFields(TypedDict, total=False):
     correct_answers: list[str]
     correct_indices: list[int]

@@ -2,12 +2,14 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
 
+import sqlalchemy as sa
 from sqlalchemy import UnaryExpression, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, selectinload
 
 from app.crud.helpers import token_search
 from app.models.answer import Answer
 from app.models.space import Space
+from app.models.space_item import SpaceItem
 from app.models.test import Test
 from app.models.test_result import TestResult
 from app.schemas.test_result import SortOrder, TestResultSortBy
@@ -110,15 +112,20 @@ def create(
 
 
 def best_scores_by_item(db: Session, *, user_id: str, item_ids: Sequence[str]) -> dict[str, float]:
-    """`{space item id: best score (0..100)}` of the user. Results with an answer still being graded are skipped."""
+    """`{space item id: best score (0..100)}` of the user. Results with an answer still being graded are skipped.
+
+    Only results created after the item's `progress_reset_at` count (all results when it is NULL).
+    """
     if not item_ids:
         return {}
     stmt = (
         select(TestResult.space_item_id, func.max(TestResult.score))
+        .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
         .where(
             TestResult.user_id == user_id,
             TestResult.space_item_id.in_(item_ids),
             TestResult.pending_answers == 0,
+            sa.or_(SpaceItem.progress_reset_at.is_(None), TestResult.created_at > SpaceItem.progress_reset_at),
         )
         .group_by(TestResult.space_item_id)
     )

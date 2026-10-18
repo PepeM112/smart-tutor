@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import type { NoteRead } from '@/client';
-import { fileQueryKeys } from '@/features/files/lib/queryKeys';
+import { invalidateAfterFileChange } from '@/features/files/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
 import { getErrorDetail } from '@/lib/utils';
@@ -22,7 +22,8 @@ export function useCopyNoteToLibrary(noteId: string) {
     mutationFn: async (): Promise<NoteRead> =>
       (await sdk.notesCopyToLibrary({ path: { note_id: noteId }, throwOnError: true })).data,
     onSuccess: copy => {
-      void queryClient.invalidateQueries({ queryKey: fileQueryKeys.notes() });
+      // The copy is a new note in the root folder: the notes and the folder tree must refresh (F8).
+      invalidateAfterFileChange(queryClient, { notes: true });
       toast.success(t('courses.copied_to_library'), {
         action: { label: t('courses.open_copy'), onClick: () => router.push(noteHref(copy)) },
       });
