@@ -11,12 +11,13 @@ import { QueryState } from '@/components/shared/QueryState';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useHideAssist } from '@/features/assist/store/useAssistHiddenStore';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { classroomQueryKeys } from '@/features/classrooms/lib/queryKeys';
 import { ExamView } from '@/features/tests/components/ExamView';
 import { syncServerClock } from '@/features/tests/utils/countdown';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { sdk } from '@/lib/apiClient';
-import { courseHref, Routes } from '@/lib/routes';
+import { Routes } from '@/lib/routes';
 import { errorStatus, getErrorDetail } from '@/lib/utils';
 
 import { useAttemptDraft, type AttemptAnswers } from '../hooks/useAttemptDraft';
@@ -25,6 +26,8 @@ import { useCourse } from '../hooks/useCourse';
 import { useVisitItem } from '../hooks/useCourseProgress';
 import { findItem, isCourseViewer } from '../lib/progress';
 import { courseQueryKeys, markCourseDetailStale } from '../lib/queryKeys';
+import { courseCrumbs } from '../lib/spaceCrumbs';
+import { spaceHref } from '../lib/spaceHref';
 
 import { AttemptStartCard } from './AttemptStartCard';
 
@@ -49,7 +52,8 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
   const userId = useAuthStore(s => s.user?.id);
   const { data: course, isLoading: isCourseLoading } = useCourse(courseId);
   useVisitItem(courseId, itemId, course !== undefined && isCourseViewer(course));
-  const courseUrl = course ? courseHref(course) : `${Routes.COURSES}/${courseId}`;
+  // A test placed straight in a classroom is a space of kind CLASSROOM: its page is the classroom, not a course.
+  const courseUrl = course ? spaceHref(course) : `${Routes.COURSES}/${courseId}`;
 
   const item = course ? findItem(course.sections, itemId) : undefined;
   // An open attempt resumes at once. A new attempt starts only on the click of the student.
@@ -125,6 +129,11 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
         queryClient.invalidateQueries({ queryKey: ['results'] }),
         queryClient.invalidateQueries({ queryKey: courseQueryKeys.detail(courseId) }),
         queryClient.invalidateQueries({ queryKey: courseQueryKeys.mine() }),
+        // The classroom lists (due soon, course %) and the parent classroom of a course show the new result.
+        queryClient.invalidateQueries({ queryKey: classroomQueryKeys.all() }),
+        ...(course?.parentId
+          ? [queryClient.invalidateQueries({ queryKey: courseQueryKeys.detail(course.parentId) })]
+          : []),
       ]);
       router.replace(Routes.RESULT_DETAIL(result.id));
     },
@@ -149,8 +158,8 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
   useBreadcrumb(
     attempt?.test.title ?? t('tests.take_test'),
     [
-      { label: t('courses.title'), href: Routes.COURSES },
-      ...(course ? [{ label: course.title, href: courseHref(course) }] : []),
+      ...courseCrumbs(course, { courses: t('courses.title'), classrooms: t('classrooms.title') }),
+      ...(course ? [{ label: course.title, href: spaceHref(course) }] : []),
     ],
     courseUrl
   );

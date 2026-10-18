@@ -7,22 +7,26 @@
 A missing row gives 404. A row the user can not access gives 403.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import IntEnum
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import SpaceRole, SpaceStatus
+from app.core.enums import SpaceKind, SpaceRole, SpaceStatus
 from app.crud import note as note_crud
 from app.crud import question as question_crud
 from app.crud import space as space_crud
+from app.crud import space_item as space_item_crud
 from app.crud import space_member as space_member_crud
 from app.crud import test as test_crud
 from app.models.note import Note
 from app.models.question import Question
 from app.models.space import Space
+from app.models.space_item import SpaceItem
 from app.models.test import Test
+from app.models.test_result import TestResult
 from app.models.user import User
 
 
@@ -49,12 +53,25 @@ def _resolve_role(db: Session, *, chain: list[Space], user_id: str) -> SpaceRole
 
     The owner of the space or of the parent is OWNER. Otherwise the ACTIVE member row of the
     space itself wins over the row of the parent, so a classroom VIEWER can be an EDITOR of one course.
+    A lazy row (`role` NULL) is skipped: the role then comes from the parent row, so a promote or a
+    demote in the classroom applies to its courses at once.
     """
     if any(s.owner_id == user_id for s in chain):
         return SpaceRole.OWNER
-    rows = space_member_crud.list_active_roles(db, user_id=user_id, space_ids=[s.id for s in chain])
-    roles: dict[str, int] = {space_id: role for space_id, role in rows}
+    roles = space_member_crud.list_active_roles(db, user_id=user_id, space_ids=[s.id for s in chain])
     return next((SpaceRole(roles[s.id]) for s in chain if s.id in roles), None)
+
+
+def resolve_role(db: Session, *, space: Space, user_id: str) -> SpaceRole | None:
+    """The effective role of `user_id` in `space` (its parent classroom included).
+
+    A VIEWER gets no role in a classroom course whose COURSE item is not published or not visible yet (`visible_from`).
+    """
+    parent = space_crud.get_by_id(db, id=space.parent_id) if space.parent_id else None
+    role = _resolve_role(db, chain=[space, parent] if parent else [space], user_id=user_id)
+    if role == SpaceRole.VIEWER and parent is not None and space_item_crud.is_course_hidden(db, course_id=space.id):
+        return None
+    return role
 
 
 def get_space_access(db: Session, *, space_id: str, user_id: str) -> SpaceAccess:
@@ -63,10 +80,11 @@ def get_space_access(db: Session, *, space_id: str, user_id: str) -> SpaceAccess
     if space is None:
         return SpaceAccess(role=None, status=SpaceStatus.ARCHIVED)
     parent = space_crud.get_by_id(db, id=space.parent_id) if space.parent_id else None
-    chain = [space, parent] if parent else [space]
-    archived = any(s.status == int(SpaceStatus.ARCHIVED) for s in chain)
+    archived = space.status == int(SpaceStatus.ARCHIVED) or (
+        parent is not None and parent.status == int(SpaceStatus.ARCHIVED)
+    )
     return SpaceAccess(
-        role=_resolve_role(db, chain=chain, user_id=user_id),
+        role=resolve_role(db, space=space, user_id=user_id),
         status=SpaceStatus.ARCHIVED if archived else SpaceStatus.ACTIVE,
     )
 
@@ -90,12 +108,23 @@ def can_access_space_content(
 
 
 def _can_access_content(
-    db: Session, *, owner_id: str, space_id: str | None, is_draft: bool, current_user: User, level: AccessLevel
+    db: Session,
+    *,
+    owner_id: str,
+    space_id: str | None,
+    is_draft: bool,
+    current_user: User,
+    level: AccessLevel,
+    is_hidden: Callable[[], bool],
 ) -> bool:
+    """`is_hidden`: true when the published item of the content is not visible yet (`visible_from`).
+    It hides the content from a VIEWER only."""
     if space_id is None:
         return owner_id == current_user.id
     access = get_space_access(db, space_id=space_id, user_id=current_user.id)
-    return can_access_space_content(role=access.role, space_status=access.status, is_draft=is_draft, level=level)
+    if not can_access_space_content(role=access.role, space_status=access.status, is_draft=is_draft, level=level):
+        return False
+    return not (access.role == SpaceRole.VIEWER and not is_draft and is_hidden())
 
 
 def can_access_note(db: Session, *, note: Note, current_user: User, level: AccessLevel) -> bool:
@@ -106,6 +135,7 @@ def can_access_note(db: Session, *, note: Note, current_user: User, level: Acces
         is_draft=note.is_draft,
         current_user=current_user,
         level=level,
+        is_hidden=lambda: space_item_crud.is_note_hidden(db, note_id=note.id),
     )
 
 
@@ -117,6 +147,7 @@ def can_access_test(db: Session, *, test: Test, current_user: User, level: Acces
         is_draft=test.is_draft,
         current_user=current_user,
         level=level,
+        is_hidden=lambda: space_item_crud.is_test_hidden(db, test_id=test.id),
     )
 
 
@@ -187,3 +218,26 @@ def require_personal(*, space_id: str | None) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Not available for course or classroom content",
         )
+
+
+def is_classroom_space(space: Space) -> bool:
+    """A classroom, or a course inside one. A standalone course is not."""
+    return space.kind == int(SpaceKind.CLASSROOM) or space.parent_id is not None
+
+
+def result_item_and_space(db: Session, *, result: TestResult) -> tuple[SpaceItem, Space] | None:
+    """The item and the space of a course result. None for a personal result or when the item is gone."""
+    item = space_item_crud.get(db, item_id=result.space_item_id) if result.space_item_id else None
+    space = space_crud.get_by_id(db, id=item.space_id) if item is not None else None
+    return (item, space) if item is not None and space is not None else None
+
+
+def can_review_result(db: Session, *, result: TestResult, current_user: User) -> bool:
+    """A teacher (OWNER / EDITOR) of the classroom may read and grade the result of a student of the classroom.
+
+    Only classroom items count. The result of a standalone course stays private to its student.
+    """
+    found = result_item_and_space(db, result=result)
+    if found is None or not is_classroom_space(found[1]):
+        return False
+    return resolve_role(db, space=found[1], user_id=current_user.id) in EDIT_ROLES

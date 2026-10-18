@@ -21,7 +21,6 @@ from app.core.enums import AttemptStatus, SpaceItemKind, SpaceRole
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_item as space_item_crud
 from app.crud import space_item_test as space_item_test_crud
-from app.crud import space_member as space_member_crud
 from app.crud import test as test_crud
 from app.models.question import Question
 from app.models.space import Space
@@ -42,17 +41,46 @@ from app.services.space_service import (
     Membership,
     conflict,
     forbidden,
-    get_course_or_404,
     get_membership,
+    get_space_or_404,
     require_active,
 )
 
+# The frontend (`attemptErrors.ts`) matches these `detail` strings exactly.
+NOT_OPEN_YET = "The test is not open yet"
+TEST_CLOSED = "The test is closed"
 
-def _get_published_test_item_or_404(db: Session, *, space: Space, item_id: str) -> SpaceItem:
+
+def _get_published_test_item_or_404(db: Session, *, space: Space, item_id: str, hide_future: bool) -> SpaceItem:
+    """`hide_future`: a student gets 404 for an item that is not visible yet (`visible_from`)."""
     item = space_item_crud.get(db, item_id=item_id)
-    if item is None or item.space_id != space.id or item.is_draft or item.kind != int(SpaceItemKind.TEST):
+    if (
+        item is None
+        or item.space_id != space.id
+        or item.is_draft
+        or item.kind != int(SpaceItemKind.TEST)
+        or (hide_future and space_progress_service.is_hidden(item, at=space_progress_service.utcnow()))
+    ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
     return item
+
+
+def _window_error(item: SpaceItem, *, at: datetime) -> str | None:
+    """A new attempt can start only inside the window `opens_at` .. `closes_at`. The 409 detail, or None."""
+    if item.opens_at is not None and at < item.opens_at:
+        return NOT_OPEN_YET
+    if item.closes_at is not None and at >= item.closes_at:
+        return TEST_CLOSED
+    return None
+
+
+def _deadline(item: SpaceItem, *, at: datetime) -> datetime | None:
+    """The earlier of the time limit and `closes_at`. None = no timer and no close time."""
+    limits = [
+        *([at + timedelta(minutes=item.time_limit_minutes)] if item.time_limit_minutes else []),
+        *([item.closes_at] if item.closes_at is not None else []),
+    ]
+    return min(limits, default=None)
 
 
 def require_no_open_attempt(db: Session, *, user: User) -> None:
@@ -158,12 +186,12 @@ def _require_viewer(membership: Membership) -> None:
 
 def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: User) -> SpaceAttemptStart:
     """VIEWER: start an attempt, or resume the open one. Author: a preview with no rows and no limits."""
-    space = get_course_or_404(db, space_id=space_id)
+    space = get_space_or_404(db, space_id=space_id)
     membership = get_membership(db, space=space, user=current_user)
     if membership.role is None:
         raise forbidden()
-    item = _get_published_test_item_or_404(db, space=space, item_id=item_id)
-    require_active(space)
+    item = _get_published_test_item_or_404(db, space=space, item_id=item_id, hide_future=not membership.can_author)
+    require_active(db, space)
 
     if membership.can_author:
         variants = _available_variants(db, item=item)
@@ -178,7 +206,7 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
         )
 
     # The row lock serializes parallel starts of one user (a double click, two tabs).
-    space_member_crud.get_for_update(db, space_id=space.id, user_id=current_user.id)
+    space_progress_service.get_member_row(db, space_id=space.id, user_id=current_user.id, for_update=True)
     at = space_progress_service.utcnow()
     attempts = space_attempt_crud.list_by_user_items(db, user_id=current_user.id, item_ids=[item.id])
     _expire_stale(db, attempts=attempts, at=at)
@@ -198,6 +226,9 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
             server_now=at,
             resumed=True,
         )
+    if (window_error := _window_error(item, at=at)) is not None:
+        db.commit()
+        raise conflict(window_error)
     if state.attempts_left == 0:
         db.commit()
         raise conflict("No attempts left")
@@ -211,7 +242,7 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
         db.commit()
         raise conflict("This test has no questions available")
     test = _pick_variant(db, item=item, user_id=current_user.id, variants=variants)
-    deadline = at + timedelta(minutes=item.time_limit_minutes) if item.time_limit_minutes else None
+    deadline = _deadline(item, at=at)
     exam = _present(test, live_id=test.id)
     attempt = space_attempt_crud.create(
         db,
@@ -240,17 +271,22 @@ def submit_attempt(
     background_tasks: BackgroundTasks,
 ) -> TestResult:
     """Grade the attempt against its pinned version, close it and check the completion."""
-    space = get_course_or_404(db, space_id=space_id)
+    space = get_space_or_404(db, space_id=space_id)
     attempt = space_attempt_crud.get(db, attempt_id=attempt_id, for_update=True)
     item = space_item_crud.get(db, item_id=attempt.item_id) if attempt is not None else None
     if attempt is None or item is None or attempt.user_id != current_user.id or item.space_id != space.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
     _require_viewer(get_membership(db, space=space, user=current_user))
-    require_active(space)
+    require_active(db, space)
     if attempt.status != int(AttemptStatus.OPEN):
         raise conflict("This attempt is already closed")
 
     at = space_progress_service.utcnow()
+    if item.closes_at is not None and at > item.closes_at + timedelta(seconds=ATTEMPT_GRACE_SECONDS):
+        # Also when the teacher set `closes_at` after the attempt started (its `deadline_at` does not know it).
+        space_attempt_crud.close(db, attempt=attempt, status=AttemptStatus.EXPIRED, finished_at=item.closes_at)
+        db.commit()
+        raise conflict(TEST_CLOSED)
     if space_progress_service.is_past_grace(attempt, at=at):
         space_attempt_crud.close(
             db, attempt=attempt, status=AttemptStatus.EXPIRED, finished_at=attempt.deadline_at or at

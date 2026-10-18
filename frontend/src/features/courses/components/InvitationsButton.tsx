@@ -12,10 +12,10 @@ import { Button } from '@/components/ui/button';
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { HoverHint } from '@/components/ui/hover-hint';
 import { sdk } from '@/lib/apiClient';
-import { courseHref } from '@/lib/routes';
 import { getErrorDetail } from '@/lib/utils';
 
 import { applyCourseDetail, courseQueryKeys, markCourseDetailStale } from '../lib/queryKeys';
+import { spaceHref } from '../lib/spaceHref';
 
 /**
  * The Mail icon in the `/courses` header. The badge shows the number of open invitations.
@@ -85,7 +85,7 @@ export function InvitationsButton() {
                 return (
                   <li key={course.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
                     <div className="min-w-0">
-                      <Link href={courseHref(course)} className="line-clamp-2 text-sm font-medium hover:underline">
+                      <Link href={spaceHref(course)} className="line-clamp-2 text-sm font-medium hover:underline">
                         {course.title}
                       </Link>
                       <p className="text-xs text-muted-foreground">

@@ -51,7 +51,7 @@ from app.schemas.space import (
     SpaceUpdate,
 )
 from app.services import space_progress_service
-from app.services.access_service import EDIT_ROLES
+from app.services.access_service import EDIT_ROLES, resolve_role
 from app.services.space_changes_service import has_unpublished_changes, item_changed
 from app.services.versioning_service import clone_test
 
@@ -86,20 +86,50 @@ def now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def get_course_or_404(db: Session, *, space_id: str, for_update: bool = False) -> Space:
-    """A standalone course. Classrooms and classroom courses (M4) are 404 for this API."""
+def _not_found(detail: str) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+
+def get_space_or_404(db: Session, *, space_id: str, for_update: bool = False) -> Space:
+    """Any space this API handles: a standalone course, a classroom, or a course of a classroom."""
     fetch = space_crud.get_by_id_for_update if for_update else space_crud.get_by_id
     space = fetch(db, id=space_id)
-    if space is None or space.kind != int(SpaceKind.COURSE) or space.parent_id is not None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+    if space is None:
+        raise _not_found("Course not found")
+    return space
+
+
+def get_course_or_404(db: Session, *, space_id: str, for_update: bool = False) -> Space:
+    """A course: standalone or inside a classroom. A classroom is 404."""
+    space = get_space_or_404(db, space_id=space_id, for_update=for_update)
+    if space.kind != int(SpaceKind.COURSE):
+        raise _not_found("Course not found")
+    return space
+
+
+def get_joinable_or_404(db: Session, *, space_id: str, for_update: bool = False) -> Space:
+    """A space with members of its own: a standalone course or a classroom.
+
+    A classroom course has no members of its own: its students are the classroom members.
+    """
+    space = get_space_or_404(db, space_id=space_id, for_update=for_update)
+    if space.parent_id is not None:
+        raise _not_found("Course not found")
+    return space
+
+
+def get_classroom_or_404(db: Session, *, space_id: str, for_update: bool = False) -> Space:
+    space = get_space_or_404(db, space_id=space_id, for_update=for_update)
+    if space.kind != int(SpaceKind.CLASSROOM):
+        raise _not_found("Classroom not found")
     return space
 
 
 def get_membership(db: Session, *, space: Space, user: User) -> Membership:
-    if space.owner_id == user.id:
-        return Membership(role=SpaceRole.OWNER, row=None)
-    row = space_member_crud.get(db, space_id=space.id, user_id=user.id)
-    role = SpaceRole(row.role) if row is not None and row.status == int(MemberStatus.ACTIVE) else None
+    """The role comes from the member row of the space, or of its classroom (see `access_service.resolve_role`).
+    `row` is the own row of the space (a lazy row included), None for the owner and for strangers."""
+    role = resolve_role(db, space=space, user_id=user.id)
+    row = None if space.owner_id == user.id else space_member_crud.get(db, space_id=space.id, user_id=user.id)
     return Membership(role=role, row=row)
 
 
@@ -111,10 +141,17 @@ def conflict(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
 
-def require_active(space: Space) -> None:
-    """Archived courses are read-only for everyone."""
-    if space.status != int(SpaceStatus.ACTIVE):
-        raise conflict("The course is archived")
+def is_archived(db: Session, *, space: Space) -> bool:
+    """Archived, or a course of an archived classroom."""
+    parent = space_crud.get_by_id(db, id=space.parent_id) if space.parent_id else None
+    return space.status != int(SpaceStatus.ACTIVE) or (parent is not None and parent.status != int(SpaceStatus.ACTIVE))
+
+
+def require_active(db: Session, space: Space) -> None:
+    """Archived spaces are read-only for everyone. A course of an archived classroom is archived too."""
+    if is_archived(db, space=space):
+        is_classroom = space.kind == int(SpaceKind.CLASSROOM) or space.parent_id is not None
+        raise conflict("The classroom is archived" if is_classroom else "The course is archived")
 
 
 def require_owner(db: Session, *, space: Space, user: User) -> Membership:
@@ -132,7 +169,7 @@ def require_author(db: Session, *, space: Space, user: User) -> Membership:
     return membership
 
 
-def _new_join_code(db: Session) -> str:
+def new_join_code(db: Session) -> str:
     """A random code that no other space uses. 31^7 codes, so a retry is rare."""
     for _ in range(_JOIN_CODE_ATTEMPTS):
         code = "".join(secrets.choice(_JOIN_CODE_ALPHABET) for _ in range(SPACE_JOIN_CODE_LENGTH))
@@ -151,46 +188,64 @@ def _owner_name(user: User | None) -> str:
 
 
 def build_summaries(db: Session, *, spaces: Sequence[Space], current_user: User) -> list[SpaceSummary]:
-    """One query each for owners, member counts and the rows of the current user (no N+1)."""
+    """One query each for owners, parents, member counts and the rows of the current user (no N+1).
+
+    A course of a classroom has no members of its own: the role, the status and the member count come
+    from the classroom row. A lazy row (`role` NULL) only holds the personal state.
+    """
     space_ids = [s.id for s in spaces]
+    parent_ids = list({s.parent_id for s in spaces if s.parent_id})
+    parents = {p.id: p for p in space_crud.list_by_ids(db, ids=parent_ids)}
     owners = {u.id: u for u in user_crud.list_by_ids(db, ids=list({s.owner_id for s in spaces}))}
-    counts = space_crud.count_active_members(db, space_ids=space_ids)
-    rows = space_member_crud.get_statuses(db, user_id=current_user.id, space_ids=space_ids)
-    viewer_ids = [
-        s.id
-        for s in spaces
-        if s.owner_id != current_user.id
-        and (row := rows.get(s.id)) is not None
-        and row == (int(SpaceRole.VIEWER), int(MemberStatus.ACTIVE))
-    ]
-    progress = space_progress_service.course_progress(db, space_ids=viewer_ids, user_id=current_user.id)
-    srs_space_ids = space_member_crud.list_srs_space_ids(db, user_id=current_user.id, space_ids=space_ids)
+    counts = space_crud.count_active_members(db, space_ids=[*space_ids, *parent_ids])
+    rows = space_member_crud.get_statuses(db, user_id=current_user.id, space_ids=[*space_ids, *parent_ids])
+
+    def my_row(space: Space) -> tuple[int | None, int] | None:
+        """(role, status) of the current user: the own row, or the classroom row for a lazy / missing one."""
+        own = rows.get(space.id)
+        if own is not None and own[0] is not None:
+            return own
+        return rows.get(space.parent_id) if space.parent_id else None
 
     def my_role(space: Space) -> SpaceRole | None:
         if space.owner_id == current_user.id:
             return SpaceRole.OWNER
-        row = rows.get(space.id)
-        return SpaceRole(row[0]) if row is not None and row[1] == int(MemberStatus.ACTIVE) else None
+        row = my_row(space)
+        return (
+            SpaceRole(row[0]) if row is not None and row[0] is not None and row[1] == int(MemberStatus.ACTIVE) else None
+        )
 
     def my_status(space: Space) -> MemberStatus | None:
-        row = rows.get(space.id)
+        row = my_row(space)
         return MemberStatus(row[1]) if row is not None else None
+
+    viewer_ids = [s.id for s in spaces if s.owner_id != current_user.id and my_role(s) == SpaceRole.VIEWER]
+    progress = space_progress_service.course_progress(db, space_ids=viewer_ids, user_id=current_user.id)
+    srs_space_ids = space_member_crud.list_srs_space_ids(db, user_id=current_user.id, space_ids=space_ids)
+
+    def effective_status(space: Space) -> SpaceStatus:
+        parent = parents.get(space.parent_id or "")
+        archived = space.status != int(SpaceStatus.ACTIVE) or (
+            parent is not None and parent.status != int(SpaceStatus.ACTIVE)
+        )
+        return SpaceStatus.ARCHIVED if archived else SpaceStatus.ACTIVE
 
     return [
         SpaceSummary(
             id=s.id,
             kind=SpaceKind(s.kind),
+            parent_id=s.parent_id,
             owner_id=s.owner_id,
             owner_name=_owner_name(owners.get(s.owner_id)),
             title=s.title,
             description=s.description,
             tags=s.tags,
             visibility=SpaceVisibility(s.visibility),
-            status=SpaceStatus(s.status),
+            status=effective_status(s),
             published_at=s.published_at,
             archived_at=s.archived_at,
             created_at=s.created_at,
-            member_count=counts.get(s.id, 0),
+            member_count=counts.get(s.parent_id or s.id, 0),
             my_role=my_role(s),
             my_status=my_status(s),
             progress=progress.get(s.id),
@@ -211,7 +266,13 @@ def _build_sections(
     `viewer_id` (a VIEWER of the course) adds the per-user progress fields: one query per kind.
     """
     sections = space_section_crud.list_by_space(db, space_id=space_id, is_draft=is_draft)
-    items = space_item_crud.list_by_space(db, space_id=space_id, is_draft=is_draft)
+    at = space_progress_service.utcnow()
+    # Students (and previews) do not see an item before its `visible_from`. Authors see everything.
+    items = [
+        i
+        for i in space_item_crud.list_by_space(db, space_id=space_id, is_draft=is_draft)
+        if is_draft or can_author or not space_progress_service.is_hidden(i, at=at)
+    ]
     published = (
         {i.id: i for i in space_item_crud.list_by_space(db, space_id=space_id, is_draft=False)} if is_draft else {}
     )
@@ -227,12 +288,18 @@ def _build_sections(
         {t.draft_of_id: t for t in space_content_crud.list_test_twins(db, published_ids=test_ids)} if is_draft else {}
     )
     states = space_progress_service.item_states(db, items=items, user_id=viewer_id) if viewer_id else {}
+    course_ids = [i.child_space_id for i in items if i.child_space_id]
+    courses = {c.id: c for c in space_crud.list_by_ids(db, ids=course_ids)}
+    course_progress = (
+        space_progress_service.course_progress(db, space_ids=course_ids, user_id=viewer_id) if viewer_id else {}
+    )
 
     def item_read(item: SpaceItem) -> SpaceItemRead:
         variant_ids = links.get(item.id, [])
         content_id = item.note_id or (variant_ids[0] if variant_ids else "")
         source = notes.get(content_id) or tests.get(content_id)
         shown = note_twins.get(content_id) or test_twins.get(content_id) or source
+        course = courses.get(item.child_space_id or "")
         is_test = item.kind == int(SpaceItemKind.TEST)
         live = published.get(item.draft_of_id or "")
         has_changes = is_draft and (
@@ -252,8 +319,9 @@ def _build_sections(
             kind=SpaceItemKind(item.kind),
             note_id=item.note_id,
             test_id=variant_ids[0] if variant_ids else None,
+            child_space_id=item.child_space_id,
             position=item.position,
-            title=shown.title if shown is not None else "",
+            title=course.title if course is not None else (shown.title if shown is not None else ""),
             is_draft=item.is_draft,
             draft_of_id=item.draft_of_id,
             has_changes=has_changes,
@@ -262,6 +330,10 @@ def _build_sections(
             cooldown_hours=item.cooldown_hours,
             reveal_answers=RevealAnswers(item.reveal_answers) if is_test else None,
             time_limit_minutes=item.time_limit_minutes,
+            due_at=item.due_at,
+            opens_at=item.opens_at,
+            closes_at=item.closes_at,
+            visible_from=item.visible_from,
             variants=[
                 SpaceItemVariantRead(
                     test_id=t,
@@ -279,6 +351,7 @@ def _build_sections(
             next_attempt_at=state.next_attempt_at if state else None,
             open_attempt_id=attempt.id if attempt else None,
             open_attempt_deadline_at=attempt.deadline_at if attempt else None,
+            child_progress=course_progress.get(item.child_space_id or ""),
         )
 
     def section_read(section: SpaceSection) -> SpaceSectionRead:
@@ -298,24 +371,28 @@ def build_detail(db: Session, *, space: Space, current_user: User) -> SpaceDetai
     """The course page. Members see the published structure; authors in edit mode also see the draft.
 
     A non-member sees a preview (structure, no content access) of a published PUBLIC / UNLISTED
-    course, and the metadata only when they have a pending row (invited or requested). Else 403.
+    standalone course, and the metadata only when they have a pending row (invited or requested).
+    Else 403. A classroom has no preview: its classwork is for its members.
     """
     membership = get_membership(db, space=space, user=current_user)
     is_member = membership.role is not None
-    can_preview = space.published_at is not None and space.visibility in _PREVIEW_VISIBILITIES
-    if not is_member and not can_preview and membership.row is None:
+    is_standalone = space.kind == int(SpaceKind.COURSE) and space.parent_id is None
+    can_preview = is_standalone and space.published_at is not None and space.visibility in _PREVIEW_VISIBILITIES
+    if not is_member and not can_preview and (membership.row is None or membership.row.role is None):
         raise forbidden()
 
     summary = build_summaries(db, spaces=[space], current_user=current_user)[0]
     is_editing = space.draft_started_at is not None
     show_draft = membership.can_author and is_editing
+    parent = space_crud.get_by_id(db, id=space.parent_id) if space.parent_id else None
     return SpaceDetail(
         **summary.model_dump(),
-        can_edit=membership.can_author and space.status == int(SpaceStatus.ACTIVE),
+        parent_title=parent.title if parent is not None else None,
+        can_edit=membership.can_author and summary.status == SpaceStatus.ACTIVE,
         is_owner=membership.is_owner,
         is_editing=is_editing,
         has_unpublished_changes=show_draft and has_unpublished_changes(db, space=space),
-        join_code=space.join_code if membership.can_author else None,
+        join_code=space.join_code if membership.can_author and space.parent_id is None else None,
         sections=(
             _build_sections(
                 db,
@@ -344,7 +421,7 @@ def create_course(db: Session, *, current_user: User, data: SpaceCreate) -> Spac
         description=data.description,
         tags=data.tags,
         visibility=int(data.visibility),
-        join_code=_new_join_code(db),
+        join_code=new_join_code(db),
         draft_started_at=now(),
     )
     db.commit()
@@ -352,21 +429,30 @@ def create_course(db: Session, *, current_user: User, data: SpaceCreate) -> Spac
 
 
 def get_course(db: Session, *, space_id: str, current_user: User) -> SpaceDetail:
-    space = get_course_or_404(db, space_id=space_id)
+    """A standalone course, a classroom or a course of a classroom."""
+    space = get_space_or_404(db, space_id=space_id)
     return build_detail(db, space=space, current_user=current_user)
 
 
 def update_course(db: Session, *, space_id: str, current_user: User, data: SpaceUpdate) -> SpaceDetail:
-    space = get_course_or_404(db, space_id=space_id)
+    space = get_space_or_404(db, space_id=space_id)
     require_owner(db, space=space, user=current_user)
-    require_active(space)
+    require_active(db, space)
+    if "visibility" in data.model_fields_set:
+        if space.parent_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="A course of a classroom has no visibility of its own"
+            )
+        if space.kind == int(SpaceKind.CLASSROOM) and data.visibility == SpaceVisibility.PUBLIC:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A classroom can not be public")
     space_crud.update(db, space=space, data=data)
     db.commit()
     return build_detail(db, space=space, current_user=current_user)
 
 
 def set_archived(db: Session, *, space_id: str, current_user: User, archived: bool) -> SpaceDetail:
-    space = get_course_or_404(db, space_id=space_id)
+    """Archive or unarchive a course or a classroom. The courses of an archived classroom are read-only too."""
+    space = get_joinable_or_404(db, space_id=space_id)
     require_owner(db, space=space, user=current_user)
     space_crud.set_status(
         db,
@@ -378,28 +464,42 @@ def set_archived(db: Session, *, space_id: str, current_user: User, archived: bo
     return build_detail(db, space=space, current_user=current_user)
 
 
-def delete_course_forever(db: Session, *, space_id: str, current_user: User, confirm_title: str) -> None:
-    """Hard delete with all content and exam history. The typed title must match exactly.
+def delete_spaces_forever(db: Session, *, spaces: Sequence[Space]) -> None:
+    """Hard delete `spaces` with the courses of a classroom, all content and exam history.
 
     Tests go first through `delete_tests_forever`: their child FKs have no `ondelete`, so the
-    space cascade alone would fail. Notes, structure and members then go with the DB cascade.
+    space cascade alone would fail. Notes, structure, members and child courses then go with the DB cascade.
     Personal tests made from a course note survive (`source_note_id → NULL`).
     """
-    space = get_course_or_404(db, space_id=space_id, for_update=True)
+    all_ids = [*(s.id for s in spaces), *(c.id for s in spaces for c in space_crud.list_children(db, parent_id=s.id))]
+    test_ids = [t for space_id in all_ids for t in space_content_crud.list_test_ids(db, space_id=space_id)]
+    space_content_crud.delete_tests_forever(db, test_ids=test_ids)
+    for space in spaces:
+        space_crud.delete(db, space=space)
+
+
+def delete_course_forever(db: Session, *, space_id: str, current_user: User, confirm_title: str) -> None:
+    """Hard delete of a course, a classroom (with its courses) or one course of a classroom.
+
+    The typed title must match exactly.
+
+    A classroom course is deleted here when the draft engine refused to sweep it (it has student
+    results). The COURSE items that point to it go with the FK cascade; only the owner of the classroom can do it.
+    """
+    space = get_space_or_404(db, space_id=space_id, for_update=True)
     require_owner(db, space=space, user=current_user)
     if confirm_title != space.title:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The title does not match")
-    space_content_crud.delete_tests_forever(db, test_ids=space_content_crud.list_test_ids(db, space_id=space.id))
-    space_crud.delete(db, space=space)
+    delete_spaces_forever(db, spaces=[space])
     db.commit()
 
 
 def regenerate_join_code(db: Session, *, space_id: str, current_user: User) -> SpaceDetail:
     """The old code stops working at once."""
-    space = get_course_or_404(db, space_id=space_id)
+    space = get_joinable_or_404(db, space_id=space_id)
     require_owner(db, space=space, user=current_user)
-    require_active(space)
-    space.join_code = _new_join_code(db)
+    require_active(db, space)
+    space.join_code = new_join_code(db)
     db.commit()
     return build_detail(db, space=space, current_user=current_user)
 
@@ -421,24 +521,36 @@ def duplicate_course(db: Session, *, space_id: str, current_user: User, data: Sp
         description=data.description,
         tags=data.tags,
         visibility=int(SpaceVisibility.PRIVATE),
-        join_code=_new_join_code(db),
+        join_code=new_join_code(db),
         draft_started_at=now(),
     )
-    items = space_item_crud.list_by_space(db, space_id=source.id, is_draft=False)
+    copy_published_content(db, source=source, target=copy, user=current_user)
+    db.commit()
+    return build_detail(db, space=copy, current_user=current_user)
+
+
+def copy_published_content(db: Session, *, source: Space, target: Space, user: User) -> None:
+    """Copy the PUBLISHED sections, items and content of `source` into `target` as draft rows.
+
+    COURSE items (a classroom has them) are not copied: a course is not part of a copy of its classroom.
+    """
+    items = [
+        i for i in space_item_crud.list_by_space(db, space_id=source.id, is_draft=False) if i.child_space_id is None
+    ]
     links = space_item_test_crud.list_by_items(db, item_ids=[i.id for i in items])
     notes = {n.id: n for n in space_content_crud.list_notes(db, ids=[i.note_id for i in items if i.note_id])}
 
     for section in space_section_crud.list_by_space(db, space_id=source.id, is_draft=False):
         new_section = space_section_crud.create(
-            db, space_id=copy.id, title=section.title, position=section.position, is_draft=True
+            db, space_id=target.id, title=section.title, position=section.position, is_draft=True
         )
         for item in (i for i in items if i.section_id == section.id):
             note_id, test_ids = _copy_item_content(
-                db, item=item, notes=notes, variants=links.get(item.id, []), space=copy, user=current_user
+                db, item=item, notes=notes, variants=links.get(item.id, []), space=target, user=user
             )
             space_item_crud.create(
                 db,
-                space_id=copy.id,
+                space_id=target.id,
                 section_id=new_section.id,
                 kind=item.kind,
                 position=item.position,
@@ -447,8 +559,6 @@ def duplicate_course(db: Session, *, space_id: str, current_user: User, data: Sp
                 test_ids=test_ids,
                 policy_from=item,
             )
-    db.commit()
-    return build_detail(db, space=copy, current_user=current_user)
 
 
 def _copy_item_content(
@@ -502,6 +612,16 @@ def list_my_courses(
 ) -> list[SpaceSummary]:
     spaces = space_crud.list_for_user(
         db, user_id=current_user.id, status=list_status, visibility=visibility, roles=roles
+    )
+    return build_summaries(db, spaces=spaces, current_user=current_user)
+
+
+def list_my_classrooms(
+    db: Session, *, current_user: User, list_status: SpaceListStatus = "active", roles: Sequence[SpaceRole] = ()
+) -> list[SpaceSummary]:
+    """Classrooms the user owns or is an active member of (as a teacher or a student)."""
+    spaces = space_crud.list_for_user(
+        db, user_id=current_user.id, status=list_status, visibility=(), roles=roles, classrooms=True
     )
     return build_summaries(db, spaces=spaces, current_user=current_user)
 

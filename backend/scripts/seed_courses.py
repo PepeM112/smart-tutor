@@ -8,7 +8,9 @@ It uses the services, not raw SQL, so publish, twins and the join rules run as i
 
 import logging
 import sys
+from datetime import datetime, timedelta, timezone
 
+from fastapi import BackgroundTasks
 from seed_data.clean import clean_user_spaces
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -20,10 +22,14 @@ from app.models.note import Note
 from app.models.question import Question
 from app.models.space import Space
 from app.models.space_item import SpaceItem
+from app.models.space_item_test import SpaceItemTest
 from app.models.test import Test
 from app.models.test_result import TestResult
 from app.models.user import User
+from app.schemas.correction import TestSubmission
 from app.schemas.space import (
+    ClassroomCourseCreate,
+    ClassroomCreate,
     SpaceCreate,
     SpaceItemCopy,
     SpaceItemCreate,
@@ -32,7 +38,13 @@ from app.schemas.space import (
     SpaceSectionCreate,
     SpaceVariantCreate,
 )
-from app.services import space_draft_service, space_member_service, space_service
+from app.services import (
+    classroom_service,
+    space_attempt_service,
+    space_draft_service,
+    space_member_service,
+    space_service,
+)
 from app.services.versioning_service import version_test_if_needed
 
 logging.disable(logging.DEBUG)
@@ -176,13 +188,14 @@ def seed_archived(db: Session, owner: User, viewer: User) -> str:
     return space_id
 
 
-def add_question(db: Session, owner: User, test_id: str, prompt: str, answer: str) -> None:
+def add_question(db: Session, owner: User, test_id: str, prompt: str, answer: str, order: int = 0) -> None:
     question = Question(
         user_id=owner.id,
         test_id=test_id,
         question_type=QuestionType.SIMPLE,
         prompt=prompt,
         content={"answers": [answer]},
+        order=order,
     )
     db.add(question)
     db.commit()
@@ -320,6 +333,134 @@ def seed_other_owner(db: Session, editor: User) -> str:
     return space_id
 
 
+CLASSROOM_TITLE = "Biology 101"
+CLASSROOM_CODE = "bio1010"
+CELL_QUIZ = "Cell quiz"
+WINDOWED_TEST = "Genetics exam"
+HIDDEN_NOTE = "Surprise note"
+COURSE_TITLE = "Cell Lab"
+
+
+def item_of_test(db: Session, test_id: str) -> str:
+    """The id of the (draft) item that holds the test."""
+    link = db.scalars(select(SpaceItemTest).where(SpaceItemTest.test_id == test_id)).first()
+    assert link is not None
+    return link.item_id
+
+
+def new_test_item(
+    db: Session, owner: User, space_id: str, section_id: str, title: str, questions: list[tuple[str, str]]
+) -> str:
+    """A new TEST item with simple questions. Returns the item id."""
+    content = space_draft_service.create_item(
+        db,
+        space_id=space_id,
+        current_user=owner,
+        data=SpaceItemCreate(section_id=section_id, kind=SpaceItemKind.TEST, title=title),
+    )
+    assert content.test_id is not None
+    for order, (prompt, answer) in enumerate(questions):
+        add_question(db, owner, content.test_id, prompt, answer, order)
+    return item_of_test(db, content.test_id)
+
+
+def set_policy(db: Session, owner: User, space_id: str, item_id: str, policy: SpaceItemUpdate) -> None:
+    space_draft_service.update_item(db, space_id=space_id, item_id=item_id, current_user=owner, data=policy)
+
+
+def seed_classroom(db: Session, owner: User, editor: User, viewer: User) -> str:
+    """UNLISTED classroom with a fixed join code: loose classwork, a scheduled item, a windowed test, a course.
+
+    Owner: reviewer. Co-teacher: editor. Student: viewer (with one failed result on the Cell quiz). Outsider: none.
+    """
+    now = datetime.now(timezone.utc)
+    detail = classroom_service.create_classroom(
+        db,
+        current_user=owner,
+        data=ClassroomCreate(
+            title=CLASSROOM_TITLE, description="Cells, genetics and a lab course.", visibility=SpaceVisibility.UNLISTED
+        ),
+    )
+    classroom_id = detail.id
+    # A fixed code, so a spec can join by code.
+    classroom = db.get(Space, classroom_id)
+    assert classroom is not None
+    classroom.join_code = CLASSROOM_CODE
+    db.commit()
+
+    week = add_section(db, owner, classroom_id, "Week 1")
+    new_note(db, owner, classroom_id, week, "Cell basics", "# Cell basics\n\nThe cell is the unit of life.")
+    # Due in 12 h, pass at 80 %: the student fails with one right answer of two, so it stays in "Due soon".
+    quiz = new_test_item(
+        db,
+        owner,
+        classroom_id,
+        week,
+        CELL_QUIZ,
+        [("Type mitochondria", "mitochondria"), ("Type nucleus", "nucleus")],
+    )
+    set_policy(db, owner, classroom_id, quiz, SpaceItemUpdate(pass_threshold=0.8, due_at=now + timedelta(hours=12)))
+    # Not open yet: the window starts in 3 days.
+    exam = new_test_item(db, owner, classroom_id, week, WINDOWED_TEST, [("Type dna", "dna")])
+    set_policy(
+        db,
+        owner,
+        classroom_id,
+        exam,
+        SpaceItemUpdate(opens_at=now + timedelta(days=3), closes_at=now + timedelta(days=5)),
+    )
+    # Hidden from the student until next week.
+    new_note(db, owner, classroom_id, week, HIDDEN_NOTE, "# Surprise\n\nStudents can not read this yet.")
+    hidden = db.scalars(select(SpaceItem).where(SpaceItem.space_id == classroom_id, SpaceItem.is_draft.is_(True))).all()
+    surprise = db.scalars(select(Note).where(Note.title == HIDDEN_NOTE, Note.space_id == classroom_id)).one()
+    hidden_item = next(i for i in hidden if i.note_id == surprise.id)
+    set_policy(db, owner, classroom_id, hidden_item.id, SpaceItemUpdate(visible_from=now + timedelta(days=7)))
+
+    # A classroom course with a note and a test.
+    lab = add_section(db, owner, classroom_id, "Lab")
+    course = classroom_service.add_course(
+        db,
+        classroom_id=classroom_id,
+        current_user=owner,
+        data=ClassroomCourseCreate(title=COURSE_TITLE, description="Microscope work.", section_id=lab),
+    )
+    unit = add_section(db, owner, course.id, "Safety")
+    new_note(db, owner, course.id, unit, "Lab safety", "# Lab safety\n\nWear gloves.")
+    new_test_item(db, owner, course.id, unit, "Lab quiz", [("Type gloves", "gloves")])
+    # The course publishes on its own, then the classroom.
+    publish(db, owner, course.id, "Lab v1")
+    publish(db, owner, classroom_id, "Week 1")
+
+    add_member(db, owner, classroom_id, editor, SpaceRole.EDITOR)
+    add_member(db, owner, classroom_id, viewer, SpaceRole.VIEWER)
+    take_cell_quiz(db, classroom_id, viewer)
+    return classroom_id
+
+
+def take_cell_quiz(db: Session, classroom_id: str, student: User) -> None:
+    """One attempt through the service: 1 right answer of 2 (50 %), so the score and the grade are real."""
+    item = db.scalars(
+        select(SpaceItem).where(
+            SpaceItem.space_id == classroom_id, SpaceItem.is_draft.is_(False), SpaceItem.kind == int(SpaceItemKind.TEST)
+        )
+    ).all()
+    quiz = next(i for i in item if i.due_at is not None)
+    start = space_attempt_service.start_attempt(db, space_id=classroom_id, item_id=quiz.id, current_user=student)
+    assert start.attempt_id is not None
+    answers = [
+        {"question_id": q.id, "user_answer": "mitochondria" if "mitochondria" in q.prompt else "ribosome"}
+        for q in start.test.questions
+    ]
+    space_attempt_service.submit_attempt(
+        db,
+        space_id=classroom_id,
+        attempt_id=start.attempt_id,
+        current_user=student,
+        submission=TestSubmission.model_validate({"answers": answers}),
+        background_tasks=BackgroundTasks(),
+    )
+
+
 owner_email, editor_email, viewer_email, outsider_email = sys.argv[1:5]
 db = SessionLocal()
 owner, editor, viewer, outsider = (get_user(db, e) for e in (owner_email, editor_email, viewer_email, outsider_email))
@@ -339,6 +480,7 @@ ids = {
     "Progress Course": seed_progress(db, owner, viewer),
     "Intro to Chemistry": seed_other_owner(db, editor),
 }
+classroom_id = seed_classroom(db, owner, editor, viewer)
 print("done\n")
 
 print("Creating the older version result... ", end="", flush=True)
@@ -349,4 +491,5 @@ for title, space_id in ids.items():
     space = db.get(Space, space_id)
     assert space is not None
     print(f"{title:22} /courses/{space_id}   code: {space.join_code}")
+print(f"{CLASSROOM_TITLE:22} /classrooms/{classroom_id}   code: {CLASSROOM_CODE}")
 db.close()

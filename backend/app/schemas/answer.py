@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import Field, field_validator
 
 from app.core.enums import AnswerStatus
@@ -46,6 +48,17 @@ class AnswerCreate(AnswerBase):
     pass
 
 
+class AnswerOverrideRequest(BaseSchema):
+    """The points a teacher gives to one answer: 0 up to the points of the question."""
+
+    score: float = Field(..., ge=0)
+
+
 class AnswerRead(AnswerBase):
     id: str
     rubric_result: list[RubricResultItem] | None = None
+    # Teacher grade (classrooms). `status` and `rubric_result` keep the AI grade. All None = not overridden.
+    override_score: float | None = None
+    override_status: AnswerStatus | None = None
+    overridden_by: str | None = None
+    overridden_at: datetime | None = None

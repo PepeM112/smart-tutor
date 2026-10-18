@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.crud import space as space_crud
 from app.crud.helpers import ilike_search
+from app.crud.space_item import hidden_note_ids
 from app.models.folder import Folder
 from app.models.note import Note
 from app.schemas.note import NoteUpdate
@@ -21,11 +22,19 @@ PERSONAL_NOTE = Note.space_id.is_(None)
 def readable_by_assistant(*, user_id: str) -> ColumnElement[bool]:
     """Notes the Assistant and the RAG search may read: the personal notes of the user, and the
     PUBLISHED notes of the spaces where the user is an ACTIVE member. Never a draft, never a
-    space the user left or was only invited to. Trashed notes are excluded by the caller (`deleted_at IS NULL`).
+    space the user left or was only invited to. A note of an item with a future `visible_from` is only
+    for the editors. Trashed notes are excluded by the caller (`deleted_at IS NULL`).
     """
     return or_(
         and_(Note.user_id == user_id, PERSONAL_NOTE),
-        and_(Note.space_id.in_(space_crud.joined_space_ids(user_id=user_id)), Note.is_draft.is_(False)),
+        and_(
+            Note.space_id.in_(space_crud.joined_space_ids(user_id=user_id)),
+            Note.is_draft.is_(False),
+            or_(
+                Note.id.not_in(hidden_note_ids()),
+                Note.space_id.in_(space_crud.editor_space_ids(user_id=user_id)),
+            ),
+        ),
     )
 
 

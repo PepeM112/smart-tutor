@@ -570,3 +570,69 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** Owners and editors take course tests with no limits and no rows. An archived course takes no attempts and no marks.
 
 **Why:** Authors must preview their own tests freely. Rule 7 (an archived space is read-only) covers personal progress too.
+
+---
+
+## Member Role Is Nullable (Inherited Role + Lazy Row)
+
+**Decision:** `space_member.role` can be NULL. NULL means "use the role of the parent classroom". A student gets a row in a classroom course only when personal state is written (visit, mark, attempt start, SRS toggle).
+
+**Alternatives:** copy the role into a course row (it gets out of sync on promote and demote), or make rows for every course on join (more writes, the same sync risk).
+
+**Why:** One source of truth for the role: the classroom. A promote or a demote applies to all its courses at once. Reads (RAG, access) need no row.
+
+---
+
+## Deadline = the Earlier of the Time Limit and `closes_at`
+
+**Decision:** `deadline_at = min(started_at + time_limit_minutes, closes_at)`. The submit also checks `closes_at` with the 60 s grace.
+
+**Why:** The window is hard. A student who starts late must not work past the close time. The extra check on submit covers a teacher who sets `closes_at` after an attempt started.
+
+---
+
+## A Fail Override Keeps the Completion
+
+**Decision:** A teacher grade that fails a student never removes a completion row. A pass creates it.
+
+**Why:** Progress is sticky: a low score after a pass does not remove the pass either. To undo a pass, a teacher resets the item progress.
+
+---
+
+## Class Key Scope ALL: The Oldest Classroom Pays
+
+**Decision:** With scope ALL, a personal AI call uses the Class key of the oldest classroom (by `created_at`, then id) that can pay. The usage is booked on that classroom. A classroom that cannot pay (cap reached, or student key first) is skipped.
+
+**Why:** A fixed order gives the same payer every time, so the spend per student is easy to explain. A student of two classrooms is not charged by chance.
+
+---
+
+## Only ACTIVE Students Use the Class Key
+
+**Decision:** The owner, the co-teachers and users who left use their own key. The monthly cap counts only `key_source = CLASS` spend in the UTC month.
+
+**Why:** The Class key is a budget for students. A cap on spend with the student key would punish a student for paying themselves.
+
+---
+
+## The Gradebook Is Not Paged
+
+**Decision:** `GET /classrooms/{id}/gradebook` sends the whole matrix in one response, with a fixed query count.
+
+**Why:** A classroom has tens of students, and the teacher needs the whole table to compare. Paging would break the sticky first column and the totals.
+
+---
+
+## `canOverride` Comes from the Backend
+
+**Decision:** `TestResultRead.can_override` tells the frontend if the viewer is a teacher of the result.
+
+**Why:** First the frontend guessed it from "the result is of another user and has an item". That is a guess, not a rule. The access layer already knows (`can_review_result`), so the API sends it.
+
+---
+
+## The Orphan Sweep Never Deletes Student Results
+
+**Decision:** `_sweep_orphan_courses` (discard, delete section, delete item, publish) refuses with 409 when an orphan classroom course has a result or an attempt of a student. Nothing changes. The owner deletes the course on purpose with "Delete forever" (typed title).
+
+**Why:** A misclick on "Publish" must not delete a term of grades, and the Trash does not cover it. We did not detach or archive the course: that needs a new state for a course that no item points to. A refusal is the smallest change and keeps the explicit path (`delete_course_forever`, which now accepts a course of a classroom).

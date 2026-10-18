@@ -77,7 +77,8 @@ function updateSegment(
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useAssist(pageContext: PageContext): UseAssistReturn {
+/** `spaceId`: the classroom or course of the page (sent so the backend can pick the Class key). */
+export function useAssist(pageContext: PageContext, spaceId: string | null = null): UseAssistReturn {
   const [turns, setTurns] = useState<AssistTurn[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
@@ -435,7 +436,12 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
 
           case 'error': {
             const { message } = data as SSEError;
-            const errorSeg: TurnSegment = { type: 'error', id: nextId(), message };
+            const refusalKey = assistRefusalKey(message);
+            const errorSeg: TurnSegment = {
+              type: 'error',
+              id: nextId(),
+              message: refusalKey ? tAssist(refusalKey) : message,
+            };
             queue.runImmediately(() => {
               setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
             });
@@ -470,10 +476,11 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       const request: AssistRequest = {
         messages: conversationRef.current,
         pageContext,
+        spaceId,
       };
       void streamResponse(request);
     },
-    [pageContext, streamResponse, resolvePendingConfirmations]
+    [pageContext, spaceId, streamResponse, resolvePendingConfirmations]
   );
 
   const confirm: ConfirmHandler = useCallback(
@@ -534,11 +541,12 @@ export function useAssist(pageContext: PageContext): UseAssistReturn {
       const request: AssistRequest = {
         messages: conversationRef.current,
         pageContext,
+        spaceId,
         toolConfirmations: confirmations,
       };
       void streamResponse(request, lastAssistantTurnIdRef.current, savePermission);
     },
-    [pageContext, streamResponse, queryClient, t]
+    [pageContext, spaceId, streamResponse, queryClient, t]
   );
 
   const stop = useCallback(() => {

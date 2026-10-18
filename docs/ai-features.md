@@ -59,6 +59,18 @@ If the user has no API key configured for their preferred provider, the call fai
 403 — AI is not configured. Please add your API key in Settings.
 ```
 
+### Key resolution in a classroom (ST-68)
+
+A classroom owner can set a **Class key**. Then the key of a call depends on the user and on the space of the call. `services/llm_key_service.py` decides it with `resolve_llm(db, user, space_id)`. Grading, challenge, the Assistant, note generation and test generation all use it. `complete_for_user(..., db=db)` calls it with no space (a personal call). Without `db`, the call always uses the user key.
+
+- **Matrix:** no key → blocked. Student key only → student key. Class key only → Class key (blocked above the monthly cap). Both → `key_priority` of the classroom (STUDENT or CLASS); above the cap the student key is used.
+- **Who:** only an ACTIVE student of the classroom uses the Class key.
+- **Where (`key_scope`):** CLASSROOM_CONTENT = only calls with the `space_id` of the classroom or one of its courses (grading and challenge of its tests, Assistant requests that send `spaceId`). ALL = also personal calls; the oldest classroom with a usable Class key pays.
+- **Result:** `ResolvedLLM` has the client, the provider, `key_source` and the `space_id` to book. The service tags the `CompletionResult` with it, and `record_usage` stores `token_usage.key_source` and `space_id`.
+- **Errors:** `AIKeyError` (a `ValueError`) with a message for the user. Cap reached → 403 with the budget message. See [Error Handling](#error-handling).
+
+Full rules: [Spaces — Class key](spaces.md#class-key-r36-to-r39). Spend per student: [Token Usage](token-usage.md#classroom-spend).
+
 ### System-level fallback
 
 `get_llm_client()` and `complete()` still exist. They read `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `AI_GRADING_PROVIDER` from the environment. They are kept only for system-level operations that are not tied to a specific user — for example, an ops script. No user-facing feature calls them.
@@ -175,8 +187,11 @@ AI operations can fail for a few distinct reasons, and the system treats them di
 | Category   | Cause                                                   | Result                                                                       |
 | ---------- | -------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | No API key | The user has not configured a key for their preferred provider | `403` — "AI is not configured. Please add your API key in Settings."          |
+| Class budget | A student has used the monthly cap of the Class key and has no key of their own (ST-68) | `403` — "The AI budget of this classroom is used up for this month. Add your own API key in Settings to continue." |
 | Provider   | Rate limiting, outage, or other API error                | `502` — treated as a temporary failure, safe to retry                         |
 | Parsing    | AI response doesn't match expected structure             | `502` — rejected and reported as invalid                                      |
 | System config | The environment-based fallback (`get_llm_client`) has no provider configured — system-level calls only | `503` — reported as unavailable                    |
+
+The frontend matches the two key messages by their exact English text (`assist/utils/assistErrors.ts`) and shows a translated text. Change both sides together.
 
 For asynchronous features (grading, challenges), a failure moves the record to a terminal "failed" state instead of leaving it stuck pending forever — the user sees that grading didn't succeed rather than waiting indefinitely. For synchronous features (notes, test generation, chunk editing, question editing), the failure surfaces immediately as an error the user can retry.

@@ -16,6 +16,8 @@ Each AI call creates one `token_usage` row with:
 | `input_tokens`   | Tokens sent to the model (prompt + system message)              |
 | `output_tokens`  | Tokens received from the model (completion)                     |
 | `estimated_cost` | Dollar cost calculated from model pricing (nullable)            |
+| `space_id`       | The classroom (or classroom course) that the call belongs to (nullable, `SET NULL`) |
+| `key_source`     | Which key paid: `STUDENT` = 1 (own key, default), `CLASS` = 2 (the Class key of a classroom) |
 
 ### Tracked Features
 
@@ -33,7 +35,7 @@ Each AI call creates one `token_usage` row with:
 
 1. Every `LLMClient.complete()` call returns a `CompletionResult` dataclass containing the response text, token counts, provider name, and model ID.
 2. The calling service (grading, notes, test generation) passes `CompletionResult` to `token_usage_service.record_usage()`.
-3. `record_usage()` looks up the active model price and calculates the estimated cost before persisting the row.
+3. `record_usage()` looks up the active model price and calculates the estimated cost before persisting the row. It also stores `space_id` and `key_source`. `llm_key_service.resolve_llm` gives both: the `CompletionResult` is tagged with `ResolvedLLM.tag()` (see [Spaces — Class key](spaces.md#class-key-r36-to-r39)).
 
 Token recording is decoupled from the LLM client — the client only returns usage data, and each service decides when and how to persist it. This keeps the LLM module database-agnostic.
 
@@ -108,6 +110,17 @@ The Dashboard shows token usage data with:
 ```
 
 The `days` parameter accepts 1–365 (default 30).
+
+## Classroom Spend
+
+A classroom can have a Class key (see [Spaces — Class key](spaces.md#class-key-r36-to-r39)). The owner sees what each student used.
+
+- **`space_id`** is set when the call is made for a classroom or one of its courses (grading and challenge of a classroom test, Assistant requests with a `space_id`). A Class-key call is always booked on the classroom that pays, also a personal call (scope `ALL`). A student-key call is booked on a space only when the user is a member of it. When the space is deleted, `space_id` becomes NULL. Known limit: the rows of a deleted course then no longer count in the cap or in the spend table (see [Spaces — Class key](spaces.md#class-key-r36-to-r39)).
+- **`key_source`** says who paid. The monthly cap counts only `CLASS` rows. Rows from before ST-68 are `STUDENT`.
+- **Cap rule:** the sum of `CLASS` tokens (input + output) of one student, in the classroom and its courses, in the current UTC calendar month. At or above `monthly_token_cap_per_student`, the student key is used, or the call is blocked when the student has no key. The cap is soft: it is checked before a call and nothing is reserved, so parallel calls can go a little over.
+- **Endpoint:** `GET /api/v1/classrooms/{id}/token-usage` (owner only) returns `monthStart` and one row per student: `monthTokens`, `monthCost`, `totalTokens`, `totalCost`, `isActive` and `bySource` (one entry per `keySource`). A cost is null when no row has a price. A student who left stays in the list with `isActive = false`. The owner and the co-teachers are not listed (their calls use their own key). The Settings tab shows it in `ClassSpendTable`.
+- `GET /api/v1/classrooms/{id}/ai-key-status` (any member) returns the key that the user would use, and the cap numbers of the user.
+- The personal Dashboard (`GET /token-usage`) counts all rows of the user, whatever `key_source` is.
 
 ## Management Commands
 

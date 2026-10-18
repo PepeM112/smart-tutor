@@ -12,10 +12,12 @@ type Props = {
   value: SpaceVisibility;
   onChange: (value: SpaceVisibility) => void;
   disabled?: boolean;
+  /** The values to offer. A classroom can not be public. */
+  options?: readonly SpaceVisibility[];
 };
 
 /** Visibility field with a hint that tells who can find and join the course. */
-export function VisibilitySelect({ value, onChange, disabled }: Props) {
+export function VisibilitySelect({ value, onChange, disabled, options = VISIBILITY_OPTIONS }: Props) {
   const t = useTranslations();
 
   return (
@@ -26,7 +28,7 @@ export function VisibilitySelect({ value, onChange, disabled }: Props) {
           value={value}
           onChange={onChange}
           disabled={disabled}
-          items={VISIBILITY_OPTIONS.map(option => ({ value: option, label: t(VISIBILITY_LABELS[option]) }))}
+          items={options.map(option => ({ value: option, label: t(VISIBILITY_LABELS[option]) }))}
         />
       </div>
       <p className="text-xs text-muted-foreground">{t(VISIBILITY_HINTS[value])}</p>

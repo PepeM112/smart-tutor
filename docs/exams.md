@@ -49,6 +49,10 @@ The result page reads its test from `GET /results/{id}/test` (personal and cours
 
 A course test is taken through a course attempt (`POST /spaces/{id}/items/{iid}/attempts`), not through `GET /tests/{id}/exam` (403 for a VIEWER). The attempt pins the variant and the test version, and can have a timer (`deadline_at`, 60 s grace). The submit grades the version the student started, also after a publish. In-progress answers are kept in `localStorage`. See [Spaces — Progress and course tests](spaces.md#progress-and-course-tests-m3).
 
+### Test window and deadline (classrooms and courses, ST-68)
+
+A TEST item can have a window: `opens_at` and `closes_at`. A new attempt starts only inside it (409 "The test is not open yet" before, 409 "The test is closed" after). The submit is checked too: after `closes_at` + 60 s grace the answer is refused with 409 "The test is closed" and the attempt is EXPIRED. The deadline of an attempt is `min(started_at + time_limit_minutes, closes_at)`, so the countdown never runs past the window. In a classroom, a teacher can change the grade of a single answer. The result then shows the effective score (see [Answer Grading](answer-grading.md#teacher-override)). See [Spaces — Scheduling](spaces.md#scheduling-r32-r32b).
+
 ## Weighted Scoring
 
 Each question and question group has a `points` value (default 1.0). This allows different questions to carry different weight in the exam score.

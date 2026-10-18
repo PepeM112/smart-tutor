@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 
 import { useCourseProgress } from '../hooks/useCourseProgress';
 import { attemptAction, canTrackProgress } from '../lib/progress';
+import { windowState } from '../lib/schedule';
 
 /** The circle before an item: filled with a check when the item is done. */
 export function ItemProgressCircle({ done }: { done: boolean }) {
@@ -131,6 +132,15 @@ export function TestAttemptButton({ course, item }: { course: SpaceDetail; item:
   if (!canTrackProgress(course)) return null;
 
   const action = attemptAction(item, now);
+  // An open attempt resumes. A new attempt needs an open window.
+  const window = action === 'resume' ? 'open' : windowState(item, now);
+  if (window !== 'open') {
+    return (
+      <Button size="sm" variant="outline" disabled>
+        {t(window === 'not_open' ? 'courses.test_not_open' : 'courses.test_closed')}
+      </Button>
+    );
+  }
   if (action === 'no_attempts_left' || action === 'cooldown') {
     return (
       <Button size="sm" variant="outline" disabled>

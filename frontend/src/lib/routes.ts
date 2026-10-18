@@ -28,6 +28,8 @@ export const Routes = {
   COURSES: '/courses',
   COURSE_JOIN: (code: string) => `/courses/join/${code}`,
 
+  CLASSROOMS: '/classrooms',
+
   SETTINGS: '/settings',
 
   SANDBOX: '/sandbox',
@@ -60,6 +62,13 @@ export function courseHref(course: { id: string; title: string }): string {
   return `/courses/${buildSlug(course.title)}-${course.id}`;
 }
 
+/**
+ * Build a canonical classroom URL: `/classrooms/<slug>-<id>`.
+ */
+export function classroomHref(classroom: { id: string; title: string }): string {
+  return `/classrooms/${buildSlug(classroom.title)}-${classroom.id}`;
+}
+
 /** The settings sub-page of a course (owner only). */
 export function courseSettingsHref(course: { id: string; title: string }): string {
   return `${courseHref(course)}/settings`;
@@ -76,6 +85,11 @@ export const COURSE_ITEM_PARAM = 'item';
 /** The course page with one item selected. */
 export function courseItemHref(course: { id: string; title: string }, itemId: string): string {
   return `${courseHref(course)}?${COURSE_ITEM_PARAM}=${encodeURIComponent(itemId)}`;
+}
+
+/** The classroom page (Classwork tab) with one item selected. */
+export function classroomItemHref(classroom: { id: string; title: string }, itemId: string): string {
+  return `${classroomHref(classroom)}?${COURSE_ITEM_PARAM}=${encodeURIComponent(itemId)}`;
 }
 
 const COURSE_ATTEMPT_ROUTE_RE = /^\/courses\/([^/?#]+)\/tests\/([^/?#]+)\/?(?:[?#].*)?$/;
@@ -100,6 +114,19 @@ export function courseItemRouteForAttempt(route: string): string | null {
 export function parseSlugId(param: string): string {
   const candidate = param.slice(-26);
   return ULID_RE.test(candidate) ? candidate : param;
+}
+
+const SPACE_ROUTE_RE = /^\/(?:classrooms|courses)\/([^/?#]+)(?:\/|$)/;
+
+/**
+ * The space (classroom or course) that a route belongs to, or null for any other route.
+ * The Assistant sends it so the backend can pick the Class key. A course of a classroom is a
+ * space too (the backend finds the classroom from it). `/courses/join/<code>` is not a space.
+ */
+export function spaceIdFromRoute(pathname: string): string | null {
+  const segment = SPACE_ROUTE_RE.exec(pathname)?.[1];
+  if (!segment || segment === 'join') return null;
+  return parseSlugId(decodeURIComponent(segment));
 }
 
 function buildSlug(title: string): string {

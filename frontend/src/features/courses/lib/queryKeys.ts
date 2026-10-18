@@ -35,6 +35,8 @@ export function applyCourseDetail(queryClient: QueryClient, detail: SpaceDetail)
   void queryClient.invalidateQueries({ queryKey: courseQueryKeys.mine() });
   void queryClient.invalidateQueries({ queryKey: ['courses', 'catalog'] });
   void queryClient.invalidateQueries({ queryKey: courseQueryKeys.invitations() });
+  // A classroom is a space too: its list and its due-soon list show the same title, status and items.
+  void queryClient.invalidateQueries({ queryKey: ['classrooms'] });
 }
 
 /**

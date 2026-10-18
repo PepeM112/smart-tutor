@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
-import { SpaceStatus, type SpaceSummary } from '@/client';
+import { SpaceKind, SpaceStatus, type SpaceSummary } from '@/client';
 import { HoverHint } from '@/components/ui/hover-hint';
-import { courseHref } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-import { ROLE_ICONS, ROLE_LABELS, VISIBILITY_ICONS, VISIBILITY_LABELS } from '../lib/labels';
+import { ROLE_ICONS, roleLabelKey, VISIBILITY_ICONS, VISIBILITY_LABELS } from '../lib/labels';
 import { isCourseViewer } from '../lib/progress';
+import { spaceHref } from '../lib/spaceHref';
 
 import { CourseProgressBar } from './CourseProgress';
 
@@ -19,7 +19,7 @@ type Props = {
   course: SpaceSummary;
 };
 
-/** A course in a grid: title, owner, description, status badges, visibility and role icons. It links to the course page. */
+/** A course (or a classroom) in a grid: title, owner, description, status badges, visibility and role icons. It links to the course page. */
 export function CourseCard({ course }: Props) {
   const t = useTranslations();
   const isArchived = course.status === SpaceStatus.ARCHIVED;
@@ -27,7 +27,7 @@ export function CourseCard({ course }: Props) {
 
   return (
     <Link
-      href={courseHref(course)}
+      href={spaceHref(course)}
       className={cn(
         'flex flex-col gap-2 rounded-xl border border-border p-4 shadow-card transition-colors',
         // An archived course is read-only: a muted surface tells the user before they open it.
@@ -41,7 +41,10 @@ export function CourseCard({ course }: Props) {
         <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
           <IconHint icon={VISIBILITY_ICONS[course.visibility]} label={t(VISIBILITY_LABELS[course.visibility])} />
           {course.myRole !== null && (
-            <IconHint icon={ROLE_ICONS[course.myRole]} label={t(ROLE_LABELS[course.myRole])} />
+            <IconHint
+              icon={ROLE_ICONS[course.myRole]}
+              label={t(roleLabelKey(course.myRole, course.kind === SpaceKind.CLASSROOM))}
+            />
           )}
         </div>
       </div>

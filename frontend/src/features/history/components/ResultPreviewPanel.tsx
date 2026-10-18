@@ -18,6 +18,7 @@ import {
   countCorrectInGroup,
   ExamItemType,
   getUserAnswerDisplay,
+  isOverridden,
   type ResultQuestion,
 } from './resultDetailUtils';
 import { ScoreBanner } from './ScoreBanner';
@@ -111,7 +112,7 @@ function AnswerSummary({ question, answer }: { question: ResultQuestion; answer?
 
   if (!answer) return <p className="text-sm text-muted-foreground">{t('history.no_answer')}</p>;
 
-  if (answer.status === AnswerStatus.PENDING) {
+  if (answer.status === AnswerStatus.PENDING && !isOverridden(answer)) {
     return <p className="text-sm text-muted-foreground">{t('history.pending_ai_review')}</p>;
   }
 

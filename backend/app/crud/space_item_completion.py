@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app.crud.space_item import countable_item
 from app.models.space_item import SpaceItem
 from app.models.space_item_completion import SpaceItemCompletion
 
@@ -47,7 +48,7 @@ def list_completed_ids(db: Session, *, user_id: str, item_ids: Sequence[str]) ->
 
 
 def count_by_space(db: Session, *, user_id: str, space_ids: Sequence[str]) -> dict[str, int]:
-    """`{space_id: done published items}` of the user."""
+    """`{space_id: done published items that count for the progress}` of the user."""
     if not space_ids:
         return {}
     stmt = (
@@ -56,7 +57,7 @@ def count_by_space(db: Session, *, user_id: str, space_ids: Sequence[str]) -> di
         .where(
             SpaceItemCompletion.user_id == user_id,
             SpaceItem.space_id.in_(space_ids),
-            SpaceItem.is_draft.is_(False),
+            countable_item(),
         )
         .group_by(SpaceItem.space_id)
     )
@@ -68,8 +69,31 @@ def list_users_done_all(db: Session, *, space_id: str, total_items: int) -> list
     stmt = (
         select(SpaceItemCompletion.user_id)
         .join(SpaceItem, SpaceItem.id == SpaceItemCompletion.item_id)
-        .where(SpaceItem.space_id == space_id, SpaceItem.is_draft.is_(False))
+        .where(SpaceItem.space_id == space_id, countable_item())
         .group_by(SpaceItemCompletion.user_id)
         .having(func.count() >= total_items)
     )
     return list(db.scalars(stmt).all())
+
+
+def list_completed_pairs(db: Session, *, item_ids: Sequence[str]) -> set[tuple[str, str]]:
+    """`{(user id, item id)}` of the completion rows of these items (all users)."""
+    if not item_ids:
+        return set()
+    stmt = select(SpaceItemCompletion.user_id, SpaceItemCompletion.item_id).where(
+        SpaceItemCompletion.item_id.in_(item_ids)
+    )
+    return {(user_id, item_id) for user_id, item_id in db.execute(stmt).all()}
+
+
+def count_by_user_and_space(db: Session, *, space_ids: Sequence[str]) -> dict[tuple[str, str], int]:
+    """`{(user id, space id): done published items that count for the progress}` for all users."""
+    if not space_ids:
+        return {}
+    stmt = (
+        select(SpaceItemCompletion.user_id, SpaceItem.space_id, func.count())
+        .join(SpaceItem, SpaceItem.id == SpaceItemCompletion.item_id)
+        .where(SpaceItem.space_id.in_(space_ids), countable_item())
+        .group_by(SpaceItemCompletion.user_id, SpaceItem.space_id)
+    )
+    return {(user_id, space_id): count for user_id, space_id, count in db.execute(stmt).all()}

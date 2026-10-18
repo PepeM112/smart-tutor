@@ -132,7 +132,7 @@ class MemberStatus(NamedIntEnum):
 class SpaceItemKind(NamedIntEnum):
     NOTE = 1
     TEST = 2
-    # A course inside a classroom (M4). The course API refuses it.
+    # A course inside a classroom (M4). Only a classroom has COURSE items.
     COURSE = 3
 
 
@@ -153,3 +153,55 @@ class AttemptStatus(NamedIntEnum):
     SUBMITTED = 2
     # Not submitted before the deadline + grace. It counts as a started attempt.
     EXPIRED = 3
+
+
+# --- Classrooms (ST-68). See docs/spaces.md. ---
+
+
+class FeedPermission(NamedIntEnum):
+    """What students may do in the classroom stream (M5 uses it)."""
+
+    TEACHERS_ONLY = 1
+    STUDENTS_COMMENT = 2
+    STUDENTS_POST_AND_COMMENT = 3
+
+
+class KeyPriority(NamedIntEnum):
+    """Which AI key is used first when a student has a key and the classroom has a Class key."""
+
+    STUDENT = 1
+    CLASS = 2
+
+
+class KeyScope(NamedIntEnum):
+    """Where the Class key may be used."""
+
+    CLASSROOM_CONTENT = 1
+    ALL = 2
+
+
+class KeySource(NamedIntEnum):
+    """Which key paid for an AI call (`token_usage.key_source`). Rows from before ST-68 count as STUDENT."""
+
+    STUDENT = 1
+    CLASS = 2
+
+
+class GradeCellStatus(NamedIntEnum):
+    """The state of one student on one test in the gradebook."""
+
+    NOT_STARTED = 1
+    # An attempt is open.
+    IN_PROGRESS = 2
+    # A result still has an answer in grading.
+    PENDING = 3
+    PASSED = 4
+    FAILED = 5
+
+
+class KeyStatus(NamedIntEnum):
+    """Which AI key the current user would use in a classroom (`GET /classrooms/{id}/ai-key-status`)."""
+
+    NONE = 1
+    STUDENT = 2
+    CLASS = 3

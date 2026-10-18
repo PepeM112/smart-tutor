@@ -34,7 +34,10 @@ def clean_user_data(db: Session, user_id: str) -> None:
 
 
 def clean_user_spaces(db: Session, user: User) -> None:
-    """Delete the courses the user owns, through the service: it removes the test children first."""
-    owned = db.scalars(select(Space).where(Space.owner_id == user.id)).all()
+    """Delete the courses and classrooms the user owns, through the service: it removes the children first.
+
+    A course inside a classroom goes with its classroom, so only top-level spaces are listed.
+    """
+    owned = db.scalars(select(Space).where(Space.owner_id == user.id, Space.parent_id.is_(None))).all()
     for space in owned:
         space_service.delete_course_forever(db, space_id=space.id, current_user=user, confirm_title=space.title)

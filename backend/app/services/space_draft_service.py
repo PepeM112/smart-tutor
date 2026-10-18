@@ -1,4 +1,8 @@
-"""Edit mode and publish for a course (see docs/spaces.md, "Draft engine").
+"""Edit mode and publish for a course or a classroom (see docs/spaces.md, "Draft engine").
+
+A classroom has the same engine for its classwork. Its COURSE items point to a course
+(`child_space_id`). The course publishes on its own. A course that no item points to any more is
+deleted (`_sweep_orphan_courses`).
 
 - Enter edit mode: the published structure (sections + items) is cloned as draft rows
   (`draft_of_id` → the published row). Draft items point to the PUBLISHED content.
@@ -17,13 +21,15 @@ from dataclasses import dataclass
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import SpaceItemKind
+from app.core.enums import SpaceItemKind, SpaceKind
 from app.crud import note as note_crud
+from app.crud import space as space_crud
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_content as space_content_crud
 from app.crud import space_item as space_item_crud
 from app.crud import space_item_completion as space_item_completion_crud
 from app.crud import space_item_test as space_item_test_crud
+from app.crud import space_member as space_member_crud
 from app.crud import space_publish as space_publish_crud
 from app.crud import space_section as space_section_crud
 from app.crud import test as test_crud
@@ -52,12 +58,16 @@ from app.services.space_changes_service import has_unpublished_changes, test_cha
 from app.services.space_service import (
     build_detail,
     conflict,
-    get_course_or_404,
+    delete_spaces_forever,
+    get_space_or_404,
     now,
     require_active,
     require_author,
 )
 from app.services.versioning_service import clone_test, version_test_if_needed
+
+# The frontend shows this text as it is.
+ORPHAN_HAS_RESULTS = "A removed course has student results. Delete the course forever first."
 
 
 def _bad_request(detail: str) -> HTTPException:
@@ -69,14 +79,14 @@ def _not_found(detail: str) -> HTTPException:
 
 
 def _lock_for_authoring(db: Session, *, space_id: str, current_user: User) -> Space:
-    """Lock the course. OWNER / EDITOR, ACTIVE course."""
-    space = get_course_or_404(db, space_id=space_id, for_update=True)
+    """Lock the space. OWNER / EDITOR, ACTIVE space."""
+    space = get_space_or_404(db, space_id=space_id, for_update=True)
     require_author(db, space=space, user=current_user)
-    require_active(space)
+    require_active(db, space)
     return space
 
 
-def _lock_editing(db: Session, *, space_id: str, current_user: User) -> Space:
+def lock_editing(db: Session, *, space_id: str, current_user: User) -> Space:
     """`_lock_for_authoring` + edit mode must be on."""
     space = _lock_for_authoring(db, space_id=space_id, current_user=current_user)
     if space.draft_started_at is None:
@@ -96,6 +106,34 @@ def _get_draft_item_or_404(db: Session, *, space: Space, item_id: str) -> SpaceI
     if item is None:
         raise _not_found("Item not found")
     return item
+
+
+def _sweep_orphan_courses(db: Session, *, space: Space) -> None:
+    """Delete the courses of a classroom that no COURSE item (draft or published) points to.
+
+    Such a course comes from a discarded or deleted draft item, or from a published item removed by a
+    publish. Without this, students would still reach the course through the classroom.
+
+    A course with student data (a result or an attempt of a user who is not a teacher) is never swept:
+    the whole operation fails with 409 and nothing changes. The owner deletes such a course on purpose
+    with "Delete forever" (`space_service.delete_course_forever`).
+    """
+    if space.kind != int(SpaceKind.CLASSROOM):
+        return
+    linked = [i.child_space_id for i in space_item_crud.list_course_items(db, space_id=space.id) if i.child_space_id]
+    orphans = space_crud.list_orphan_children(db, parent_id=space.id, linked_ids=linked)
+    if not orphans:
+        return
+    teachers = {
+        space.owner_id,
+        *(s.owner_id for s in orphans),
+        *(uid for s in (space, *orphans) for uid in space_member_crud.list_active_editor_ids(db, space_id=s.id)),
+    }
+    if space_content_crud.has_member_data(db, space_ids=[s.id for s in orphans], excluded_user_ids=list(teachers)):
+        # The caller wrote draft rows before this check. Roll them back: a refused call changes nothing.
+        db.rollback()
+        raise conflict(ORPHAN_HAS_RESULTS)
+    delete_spaces_forever(db, spaces=orphans)
 
 
 def _delete_draft_content(db: Session, *, space_id: str) -> None:
@@ -132,6 +170,7 @@ def enter_edit_mode(db: Session, *, space_id: str, current_user: User) -> SpaceD
                     is_draft=True,
                     note_id=item.note_id,
                     test_ids=links.get(item.id, []),
+                    child_space_id=item.child_space_id,
                     draft_of_id=item.id,
                     policy_from=item,
                 )
@@ -142,9 +181,10 @@ def enter_edit_mode(db: Session, *, space_id: str, current_user: User) -> SpaceD
 
 def discard(db: Session, *, space_id: str, current_user: User) -> SpaceDetail:
     """Delete all draft rows and draft content. The published state stays as it was."""
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     _delete_draft_content(db, space_id=space.id)
     space_section_crud.delete_drafts(db, space_id=space.id)
+    _sweep_orphan_courses(db, space=space)
     space.draft_started_at = None
     db.commit()
     return build_detail(db, space=space, current_user=current_user)
@@ -154,7 +194,7 @@ def discard(db: Session, *, space_id: str, current_user: User) -> SpaceDetail:
 
 
 def add_section(db: Session, *, space_id: str, current_user: User, data: SpaceSectionCreate) -> SpaceDetail:
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     position = len(space_section_crud.list_by_space(db, space_id=space.id, is_draft=True))
     space_section_crud.create(db, space_id=space.id, title=data.title, position=position, is_draft=True)
     db.commit()
@@ -164,7 +204,7 @@ def add_section(db: Session, *, space_id: str, current_user: User, data: SpaceSe
 def rename_section(
     db: Session, *, space_id: str, section_id: str, current_user: User, data: SpaceSectionUpdate
 ) -> SpaceDetail:
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     section = _get_draft_section_or_404(db, space=space, section_id=section_id)
     section.title = data.title
     db.commit()
@@ -173,17 +213,19 @@ def rename_section(
 
 def delete_section(db: Session, *, space_id: str, section_id: str, current_user: User) -> SpaceDetail:
     """The draft items go with the DB cascade. Their content is cleaned up on publish or discard."""
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     section = _get_draft_section_or_404(db, space=space, section_id=section_id)
     space_section_crud.delete(db, section=section)
+    _sweep_orphan_courses(db, space=space)
     db.commit()
     return build_detail(db, space=space, current_user=current_user)
 
 
 def delete_item(db: Session, *, space_id: str, item_id: str, current_user: User) -> SpaceDetail:
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     item = _get_draft_item_or_404(db, space=space, item_id=item_id)
     space_item_crud.delete(db, item=item)
+    _sweep_orphan_courses(db, space=space)
     db.commit()
     return build_detail(db, space=space, current_user=current_user)
 
@@ -194,7 +236,7 @@ def reorder(db: Session, *, space_id: str, current_user: User, data: SpaceDraftO
     The body must list every draft section once and every draft item once (400 otherwise),
     so a stale client can not lose an item.
     """
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     sections = {s.id: s for s in space_section_crud.list_by_space(db, space_id=space.id, is_draft=True)}
     items = {i.id: i for i in space_item_crud.list_by_space(db, space_id=space.id, is_draft=True)}
     sent_sections = [s.id for s in data.sections]
@@ -229,7 +271,7 @@ def _add_item(db: Session, *, space: Space, section: SpaceSection, note: Note | 
 
 def create_item(db: Session, *, space_id: str, current_user: User, data: SpaceItemCreate) -> SpaceItemContent:
     """A new, empty note or test (draft content) at the end of a draft section."""
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     section = _get_draft_section_or_404(db, space=space, section_id=data.section_id)
     note = test = None
     if data.kind == SpaceItemKind.NOTE:
@@ -249,7 +291,7 @@ def copy_item(db: Session, *, space_id: str, current_user: User, data: SpaceItem
     The copy is new content with no link to the source (no `source_note_id`, no `origin_id`):
     later edits on either side do not reach the other.
     """
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     section = _get_draft_section_or_404(db, space=space, section_id=data.section_id)
     note = test = None
     if data.note_id is not None:
@@ -293,7 +335,7 @@ def make_editable(
     the first edit (a later call returns the same twin). A TEST item has one row per variant:
     `test_id` picks the variant (default: the first one).
     """
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     item = _get_draft_item_or_404(db, space=space, item_id=item_id)
     if item.note_id is not None:
         note_id = _editable_note_id(db, note_id=item.note_id, user=current_user)
@@ -373,12 +415,37 @@ def _get_draft_test_item_or_404(db: Session, *, space: Space, item_id: str) -> S
     return item
 
 
+# Only TEST items have these.
+_TEST_ONLY_FIELDS = frozenset(
+    {
+        "pass_threshold",
+        "max_attempts",
+        "cooldown_hours",
+        "reveal_answers",
+        "time_limit_minutes",
+        "opens_at",
+        "closes_at",
+    }
+)
+
+
 def update_item(db: Session, *, space_id: str, item_id: str, current_user: User, data: SpaceItemUpdate) -> SpaceDetail:
-    """Edit the attempt policy of a draft TEST item. Only the sent fields change."""
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
-    item = _get_draft_test_item_or_404(db, space=space, item_id=item_id)
+    """Edit the schedule of a draft item, and the attempt policy and test window of a draft TEST item.
+
+    Only the sent fields change.
+    """
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
+    item = _get_draft_item_or_404(db, space=space, item_id=item_id)
+    if item.kind != int(SpaceItemKind.TEST) and data.model_fields_set & _TEST_ONLY_FIELDS:
+        raise _bad_request("Only a test item has an attempt policy and a test window")
+    sent = data.model_fields_set
+    # Check the window with the stored value for a field that was not sent, before any change.
+    opens_at = data.opens_at if "opens_at" in sent else item.opens_at
+    closes_at = data.closes_at if "closes_at" in sent else item.closes_at
+    if opens_at is not None and closes_at is not None and closes_at <= opens_at:
+        raise _bad_request("closesAt must be after opensAt")
     # `model_fields_set`: a sent null on `max_attempts` means "unlimited", an omitted field means "keep".
-    for field in data.model_fields_set:
+    for field in sent:
         value = getattr(data, field)
         setattr(item, field, int(value) if field == "reveal_answers" else value)
     db.commit()
@@ -389,7 +456,7 @@ def add_variant(
     db: Session, *, space_id: str, item_id: str, current_user: User, data: SpaceVariantCreate
 ) -> SpaceItemContent:
     """Add a new empty test, or a copy of a personal test, as the last variant of a draft TEST item."""
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     item = _get_draft_test_item_or_404(db, space=space, item_id=item_id)
     if data.title is not None:
         test = test_crud.create(
@@ -416,7 +483,7 @@ def add_variant(
 
 def remove_variant(db: Session, *, space_id: str, item_id: str, test_id: str, current_user: User) -> SpaceDetail:
     """Unlink a variant. The last one can not go (an item needs 1+). Its content is cleaned up on publish."""
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     item = _get_draft_test_item_or_404(db, space=space, item_id=item_id)
     variants = _variant_ids(db, item=item)
     if test_id not in variants:
@@ -435,7 +502,7 @@ def remove_variant(db: Session, *, space_id: str, item_id: str, test_id: str, cu
 def reorder_variants(
     db: Session, *, space_id: str, item_id: str, current_user: User, data: SpaceVariantOrder
 ) -> SpaceDetail:
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     item = _get_draft_test_item_or_404(db, space=space, item_id=item_id)
     variants = _variant_ids(db, item=item)
     if sorted(data.test_ids) != sorted(variants):
@@ -505,6 +572,7 @@ def _publish_items(
                 is_draft=False,
                 note_id=draft.note_id,
                 test_ids=variants,
+                child_space_id=draft.child_space_id,
                 policy_from=draft,
             )
         else:
@@ -599,7 +667,7 @@ def publish(
     The new and changed notes are embedded after the response (`background_tasks`), so members can find
     them with the Assistant. A draft is never indexed.
     """
-    space = _lock_editing(db, space_id=space_id, current_user=current_user)
+    space = lock_editing(db, space_id=space_id, current_user=current_user)
     # An autosave that comes during the publish waits, then gets 404: its twin is gone. Without the
     # lock, publish could copy the older content and then delete the newer one.
     space_content_crud.lock_draft_content(db, space_id=space.id)
@@ -623,6 +691,7 @@ def publish(
     space_section_crud.delete_drafts(db, space_id=space.id)
     space_item_crud.delete_by_ids(db, ids=[i.id for i in items.removed_items])
     space_section_crud.delete_by_ids(db, ids=removed_section_ids)
+    _sweep_orphan_courses(db, space=space)
 
     # Stored as published item ids: draft ids are gone after this call. Unknown ids are ignored.
     reset_item_ids = [items.item_map[i] for i in data.reset_item_ids if i in items.item_map]

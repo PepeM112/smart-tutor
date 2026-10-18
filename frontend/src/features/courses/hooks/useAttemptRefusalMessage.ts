@@ -27,6 +27,10 @@ export function useAttemptRefusalMessage(): (error: unknown) => string {
           return t('courses.no_attempts_left');
         case 'time_over':
           return t('courses.attempt_error_time_over');
+        case 'not_open':
+          return t('courses.attempt_error_not_open');
+        case 'window_closed':
+          return t('courses.attempt_error_window_closed');
         case 'archived':
           return t('courses.attempt_error_archived');
         case 'no_questions':

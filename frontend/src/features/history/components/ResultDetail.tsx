@@ -7,15 +7,26 @@ import { AnswerStatus, type AnswerRead, type TestResultRead } from '@/client';
 import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
+import { ResultReviewContext } from '../context/resultReviewContext';
+
 import { GroupDetailPanel } from './GroupDetailPanel';
 import { QuestionDetailPanel } from './QuestionDetailPanel';
 import { CompactGroupCard, CompactQuestionCard } from './QuestionReviewCards';
-import { ExamItemType, buildExamItems, countCorrectInGroup, type ExamItem, type ResultTest } from './resultDetailUtils';
+import {
+  ExamItemType,
+  buildExamItems,
+  countCorrectInGroup,
+  isOverridden,
+  type ExamItem,
+  type ResultTest,
+} from './resultDetailUtils';
 import { ScoreBanner } from './ScoreBanner';
 
 type Props = {
   result: TestResultRead;
   test: ResultTest;
+  /** The viewer is a teacher of the classroom of this result: they can override grades. */
+  canOverride?: boolean;
 };
 
 type SelectedItem = { type: ExamItemType; id: string };
@@ -23,7 +34,7 @@ type SelectedItem = { type: ExamItemType; id: string };
 const SPLIT_RATIO_KEY = 'result-detail-split-ratio';
 const DEFAULT_SPLIT_RATIO = 0.5;
 
-export function ResultDetail({ result, test }: Props) {
+export function ResultDetail({ result, test, canOverride = false }: Props) {
   const t = useTranslations();
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const { isDesktop } = useBreakpoint();
@@ -39,10 +50,13 @@ export function ResultDetail({ result, test }: Props) {
   const pendingAnswerIds = useMemo(() => {
     const ids = new Set<string>();
     (result.answers ?? []).forEach(a => {
-      if (a.status === AnswerStatus.PENDING) ids.add(a.questionId);
+      // A teacher can grade an answer that the AI has not graded yet, so a teacher can open it.
+      if (a.status === AnswerStatus.PENDING && !isOverridden(a) && !canOverride) ids.add(a.questionId);
     });
     return ids;
-  }, [result.answers]);
+  }, [result.answers, canOverride]);
+
+  const hasTeacherGrades = (result.answers ?? []).some(isOverridden);
 
   const itemNumbers = useMemo(() => items.map((_, idx) => idx + 1), [items]);
 
@@ -51,6 +65,11 @@ export function ResultDetail({ result, test }: Props) {
   const listContent = (
     <>
       <ScoreBanner result={result} testTitle={test.title} isOlderVersion={result.isOlderVersion} />
+      {!canOverride && hasTeacherGrades && (
+        <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          {t('history.has_teacher_grades')}
+        </p>
+      )}
       {items.map((item, idx) => {
         if (item.type === ExamItemType.QUESTION) {
           const question = item.question;
@@ -90,21 +109,28 @@ export function ResultDetail({ result, test }: Props) {
     <RightPanel selectedItem={selectedItem} items={items} test={test} answerMap={answerMap} itemNumbers={itemNumbers} />
   );
 
+  const review = useMemo(
+    () => ({ canOverride, resultId: result.id, isSpaceResult: result.spaceItemId != null }),
+    [canOverride, result.id, result.spaceItemId]
+  );
+
   return (
     // h-full + flex column: the split pane takes the height that the layout gives (no magic vh number).
-    <div className="flex h-full flex-col">
-      <ResponsiveSplitPane
-        storageKey={SPLIT_RATIO_KEY}
-        defaultRatio={DEFAULT_SPLIT_RATIO}
-        mainClassName="scrollbar-none p-0.5 pr-2 pb-4 space-y-4"
-        mobileMainClassName="space-y-4 pb-4"
-        main={listContent}
-        side={hasSelection ? rightPanelContent : null}
-        onSideClose={() => setSelectedItem(null)}
-        // No card frame: the detail panels draw their own cards.
-        sideClassName="overflow-y-auto scrollbar-none p-0.5 pl-2 pb-4"
-      />
-    </div>
+    <ResultReviewContext.Provider value={review}>
+      <div className="flex h-full flex-col">
+        <ResponsiveSplitPane
+          storageKey={SPLIT_RATIO_KEY}
+          defaultRatio={DEFAULT_SPLIT_RATIO}
+          mainClassName="scrollbar-none p-0.5 pr-2 pb-4 space-y-4"
+          mobileMainClassName="space-y-4 pb-4"
+          main={listContent}
+          side={hasSelection ? rightPanelContent : null}
+          onSideClose={() => setSelectedItem(null)}
+          // No card frame: the detail panels draw their own cards.
+          sideClassName="overflow-y-auto scrollbar-none p-0.5 pl-2 pb-4"
+        />
+      </div>
+    </ResultReviewContext.Provider>
   );
 }
 

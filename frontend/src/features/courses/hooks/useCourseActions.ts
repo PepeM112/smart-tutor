@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 
 import {
   MemberStatus,
+  type ClassroomCourseCreate,
+  type ClassroomCourseDuplicate,
   type SpaceDetail,
   type SpaceDraftOrder,
   type SpaceDuplicateRequest,
@@ -23,6 +25,11 @@ import { courseHref, Routes } from '@/lib/routes';
 import { getErrorDetail } from '@/lib/utils';
 
 import { applyCourseDetail, courseQueryKeys } from '../lib/queryKeys';
+import { spaceErrorKey } from '../lib/spaceErrors';
+import { spaceTextKey } from '../lib/spaceText';
+
+/** Where the writes of one space page run: the id, the kind (for the toast text) and the page to go to after a leave or a delete. */
+type ActionScope = { courseId: string; isClassroom: boolean; home: string };
 
 type MutationText = {
   /** Translation key of the success toast. Leave it out for a silent success. */
@@ -52,30 +59,32 @@ export const courseWriteKey = (courseId: string) => ['courses', 'write', courseI
  * Every write on one course page. Most endpoints return the new `SpaceDetail`, which replaces the cache
  * (no refetch). The others invalidate the detail key, which also covers the member list.
  */
-export function useCourseActions(courseId: string) {
+export function useCourseActions(courseId: string, options: { isClassroom?: boolean } = {}) {
   const path = { space_id: courseId };
+  const isClassroom = options.isClassroom ?? false;
+  const scope: ActionScope = { courseId, isClassroom, home: isClassroom ? Routes.CLASSROOMS : Routes.COURSES };
 
   // ── Edit mode ────────────────────────────────────────────────────────────────
 
   const enterEditMode = useDetailMutation(
-    courseId,
+    scope,
     async () => (await sdk.spacesEnterEditMode({ path, throwOnError: true })).data,
     { error: 'courses.failed_to_edit' }
   );
   const discardDraft = useDetailMutation(
-    courseId,
+    scope,
     async () => (await sdk.spacesDiscardDraft({ path, throwOnError: true })).data,
     // The note pages of the course show the old content: publish changes the published notes,
     // discard deletes the draft twins.
     { success: 'courses.draft_discarded', error: 'courses.failed_to_discard', markStale: [fileQueryKeys.notes()] }
   );
   const publish = useDetailMutation(
-    courseId,
+    scope,
     async (body: SpacePublishRequest) => (await sdk.spacesPublish({ path, body, throwOnError: true })).data,
     { success: 'courses.published', error: 'courses.failed_to_publish', markStale: [fileQueryKeys.notes()] }
   );
   const reorder = useDetailMutation(
-    courseId,
+    scope,
     async (body: SpaceDraftOrder) => (await sdk.spacesReorderDraft({ path, body, throwOnError: true })).data,
     { error: 'courses.failed_to_save' }
   );
@@ -83,12 +92,12 @@ export function useCourseActions(courseId: string) {
   // ── Sections and items ───────────────────────────────────────────────────────
 
   const addSection = useDetailMutation(
-    courseId,
+    scope,
     async (title: string) => (await sdk.spacesAddSection({ path, body: { title }, throwOnError: true })).data,
     { error: 'courses.failed_to_save' }
   );
   const renameSection = useDetailMutation(
-    courseId,
+    scope,
     async ({ sectionId, title }: { sectionId: string; title: string }) =>
       (
         await sdk.spacesRenameSection({
@@ -100,32 +109,32 @@ export function useCourseActions(courseId: string) {
     { error: 'courses.failed_to_save' }
   );
   const deleteSection = useDetailMutation(
-    courseId,
+    scope,
     async (sectionId: string) =>
       (await sdk.spacesDeleteSection({ path: { ...path, section_id: sectionId }, throwOnError: true })).data,
     { error: 'courses.failed_to_save' }
   );
   const deleteItem = useDetailMutation(
-    courseId,
+    scope,
     async (itemId: string) =>
       (await sdk.spacesDeleteItem({ path: { ...path, item_id: itemId }, throwOnError: true })).data,
     { error: 'courses.failed_to_save' }
   );
   const createItem = useInvalidatingMutation(
-    courseId,
+    scope,
     async (body: SpaceItemCreate): Promise<SpaceItemContent> =>
       (await sdk.spacesCreateItem({ path, body, throwOnError: true })).data,
     { error: 'courses.failed_to_save' }
   );
   const copyItem = useInvalidatingMutation(
-    courseId,
+    scope,
     async (body: SpaceItemCopy): Promise<SpaceItemContent> =>
       (await sdk.spacesCopyItem({ path, body, throwOnError: true })).data,
     { success: 'courses.item_copied', error: 'courses.failed_to_copy_item' }
   );
   // The twin is a new draft row: the detail must show `hasChanges` for the item.
   const makeEditable = useInvalidatingMutation(
-    courseId,
+    scope,
     // TEST items: `testId` picks the variant to edit (default: the first one).
     async (arg: string | { itemId: string; testId?: string }): Promise<SpaceItemContent> => {
       const { itemId, testId } = typeof arg === 'string' ? { itemId: arg, testId: undefined } : arg;
@@ -140,22 +149,37 @@ export function useCourseActions(courseId: string) {
     { error: 'courses.failed_to_edit' }
   );
 
+  // ── Classroom: a COURSE item holds a course of its own (the response is that course, not the classroom) ──
+
+  const addCourse = useInvalidatingMutation(
+    scope,
+    async (body: ClassroomCourseCreate): Promise<SpaceDetail> =>
+      (await sdk.classroomsAddCourse({ path: { classroom_id: courseId }, body, throwOnError: true })).data,
+    { success: 'classrooms.course_added', error: 'courses.failed_to_save' }
+  );
+  const addCourseCopy = useInvalidatingMutation(
+    scope,
+    async (body: ClassroomCourseDuplicate): Promise<SpaceDetail> =>
+      (await sdk.classroomsAddCourseCopy({ path: { classroom_id: courseId }, body, throwOnError: true })).data,
+    { success: 'classrooms.course_added', error: 'courses.failed_to_save' }
+  );
+
   // ── Test items: attempt policy and variants ──────────────────────────────────
 
   const updateItem = useDetailMutation(
-    courseId,
+    scope,
     async ({ itemId, body }: { itemId: string; body: SpaceItemUpdate }) =>
       (await sdk.spacesUpdateItem({ path: { ...path, item_id: itemId }, body, throwOnError: true })).data,
     { error: 'courses.failed_to_save' }
   );
   const addVariant = useInvalidatingMutation(
-    courseId,
+    scope,
     async ({ itemId, body }: { itemId: string; body: SpaceVariantCreate }): Promise<SpaceItemContent> =>
       (await sdk.spacesAddVariant({ path: { ...path, item_id: itemId }, body, throwOnError: true })).data,
     { error: 'courses.failed_to_save' }
   );
   const reorderVariants = useDetailMutation(
-    courseId,
+    scope,
     async ({ itemId, testIds }: { itemId: string; testIds: string[] }) =>
       (
         await sdk.spacesReorderVariants({
@@ -167,7 +191,7 @@ export function useCourseActions(courseId: string) {
     { error: 'courses.failed_to_save' }
   );
   const removeVariant = useDetailMutation(
-    courseId,
+    scope,
     async ({ itemId, testId }: { itemId: string; testId: string }) =>
       (
         await sdk.spacesRemoveVariant({
@@ -181,20 +205,16 @@ export function useCourseActions(courseId: string) {
   // ── The course ───────────────────────────────────────────────────────────────
 
   const updateCourse = useDetailMutation(
-    courseId,
+    scope,
     async (body: SpaceUpdate) => (await sdk.spacesUpdate({ path, body, throwOnError: true })).data,
     { success: 'courses.saved', error: 'courses.failed_to_save' }
   );
-  const archive = useDetailMutation(
-    courseId,
-    async () => (await sdk.spacesArchive({ path, throwOnError: true })).data,
-    {
-      success: 'courses.archived',
-      error: 'courses.failed_to_save',
-    }
-  );
+  const archive = useDetailMutation(scope, async () => (await sdk.spacesArchive({ path, throwOnError: true })).data, {
+    success: 'courses.archived',
+    error: 'courses.failed_to_save',
+  });
   const unarchive = useDetailMutation(
-    courseId,
+    scope,
     async () => (await sdk.spacesUnarchive({ path, throwOnError: true })).data,
     {
       success: 'courses.unarchived',
@@ -202,48 +222,52 @@ export function useCourseActions(courseId: string) {
     }
   );
   const regenerateJoinCode = useDetailMutation(
-    courseId,
+    scope,
     async () => (await sdk.spacesRegenerateJoinCode({ path, throwOnError: true })).data,
     { success: 'courses.join_code_regenerated', error: 'courses.failed_to_save' }
   );
   const duplicate = useNavigatingMutation(
+    scope,
     async (body: SpaceDuplicateRequest) => (await sdk.spacesDuplicate({ path, body, throwOnError: true })).data,
     detail => courseHref(detail),
     { success: 'courses.duplicated', error: 'courses.failed_to_duplicate' }
   );
   const deleteForever = useNavigatingMutation(
+    scope,
     async (title: string) => sdk.spacesDeleteForever({ path, body: { title }, throwOnError: true }),
-    () => Routes.COURSES,
+    () => scope.home,
     { success: 'courses.deleted', error: 'courses.failed_to_delete' }
   );
 
   // ── Membership of the current user ──────────────────────────────────────────
 
   // A PRIVATE course gives a request, not a membership.
-  const join = useDetailMutation(courseId, async () => (await sdk.spacesJoin({ path, throwOnError: true })).data, {
+  const join = useDetailMutation(scope, async () => (await sdk.spacesJoin({ path, throwOnError: true })).data, {
     success: detail => (detail.myStatus === MemberStatus.REQUESTED ? 'courses.request_sent' : 'courses.joined'),
     error: 'courses.failed_to_join',
   });
   const acceptInvitation = useDetailMutation(
-    courseId,
+    scope,
     async () => (await sdk.spacesAcceptInvitation({ path, throwOnError: true })).data,
     { success: 'courses.joined', error: 'courses.failed_to_join' }
   );
   const declineInvitation = useNavigatingMutation(
+    scope,
     async () => sdk.spacesDeclineInvitation({ path, throwOnError: true }),
-    () => Routes.COURSES,
+    () => scope.home,
     { success: 'courses.invitation_declined', error: 'courses.failed_to_save' }
   );
   // Also cancels a pending join request.
   const leave = useNavigatingMutation(
+    scope,
     async () => sdk.spacesLeave({ path, throwOnError: true }),
-    () => Routes.COURSES,
+    () => scope.home,
     { success: 'courses.left', error: 'courses.failed_to_leave' }
   );
 
   // The course questions in Review is a personal setting of the member. The response is the new detail.
   const setIncludeInSrs = useDetailMutation(
-    courseId,
+    scope,
     async (includeInSrs: boolean) =>
       (await sdk.spacesUpdateMembership({ path, body: { includeInSrs }, throwOnError: true })).data,
     {
@@ -257,23 +281,23 @@ export function useCourseActions(courseId: string) {
   // ── Members (owner) ──────────────────────────────────────────────────────────
 
   const invite = useInvalidatingMutation(
-    courseId,
+    scope,
     async (identifier: string) => sdk.spacesInvite({ path, body: { identifier }, throwOnError: true }),
     { success: 'courses.invited', error: 'courses.failed_to_invite' }
   );
   const approveRequest = useInvalidatingMutation(
-    courseId,
+    scope,
     async (userId: string) => sdk.spacesApproveRequest({ path: { ...path, user_id: userId }, throwOnError: true }),
     { success: 'courses.request_approved', error: 'courses.failed_to_save' }
   );
   const setMemberRole = useInvalidatingMutation(
-    courseId,
+    scope,
     async ({ userId, role }: { userId: string; role: SpaceRole.EDITOR | SpaceRole.VIEWER }) =>
       sdk.spacesSetMemberRole({ path: { ...path, user_id: userId }, body: { role }, throwOnError: true }),
     { success: 'courses.role_changed', error: 'courses.failed_to_save' }
   );
   const removeMember = useInvalidatingMutation(
-    courseId,
+    scope,
     async (userId: string) => sdk.spacesRemoveMember({ path: { ...path, user_id: userId }, throwOnError: true }),
     { success: 'courses.member_removed', error: 'courses.failed_to_save' }
   );
@@ -290,6 +314,8 @@ export function useCourseActions(courseId: string) {
     createItem,
     copyItem,
     makeEditable,
+    addCourse,
+    addCourseCopy,
     updateItem,
     addVariant,
     reorderVariants,
@@ -312,8 +338,13 @@ export function useCourseActions(courseId: string) {
   };
 }
 
-function useDetailMutation<V>(courseId: string, fn: (vars: V) => Promise<SpaceDetail>, text: DetailMutationText) {
+function useDetailMutation<V>(
+  { courseId, isClassroom }: ActionScope,
+  fn: (vars: V) => Promise<SpaceDetail>,
+  text: DetailMutationText
+) {
   const t = useTranslations();
+  const tx = (key: string): string => t(spaceTextKey(key, isClassroom));
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: fn,
@@ -323,14 +354,19 @@ function useDetailMutation<V>(courseId: string, fn: (vars: V) => Promise<SpaceDe
       applyCourseDetail(queryClient, detail);
       text.markStale?.forEach(queryKey => void queryClient.invalidateQueries({ queryKey, refetchType: 'none' }));
       const success = typeof text.success === 'function' ? text.success(detail) : text.success;
-      if (success) toast.success(t(success));
+      if (success) toast.success(tx(success));
     },
-    onError: err => toast.error(getErrorDetail(err, t(text.error))),
+    onError: err => toastWriteError(err, tx(text.error), t),
   });
 }
 
-function useInvalidatingMutation<V, R>(courseId: string, fn: (vars: V) => Promise<R>, text: MutationText) {
+function useInvalidatingMutation<V, R>(
+  { courseId, isClassroom }: ActionScope,
+  fn: (vars: V) => Promise<R>,
+  text: MutationText
+) {
   const t = useTranslations();
+  const tx = (key: string): string => t(spaceTextKey(key, isClassroom));
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: fn,
@@ -339,9 +375,9 @@ function useInvalidatingMutation<V, R>(courseId: string, fn: (vars: V) => Promis
     onSuccess: () => {
       // The detail key is a prefix of the member list key: both refetch.
       void queryClient.invalidateQueries({ queryKey: courseQueryKeys.detail(courseId) });
-      if (text.success) toast.success(t(text.success));
+      if (text.success) toast.success(tx(text.success));
     },
-    onError: err => toast.error(getErrorDetail(err, t(text.error))),
+    onError: err => toastWriteError(err, tx(text.error), t),
   });
 }
 
@@ -350,8 +386,14 @@ function useInvalidatingMutation<V, R>(courseId: string, fn: (vars: V) => Promis
  * The course queries are only marked stale (`refetchType: 'none'`): a refetch of this page
  * while it unmounts would get a 403 / 404.
  */
-function useNavigatingMutation<V, R>(fn: (vars: V) => Promise<R>, href: (result: R) => string, text: MutationText) {
+function useNavigatingMutation<V, R>(
+  { isClassroom }: ActionScope,
+  fn: (vars: V) => Promise<R>,
+  href: (result: R) => string,
+  text: MutationText
+) {
   const t = useTranslations();
+  const tx = (key: string): string => t(spaceTextKey(key, isClassroom));
   const router = useRouter();
   const queryClient = useQueryClient();
   return useMutation({
@@ -359,8 +401,15 @@ function useNavigatingMutation<V, R>(fn: (vars: V) => Promise<R>, href: (result:
     onSuccess: result => {
       router.push(href(result));
       void queryClient.invalidateQueries({ queryKey: courseQueryKeys.all(), refetchType: 'none' });
-      if (text.success) toast.success(t(text.success));
+      void queryClient.invalidateQueries({ queryKey: ['classrooms'], refetchType: 'none' });
+      if (text.success) toast.success(tx(text.success));
     },
-    onError: err => toast.error(getErrorDetail(err, t(text.error))),
+    onError: err => toastWriteError(err, tx(text.error), t),
   });
+}
+
+/** The error toast of a write: an own text for a known refusal, else the backend detail, else the fallback. */
+function toastWriteError(err: unknown, fallback: string, t: ReturnType<typeof useTranslations>): void {
+  const key = spaceErrorKey(getErrorDetail(err, ''));
+  toast.error(key ? t(key) : getErrorDetail(err, fallback));
 }

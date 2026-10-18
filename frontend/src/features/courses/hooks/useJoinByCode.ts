@@ -3,13 +3,14 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
+import { SpaceKind } from '@/client';
 import { sdk } from '@/lib/apiClient';
-import { courseHref } from '@/lib/routes';
 import { getErrorDetail } from '@/lib/utils';
 
 import { applyCourseDetail } from '../lib/queryKeys';
+import { spaceHref } from '../lib/spaceHref';
 
-/** Join with a code (any visibility) and open the course. Used by the dialog and by `/courses/join/[code]`. */
+/** Join with a code (any visibility) and open the course or the classroom. Used by the dialog and by `/courses/join/[code]`. */
 export function useJoinByCode(onJoined?: () => void) {
   const t = useTranslations();
   const router = useRouter();
@@ -20,9 +21,9 @@ export function useJoinByCode(onJoined?: () => void) {
       (await sdk.spacesJoinByCode({ body: { code: code.trim() }, throwOnError: true })).data,
     onSuccess: detail => {
       applyCourseDetail(queryClient, detail);
-      toast.success(t('courses.joined'));
+      toast.success(t(detail.kind === SpaceKind.CLASSROOM ? 'classrooms.joined' : 'courses.joined'));
       onJoined?.();
-      router.push(courseHref(detail));
+      router.push(spaceHref(detail));
     },
     onError: err => toast.error(getErrorDetail(err, t('courses.failed_to_join'))),
   });

@@ -7,6 +7,8 @@ import {
   type SpaceSectionRead,
 } from '@/client';
 
+import { isHiddenByVisibleFrom } from './schedule';
+
 /** What the Start / Resume button of a test row does. */
 export type AttemptAction = 'resume' | 'start' | 'no_attempts_left' | 'cooldown';
 
@@ -28,10 +30,16 @@ export function flattenItems(sections: SpaceSectionRead[]): SpaceItemRead[] {
  * The item that "Continue" opens: the item the student opened last (`progress.lastItemId`), if it can go on.
  * A NOTE can always go on. A TEST can go on only with an open attempt (resume): the student must not start
  * a new attempt by accident, and a done test, or one with no attempt left, would send the student back.
- * Else the first item that is not done. No item = the course is empty or done.
+ * Else the first item that is not done. Items hidden by `visibleFrom` are skipped.
+ * No item = the course is empty or done.
  */
-export function continueItem(sections: SpaceSectionRead[], lastItemId?: string | null): SpaceItemRead | null {
-  const items = flattenItems(sections);
+export function continueItem(
+  sections: SpaceSectionRead[],
+  lastItemId?: string | null,
+  now: Date = new Date()
+): SpaceItemRead | null {
+  // An item that is not visible yet (`visibleFrom`) can not be opened by the student.
+  const items = flattenItems(sections).filter(item => !isHiddenByVisibleFrom(item, now));
   const last = items.find(item => item.id === lastItemId);
   if (last && canContinueAt(last)) return last;
   return items.find(item => !item.completed) ?? null;

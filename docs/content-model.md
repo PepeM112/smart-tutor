@@ -20,6 +20,13 @@ Space (course / classroom, see spaces.md)
 
 **Personal vs space content.** `note.space_id` and `test.space_id` are `NULL` for personal content. A row with `space_id` set belongs to a [space](spaces.md): access comes from the role in the space, and `user_id` only records the creator. Space rows also use `is_draft` (members can not see the row yet) and `draft_of_id` (the published row that this draft replaces on publish). CHECK constraints keep `is_draft = false` and `draft_of_id = NULL` on personal rows, and keep space notes out of folders, Trash and favorites. Personal queries filter `space_id IS NULL`. The course structure (sections and items) is separate from the content: `space_item` points to a note or a test. The note page shows a published course note read-only; authors change it through a draft twin (see [Spaces](spaces.md#draft-engine-servicesspace_draft_servicepy)). Load single notes, tests and questions through `access_service` (see [Spaces](spaces.md#access-layer-servicesaccess_servicepy)).
 
+**Classroom columns (M4, ST-68).** Migrations `c4d9a2e7b1f3` and `d7e3b9c1a5f2` add these (details in [Spaces — Classrooms](spaces.md#classrooms-m4)):
+- `space_item.due_at`, `opens_at`, `closes_at`, `visible_from` (DateTime with time zone, NULL). `space_item.kind` can be COURSE in a classroom (`child_space_id`).
+- `space_member.role` is nullable. NULL = inherit the role of the parent classroom (a lazy row that holds only personal state).
+- `classroom_settings` (PK `space_id` → `space` CASCADE, one row per classroom): `feed_permission`, `ai_provider`, `encrypted_class_key` (Fernet), `key_priority`, `key_scope`, `monthly_token_cap_per_student`.
+- `answer.override_score`, `override_status`, `overridden_by` (→ `user` SET NULL), `overridden_at`: the teacher grade. The AI grade stays in `status` and `rubric_result`. See [Answer Grading](answer-grading.md#teacher-override).
+- `token_usage.space_id` (→ `space` SET NULL, indexed) and `token_usage.key_source` (default STUDENT), with an index on `(user_id, space_id, key_source)`. See [Token Usage](token-usage.md#classroom-spend).
+
 Questions have a `user_id` FK for direct ownership. A question's `test_id` is **nullable** — questions with `test_id = NULL` are **bank questions** (standalone, not part of any test). Bank questions are owned via `user_id` directly.
 
 A **Test** is a named collection of questions (e.g. "Spanish Vocabulary Chapter 3"). A personal test belongs to a single user. A space test belongs to a course or classroom (`space_id`). A test can optionally track its origin via `source_note_id` — a reference to the Note it was generated from (see [AI Test Generation](test-generation.md)). This is `null` for manually-created tests.

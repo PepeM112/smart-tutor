@@ -23,7 +23,7 @@ from app.services import note_service, question_service, test_service, trash_ser
 from app.services.access_service import AccessLevel, get_space_access
 from app.services.assist_tools import execute_tool
 from app.services.versioning_service import version_test_if_needed
-from tests.space_factories import add_member, new_bank_question, new_note, new_space, new_test, new_user
+from tests.space_factories import add_member, link_course, new_bank_question, new_note, new_space, new_test, new_user
 
 pytestmark = pytest.mark.db
 
@@ -131,6 +131,7 @@ class TestSpaceAccess:
     def test_classroom_member_inherits_the_role_on_a_child_course(self, db_session: Session, owner: User) -> None:
         classroom = new_space(db_session, owner=owner, kind=SpaceKind.CLASSROOM)
         child = new_space(db_session, owner=owner, parent=classroom)
+        link_course(db_session, classroom=classroom, course=child)
         student = _member(db_session, classroom, SpaceRole.VIEWER)
         assert get_space_access(db_session, space_id=child.id, user_id=student.id).role == SpaceRole.VIEWER
 

@@ -90,6 +90,8 @@ Course questions are in Review only when the member turns on "Include in Review"
 
 Course questions come only from published, live tests (`parent_id IS NULL`) of ACTIVE memberships. The answer-key rule is strict, so Review can not show a hidden answer key: items with `reveal_answers = ALWAYS` are in; items with `AFTER_PASS_OR_LAST` are in only when the user has a completion row for the item (a pass); items with `NEVER` are never in. The rule is per user, so two members of one course can see different pools. Any ACTIVE member (not only a VIEWER) can turn on "Include in Review". `/check` on a course question gives correct / wrong and writes SRS state for a member who opted in, with the same strict rule as the pool. The correct answers come back only when the policy reveals them. Without the opt-in, `/check` gives 403.
 
+**Scheduled items (ST-68).** An item with `visible_from` in the future is not in the Review pool, and `/check` refuses its questions, for students. Owners and co-teachers are not limited. A classroom course follows the same rules: the student has a lazy member row, made when they turn on "Include in Review". See [Spaces — Classrooms](spaces.md#classrooms-m4).
+
 ### Practice Mode
 
 Sometimes users want to practice without SRS constraints. The `?mode=practice` query parameter bypasses SRS and returns random questions, similar to pre-SRS behavior.

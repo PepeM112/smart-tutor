@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { courseItemRouteForAttempt, folderHref, noteHref, parseSlugId } from './routes';
+import {
+  classroomItemHref,
+  courseItemRouteForAttempt,
+  folderHref,
+  noteHref,
+  parseSlugId,
+  spaceIdFromRoute,
+} from './routes';
 
 // 26-char Crockford base32 ULID (valid alphabet: 0-9, A-Z minus I, L, O, U)
 const ULID = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
@@ -81,5 +88,33 @@ describe('courseItemRouteForAttempt', () => {
     expect(courseItemRouteForAttempt('/courses/c1/settings')).toBeNull();
     expect(courseItemRouteForAttempt('/tests/t1')).toBeNull();
     expect(courseItemRouteForAttempt('/courses/c1/tests/i1/extra')).toBeNull();
+  });
+});
+
+describe('spaceIdFromRoute', () => {
+  it('reads the id of a classroom or a course page', () => {
+    expect(spaceIdFromRoute(`/classrooms/maths-${ULID}`)).toBe(ULID);
+    expect(spaceIdFromRoute(`/courses/spanish-${ULID}`)).toBe(ULID);
+  });
+
+  it('reads the id on the sub-pages of a course', () => {
+    expect(spaceIdFromRoute(`/courses/${ULID}/settings`)).toBe(ULID);
+    expect(spaceIdFromRoute(`/courses/${ULID}/tests/ITEM1`)).toBe(ULID);
+  });
+
+  it('returns null for the lists, the join page and other routes', () => {
+    expect(spaceIdFromRoute('/courses')).toBeNull();
+    expect(spaceIdFromRoute('/classrooms')).toBeNull();
+    expect(spaceIdFromRoute('/courses/join/ABC123')).toBeNull();
+    expect(spaceIdFromRoute('/tests/t1')).toBeNull();
+    expect(spaceIdFromRoute('/')).toBeNull();
+  });
+});
+
+describe('classroomItemHref', () => {
+  it('points to the classroom page (not the course route) with the item selected', () => {
+    expect(classroomItemHref({ id: 'abc', title: 'Biology 101' }, 'it 1')).toBe(
+      '/classrooms/biology-101-abc?item=it%201'
+    );
   });
 });

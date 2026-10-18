@@ -295,6 +295,7 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
         system=NOTE_GENERATION_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=max_tokens,
+        db=db,
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_GENERATION)
     # Check again under the tree lock: the folder can be trashed while the AI works.
@@ -335,6 +336,7 @@ def preview_refine_note(db: Session, *, note_id: str, current_user: User, instru
         system=NOTE_REFINEMENT_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=_edit_max_tokens(note.content),
+        db=db,
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_REFINEMENT)
     _reject_truncated(db, result)
@@ -356,6 +358,7 @@ def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: Note
         system=NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=_edit_max_tokens(data.selected_text),
+        db=db,
     )
     token_usage_service.record_usage(db, user_id=current_user.id, result=result, feature=AIFeature.NOTE_CHUNK_EDIT)
     _reject_truncated(db, result)

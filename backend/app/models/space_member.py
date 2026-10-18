@@ -9,11 +9,17 @@ from app.models.base import CreatedAtMixin
 
 
 class SpaceMember(Base, CreatedAtMixin):
-    """A user's membership of a space. Only ACTIVE rows give access (see access_service)."""
+    """A user's membership of a space. Only ACTIVE rows give access (see access_service).
+
+    A course of a classroom has no member list of its own: its students are the classroom members.
+    A row with `role = NULL` is a lazy row: it only holds the personal state (progress, Review opt-in,
+    last item) and inherits the role of the classroom (see space_progress_service.get_member_row).
+    """
 
     __tablename__ = "space_member"
     __table_args__ = (
         # The owner lives in space.owner_id only, so a space can never have two owners.
+        # NULL is allowed: it means "inherit the role of the parent classroom".
         CheckConstraint(f"role != {int(SpaceRole.OWNER)}", name="ck_space_member_not_owner"),
     )
 
@@ -23,7 +29,7 @@ class SpaceMember(Base, CreatedAtMixin):
     user_id: Mapped[str] = mapped_column(
         String(26), ForeignKey("user.id", ondelete="CASCADE"), primary_key=True, index=True
     )
-    role: Mapped[int] = mapped_column(Integer)
+    role: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[int] = mapped_column(Integer)
     invited_by: Mapped[str | None] = mapped_column(
         String(26), ForeignKey("user.id", ondelete="SET NULL"), nullable=True

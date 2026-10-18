@@ -12,6 +12,7 @@ import { errorStatus } from '@/lib/utils';
 import { useCourse } from '../hooks/useCourse';
 import { useCourseActions } from '../hooks/useCourseActions';
 import { COURSE_COLUMN_CLASS } from '../lib/layout';
+import { courseCrumbs } from '../lib/spaceCrumbs';
 
 import { CourseSettings } from './CourseSettings';
 import { CourseUnavailable } from './CourseUnavailable';
@@ -26,7 +27,7 @@ export function CourseSettingsPage({ courseId }: { courseId: string }) {
   useBreadcrumb(
     t('courses.tab_settings'),
     [
-      { label: t('courses.title'), href: Routes.COURSES },
+      ...courseCrumbs(course, { courses: t('courses.title'), classrooms: t('classrooms.title') }),
       ...(course ? [{ label: course.title, href: courseHref(course) }] : []),
     ],
     course ? courseHref(course) : Routes.COURSES
