@@ -1,6 +1,7 @@
 'use client';
 
 import { EllipsisVertical } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Fragment, type ReactNode, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ type Props = {
 };
 
 export function ActionsMenu({ actions, trigger, onOpenChange }: Props) {
+  const t = useTranslations();
   const [pendingConfirm, setPendingConfirm] = useState<MobileAction | null>(null);
   // The selected action. It runs when the menu has closed (see `onCloseAutoFocus`).
   const selectedAction = useRef<MobileAction | null>(null);
@@ -62,7 +64,12 @@ export function ActionsMenu({ actions, trigger, onOpenChange }: Props) {
         <DropdownMenu onOpenChange={onOpenChange}>
           <DropdownMenuTrigger ref={triggerRef} asChild>
             {trigger ?? (
-              <Button variant="ghost" size="icon-lg" className="text-muted-foreground">
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                className="text-muted-foreground"
+                aria-label={t('common.more_actions')}
+              >
                 <EllipsisVertical className="size-5" />
               </Button>
             )}
