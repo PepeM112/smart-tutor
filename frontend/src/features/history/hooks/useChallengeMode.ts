@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import type { RubricResultItem } from '@/client';
 import { sdk } from '@/lib/apiClient';
 
+import { overrideErrorText } from '../utils/overrideErrors';
+
 export function useChallengeMode(items: RubricResultItem[], answerId: string) {
   const t = useTranslations();
   const [isChallengeMode, setIsChallengeMode] = useState(false);
@@ -31,7 +33,8 @@ export function useChallengeMode(items: RubricResultItem[], answerId: string) {
     },
     onError: (error: Error & { status?: number; body?: { detail?: string } }) => {
       const detail = error.body?.detail ?? error.message;
-      toast.error(t('challenge.challenge_failed', { error: detail }));
+      const known = overrideErrorText(detail);
+      toast.error(t('challenge.challenge_failed', { error: known ? t(`history.${known.key}`, known.values) : detail }));
     },
   });
 

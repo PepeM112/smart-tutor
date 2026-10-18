@@ -30,6 +30,8 @@ class TestResultRead(TestResultBase):
     space_item_id: str | None = None
     # The test was edited after this exam: the result belongs to a frozen version.
     is_older_version: bool = False
+    # The viewer is a teacher (OWNER / EDITOR) of the classroom that owns the item: they may override grades.
+    can_override: bool = False
     answers: list[AnswerRead] = []
 
 

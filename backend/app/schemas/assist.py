@@ -39,3 +39,5 @@ class AssistRequest(BaseSchema):
     messages: list[AssistMessage]
     page_context: PageContext | None = None
     tool_confirmations: list[ToolConfirmation] | None = None
+    # The classroom (or classroom course) of the chat. It picks the AI key and books the usage.
+    space_id: str | None = None

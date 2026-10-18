@@ -38,6 +38,22 @@ export async function openCourse(page: Page, title: string): Promise<void> {
   await expect(pageHeading(page, title)).toBeVisible();
 }
 
+/** Open a classroom from the "Classrooms" grid by its title. */
+export async function openClassroom(page: Page, title: string): Promise<void> {
+  await page.goto('/classrooms');
+  await page
+    .getByRole('link', { name: new RegExp(`^${title}`) })
+    .first()
+    .click();
+  await expect(pageHeading(page, title)).toBeVisible();
+}
+
+/** The id of the space in the URL (`/classrooms/<slug>-<id>`): the last 26 characters of the path. */
+export function spaceIdFromUrl(page: Page): string {
+  const path = new URL(page.url()).pathname.split('/').filter(Boolean)[1] ?? '';
+  return path.slice(-26);
+}
+
 /** The page title: the `PageHeader` breadcrumb is the only `h1` of a page. */
 export function pageHeading(page: Page, name: string) {
   return page.getByRole('heading', { level: 1, name, exact: true });

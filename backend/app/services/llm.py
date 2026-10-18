@@ -18,12 +18,30 @@ from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
 
-from app.core.enums import AIProvider
+from app.core.enums import AIProvider, KeySource
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from app.models.user import User
 
 logger = logging.getLogger("smarttutor.llm")
+
+NO_KEY_MESSAGE = "AI is not configured. Please add your API key in Settings."
+CAP_REACHED_MESSAGE = (
+    "The AI budget of this classroom is used up for this month. Add your own API key in Settings to continue."
+)
+
+
+class AIKeyError(ValueError):
+    """No AI key can be used for this call. `str(exc)` is a message for the user.
+
+    A `ValueError`, as the error of `get_user_llm_client`, so the callers that catch a missing key still work.
+    """
+
+    def __init__(self, message: str, *, cap_reached: bool = False) -> None:
+        super().__init__(message)
+        self.cap_reached = cap_reached
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +53,9 @@ class CompletionResult:
     model: str
     # True when the model stopped at `max_tokens`, so `text` is cut off.
     truncated: bool = False
+    # Who paid and for which classroom (set by `ResolvedLLM.tag`; `record_usage` stores them).
+    key_source: KeySource = KeySource.STUDENT
+    space_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -376,12 +397,19 @@ def get_user_llm_client(user: User) -> LLMClient:
     if provider is None or provider == AIProvider.ANTHROPIC:
         if not user.encrypted_anthropic_key:
             raise ValueError("No Anthropic API key configured")
-        api_key = decrypt(user.encrypted_anthropic_key)
-        return AnthropicLLMClient(api_key=api_key)
+        return build_client(AIProvider.ANTHROPIC, decrypt(user.encrypted_anthropic_key))
     if provider == AIProvider.OPENAI:
         if not user.encrypted_openai_key:
             raise ValueError("No OpenAI API key configured")
-        api_key = decrypt(user.encrypted_openai_key)
+        return build_client(AIProvider.OPENAI, decrypt(user.encrypted_openai_key))
+    raise ValueError(f"Unknown AI provider: {provider}")
+
+
+def build_client(provider: AIProvider, api_key: str) -> LLMClient:
+    """A client for one provider and one plain-text key (a user key or a Class key)."""
+    if provider == AIProvider.ANTHROPIC:
+        return AnthropicLLMClient(api_key=api_key)
+    if provider == AIProvider.OPENAI:
         return OpenAILLMClient(api_key=api_key)
     raise ValueError(f"Unknown AI provider: {provider}")
 
@@ -469,14 +497,23 @@ def complete(*, system: str, user_prompt: str, max_tokens: int) -> CompletionRes
     return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
 
 
-def complete_for_user(*, user: User, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
+def complete_for_user(
+    *, user: User, system: str, user_prompt: str, max_tokens: int, db: Session | None = None
+) -> CompletionResult:
+    """A personal AI call. With `db`, the key follows the classroom rules (`llm_key_service.resolve_llm`):
+    a Class key with scope ALL can pay for it. The result then says who paid, for `record_usage`."""
+    from app.services.llm_key_service import resolve_llm
+
     try:
-        llm = get_user_llm_client(user)
+        # Without `db` the call is not tied to a classroom and always uses the user key.
+        resolved = resolve_llm(db, user, None) if db is not None else None
+        llm = resolved.client if resolved is not None else get_user_llm_client(user)
     except ValueError as exc:
         logger.error("User AI provider unavailable: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="AI is not configured. Please add your API key in Settings.",
+            detail=str(exc) if isinstance(exc, AIKeyError) else NO_KEY_MESSAGE,
         ) from exc
 
-    return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
+    result = _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
+    return resolved.tag(result) if resolved is not None else result

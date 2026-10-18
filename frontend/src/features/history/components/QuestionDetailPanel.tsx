@@ -6,9 +6,16 @@ import { type AnswerRead, QuestionType } from '@/client';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
+import { AnswerGradePanel } from './AnswerGradePanel';
 import { LongTextReview } from './LongTextReview';
 import { MultipleChoiceReview } from './MultipleChoiceReview';
-import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong, type ResultQuestion } from './resultDetailUtils';
+import {
+  effectiveStatus,
+  getCorrectAnswer,
+  getUserAnswerDisplay,
+  isAnswerWrong,
+  type ResultQuestion,
+} from './resultDetailUtils';
 
 export function QuestionDetailPanel({
   question,
@@ -41,13 +48,14 @@ export function QuestionDetailPanel({
       ) : (
         <SimpleQuestionDetail question={question} answer={answer} />
       )}
+      {answer && <AnswerGradePanel answer={answer} question={question} />}
     </div>
   );
 }
 
 function SimpleQuestionDetail({ question, answer }: { question: ResultQuestion; answer?: AnswerRead }) {
   const t = useTranslations();
-  const status = answer?.status ?? null;
+  const status = effectiveStatus(answer);
   const isWrong = isAnswerWrong(status);
   const correctAnswer = getCorrectAnswer(question);
 

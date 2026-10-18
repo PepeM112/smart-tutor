@@ -9,6 +9,7 @@ from uvicorn.logging import DefaultFormatter
 from app.api.v1.endpoints import (
     answers,
     assist,
+    classrooms,
     folders,
     notes,
     questions,
@@ -49,6 +50,7 @@ app.include_router(trash.router, prefix="/api/v1/trash", tags=["trash"])
 app.include_router(token_usage.router, prefix="/api/v1/token-usage", tags=["token-usage"])
 app.include_router(assist.router, prefix="/api/v1/assist", tags=["assist"])
 app.include_router(spaces.router, prefix="/api/v1/spaces", tags=["spaces"])
+app.include_router(classrooms.router, prefix="/api/v1/classrooms", tags=["classrooms"])
 
 app.add_middleware(
     CORSMiddleware,

@@ -24,6 +24,11 @@ def get_by_id(db: Session, *, id: str) -> TestResult | None:
     return db.scalars(stmt).first()
 
 
+def lock(db: Session, *, id: str) -> None:
+    """Row lock on the result until the transaction ends. Two score changes of one result then run one by one."""
+    db.execute(select(TestResult.id).where(TestResult.id == id).with_for_update())
+
+
 _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
     "score": TestResult.score,
     "created_at": TestResult.created_at,
@@ -130,3 +135,72 @@ def best_scores_by_item(db: Session, *, user_id: str, item_ids: Sequence[str]) -
         .group_by(TestResult.space_item_id)
     )
     return {item_id: score for item_id, score in db.execute(stmt).all() if item_id is not None}
+
+
+def _in_progress_window() -> sa.ColumnElement[bool]:
+    """The result is after the `progress_reset_at` of its item (or the item was never reset)."""
+    return sa.or_(SpaceItem.progress_reset_at.is_(None), TestResult.created_at > SpaceItem.progress_reset_at)
+
+
+def best_results_by_user_item(
+    db: Session, *, user_ids: Sequence[str], item_ids: Sequence[str]
+) -> dict[tuple[str, str], tuple[str, float]]:
+    """`{(user id, item id): (result id, score)}`: the best graded result of each pair, with one query.
+
+    Same rules as `best_scores_by_item`: a result with an answer in grading is skipped, and the reset window
+    applies. On a tie the older result wins, so the result id is stable.
+    """
+    if not user_ids or not item_ids:
+        return {}
+    stmt = (
+        select(TestResult.user_id, TestResult.space_item_id, TestResult.id, TestResult.score)
+        .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
+        .where(
+            TestResult.user_id.in_(user_ids),
+            TestResult.space_item_id.in_(item_ids),
+            TestResult.pending_answers == 0,
+            _in_progress_window(),
+        )
+        .distinct(TestResult.user_id, TestResult.space_item_id)
+        .order_by(
+            TestResult.user_id, TestResult.space_item_id, TestResult.score.desc(), TestResult.created_at, TestResult.id
+        )
+    )
+    return {(user_id, item_id): (result_id, score) for user_id, item_id, result_id, score in db.execute(stmt).all()}
+
+
+def pending_pairs(db: Session, *, user_ids: Sequence[str], item_ids: Sequence[str]) -> set[tuple[str, str]]:
+    """`{(user id, item id)}` that have a result with an answer still in grading (in the reset window)."""
+    if not user_ids or not item_ids:
+        return set()
+    stmt = (
+        select(TestResult.user_id, TestResult.space_item_id)
+        .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
+        .where(
+            TestResult.user_id.in_(user_ids),
+            TestResult.space_item_id.in_(item_ids),
+            TestResult.pending_answers > 0,
+            _in_progress_window(),
+        )
+        .distinct()
+    )
+    return {(user_id, item_id) for user_id, item_id in db.execute(stmt).all() if item_id is not None}
+
+
+def overridden_pairs(db: Session, *, user_ids: Sequence[str], item_ids: Sequence[str]) -> set[tuple[str, str]]:
+    """`{(user id, item id)}` that have a result with a teacher-graded answer (in the reset window)."""
+    if not user_ids or not item_ids:
+        return set()
+    stmt = (
+        select(TestResult.user_id, TestResult.space_item_id)
+        .join(Answer, Answer.test_result_id == TestResult.id)
+        .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
+        .where(
+            TestResult.user_id.in_(user_ids),
+            TestResult.space_item_id.in_(item_ids),
+            Answer.override_score.is_not(None),
+            _in_progress_window(),
+        )
+        .distinct()
+    )
+    return {(user_id, item_id) for user_id, item_id in db.execute(stmt).all() if item_id is not None}

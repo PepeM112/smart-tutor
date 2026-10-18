@@ -9,6 +9,9 @@ describe('classifyAttemptRefusal', () => {
     ['This attempt is already closed', 'closed'],
     ['This attempt can not be continued', 'closed'],
     ['The course is archived', 'archived'],
+    ['The classroom is archived', 'archived'],
+    ['The test is not open yet', 'not_open'],
+    ['The test is closed', 'window_closed'],
     ['This test has no questions available', 'no_questions'],
     ['Something new', 'unknown'],
   ])('maps "%s" to %s', (detail, kind) => {

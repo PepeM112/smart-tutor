@@ -7,26 +7,28 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { MemberStatus, SpaceItemKind, SpaceStatus, SpaceVisibility, type SpaceDetail } from '@/client';
+import { MemberStatus, SpaceItemKind, SpaceKind, SpaceStatus, SpaceVisibility, type SpaceDetail } from '@/client';
 import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AiKeyNotice } from '@/features/classrooms/components/AiKeyNotice';
 import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useUrlTab } from '@/hooks/useUrlTab';
-import { COURSE_ITEM_PARAM, courseAttemptHref, courseSettingsHref, Routes } from '@/lib/routes';
+import { COURSE_ITEM_PARAM, courseAttemptHref, courseSettingsHref } from '@/lib/routes';
 import { cn, errorStatus } from '@/lib/utils';
 
 import { useCourse } from '../hooks/useCourse';
 import { courseWriteKey, useCourseActions } from '../hooks/useCourseActions';
 import { useVisitItem } from '../hooks/useCourseProgress';
-import { ROLE_LABELS, VISIBILITY_LABELS } from '../lib/labels';
+import { roleLabelKey, VISIBILITY_LABELS } from '../lib/labels';
 import { COURSE_COLUMN_CLASS } from '../lib/layout';
 import { courseAccess } from '../lib/membership';
 import { canTrackProgress, continueItem, findItem, findNoteItem, isCourseViewer } from '../lib/progress';
+import { courseBackHref, courseCrumbs } from '../lib/spaceCrumbs';
 
 import { CopyToLibraryButton } from './CopyToLibraryButton';
 import { CourseDraftEditor } from './CourseDraftEditor';
@@ -56,7 +58,11 @@ export function CoursePage({ courseId }: { courseId: string }) {
   // Set when the student closes the preview that `?item=` opened, so it does not open again.
   const [dismissedItemId, setDismissedItemId] = useState<string | null>(null);
 
-  useBreadcrumb(course?.title ?? '', [{ label: t('courses.title'), href: Routes.COURSES }], Routes.COURSES);
+  useBreadcrumb(
+    course?.title ?? '',
+    courseCrumbs(course, { courses: t('courses.title'), classrooms: t('classrooms.title') }),
+    courseBackHref(course)
+  );
 
   // A viewer who opens a note in the preview sets "Continue" to that note.
   const previewItem = course && previewNote ? findNoteItem(course.sections, previewNote.noteId) : undefined;
@@ -102,7 +108,12 @@ export function CoursePage({ courseId }: { courseId: string }) {
         </div>
       )}
 
-      {isAuthor ? (
+      {course.parentId && <AiKeyNotice classroomId={course.parentId} myRole={course.myRole} />}
+
+      {isAuthor && course.parentId ? (
+        // A course of a classroom has no members of its own: only the content.
+        <AuthorContent course={course} actions={actions} onOpenNote={openNote} selectedItemId={selectedItemId} />
+      ) : isAuthor ? (
         <Tabs value={tab} onValueChange={changeTab}>
           <TabsList>
             <TabsTrigger value="content">{t('courses.tab_content')}</TabsTrigger>
@@ -193,8 +204,9 @@ function CourseHeader({
         </div>
       )}
       <div className="flex flex-wrap gap-2 text-xs">
-        <Badge>{t(VISIBILITY_LABELS[course.visibility])}</Badge>
-        {course.myRole && <Badge>{t(ROLE_LABELS[course.myRole])}</Badge>}
+        {/* A course of a classroom has no visibility of its own. */}
+        {!course.parentId && <Badge>{t(VISIBILITY_LABELS[course.visibility])}</Badge>}
+        {course.myRole && <Badge>{t(roleLabelKey(course.myRole, false))}</Badge>}
         {!course.publishedAt && <Badge>{t('courses.not_published')}</Badge>}
         {course.tags.map(tag => (
           <Badge key={tag}>#{tag}</Badge>
@@ -204,12 +216,12 @@ function CourseHeader({
   );
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
+export function Badge({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{children}</span>;
 }
 
 /** Join / request, accept / decline an invitation, cancel a request, or leave. The owner has none. */
-function MembershipActions({ course, actions }: { course: SpaceDetail; actions: Actions }) {
+export function MembershipActions({ course, actions }: { course: SpaceDetail; actions: Actions }) {
   const t = useTranslations();
   const [isLeaveOpen, setIsLeaveOpen] = useState(false);
   const isArchived = course.status === SpaceStatus.ARCHIVED;
@@ -247,6 +259,9 @@ function MembershipActions({ course, actions }: { course: SpaceDetail; actions: 
     );
   }
 
+  // A course of a classroom has no join, leave or invitation: the classroom row decides.
+  if (course.parentId && course.myStatus !== MemberStatus.ACTIVE) return null;
+
   if (course.myStatus === MemberStatus.ACTIVE) {
     const reviewAction: MobileAction = {
       label: t(course.includeInSrs ? 'courses.remove_from_review' : 'courses.include_in_review'),
@@ -257,14 +272,18 @@ function MembershipActions({ course, actions }: { course: SpaceDetail; actions: 
       <>
         {/* Only a course member has a membership to set. Editors may use Review too. */}
         <ActionsMenu actions={[reviewAction]} />
-        <Button variant="outline" icon={LogOut} onClick={() => setIsLeaveOpen(true)}>
-          {t('courses.leave')}
-        </Button>
+        {!course.parentId && (
+          <Button variant="outline" icon={LogOut} onClick={() => setIsLeaveOpen(true)}>
+            {t('courses.leave')}
+          </Button>
+        )}
         <ConfirmDialog
           open={isLeaveOpen}
           onOpenChange={setIsLeaveOpen}
           title={t('courses.leave')}
-          description={t('courses.leave_description')}
+          description={t(
+            course.kind === SpaceKind.CLASSROOM ? 'classrooms.leave_description' : 'courses.leave_description'
+          )}
           confirmLabel={t('courses.leave')}
           onConfirm={() => actions.leave.mutate()}
         />
@@ -287,10 +306,19 @@ function MembershipActions({ course, actions }: { course: SpaceDetail; actions: 
  * Authors: the settings cog (owner), then Edit, or in edit mode the save state, Discard and Publish.
  * Edits save to the draft at once, so there is no Save button: Publish shows the draft to members.
  */
-function AuthorActions({ course, actions }: { course: SpaceDetail; actions: Actions }) {
+export function AuthorActions({
+  course,
+  actions,
+  hasSettingsLink = true,
+}: {
+  course: SpaceDetail;
+  actions: Actions;
+  /** False in a classroom: its settings are a tab, not a sub-page. */
+  hasSettingsLink?: boolean;
+}) {
   const t = useTranslations();
 
-  const settings = course.isOwner && (
+  const settings = hasSettingsLink && course.isOwner && (
     <Button asChild variant="ghost" size="icon" tooltip={t('courses.tab_settings')}>
       <Link href={courseSettingsHref(course)} aria-label={t('courses.tab_settings')}>
         <Settings />
@@ -375,7 +403,7 @@ function SaveState({ courseId }: { courseId: string }) {
 }
 
 /** Authors: the draft editor in edit mode (a read-only draft outline for editors without edit rights), else the published outline. */
-function AuthorContent({
+export function AuthorContent({
   course,
   actions,
   onOpenNote,

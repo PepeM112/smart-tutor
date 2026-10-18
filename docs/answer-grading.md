@@ -111,6 +111,18 @@ Each question and question group has a `points` value (default 1.0). For Long Te
 
 Long Text questions are excluded from the SRS review flow. Since they can't be graded instantly, they can't provide the immediate feedback that drives spaced repetition scheduling. The `_reviewable_base_query` in the CRUD layer explicitly filters them out.
 
+### Teacher Override
+
+In a classroom, a teacher (OWNER or EDITOR) can give points to one answer (`PUT /answers/{id}/override`, `DELETE` to clear). It works on any question type, also on a PENDING Long Text answer. Rules:
+
+- The override is stored in `override_score`, `override_status`, `overridden_by`, `overridden_at`. The AI grade stays in `status` and `rubric_result`.
+- **Effective score:** `recalculate_test_result` uses `override_score` when it is set (capped by the points of the question), else the AI grade. `is_overridden(answer)` is the one check.
+- **The grader skips an overridden answer.** It makes no AI call and writes no AI grade. It reads the override again before it recalculates, so a teacher grade given while grading runs is not lost.
+- **Challenge:** a challenge on an overridden answer gives 409 "A teacher graded this answer. It cannot be challenged."
+- Clearing the override of a PENDING answer makes the grader run again for it. (If the clear comes while a grader already runs, the answer can be graded twice. This is a known limit.)
+- After each change the completion is checked again (`space_progress_service.recheck_result_completion`). A fail override never removes a completion.
+- Details and errors: [Spaces — Grade override](spaces.md#grade-override-r35).
+
 ## Answer Statuses
 
 Every graded answer gets one of these statuses:

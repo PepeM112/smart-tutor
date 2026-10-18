@@ -13,15 +13,18 @@ from app.schemas.answer import AnswerRead
 from app.schemas.test import TestRead, TestReadStripped
 from app.schemas.test_result import SortOrder, TestResultListItem, TestResultRead, TestResultSortBy
 from app.services import space_progress_service
-from app.services.access_service import EDIT_ROLES, get_space_access
+from app.services.access_service import EDIT_ROLES, can_review_result, get_space_access
 from app.services.question_helpers import build_stripped_test, without_explanations
-from app.services.service_helpers import get_owned_or_404
 
 
 def get_result(db: Session, *, result_id: str, current_user: User) -> TestResult:
-    return get_owned_or_404(
-        db, fetch=test_result_crud.get_by_id, id=result_id, current_user=current_user, entity_name="Test result"
-    )
+    """The result of the user. A teacher (OWNER / EDITOR) of the classroom also reads the results of its students."""
+    result = test_result_crud.get_by_id(db, id=result_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test result not found")
+    if result.user_id != current_user.id and not can_review_result(db, result=result, current_user=current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    return result
 
 
 def _answers_hidden(db: Session, *, result: TestResult, test: Test, current_user: User) -> bool:
@@ -29,7 +32,8 @@ def _answers_hidden(db: Session, *, result: TestResult, test: Test, current_user
 
     Personal results and authors of the course always see the answers.
     """
-    if test.space_id is None:
+    if test.space_id is None or result.user_id != current_user.id:
+        # A teacher reads the result of a student (checked in `get_result`): full answers.
         return False
     access = get_space_access(db, space_id=test.space_id, user_id=current_user.id)
     if access.role in EDIT_ROLES:
@@ -50,7 +54,9 @@ def get_result_read(db: Session, *, result_id: str, current_user: User) -> TestR
     """The result with its answers. When the answers are hidden, the rubric criteria (`point`) are
     removed from the Long Text grades: a criterion is part of the answer key. The AI reason stays."""
     result, test = _get_result_and_test(db, result_id=result_id, current_user=current_user)
-    read = TestResultRead.model_validate(result)
+    read = TestResultRead.model_validate(result).model_copy(
+        update={"can_override": can_review_result(db, result=result, current_user=current_user)}
+    )
     if not _answers_hidden(db, result=result, test=test, current_user=current_user):
         return read
 

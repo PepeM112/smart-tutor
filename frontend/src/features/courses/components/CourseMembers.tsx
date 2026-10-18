@@ -6,7 +6,7 @@ import { Check, Eye, PenLine, UserMinus, UserPlus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { MemberStatus, SpaceRole, type SpaceDetail, type SpaceMemberRead } from '@/client';
+import { MemberStatus, SpaceKind, SpaceRole, type SpaceDetail, type SpaceMemberRead } from '@/client';
 import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { sdk } from '@/lib/apiClient';
 import { formatShortDate } from '@/lib/format';
 
 import { type useCourseActions } from '../hooks/useCourseActions';
-import { MEMBER_STATUS_LABELS, ROLE_ICONS, ROLE_LABELS } from '../lib/labels';
+import { MEMBER_STATUS_LABELS, ROLE_ICONS, roleLabelKey } from '../lib/labels';
 import { courseQueryKeys } from '../lib/queryKeys';
 
 import { InviteUserDialog } from './InviteUserDialog';
@@ -34,15 +34,22 @@ const STATUS_ORDER: Record<MemberStatus, number> = {
 };
 
 /**
- * The member table. Authors can read it; only the owner can invite, approve, change roles and remove.
+ * The member table. Authors can read it. In a course only the owner can invite, approve, change roles and remove.
+ * In a classroom a co-teacher also invites and approves students and removes students; only the owner
+ * changes roles and removes co-teachers.
  * No emails and no progress per member (a standalone course shows no data about one user).
  */
 export function CourseMembers({ course, actions }: Props) {
   const t = useTranslations();
   // Invite, approve and role changes need an active course. The owner can still remove members
   // (and deny requests, cancel invitations) in an archived course: the backend allows it.
-  const canManage = course.isOwner && course.canEdit;
-  const canRemove = course.isOwner;
+  const isClassroom = course.kind === SpaceKind.CLASSROOM;
+  const canManage = isClassroom ? course.canEdit : course.isOwner && course.canEdit;
+  const canSetRole = course.isOwner && course.canEdit;
+  const canRemoveAny = isClassroom ? course.isOwner || course.canEdit : course.isOwner;
+  // A co-teacher can not remove another co-teacher.
+  const canRemove = (member: SpaceMemberRead): boolean =>
+    canRemoveAny && (course.isOwner || member.role !== SpaceRole.EDITOR);
   // One write at a time: a double click would send a second call that gets a 409 / 404.
   const isBusy = actions.approveRequest.isPending || actions.removeMember.isPending || actions.setMemberRole.isPending;
 
@@ -57,10 +64,18 @@ export function CourseMembers({ course, actions }: Props) {
   });
 
   const sorted = members.toSorted((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
-  const columns = useMemberColumns();
+  const columns = useMemberColumns(isClassroom);
 
   const renderActions = (member: SpaceMemberRead): MobileAction[][] =>
-    memberActions(member, { canManage, isBusy, actions, t: (key, values) => t(key, values) });
+    memberActions(member, {
+      canManage,
+      canSetRole,
+      canRemove: canRemove(member),
+      isClassroom,
+      isBusy,
+      actions,
+      t: (key, values) => t(key, values),
+    });
   // The list also holds requests and invitations: the count is for active members only.
   const activeCount = members.filter(member => member.status === MemberStatus.ACTIVE).length;
 
@@ -85,7 +100,7 @@ export function CourseMembers({ course, actions }: Props) {
           getRowId={member => member.userId}
           emptyMessage={t('courses.no_members')}
           renderPreview={member => <MemberName member={member} />}
-          renderActions={canRemove ? renderActions : undefined}
+          renderActions={canRemoveAny || canManage ? renderActions : undefined}
         />
       </QueryState>
     </div>
@@ -114,7 +129,23 @@ type Translate = (key: string, values?: Record<string, string>) => string;
  */
 function memberActions(
   member: SpaceMemberRead,
-  { canManage, isBusy, actions, t }: { canManage: boolean; isBusy: boolean; actions: Actions; t: Translate }
+  {
+    canManage,
+    canSetRole,
+    canRemove,
+    isClassroom,
+    isBusy,
+    actions,
+    t,
+  }: {
+    canManage: boolean;
+    canSetRole: boolean;
+    canRemove: boolean;
+    isClassroom: boolean;
+    isBusy: boolean;
+    actions: Actions;
+    t: Translate;
+  }
 ): MobileAction[][] {
   const name = member.displayName || member.username;
   const remove = (label: string, description: string, icon = UserMinus): MobileAction => ({
@@ -141,27 +172,39 @@ function memberActions(
       disabled: isBusy,
       onClick: () => actions.removeMember.mutate(member.userId),
     };
-    return canManage ? [[approve], [deny]] : [[deny]];
+    // Denying a request is a removal: the same rule applies.
+    return canManage ? [[approve], [deny]] : canRemove ? [[deny]] : [];
   }
 
   if (member.status === MemberStatus.INVITED) {
+    if (!canRemove) return [];
     return [[remove(t('courses.cancel_invitation'), t('courses.cancel_invitation_description', { name }), X)]];
   }
 
-  const removeGroup = [remove(t('courses.remove_member'), t('courses.remove_member_description', { name }))];
-  if (!canManage) return [removeGroup];
+  const removeGroup = canRemove
+    ? [remove(t('courses.remove_member'), t('courses.remove_member_description', { name }))]
+    : [];
+  if (!canSetRole) return removeGroup.length > 0 ? [removeGroup] : [];
 
   const nextRole = member.role === SpaceRole.EDITOR ? SpaceRole.VIEWER : SpaceRole.EDITOR;
   const changeRole: MobileAction = {
-    label: t(nextRole === SpaceRole.EDITOR ? 'courses.make_editor' : 'courses.make_viewer'),
+    label: t(
+      nextRole === SpaceRole.EDITOR
+        ? isClassroom
+          ? 'classrooms.make_co_teacher'
+          : 'courses.make_editor'
+        : isClassroom
+          ? 'classrooms.make_student'
+          : 'courses.make_viewer'
+    ),
     icon: nextRole === SpaceRole.EDITOR ? PenLine : Eye,
     disabled: isBusy,
     onClick: () => actions.setMemberRole.mutate({ userId: member.userId, role: nextRole }),
   };
-  return [[changeRole], removeGroup];
+  return removeGroup.length > 0 ? [[changeRole], removeGroup] : [[changeRole]];
 }
 
-function useMemberColumns(): ColumnDef<SpaceMemberRead, unknown>[] {
+function useMemberColumns(isClassroom: boolean): ColumnDef<SpaceMemberRead, unknown>[] {
   const t = useTranslations();
 
   return [
@@ -180,7 +223,7 @@ function useMemberColumns(): ColumnDef<SpaceMemberRead, unknown>[] {
         return (
           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <Icon className="size-3.5" />
-            {t(ROLE_LABELS[row.original.role])}
+            {t(roleLabelKey(row.original.role, isClassroom))}
           </span>
         );
       },

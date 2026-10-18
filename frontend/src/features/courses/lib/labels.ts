@@ -33,6 +33,18 @@ export const ROLE_LABELS: Record<SpaceRole, string> = {
   [SpaceRole.VIEWER]: 'courses.role_viewer',
 };
 
+/** In a classroom the roles are Owner, Co-teacher (EDITOR) and Student (VIEWER). */
+export const CLASSROOM_ROLE_LABELS: Record<SpaceRole, string> = {
+  [SpaceRole.OWNER]: 'classrooms.role_owner',
+  [SpaceRole.EDITOR]: 'classrooms.role_co_teacher',
+  [SpaceRole.VIEWER]: 'classrooms.role_student',
+};
+
+/** The translation key of a role in a course or in a classroom. */
+export function roleLabelKey(role: SpaceRole, isClassroom: boolean): string {
+  return (isClassroom ? CLASSROOM_ROLE_LABELS : ROLE_LABELS)[role];
+}
+
 export const MEMBER_STATUS_LABELS: Record<MemberStatus, string> = {
   [MemberStatus.INVITED]: 'courses.status_invited',
   [MemberStatus.REQUESTED]: 'courses.status_requested',
@@ -42,3 +54,6 @@ export const MEMBER_STATUS_LABELS: Record<MemberStatus, string> = {
 export const VISIBILITY_OPTIONS = [SpaceVisibility.PRIVATE, SpaceVisibility.UNLISTED, SpaceVisibility.PUBLIC] as const;
 
 export const ROLE_OPTIONS = [SpaceRole.OWNER, SpaceRole.EDITOR, SpaceRole.VIEWER] as const;
+
+/** A classroom can not be public (the backend gives a 400). */
+export const CLASSROOM_VISIBILITY: readonly SpaceVisibility[] = [SpaceVisibility.PRIVATE, SpaceVisibility.UNLISTED];

@@ -50,6 +50,7 @@ from app.services import (
     test_service,
 )
 from app.services.llm import CompletionResult
+from tests.llm_fakes import resolve_to
 from tests.space_factories import new_note, new_test, new_user
 
 pytestmark = pytest.mark.db
@@ -959,7 +960,7 @@ def _background_session_factory(db: Session) -> Callable[[], Session]:
 def _grade_in_background(db: Session, result_id: str, reply: list[dict[str, object]]) -> None:
     with (
         patch.object(grading_service, "SessionLocal", _background_session_factory(db)),
-        patch.object(grading_service, "get_user_llm_client", return_value=_FakeLLM({"results": reply})),
+        patch.object(grading_service, "resolve_llm", side_effect=resolve_to(_FakeLLM({"results": reply}))),
     ):
         grading_service.grade_pending_answers(result_id)
     db.expire_all()
@@ -1069,8 +1070,8 @@ class TestBackgroundGrading:
             patch.object(challenge_service, "SessionLocal", _background_session_factory(db_session)),
             patch.object(
                 challenge_service,
-                "get_user_llm_client",
-                return_value=_FakeLLM({"results": [{"index": 1, "met": True, "reason": "fair"}]}),
+                "resolve_llm",
+                side_effect=resolve_to(_FakeLLM({"results": [{"index": 1, "met": True, "reason": "fair"}]})),
             ),
         ):
             challenge_service.process_challenge(answer_id)

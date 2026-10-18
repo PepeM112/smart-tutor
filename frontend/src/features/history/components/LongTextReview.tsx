@@ -9,9 +9,10 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { cn } from '@/lib/utils';
 
+import { useResultReview } from '../context/resultReviewContext';
 import { useChallengeMode } from '../hooks/useChallengeMode';
 
-import { effectiveMet } from './resultDetailUtils';
+import { effectiveMet, isOverridden } from './resultDetailUtils';
 
 export function LongTextReview({ answer }: { answer?: AnswerRead }) {
   const t = useTranslations();
@@ -24,19 +25,32 @@ export function LongTextReview({ answer }: { answer?: AnswerRead }) {
         <p className="text-sm text-muted-foreground mb-1">{t('challenge.your_answer')}</p>
         <p className="text-sm whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.userAnswer}</p>
       </div>
-      {answer.status === AnswerStatus.FAILED ? (
+      {answer.status === AnswerStatus.FAILED && !isOverridden(answer) ? (
         <p className="text-sm text-destructive">{t('challenge.grading_failed')}</p>
       ) : (
         answer.rubricResult &&
-        answer.rubricResult.length > 0 && <RubricBreakdown items={answer.rubricResult} answerId={answer.id} />
+        answer.rubricResult.length > 0 && (
+          <RubricBreakdown items={answer.rubricResult} answerId={answer.id} isOverridden={isOverridden(answer)} />
+        )
       )}
     </div>
   );
 }
 
-function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answerId: string }) {
+function RubricBreakdown({
+  items,
+  answerId,
+  isOverridden: hasTeacherGrade,
+}: {
+  items: RubricResultItem[];
+  answerId: string;
+  isOverridden: boolean;
+}) {
   const t = useTranslations();
-  const aiAvailable = useAiAvailable();
+  const { canOverride, isSpaceResult } = useResultReview();
+  const hasOwnKey = useAiAvailable();
+  // In a space the Class key may pay. If no key works, the backend refuses and the error shows.
+  const aiAvailable = hasOwnKey || isSpaceResult;
   const {
     isChallengeMode,
     enterChallengeMode,
@@ -51,6 +65,8 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
     hasPendingChallenge,
   } = useChallengeMode(items, answerId);
 
+  // A teacher graded the answer: it cannot be challenged. A teacher looking at it does not challenge.
+  const canStartChallenge = canChallenge && !hasTeacherGrade;
   const effectiveMetCount = items.filter(effectiveMet).length;
   const iconBtnClass = 'inline-flex items-center justify-center size-7 rounded-md transition-colors';
 
@@ -92,26 +108,28 @@ function RubricBreakdown({ items, answerId }: { items: RubricResultItem[]; answe
               </Tooltip>
             </div>
           )}
-          {!isChallengeMode && !hasPendingChallenge && (
+          {!canOverride && !isChallengeMode && !hasPendingChallenge && (
             <div className="animate-in fade-in-0 slide-in-from-left-3 duration-200">
               <Tooltip
                 content={
                   !aiAvailable
                     ? t('settings.ai_not_configured')
-                    : canChallenge
-                      ? t('challenge.challenge_grade')
-                      : t('challenge.all_criteria_reviewed')
+                    : hasTeacherGrade
+                      ? t('challenge.graded_by_teacher')
+                      : canChallenge
+                        ? t('challenge.challenge_grade')
+                        : t('challenge.all_criteria_reviewed')
                 }
               >
                 <button
                   className={cn(
                     iconBtnClass,
-                    canChallenge && aiAvailable
+                    canStartChallenge && aiAvailable
                       ? 'bg-feedback-partial/15 text-feedback-partial hover:bg-feedback-partial/25'
                       : 'text-muted-foreground/40 cursor-not-allowed'
                   )}
-                  onClick={canChallenge && aiAvailable ? enterChallengeMode : undefined}
-                  disabled={!canChallenge || !aiAvailable}
+                  onClick={canStartChallenge && aiAvailable ? enterChallengeMode : undefined}
+                  disabled={!canStartChallenge || !aiAvailable}
                 >
                   <Scale className="size-4" />
                 </button>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import AttemptStatus
 from app.models.space_attempt import SpaceAttempt
+from app.models.space_item import SpaceItem
 
 
 def get(db: Session, *, attempt_id: str, for_update: bool = False) -> SpaceAttempt | None:
@@ -114,3 +115,27 @@ def expire_open_for_variants(db: Session, *, item_id: str, test_ids: Sequence[st
         .values(status=int(AttemptStatus.EXPIRED), finished_at=finished_at)
     )
     db.flush()
+
+
+def usage_by_user_item(db: Session, *, item_ids: Sequence[str]) -> dict[tuple[str, str], tuple[int, bool]]:
+    """`{(user id, item id): (started attempts, has an OPEN attempt)}` for all users.
+
+    Only attempts after the item's `progress_reset_at` count (all when it is NULL), as for the best score.
+    """
+    if not item_ids:
+        return {}
+    stmt = (
+        select(
+            SpaceAttempt.user_id,
+            SpaceAttempt.item_id,
+            func.count(),
+            func.coalesce(func.bool_or(SpaceAttempt.status == int(AttemptStatus.OPEN)), False),
+        )
+        .join(SpaceItem, SpaceItem.id == SpaceAttempt.item_id)
+        .where(
+            SpaceAttempt.item_id.in_(item_ids),
+            or_(SpaceItem.progress_reset_at.is_(None), SpaceAttempt.started_at > SpaceItem.progress_reset_at),
+        )
+        .group_by(SpaceAttempt.user_id, SpaceAttempt.item_id)
+    )
+    return {(user_id, item_id): (count, is_open) for user_id, item_id, count, is_open in db.execute(stmt).all()}

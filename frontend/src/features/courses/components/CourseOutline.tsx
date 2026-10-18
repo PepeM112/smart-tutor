@@ -1,15 +1,16 @@
 'use client';
 
-import { BookOpen, FileText } from 'lucide-react';
+import { BookOpen, FileText, GraduationCap } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { SpaceItemKind, type SpaceDetail, type SpaceItemRead, type SpaceSectionRead } from '@/client';
-import { noteHref, Routes } from '@/lib/routes';
+import { courseHref, noteHref, Routes } from '@/lib/routes';
 
 import { isCourseViewer } from '../lib/progress';
 
 import { CourseContentFrame, CourseItemRow, CourseSectionFrame, type ItemRowAction } from './CourseLayout';
-import { ItemProgressCircle, TestAttemptButton, TestAttemptInfo } from './CourseProgress';
+import { CourseProgressBar, ItemProgressCircle, TestAttemptButton, TestAttemptInfo } from './CourseProgress';
+import { ScheduleBadges } from './ScheduleBadges';
 
 type Props = {
   sections: SpaceSectionRead[];
@@ -45,8 +46,20 @@ export function CourseOutline({ sections, course, linkItems, onOpenNote, selecte
                 isSelected={item.id === selectedItemId}
                 icon={<ItemIcon item={item} />}
                 title={item.title}
-                progress={trackedCourse && <ItemProgressCircle done={item.completed ?? false} />}
-                badge={trackedCourse && item.kind === SpaceItemKind.TEST && <TestAttemptInfo item={item} />}
+                // A COURSE item has the progress bar of its course instead of a circle.
+                progress={
+                  trackedCourse &&
+                  item.kind !== SpaceItemKind.COURSE && <ItemProgressCircle done={item.completed ?? false} />
+                }
+                badge={
+                  <>
+                    {item.kind === SpaceItemKind.COURSE && trackedCourse && item.childProgress && (
+                      <CourseProgressBar progress={item.childProgress} className="w-40 shrink-0" />
+                    )}
+                    <ScheduleBadges item={item} isAuthor={!course || !isCourseViewer(course)} />
+                    {trackedCourse && item.kind === SpaceItemKind.TEST && <TestAttemptInfo item={item} />}
+                  </>
+                }
                 actions={
                   trackedCourse &&
                   item.kind === SpaceItemKind.TEST &&
@@ -74,6 +87,9 @@ function itemAction(
   const { noteId } = item;
   if (item.kind === SpaceItemKind.NOTE && noteId && onOpenNote) return { onClick: () => onOpenNote(noteId) };
   if (item.kind === SpaceItemKind.TEST && isViewer) return undefined;
+  if (item.kind === SpaceItemKind.COURSE && item.childSpaceId) {
+    return { href: courseHref({ id: item.childSpaceId, title: item.title }) };
+  }
   const href = itemHref(item);
   return href ? { href } : undefined;
 }
@@ -86,6 +102,7 @@ function itemHref(item: SpaceItemRead): string | null {
 }
 
 export function ItemIcon({ item }: { item: SpaceItemRead }) {
-  const Icon = item.kind === SpaceItemKind.TEST ? BookOpen : FileText;
+  const Icon =
+    item.kind === SpaceItemKind.TEST ? BookOpen : item.kind === SpaceItemKind.COURSE ? GraduationCap : FileText;
   return <Icon className="size-4 shrink-0 text-muted-foreground" />;
 }

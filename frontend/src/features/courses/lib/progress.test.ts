@@ -27,6 +27,15 @@ const section = (items: SpaceItemRead[]): SpaceSectionRead => ({
 });
 
 describe('continueItem', () => {
+  it('skips an item that is not visible yet', () => {
+    const now = new Date('2026-05-10T12:00:00Z');
+    const hidden = item('a', { visibleFrom: new Date('2026-05-11T12:00:00Z') });
+    const shown = item('b', { visibleFrom: new Date('2026-05-09T12:00:00Z') });
+    expect(continueItem([section([hidden, shown])], null, now)?.id).toBe('b');
+    expect(continueItem([section([hidden, shown])], 'a', now)?.id).toBe('b');
+    expect(continueItem([section([hidden])], null, now)).toBeNull();
+  });
+
   it('returns the first item that is not done', () => {
     const sections = [section([item('a', { completed: true }), item('b'), item('c')])];
     expect(continueItem(sections)?.id).toBe('b');

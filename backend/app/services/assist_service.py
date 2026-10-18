@@ -19,7 +19,7 @@ from typing import Any, NamedTuple
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import AIFeature, AIProvider
+from app.core.enums import AIFeature, AIProvider, KeySource
 from app.models.user import User
 from app.schemas.assist import AssistMessage, AssistRequest, ToolCallData, ToolConfirmation, ToolResultData
 from app.services import token_usage_service
@@ -32,14 +32,15 @@ from app.services.assist_tools import (
     get_tool_definitions_openai,
 )
 from app.services.llm import (
+    AIKeyError,
     CompletionResult,
     StreamEvent,
     StreamResult,
     TextDelta,
     ToolCallDelta,
     classify_provider_error,
-    get_user_llm_client,
 )
+from app.services.llm_key_service import resolve_llm
 
 logger = logging.getLogger("smarttutor.assist")
 
@@ -271,6 +272,9 @@ class _UsageTotals:
     output_tokens: int = 0
     provider: str = ""
     model: str = ""
+    # Who paid and for which classroom (set once the AI key is resolved).
+    key_source: KeySource = KeySource.STUDENT
+    space_id: str | None = None
 
     def add(self, result: StreamResult) -> None:
         self.input_tokens += result.input_tokens
@@ -300,7 +304,10 @@ def stream_assist(
         # Drop the uncommitted state of the failed step, so the usage row below can still be saved.
         db.rollback()
         classified = classify_provider_error(exc)
-        if classified:
+        if isinstance(exc, AIKeyError):
+            logger.warning("No AI key for the assistant: %s", exc)
+            yield _sse("error", {"message": str(exc)})
+        elif classified:
             logger.warning("Provider error in stream_assist: %s", classified.detail)
             yield _sse("error", {"message": str(classified.detail)})
         else:
@@ -325,8 +332,12 @@ def _stream_assist_inner(
     """The loop itself. Returns the extra fields of the `done` event (the calls that wait for the user)."""
     system_prompt = build_system_prompt(request.page_context)
 
-    llm = get_user_llm_client(current_user)
-    is_anthropic = current_user.ai_provider is None or current_user.ai_provider == AIProvider.ANTHROPIC
+    # The AI key follows the classroom rules (R36-R39). A Class key can have another provider than the user.
+    resolved = resolve_llm(db, current_user, request.space_id)
+    usage.key_source = resolved.key_source
+    usage.space_id = resolved.space_id
+    llm = resolved.client
+    is_anthropic = resolved.provider == AIProvider.ANTHROPIC
 
     history = _repair_tool_result_order(request.messages)
     if is_anthropic:
@@ -461,6 +472,8 @@ def _record_usage(db: Session, *, current_user: User, usage: _UsageTotals) -> No
                 output_tokens=usage.output_tokens,
                 provider=usage.provider,
                 model=usage.model,
+                key_source=usage.key_source,
+                space_id=usage.space_id,
             ),
             feature=AIFeature.ASSIST,
         )

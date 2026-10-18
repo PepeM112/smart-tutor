@@ -1,27 +1,50 @@
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import ScalarSelect, Select, String, cast, func, or_, select
+from sqlalchemy import ScalarSelect, Select, String, and_, cast, func, or_, select
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.orm import Session
 
 from app.core.enums import MemberStatus, SpaceKind, SpaceRole, SpaceStatus, SpaceVisibility
 from app.crud.helpers import token_search
+from app.crud.space_item import visible_course_ids
 from app.models.space import Space
 from app.models.space_member import SpaceMember
 from app.schemas.space import SpaceCatalogSort, SpaceListStatus, SpaceUpdate
 
-# Standalone courses. Classroom courses (M4) have a parent and never show in these lists.
+# Standalone courses. Classroom courses have a parent and never show in the course lists.
 STANDALONE_COURSE = (Space.kind == int(SpaceKind.COURSE), Space.parent_id.is_(None))
+# What a user can join: a standalone course or a classroom (a classroom course has no members of its own).
+JOINABLE = or_(and_(*STANDALONE_COURSE), Space.kind == int(SpaceKind.CLASSROOM))
 
 
 def joined_space_ids(*, user_id: str) -> Select[tuple[str]]:
-    """The ids of the spaces where `user_id` is an ACTIVE member. INVITED, REQUESTED and left spaces
-    are not in it. The owner has no member row, so the spaces they own are not in it either.
+    """The ids of the spaces where `user_id` is an ACTIVE member, and of the visible courses of the
+    classrooms where `user_id` is an ACTIVE member. INVITED, REQUESTED and left spaces are not in it.
+    The owner has no member row, so the spaces they own are not in it either.
+
+    A lazy row (`role` NULL) is not a membership: the course comes from its classroom row. So the
+    access ends when the user leaves the classroom, also when an old lazy row is still there.
+    A course whose COURSE item is not published or not visible yet (`visible_from`) is left out.
     """
-    return select(SpaceMember.space_id).where(
-        SpaceMember.user_id == user_id, SpaceMember.status == int(MemberStatus.ACTIVE)
+    member_of = select(SpaceMember.space_id).where(
+        SpaceMember.user_id == user_id,
+        SpaceMember.status == int(MemberStatus.ACTIVE),
+        SpaceMember.role.is_not(None),
     )
+    return select(Space.id).where(
+        or_(Space.id.in_(member_of), and_(Space.parent_id.in_(member_of), Space.id.in_(visible_course_ids())))
+    )
+
+
+def editor_space_ids(*, user_id: str) -> Select[tuple[str]]:
+    """The ids of the spaces where `user_id` is an ACTIVE EDITOR, and of the courses of those classrooms."""
+    editor_of = select(SpaceMember.space_id).where(
+        SpaceMember.user_id == user_id,
+        SpaceMember.status == int(MemberStatus.ACTIVE),
+        SpaceMember.role == int(SpaceRole.EDITOR),
+    )
+    return select(Space.id).where(or_(Space.id.in_(editor_of), Space.parent_id.in_(editor_of)))
 
 
 def get_by_id(db: Session, *, id: str) -> Space | None:
@@ -39,7 +62,8 @@ def get_by_id_for_update(db: Session, *, id: str) -> Space | None:
 
 
 def get_by_join_code(db: Session, *, code: str) -> Space | None:
-    stmt = select(Space).where(Space.join_code == code)
+    """A standalone course or a classroom. A classroom course has a code too, but it is not joinable."""
+    stmt = select(Space).where(Space.join_code == code, JOINABLE)
     return db.scalars(stmt).first()
 
 
@@ -56,11 +80,13 @@ def create(
     description: str,
     tags: list[str],
     visibility: int,
-    join_code: str,
+    join_code: str | None,
     draft_started_at: datetime | None,
+    parent_id: str | None = None,
 ) -> Space:
     space = Space(
         kind=kind,
+        parent_id=parent_id,
         owner_id=owner_id,
         title=title,
         description=description,
@@ -98,11 +124,16 @@ def _active_member_count() -> ScalarSelect[int]:
 
 
 def count_active_members(db: Session, *, space_ids: Sequence[str]) -> dict[str, int]:
+    """ACTIVE members per space. Lazy rows (`role` NULL) are not members, so they are not counted."""
     if not space_ids:
         return {}
     stmt = (
         select(SpaceMember.space_id, func.count())
-        .where(SpaceMember.space_id.in_(space_ids), SpaceMember.status == int(MemberStatus.ACTIVE))
+        .where(
+            SpaceMember.space_id.in_(space_ids),
+            SpaceMember.status == int(MemberStatus.ACTIVE),
+            SpaceMember.role.is_not(None),
+        )
         .group_by(SpaceMember.space_id)
     )
     return {space_id: count for space_id, count in db.execute(stmt).all()}
@@ -115,8 +146,9 @@ def list_for_user(
     status: SpaceListStatus = "all",
     visibility: Sequence[SpaceVisibility] = (),
     roles: Sequence[SpaceRole] = (),
+    classrooms: bool = False,
 ) -> Sequence[Space]:
-    """Standalone courses the user owns or is an ACTIVE member of. Newest first.
+    """Standalone courses (or the classrooms) the user owns or is an ACTIVE member of. Newest first.
 
     `roles` filters on the role of the user: OWNER = `owner_id`, EDITOR / VIEWER = the member row.
     """
@@ -132,7 +164,8 @@ def list_for_user(
         access = or_(*role_filters)
     else:
         access = or_(owned, Space.id.in_(member_of))
-    stmt = select(Space).where(*STANDALONE_COURSE, access)
+    kind_filter = Space.kind == int(SpaceKind.CLASSROOM) if classrooms else and_(*STANDALONE_COURSE)
+    stmt = select(Space).where(kind_filter, access)
     if status != "all":
         archived = int(SpaceStatus.ARCHIVED)
         stmt = stmt.where(Space.status == archived if status == "archived" else Space.status != archived)
@@ -142,11 +175,11 @@ def list_for_user(
 
 
 def list_with_member_status(db: Session, *, user_id: str, member_status: MemberStatus) -> Sequence[Space]:
-    """Standalone courses where the user has a row with `member_status` (INVITED: invitations)."""
+    """Standalone courses and classrooms where the user has a row with `member_status` (INVITED: invitations)."""
     stmt = (
         select(Space)
         .join(SpaceMember, SpaceMember.space_id == Space.id)
-        .where(*STANDALONE_COURSE, SpaceMember.user_id == user_id, SpaceMember.status == int(member_status))
+        .where(JOINABLE, SpaceMember.user_id == user_id, SpaceMember.status == int(member_status))
         .order_by(SpaceMember.created_at.desc())
     )
     return db.scalars(stmt).all()
@@ -184,3 +217,23 @@ def set_status(db: Session, *, space: Space, status: int, archived_at: datetime 
     space.status = status
     space.archived_at = archived_at
     db.flush()
+
+
+def list_children(db: Session, *, parent_id: str) -> Sequence[Space]:
+    """The courses of a classroom. Oldest first."""
+    stmt = select(Space).where(Space.parent_id == parent_id).order_by(Space.created_at, Space.id)
+    return db.scalars(stmt).all()
+
+
+def list_by_ids(db: Session, *, ids: Sequence[str]) -> Sequence[Space]:
+    if not ids:
+        return []
+    return db.scalars(select(Space).where(Space.id.in_(ids))).all()
+
+
+def list_orphan_children(db: Session, *, parent_id: str, linked_ids: Sequence[str]) -> Sequence[Space]:
+    """The courses of a classroom that no COURSE item points to (draft or published)."""
+    stmt = select(Space).where(Space.parent_id == parent_id)
+    if linked_ids:
+        stmt = stmt.where(Space.id.not_in(linked_ids))
+    return db.scalars(stmt).all()

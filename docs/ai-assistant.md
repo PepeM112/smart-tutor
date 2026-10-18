@@ -26,6 +26,7 @@ The frontend does not call the backend directly. It calls a dedicated Next.js Ro
 | `messages`           | `AssistMessage[]`                | Full conversation so far (see [Conversation Persistence](#conversation-persistence)) |
 | `pageContext`        | `PageContext \| null`            | What the user is currently looking at (see [Page Context](#page-context))  |
 | `toolConfirmations`  | `ToolConfirmation[] \| null`     | Approve/reject decisions for a previously paused write tool                |
+| `spaceId`            | `string \| null`                 | The classroom, or a classroom course, of the page (ST-68). It picks the AI key and books the usage (see [Key resolution](ai-features.md#key-resolution-in-a-classroom-st-68)). The frontend reads it from the route (`spaceIdFromRoute`, `AssistProvider`) |
 
 `AssistMessage`: `role` (`user` / `assistant` / `tool`), `content`, optional `toolCalls`, optional `toolResults`.
 
@@ -226,6 +227,7 @@ Recorded exactly like the other six AI features (see [Token Usage & Cost Trackin
 
 ## Known Behavior Notes
 
+- **AI key in a classroom (ST-68).** The key is chosen by `resolve_llm(db, user, request.space_id)`. With no usable key, the stream sends an SSE `error` event with the message of `AIKeyError`, then `done`. Texts that the frontend matches exactly (`assist/utils/assistErrors.ts`): "AI is not configured. Please add your API key in Settings.", "The AI budget of this classroom is used up for this month. Add your own API key in Settings to continue.", and the 409 "The assistant is not available during a course test". The usage row gets `space_id` and `key_source`.
 - There's no cancel/abort endpoint — the client drops the SSE connection to stop a stream, and there's nothing server-side that reacts specially to the disconnect.
 - Course content: read tools and `search_user_notes` see the published notes of joined courses (READ). Write tools need EDIT, so they refuse published course content and every course the user only views.
 - Because the backend is stateless, every round-trip (including every confirmation) resends the full conversation history. This is simple and correct at normal conversation lengths; a very long-running conversation would pay for that history on every call, which would be worth revisiting if it ever becomes a real cost or latency concern.

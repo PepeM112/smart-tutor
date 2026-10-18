@@ -25,6 +25,42 @@ export const AIFeatureSchema = {
     ]
 } as const;
 
+export const AIKeyStatusReadSchema = {
+    properties: {
+        status: {
+            $ref: '#/components/schemas/KeyStatus'
+        },
+        capReached: {
+            type: 'boolean',
+            title: 'Capreached'
+        },
+        tokensUsedThisMonth: {
+            type: 'integer',
+            title: 'Tokensusedthismonth'
+        },
+        monthlyTokenCap: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Monthlytokencap'
+        }
+    },
+    type: 'object',
+    required: [
+        'status',
+        'capReached',
+        'tokensUsedThisMonth',
+        'monthlyTokenCap'
+    ],
+    title: 'AIKeyStatusRead',
+    description: 'The key that the current user would use for AI in the classroom (and its courses).'
+} as const;
+
 export const AIProviderSchema = {
     type: 'integer',
     enum: [
@@ -92,6 +128,22 @@ export const AiToolPermissionsUpdateSchema = {
     title: 'AiToolPermissionsUpdate'
 } as const;
 
+export const AnswerOverrideRequestSchema = {
+    properties: {
+        score: {
+            type: 'number',
+            minimum: 0,
+            title: 'Score'
+        }
+    },
+    type: 'object',
+    required: [
+        'score'
+    ],
+    title: 'AnswerOverrideRequest',
+    description: 'The points a teacher gives to one answer: 0 up to the points of the question.'
+} as const;
+
 export const AnswerReadSchema = {
     properties: {
         testResultId: {
@@ -133,6 +185,50 @@ export const AnswerReadSchema = {
                 }
             ],
             title: 'Rubricresult'
+        },
+        overrideScore: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Overridescore'
+        },
+        overrideStatus: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AnswerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        overriddenBy: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Overriddenby'
+        },
+        overriddenAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Overriddenat'
         }
     },
     type: 'object',
@@ -262,6 +358,17 @@ export const AssistRequestSchema = {
                 }
             ],
             title: 'Toolconfirmations'
+        },
+        spaceId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Spaceid'
         }
     },
     type: 'object',
@@ -495,6 +602,268 @@ export const ChallengeResultItemSchema = {
     title: 'ChallengeResultItem'
 } as const;
 
+export const ClassroomCourseCreateSchema = {
+    properties: {
+        title: {
+            type: 'string',
+            maxLength: 200,
+            minLength: 1,
+            title: 'Title'
+        },
+        description: {
+            type: 'string',
+            maxLength: 5000,
+            title: 'Description',
+            default: ''
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
+        },
+        sectionId: {
+            type: 'string',
+            title: 'Sectionid'
+        }
+    },
+    type: 'object',
+    required: [
+        'title',
+        'sectionId'
+    ],
+    title: 'ClassroomCourseCreate',
+    description: 'A new course inside a classroom. `section_id` is a draft section of the classroom (edit mode).'
+} as const;
+
+export const ClassroomCourseDuplicateSchema = {
+    properties: {
+        title: {
+            type: 'string',
+            maxLength: 200,
+            minLength: 1,
+            title: 'Title'
+        },
+        description: {
+            type: 'string',
+            maxLength: 5000,
+            title: 'Description',
+            default: ''
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
+        },
+        sectionId: {
+            type: 'string',
+            title: 'Sectionid'
+        },
+        sourceId: {
+            type: 'string',
+            title: 'Sourceid'
+        }
+    },
+    type: 'object',
+    required: [
+        'title',
+        'sectionId',
+        'sourceId'
+    ],
+    title: 'ClassroomCourseDuplicate',
+    description: 'Copy the published content of a standalone course of the current user into a classroom.'
+} as const;
+
+export const ClassroomCreateSchema = {
+    properties: {
+        title: {
+            type: 'string',
+            maxLength: 200,
+            minLength: 1,
+            title: 'Title'
+        },
+        description: {
+            type: 'string',
+            maxLength: 5000,
+            title: 'Description',
+            default: ''
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
+        },
+        visibility: {
+            type: 'integer',
+            enum: [
+                1,
+                2
+            ],
+            title: 'Visibility',
+            default: 1
+        }
+    },
+    type: 'object',
+    required: [
+        'title'
+    ],
+    title: 'ClassroomCreate',
+    description: 'A classroom is never public: it has no catalog.'
+} as const;
+
+export const ClassroomSettingsReadSchema = {
+    properties: {
+        feedPermission: {
+            $ref: '#/components/schemas/FeedPermission'
+        },
+        aiProvider: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AIProvider'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        hasClassKey: {
+            type: 'boolean',
+            title: 'Hasclasskey'
+        },
+        keyPriority: {
+            $ref: '#/components/schemas/KeyPriority'
+        },
+        keyScope: {
+            $ref: '#/components/schemas/KeyScope'
+        },
+        monthlyTokenCapPerStudent: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Monthlytokencapperstudent'
+        }
+    },
+    type: 'object',
+    required: [
+        'feedPermission',
+        'aiProvider',
+        'hasClassKey',
+        'keyPriority',
+        'keyScope',
+        'monthlyTokenCapPerStudent'
+    ],
+    title: 'ClassroomSettingsRead',
+    description: 'Owner only. The Class key itself is never returned.'
+} as const;
+
+export const ClassroomSettingsUpdateSchema = {
+    properties: {
+        feedPermission: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FeedPermission'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        aiProvider: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AIProvider'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        classKey: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 500
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Classkey'
+        },
+        keyPriority: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/KeyPriority'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        keyScope: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/KeyScope'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        monthlyTokenCapPerStudent: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Monthlytokencapperstudent'
+        }
+    },
+    type: 'object',
+    title: 'ClassroomSettingsUpdate',
+    description: 'Only the sent fields change.\n\n`class_key`: send "" to remove the key. `monthly_token_cap_per_student`: null = no cap.'
+} as const;
+
+export const ClassroomTokenUsageReadSchema = {
+    properties: {
+        monthStart: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Monthstart'
+        },
+        students: {
+            items: {
+                $ref: '#/components/schemas/StudentTokenUsage'
+            },
+            type: 'array',
+            title: 'Students'
+        }
+    },
+    type: 'object',
+    required: [
+        'monthStart',
+        'students'
+    ],
+    title: 'ClassroomTokenUsageRead'
+} as const;
+
 export const CriterionChallengeInputSchema = {
     properties: {
         criterionIndex: {
@@ -515,6 +884,67 @@ export const CriterionChallengeInputSchema = {
         'argument'
     ],
     title: 'CriterionChallengeInput'
+} as const;
+
+export const DueSoonItemSchema = {
+    properties: {
+        itemId: {
+            type: 'string',
+            title: 'Itemid'
+        },
+        kind: {
+            $ref: '#/components/schemas/SpaceItemKind'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        dueAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Dueat'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        classroomId: {
+            type: 'string',
+            title: 'Classroomid'
+        }
+    },
+    type: 'object',
+    required: [
+        'itemId',
+        'kind',
+        'title',
+        'dueAt',
+        'spaceId',
+        'spaceTitle',
+        'classroomId'
+    ],
+    title: 'DueSoonItem',
+    description: 'A classwork item due in the next 24 hours that the current student has not completed.'
+} as const;
+
+export const FeedPermissionSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3
+    ],
+    title: 'FeedPermission',
+    description: 'What students may do in the classroom stream (M5 uses it).',
+    'x-enum-varnames': [
+        'TEACHERS_ONLY',
+        'STUDENTS_COMMENT',
+        'STUDENTS_POST_AND_COMMENT'
+    ]
 } as const;
 
 export const FileTreeSchema = {
@@ -853,6 +1283,280 @@ export const GeneratedQuestionPreview_OutputSchema = {
     title: 'GeneratedQuestionPreview'
 } as const;
 
+export const GradeCellStatusSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3,
+        4,
+        5
+    ],
+    title: 'GradeCellStatus',
+    description: 'The state of one student on one test in the gradebook.',
+    'x-enum-varnames': [
+        'NOT_STARTED',
+        'IN_PROGRESS',
+        'PENDING',
+        'PASSED',
+        'FAILED'
+    ]
+} as const;
+
+export const GradebookCellSchema = {
+    properties: {
+        itemId: {
+            type: 'string',
+            title: 'Itemid'
+        },
+        status: {
+            $ref: '#/components/schemas/GradeCellStatus'
+        },
+        bestScore: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bestscore'
+        },
+        attemptsUsed: {
+            type: 'integer',
+            title: 'Attemptsused'
+        },
+        bestResultId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bestresultid'
+        },
+        overridden: {
+            type: 'boolean',
+            title: 'Overridden'
+        }
+    },
+    type: 'object',
+    required: [
+        'itemId',
+        'status',
+        'bestScore',
+        'attemptsUsed',
+        'bestResultId',
+        'overridden'
+    ],
+    title: 'GradebookCell'
+} as const;
+
+export const GradebookColumnSchema = {
+    properties: {
+        itemId: {
+            type: 'string',
+            title: 'Itemid'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        courseId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Courseid'
+        },
+        passThreshold: {
+            type: 'number',
+            title: 'Passthreshold'
+        },
+        maxAttempts: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Maxattempts'
+        },
+        dueAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dueat'
+        },
+        hidden: {
+            type: 'boolean',
+            title: 'Hidden'
+        }
+    },
+    type: 'object',
+    required: [
+        'itemId',
+        'title',
+        'courseId',
+        'passThreshold',
+        'maxAttempts',
+        'dueAt',
+        'hidden'
+    ],
+    title: 'GradebookColumn',
+    description: 'One published TEST item. `course_id` is None for a loose item of the classroom.'
+} as const;
+
+export const GradebookCourseSchema = {
+    properties: {
+        courseId: {
+            type: 'string',
+            title: 'Courseid'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        hidden: {
+            type: 'boolean',
+            title: 'Hidden'
+        },
+        totalItems: {
+            type: 'integer',
+            title: 'Totalitems'
+        }
+    },
+    type: 'object',
+    required: [
+        'courseId',
+        'title',
+        'hidden',
+        'totalItems'
+    ],
+    title: 'GradebookCourse',
+    description: 'One published course of the classroom. It has one % column.'
+} as const;
+
+export const GradebookCourseProgressSchema = {
+    properties: {
+        courseId: {
+            type: 'string',
+            title: 'Courseid'
+        },
+        completedItems: {
+            type: 'integer',
+            title: 'Completeditems'
+        },
+        percent: {
+            type: 'integer',
+            title: 'Percent'
+        }
+    },
+    type: 'object',
+    required: [
+        'courseId',
+        'completedItems',
+        'percent'
+    ],
+    title: 'GradebookCourseProgress'
+} as const;
+
+export const GradebookReadSchema = {
+    properties: {
+        columns: {
+            items: {
+                $ref: '#/components/schemas/GradebookColumn'
+            },
+            type: 'array',
+            title: 'Columns'
+        },
+        courses: {
+            items: {
+                $ref: '#/components/schemas/GradebookCourse'
+            },
+            type: 'array',
+            title: 'Courses'
+        },
+        rows: {
+            items: {
+                $ref: '#/components/schemas/GradebookRow'
+            },
+            type: 'array',
+            title: 'Rows'
+        }
+    },
+    type: 'object',
+    required: [
+        'columns',
+        'courses',
+        'rows'
+    ],
+    title: 'GradebookRead',
+    description: 'The whole gradebook in one response (no paging: a classroom has tens of students).'
+} as const;
+
+export const GradebookRowSchema = {
+    properties: {
+        userId: {
+            type: 'string',
+            title: 'Userid'
+        },
+        username: {
+            type: 'string',
+            title: 'Username'
+        },
+        displayName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Displayname'
+        },
+        cells: {
+            items: {
+                $ref: '#/components/schemas/GradebookCell'
+            },
+            type: 'array',
+            title: 'Cells'
+        },
+        courses: {
+            items: {
+                $ref: '#/components/schemas/GradebookCourseProgress'
+            },
+            type: 'array',
+            title: 'Courses'
+        }
+    },
+    type: 'object',
+    required: [
+        'userId',
+        'username',
+        'displayName',
+        'cells',
+        'courses'
+    ],
+    title: 'GradebookRow'
+} as const;
+
 export const HTTPValidationErrorSchema = {
     properties: {
         detail: {
@@ -865,6 +1569,113 @@ export const HTTPValidationErrorSchema = {
     },
     type: 'object',
     title: 'HTTPValidationError'
+} as const;
+
+export const KeyPrioritySchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2
+    ],
+    title: 'KeyPriority',
+    description: 'Which AI key is used first when a student has a key and the classroom has a Class key.',
+    'x-enum-varnames': [
+        'STUDENT',
+        'CLASS'
+    ]
+} as const;
+
+export const KeyScopeSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2
+    ],
+    title: 'KeyScope',
+    description: 'Where the Class key may be used.',
+    'x-enum-varnames': [
+        'CLASSROOM_CONTENT',
+        'ALL'
+    ]
+} as const;
+
+export const KeySourceSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2
+    ],
+    title: 'KeySource',
+    description: 'Which key paid for an AI call (`token_usage.key_source`). Rows from before ST-68 count as STUDENT.',
+    'x-enum-varnames': [
+        'STUDENT',
+        'CLASS'
+    ]
+} as const;
+
+export const KeySourceUsageSchema = {
+    properties: {
+        keySource: {
+            $ref: '#/components/schemas/KeySource'
+        },
+        monthTokens: {
+            type: 'integer',
+            title: 'Monthtokens'
+        },
+        monthCost: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Monthcost'
+        },
+        totalTokens: {
+            type: 'integer',
+            title: 'Totaltokens'
+        },
+        totalCost: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Totalcost'
+        }
+    },
+    type: 'object',
+    required: [
+        'keySource',
+        'monthTokens',
+        'monthCost',
+        'totalTokens',
+        'totalCost'
+    ],
+    title: 'KeySourceUsage'
+} as const;
+
+export const KeyStatusSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3
+    ],
+    title: 'KeyStatus',
+    description: 'Which AI key the current user would use in a classroom (`GET /classrooms/{id}/ai-key-status`).',
+    'x-enum-varnames': [
+        'NONE',
+        'STUDENT',
+        'CLASS'
+    ]
 } as const;
 
 export const LongTextContentSchema = {
@@ -2601,6 +3412,17 @@ export const SpaceDetailSchema = {
         kind: {
             $ref: '#/components/schemas/SpaceKind'
         },
+        parentId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parentid'
+        },
         ownerId: {
             type: 'string',
             title: 'Ownerid'
@@ -2697,6 +3519,17 @@ export const SpaceDetailSchema = {
             type: 'boolean',
             title: 'Includeinsrs',
             default: false
+        },
+        parentTitle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parenttitle'
         },
         canEdit: {
             type: 'boolean',
@@ -2994,6 +3827,17 @@ export const SpaceItemReadSchema = {
             ],
             title: 'Testid'
         },
+        childSpaceId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Childspaceid'
+        },
         position: {
             type: 'integer',
             title: 'Position'
@@ -3076,6 +3920,54 @@ export const SpaceItemReadSchema = {
             ],
             title: 'Timelimitminutes'
         },
+        dueAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dueat'
+        },
+        opensAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Opensat'
+        },
+        closesAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Closesat'
+        },
+        visibleFrom: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Visiblefrom'
+        },
         variants: {
             items: {
                 $ref: '#/components/schemas/SpaceItemVariantRead'
@@ -3156,6 +4048,16 @@ export const SpaceItemReadSchema = {
                 }
             ],
             title: 'Openattemptdeadlineat'
+        },
+        childProgress: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SpaceProgress'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
@@ -3233,11 +4135,59 @@ export const SpaceItemUpdateSchema = {
                 }
             ],
             title: 'Timelimitminutes'
+        },
+        dueAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dueat'
+        },
+        opensAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Opensat'
+        },
+        closesAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Closesat'
+        },
+        visibleFrom: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Visiblefrom'
         }
     },
     type: 'object',
     title: 'SpaceItemUpdate',
-    description: 'The attempt policy of a TEST item. Only the sent fields change.\n\n`max_attempts`, `cooldown_hours` and `time_limit_minutes`: null = no limit (a sent null is valid).'
+    description: 'The attempt policy of a TEST item and the schedule of any item. Only the sent fields change.\n\n`max_attempts`, `cooldown_hours` and `time_limit_minutes`: null = no limit (a sent null is valid).\n`due_at`, `opens_at`, `closes_at` and `visible_from`: null = clear (a sent null is valid).\n`opens_at` and `closes_at` apply to TEST items only.'
 } as const;
 
 export const SpaceItemVariantReadSchema = {
@@ -3606,6 +4556,17 @@ export const SpaceSummarySchema = {
         kind: {
             $ref: '#/components/schemas/SpaceKind'
         },
+        parentId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parentid'
+        },
         ownerId: {
             type: 'string',
             title: 'Ownerid'
@@ -3859,6 +4820,86 @@ export const SpaceVisitRequestSchema = {
         'itemId'
     ],
     title: 'SpaceVisitRequest'
+} as const;
+
+export const StudentTokenUsageSchema = {
+    properties: {
+        userId: {
+            type: 'string',
+            title: 'Userid'
+        },
+        username: {
+            type: 'string',
+            title: 'Username'
+        },
+        displayName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Displayname'
+        },
+        isActive: {
+            type: 'boolean',
+            title: 'Isactive'
+        },
+        monthTokens: {
+            type: 'integer',
+            title: 'Monthtokens'
+        },
+        monthCost: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Monthcost'
+        },
+        totalTokens: {
+            type: 'integer',
+            title: 'Totaltokens'
+        },
+        totalCost: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Totalcost'
+        },
+        bySource: {
+            items: {
+                $ref: '#/components/schemas/KeySourceUsage'
+            },
+            type: 'array',
+            title: 'Bysource'
+        }
+    },
+    type: 'object',
+    required: [
+        'userId',
+        'username',
+        'displayName',
+        'isActive',
+        'monthTokens',
+        'monthCost',
+        'totalTokens',
+        'totalCost',
+        'bySource'
+    ],
+    title: 'StudentTokenUsage'
 } as const;
 
 export const TestCreateSchema = {
@@ -4510,6 +5551,11 @@ export const TestResultReadSchema = {
         isOlderVersion: {
             type: 'boolean',
             title: 'Isolderversion',
+            default: false
+        },
+        canOverride: {
+            type: 'boolean',
+            title: 'Canoverride',
             default: false
         },
         answers: {

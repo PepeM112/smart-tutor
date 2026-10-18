@@ -11,10 +11,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.constants import ATTEMPT_GRACE_SECONDS
-from app.core.enums import AttemptStatus, RevealAnswers, SpaceItemKind
+from app.core.enums import AttemptStatus, MemberStatus, RevealAnswers, SpaceItemKind
+from app.crud import space as space_crud
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_item as space_item_crud
 from app.crud import space_item_completion as space_item_completion_crud
@@ -22,6 +24,7 @@ from app.crud import space_member as space_member_crud
 from app.crud import test_result as test_result_crud
 from app.models.space_attempt import SpaceAttempt
 from app.models.space_item import SpaceItem
+from app.models.space_member import SpaceMember
 from app.models.test_result import TestResult
 from app.schemas.space import SpaceProgress
 
@@ -33,6 +36,49 @@ def utcnow() -> datetime:
 def is_past_grace(attempt: SpaceAttempt, *, at: datetime) -> bool:
     """An OPEN timed attempt that can not be submitted any more: past the deadline + the grace."""
     return attempt.deadline_at is not None and at > attempt.deadline_at + timedelta(seconds=ATTEMPT_GRACE_SECONDS)
+
+
+def is_hidden(item: SpaceItem, *, at: datetime) -> bool:
+    """A published item that students can not see yet (`visible_from` in the future)."""
+    return not item.is_draft and item.visible_from is not None and item.visible_from > at
+
+
+def get_member_row(db: Session, *, space_id: str, user_id: str, for_update: bool = False) -> SpaceMember | None:
+    """The ACTIVE member row of `user_id` in a course: the ONE place that reads it for personal state.
+
+    A student of a classroom has no row in its courses. The first call makes a lazy row (`role` NULL,
+    ACTIVE), which holds the personal state (progress, Review opt-in, last item) and inherits the role
+    of the classroom. None when the user has no access through a row (the owner, a stranger, a pending
+    or removed member). `for_update` locks the row until the transaction ends.
+    """
+    fetch = space_member_crud.get_for_update if for_update else space_member_crud.get
+    row = fetch(db, space_id=space_id, user_id=user_id)
+    if row is not None and row.role is not None:
+        return row if row.status == int(MemberStatus.ACTIVE) else None
+    space = space_crud.get_by_id(db, id=space_id)
+    if space is None or space.parent_id is None:
+        return None
+    # A lazy row (role NULL) is only good while the user is an ACTIVE member of the classroom.
+    parent_row = space_member_crud.get(db, space_id=space.parent_id, user_id=user_id)
+    if parent_row is None or parent_row.status != int(MemberStatus.ACTIVE) or parent_row.role is None:
+        return None
+    if row is not None:
+        return row if row.status == int(MemberStatus.ACTIVE) else None
+    try:
+        # A savepoint: when a parallel call made the row first, keep that row, not a 500.
+        with db.begin_nested():
+            space_member_crud.create(
+                db,
+                space_id=space_id,
+                user_id=user_id,
+                role=None,
+                status=int(MemberStatus.ACTIVE),
+                invited_by=None,
+                joined_at=utcnow(),
+            )
+    except IntegrityError:
+        pass
+    return fetch(db, space_id=space_id, user_id=user_id)
 
 
 @dataclass(frozen=True)
@@ -153,7 +199,7 @@ def sync_member_completion(db: Session, *, space_id: str, user_id: str) -> None:
     """`space_member.completed_at` = set when the user is done with every published item, else cleared."""
     # Row lock: two parallel completions (a mark and a background grade) would each count one item
     # less and both write `completed_at = None`. The second waits and counts after the first commit.
-    member = space_member_crud.get_for_update(db, space_id=space_id, user_id=user_id)
+    member = get_member_row(db, space_id=space_id, user_id=user_id, for_update=True)
     if member is None:
         return
     total = space_item_crud.count_published_by_space(db, space_ids=[space_id]).get(space_id, 0)

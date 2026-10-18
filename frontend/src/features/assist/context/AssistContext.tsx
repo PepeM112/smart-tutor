@@ -1,6 +1,9 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { createContext, useContext, type ReactNode } from 'react';
+
+import { spaceIdFromRoute } from '@/lib/routes';
 
 import { useAssist } from '../hooks/useAssist';
 import { usePageContext } from '../hooks/usePageContext';
@@ -11,7 +14,8 @@ const AssistContext = createContext<AssistContextValue | null>(null);
 
 export function AssistProvider({ children }: { children: ReactNode }) {
   const pageContext = usePageContext();
-  const assist = useAssist(pageContext);
+  const spaceId = spaceIdFromRoute(usePathname());
+  const assist = useAssist(pageContext, spaceId);
 
   return <AssistContext.Provider value={assist}>{children}</AssistContext.Provider>;
 }

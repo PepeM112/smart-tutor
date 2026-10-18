@@ -51,6 +51,8 @@ def record_usage(
         input_tokens=result.input_tokens,
         output_tokens=result.output_tokens,
         estimated_cost=cost,
+        space_id=result.space_id,
+        key_source=result.key_source,
     )
 
 

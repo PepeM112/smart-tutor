@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +25,13 @@ class Answer(Base, CreatedAtMixin):
     user_answer: Mapped[str] = mapped_column(String)
     status: Mapped[int] = mapped_column(Integer, default=int(AnswerStatus.PENDING))
     rubric_result: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB, nullable=True)
+    # Teacher override of a course answer (ST-68 Phase B). The AI grade stays in `status` / `rubric_result`.
+    override_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    override_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    overridden_by: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )
+    overridden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # viewonly: TestResult.answers owns cascade/delete-orphan on this FK; this reverse side must not also manage it
     test_result: Mapped["TestResult | None"] = relationship(

@@ -5,6 +5,10 @@ from pydantic import Field, field_validator, model_validator
 
 from app.core.constants import SPACE_TITLE_MAX
 from app.core.enums import (
+    AIProvider,
+    FeedPermission,
+    KeyPriority,
+    KeyScope,
     MemberStatus,
     RevealAnswers,
     SpaceItemKind,
@@ -49,6 +53,12 @@ class SpaceCreate(_SpaceMetadata):
     visibility: SpaceVisibility = SpaceVisibility.PRIVATE
 
 
+class ClassroomCreate(_SpaceMetadata):
+    """A classroom is never public: it has no catalog."""
+
+    visibility: Literal[SpaceVisibility.PRIVATE, SpaceVisibility.UNLISTED] = SpaceVisibility.PRIVATE
+
+
 class SpaceUpdate(BaseSchema):
     title: str | None = Field(default=None, min_length=1, max_length=SPACE_TITLE_MAX)
     description: str | None = Field(default=None, max_length=SPACE_DESCRIPTION_MAX)
@@ -83,6 +93,8 @@ class SpaceSummary(BaseSchema):
 
     id: str
     kind: SpaceKind
+    # The classroom of a classroom course. None for a standalone course and for a classroom.
+    parent_id: str | None = None
     owner_id: str
     owner_name: str
     title: str
@@ -118,6 +130,8 @@ class SpaceItemRead(BaseSchema):
     kind: SpaceItemKind
     note_id: str | None
     test_id: str | None
+    # COURSE items (classroom only): the course. `title` is the title of the course.
+    child_space_id: str | None = None
     position: int
     # The title of the content. For a draft item with an edited twin, the title of the twin.
     title: str
@@ -131,6 +145,12 @@ class SpaceItemRead(BaseSchema):
     cooldown_hours: int | None = None
     reveal_answers: RevealAnswers | None = None
     time_limit_minutes: int | None = None
+    # Scheduling (UTC). `due_at`: shown in "Due soon". `opens_at` / `closes_at`: TEST items, attempts
+    # can start inside the window only. `visible_from` in the future: hidden from students.
+    due_at: datetime | None = None
+    opens_at: datetime | None = None
+    closes_at: datetime | None = None
+    visible_from: datetime | None = None
     # TEST items, authors only: the variants in order.
     variants: list[SpaceItemVariantRead] = []
     # Per-user fields, VIEWER only (the defaults mean "no progress").
@@ -143,6 +163,8 @@ class SpaceItemRead(BaseSchema):
     next_attempt_at: datetime | None = None
     open_attempt_id: str | None = None
     open_attempt_deadline_at: datetime | None = None
+    # COURSE items, VIEWER only: the progress of the student in that course.
+    child_progress: SpaceProgress | None = None
 
 
 class SpaceSectionRead(BaseSchema):
@@ -162,6 +184,8 @@ class SpaceDetail(SpaceSummary):
     OWNER / EDITOR while edit mode is on.
     """
 
+    # The title of the classroom of a classroom course.
+    parent_title: str | None = None
     can_edit: bool
     is_owner: bool
     is_editing: bool
@@ -231,9 +255,11 @@ class SpaceItemContent(BaseSchema):
 
 
 class SpaceItemUpdate(BaseSchema):
-    """The attempt policy of a TEST item. Only the sent fields change.
+    """The attempt policy of a TEST item and the schedule of any item. Only the sent fields change.
 
     `max_attempts`, `cooldown_hours` and `time_limit_minutes`: null = no limit (a sent null is valid).
+    `due_at`, `opens_at`, `closes_at` and `visible_from`: null = clear (a sent null is valid).
+    `opens_at` and `closes_at` apply to TEST items only.
     """
 
     pass_threshold: float | None = Field(default=None, ge=0, le=1)
@@ -241,11 +267,21 @@ class SpaceItemUpdate(BaseSchema):
     cooldown_hours: int | None = Field(default=None, ge=1)
     reveal_answers: RevealAnswers | None = None
     time_limit_minutes: int | None = Field(default=None, ge=1)
+    due_at: datetime | None = None
+    opens_at: datetime | None = None
+    closes_at: datetime | None = None
+    visible_from: datetime | None = None
 
     @field_validator("pass_threshold", "reveal_answers", mode="before")
     @classmethod
     def _no_null(cls, value: object) -> object:
         return _reject_null(value)
+
+    @model_validator(mode="after")
+    def _window_order(self) -> "SpaceItemUpdate":
+        if self.opens_at is not None and self.closes_at is not None and self.closes_at <= self.opens_at:
+            raise ValueError("closesAt must be after opensAt")
+        return self
 
 
 class SpaceVariantCreate(BaseSchema):
@@ -340,3 +376,63 @@ class SpaceAttemptStart(BaseSchema):
     server_now: datetime
     # True when the attempt was already open (a reload or another device).
     resumed: bool = False
+
+
+# ── Classrooms ────────────────────────────────────────────────────────────────
+
+
+class ClassroomCourseCreate(_SpaceMetadata):
+    """A new course inside a classroom. `section_id` is a draft section of the classroom (edit mode)."""
+
+    section_id: str
+
+
+class ClassroomCourseDuplicate(_SpaceMetadata):
+    """Copy the published content of a standalone course of the current user into a classroom."""
+
+    section_id: str
+    source_id: str
+
+
+class ClassroomSettingsRead(BaseSchema):
+    """Owner only. The Class key itself is never returned."""
+
+    feed_permission: FeedPermission
+    ai_provider: AIProvider | None
+    has_class_key: bool
+    key_priority: KeyPriority
+    key_scope: KeyScope
+    # None = no cap.
+    monthly_token_cap_per_student: int | None
+
+
+class ClassroomSettingsUpdate(BaseSchema):
+    """Only the sent fields change.
+
+    `class_key`: send "" to remove the key. `monthly_token_cap_per_student`: null = no cap.
+    """
+
+    feed_permission: FeedPermission | None = None
+    ai_provider: AIProvider | None = None
+    class_key: str | None = Field(default=None, max_length=500)
+    key_priority: KeyPriority | None = None
+    key_scope: KeyScope | None = None
+    monthly_token_cap_per_student: int | None = Field(default=None, ge=0)
+
+    @field_validator("feed_permission", "key_priority", "key_scope", mode="before")
+    @classmethod
+    def _no_null(cls, value: object) -> object:
+        return _reject_null(value)
+
+
+class DueSoonItem(BaseSchema):
+    """A classwork item due in the next 24 hours that the current student has not completed."""
+
+    item_id: str
+    kind: SpaceItemKind
+    title: str
+    due_at: datetime
+    # Where the item is: the classroom itself, or one of its courses.
+    space_id: str
+    space_title: str
+    classroom_id: str

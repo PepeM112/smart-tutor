@@ -5,8 +5,10 @@ import {
   ArrowDown,
   ArrowUp,
   ClipboardCopy,
+  CalendarClock,
   ClipboardPlus,
   FilePlus,
+  GraduationCap,
   Files,
   Pencil,
   Plus,
@@ -19,6 +21,7 @@ import { Fragment, useRef, useState } from 'react';
 
 import {
   SpaceItemKind,
+  SpaceKind,
   type SpaceDetail,
   type SpaceItemRead,
   type SpaceItemUpdate,
@@ -30,16 +33,18 @@ import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
-import { noteHref, Routes } from '@/lib/routes';
+import { courseHref, noteHref, Routes } from '@/lib/routes';
 
 import { courseWriteKey, type useCourseActions } from '../hooks/useCourseActions';
 import { moveItem, moveSection, toOrder } from '../lib/draftOrder';
 import { COURSE_LIMITS } from '../lib/limits';
 
-import { AddItemDialog, type AddItemMode } from './AddItemDialog';
+import { AddItemDialog, type AddItemMode, type CopySource } from './AddItemDialog';
 import { CourseContentFrame, CourseItemRow, CourseSectionFrame } from './CourseLayout';
 import { ItemIcon } from './CourseOutline';
 import { CourseTestSettings } from './CourseTestSettings';
+import { ItemSchedulePanel } from './ItemSchedulePanel';
+import { ScheduleBadges } from './ScheduleBadges';
 
 type Actions = ReturnType<typeof useCourseActions>;
 
@@ -86,6 +91,11 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
   }
 
   function handleEditItem(item: SpaceItemRead) {
+    // A COURSE item is edited on the page of its course (it has its own draft and publish).
+    if (item.kind === SpaceItemKind.COURSE && item.childSpaceId) {
+      router.push(courseHref({ id: item.childSpaceId, title: item.title }));
+      return;
+    }
     // The twin is made on the first call; the next calls return the same id.
     actions.makeEditable.mutate(item.id, { onSuccess: content => openContent(item, content) });
   }
@@ -96,6 +106,10 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
     // With an item id the new test becomes a variant of that TEST item.
     if (itemId) {
       actions.addVariant.mutate({ itemId, body: { title } }, { onSuccess: () => setAddTarget(null) });
+      return;
+    }
+    if (mode.kind === SpaceItemKind.COURSE) {
+      actions.addCourse.mutate({ sectionId, title }, { onSuccess: () => setAddTarget(null) });
       return;
     }
     actions.createItem.mutate(
@@ -109,11 +123,19 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
     );
   }
 
-  function handleCopy(sourceId: string) {
+  function handleCopy(copySource: CopySource) {
     if (!addTarget) return;
     const { sectionId, mode, itemId } = addTarget;
+    const sourceId = copySource.id;
     if (itemId) {
       actions.addVariant.mutate({ itemId, body: { testId: sourceId } }, { onSuccess: () => setAddTarget(null) });
+      return;
+    }
+    if (mode.kind === SpaceItemKind.COURSE) {
+      actions.addCourseCopy.mutate(
+        { sectionId, sourceId, title: copySource.title, description: copySource.description },
+        { onSuccess: () => setAddTarget(null) }
+      );
       return;
     }
     const source = mode.kind === SpaceItemKind.NOTE ? { noteId: sourceId } : { testId: sourceId };
@@ -163,6 +185,7 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
             onDeleteItem={item => actions.deleteItem.mutate(item.id)}
             canMoveItem={(itemIndex, delta) => moveItem(order, sectionIndex, itemIndex, delta) !== null}
             onOpenNote={onOpenNote}
+            isClassroom={course.kind === SpaceKind.CLASSROOM}
           />
         ))}
       </CourseContentFrame>
@@ -194,7 +217,13 @@ export function CourseDraftEditor({ course, actions, onOpenNote }: Props) {
           event.preventDefault();
           addButtonRef.current?.focus();
         }}
-        isPending={actions.createItem.isPending || actions.copyItem.isPending || actions.addVariant.isPending}
+        isPending={
+          actions.createItem.isPending ||
+          actions.copyItem.isPending ||
+          actions.addVariant.isPending ||
+          actions.addCourse.isPending ||
+          actions.addCourseCopy.isPending
+        }
         onCreate={handleCreate}
         onCopy={handleCopy}
       />
@@ -222,6 +251,8 @@ type DraftSectionProps = {
   onEditVariant: (item: SpaceItemRead, testId: string) => void;
   onDeleteItem: (item: SpaceItemRead) => void;
   onOpenNote?: (noteId: string) => void;
+  /** The space is a classroom: items can be courses and have a due date. */
+  isClassroom: boolean;
 };
 
 function DraftSection({
@@ -243,6 +274,7 @@ function DraftSection({
   onEditVariant,
   onDeleteItem,
   onOpenNote,
+  isClassroom,
 }: DraftSectionProps) {
   const t = useTranslations();
   const [isRenaming, setIsRenaming] = useState(false);
@@ -256,6 +288,8 @@ function DraftSection({
   const addButtonRef = useRef<HTMLButtonElement>(null);
   // The TEST item whose attempt rules and variants are open.
   const [settingsItemId, setSettingsItemId] = useState<string | null>(null);
+  // The item whose schedule is open.
+  const [scheduleItemId, setScheduleItemId] = useState<string | null>(null);
   const add = (mode: AddItemMode) => onAdd(mode, addButtonRef.current);
 
   return (
@@ -363,6 +397,23 @@ function DraftSection({
                   onClick: () => add({ action: 'copy', kind: SpaceItemKind.TEST }),
                 },
               ],
+              // A classroom also holds courses.
+              ...(isClassroom
+                ? [
+                    [
+                      {
+                        label: t('classrooms.new_course'),
+                        icon: GraduationCap,
+                        onClick: () => add({ action: 'create', kind: SpaceItemKind.COURSE }),
+                      },
+                      {
+                        label: t('classrooms.duplicate_course'),
+                        icon: Files,
+                        onClick: () => add({ action: 'copy', kind: SpaceItemKind.COURSE }),
+                      },
+                    ],
+                  ]
+                : []),
             ]}
           />
           <ConfirmDialog
@@ -388,16 +439,25 @@ function DraftSection({
             <CourseItemRow
               icon={<ItemIcon item={item} />}
               title={item.title}
-              badge={<ItemBadge item={item} />}
+              badge={
+                <>
+                  <ScheduleBadges item={item} isAuthor />
+                  <ItemBadge item={item} />
+                </>
+              }
               action={
                 item.kind === SpaceItemKind.NOTE && noteId && onOpenNote
                   ? { onClick: () => onOpenNote(noteId) }
-                  : undefined
+                  : item.kind === SpaceItemKind.COURSE && item.childSpaceId
+                    ? { href: courseHref({ id: item.childSpaceId, title: item.title }) }
+                    : undefined
               }
               actions={
                 <TreeActionsCell
                   widthClass=""
-                  forceVisible={itemToRemove?.id === item.id || settingsItemId === item.id}
+                  forceVisible={
+                    itemToRemove?.id === item.id || settingsItemId === item.id || scheduleItemId === item.id
+                  }
                 >
                   {isTest && (
                     <Button
@@ -411,6 +471,16 @@ function DraftSection({
                       <SlidersHorizontal />
                     </Button>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    tooltip={t('courses.schedule_title')}
+                    aria-label={t('courses.schedule_title')}
+                    aria-expanded={scheduleItemId === item.id}
+                    onClick={() => setScheduleItemId(current => (current === item.id ? null : item.id))}
+                  >
+                    <CalendarClock />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -455,6 +525,15 @@ function DraftSection({
                 </TreeActionsCell>
               }
             />
+            {scheduleItemId === item.id && (
+              <li className="list-none">
+                <ItemSchedulePanel
+                  item={item}
+                  isClassroom={isClassroom}
+                  onUpdate={(body, onError) => onUpdateItem(item, body, onError)}
+                />
+              </li>
+            )}
             {isTest && settingsItemId === item.id && (
               <li className="list-none">
                 <CourseTestSettings

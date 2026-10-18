@@ -26,6 +26,7 @@ from app.services.ai_permission_service import needs_confirmation
 from app.services.assist_service import stream_assist
 from app.services.assist_tools import TOOLS
 from app.services.llm import StreamResult, TextDelta, ToolCallDelta
+from tests.llm_fakes import resolve_to
 
 ASSIST = "app.services.assist_service"
 
@@ -210,7 +211,7 @@ def _run_loop(user: User, tool: str) -> tuple[list[str], MagicMock]:
     llm = _FakeLLM(_tool_round(tool), StreamResult(stop_reason="end_turn", text="done"))
     request = AssistRequest(messages=[AssistMessage(role="user", content="hi")])
     with (
-        patch(f"{ASSIST}.get_user_llm_client", return_value=llm),
+        patch(f"{ASSIST}.resolve_llm", side_effect=resolve_to(llm)),
         patch(f"{ASSIST}.build_confirm_context", return_value={"summary": [{"key": "topic", "value": "Cells"}]}),
         patch(f"{ASSIST}.execute_tool") as execute,
     ):

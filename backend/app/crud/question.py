@@ -9,8 +9,11 @@ from sqlalchemy.orm import InstrumentedAttribute, Session, aliased, contains_eag
 
 from app.core.enums import MemberStatus, QuestionStatus, QuestionType, RevealAnswers, TestStatus
 from app.crud.helpers import token_search
+from app.crud.space import editor_space_ids
+from app.crud.space_item import visible_course_ids
 from app.models.answer import Answer
 from app.models.question import Question
+from app.models.space import Space
 from app.models.space_item import SpaceItem
 from app.models.space_item_completion import SpaceItemCompletion
 from app.models.space_item_test import SpaceItemTest
@@ -283,6 +286,8 @@ def _reviewable_test_filter(*, user_id: str, scope: str) -> ColumnElement[bool]:
     - Course tests of the courses where the user is an ACTIVE member with `include_in_srs` on: published
       only (never a draft), and linked to a published item whose answer key the user may see: ALWAYS, or
       AFTER_PASS_OR_LAST once the user has a completion row for that item. NEVER items are never in.
+    - Items with a future `visible_from`, and classroom courses students can not see yet, are out
+      (unless the user is an editor there).
     """
     personal = sa.and_(Test.user_id == user_id, Test.space_id.is_(None))
     opted_in_spaces = select(SpaceMember.space_id).where(
@@ -301,14 +306,17 @@ def _reviewable_test_filter(*, user_id: str, scope: str) -> ColumnElement[bool]:
         .where(
             SpaceItemTest.test_id == Test.id,
             SpaceItem.is_draft.is_(False),
+            sa.or_(SpaceItem.visible_from.is_(None), SpaceItem.visible_from <= func.now()),
             sa.or_(
                 SpaceItem.reveal_answers == int(RevealAnswers.ALWAYS),
                 sa.and_(SpaceItem.reveal_answers == int(RevealAnswers.AFTER_PASS_OR_LAST), passed_by_user),
             ),
         )
     )
+    hidden_courses = select(Space.id).where(Space.parent_id.is_not(None), Space.id.not_in(visible_course_ids()))
     course = sa.and_(
         Test.space_id.in_(opted_in_spaces),
+        sa.or_(Test.space_id.not_in(hidden_courses), Test.space_id.in_(editor_space_ids(user_id=user_id))),
         Test.is_draft.is_(False),
         reviewable_item.exists(),
     )

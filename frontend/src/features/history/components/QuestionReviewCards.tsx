@@ -14,7 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import { NumberedScoreRow } from './NumberedScoreRow';
-import { computeQuestionScore, type ResultQuestion } from './resultDetailUtils';
+import { computeQuestionScore, effectiveStatus, type ResultQuestion } from './resultDetailUtils';
 
 export function CompactQuestionCard({
   question,
@@ -33,18 +33,19 @@ export function CompactQuestionCard({
   onClick?: () => void;
 }) {
   const score = computeQuestionScore(answer, question);
-  const isFailed = answer?.status === AnswerStatus.FAILED;
+  const status = effectiveStatus(answer);
+  const isFailed = status === AnswerStatus.FAILED;
 
   const ringClass = isFailed
     ? getStatusRingColor(AnswerStatus.FAILED)
     : score
       ? getScoreRingColor(score.pct)
-      : getStatusRingColor(answer?.status ?? null);
+      : getStatusRingColor(status);
   const bgClass = isFailed
     ? getStatusBgColor(AnswerStatus.FAILED)
     : score
       ? getScoreBgColor(score.pct)
-      : getStatusBgColor(answer?.status ?? null);
+      : getStatusBgColor(status);
 
   return (
     <Card

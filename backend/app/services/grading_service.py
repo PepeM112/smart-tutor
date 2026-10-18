@@ -21,7 +21,8 @@ from app.models.test_result import TestResult
 from app.schemas.question import LongTextContent, RubricItem
 from app.services import space_progress_service
 from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
-from app.services.llm import CompletionResult, LLMClient, get_user_llm_client
+from app.services.llm import CompletionResult, LLMClient
+from app.services.llm_key_service import resolve_llm, space_id_of_result
 
 logger = logging.getLogger("smarttutor.grading")
 
@@ -99,6 +100,11 @@ def _score_from_rubric_result(
     return question_points * (earned_weight / total_weight)
 
 
+def is_overridden(answer: Answer) -> bool:
+    """True when a teacher set the grade of this answer (ST-68 Phase B)."""
+    return answer.override_score is not None
+
+
 def recalculate_test_result(db: Session, test_result: TestResult) -> None:
     """Recompute TestResult aggregates from current Answer states."""
     answers: list[Answer] = list(test_result.answers)
@@ -116,6 +122,12 @@ def recalculate_test_result(db: Session, test_result: TestResult) -> None:
     for answer in answers:
         q = q_map.get(answer.question_id)
         if q is None:
+            continue
+        if is_overridden(answer):
+            # A teacher grade replaces the AI grade (also for a PENDING answer). The AI grade stays in `status`.
+            if answer.override_status == int(AnswerStatus.CORRECT):
+                correct += 1
+            earned_pts += min(max(answer.override_score or 0.0, 0.0), q.points)
             continue
         status = AnswerStatus(answer.status)
         if status == AnswerStatus.CORRECT:
@@ -175,11 +187,13 @@ def grade_pending_answers(test_result_id: str) -> None:
             logger.error("User not found for TestResult %s", test_result_id)
             return
 
-        llm = get_user_llm_client(user)
-
         pending_answers = [a for a in test_result.answers if a.status == int(AnswerStatus.PENDING)]
         if not pending_answers:
             return
+
+        # The student pays (own key or the Class key). The key follows the space of the test.
+        resolved = resolve_llm(db, user, space_id_of_result(db, test_result))
+        llm = resolved.client
 
         total = len(pending_answers)
         logger.info("Starting grading for TestResult %s (%d pending answers)", test_result_id, total)
@@ -193,6 +207,11 @@ def grade_pending_answers(test_result_id: str) -> None:
             if question is None or QuestionType(question.question_type) != QuestionType.LONG_TEXT:
                 continue
 
+            # A teacher may have graded this answer while we wait: read the override again and skip it.
+            db.refresh(answer, ["override_score", "override_status"])
+            if is_overridden(answer):
+                continue
+
             prompt_preview = question.prompt[:50] + ("..." if len(question.prompt) > 50 else "")
             logger.info('Q%d/%d "%s" -> sending to %s', idx, total, prompt_preview, llm.name)
 
@@ -202,7 +221,9 @@ def grade_pending_answers(test_result_id: str) -> None:
 
                 from app.services import token_usage_service
 
-                token_usage_service.record_usage(db, user_id=user.id, result=completion, feature=AIFeature.GRADING)
+                token_usage_service.record_usage(
+                    db, user_id=user.id, result=resolved.tag(completion), feature=AIFeature.GRADING
+                )
 
                 status = _determine_status(results, len(content.rubric))
                 answer.status = int(status)
@@ -249,6 +270,9 @@ def grade_pending_answers(test_result_id: str) -> None:
                 logger.exception("FAILED Q%d/%d -- UNEXPECTED ERROR", idx, total)
                 answer.status = int(AnswerStatus.FAILED)
 
+        # Override columns of the other answers may have changed during the grading: read them again.
+        for answer in test_result.answers:
+            db.expire(answer, ["override_score", "override_status"])
         recalculate_test_result(db, test_result)
         space_progress_service.recheck_result_completion(db, test_result=test_result)
         db.commit()

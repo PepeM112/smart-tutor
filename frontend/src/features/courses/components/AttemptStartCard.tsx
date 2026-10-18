@@ -8,6 +8,7 @@ import { type SpaceItemRead } from '@/client';
 import { Button } from '@/components/ui/button';
 
 import { attemptAction } from '../lib/progress';
+import { windowState } from '../lib/schedule';
 
 type Props = {
   /** The test item from the course detail. Not set when the item is not in the published course. */
@@ -28,7 +29,18 @@ export function AttemptStartCard({ item, isStarting, onStart }: Props) {
   const [now] = useState(() => new Date());
 
   const action = item ? attemptAction(item, now) : 'start';
-  const isBlocked = action === 'no_attempts_left' || action === 'cooldown';
+  // The test window: before it opens, or after it closes, a new attempt is refused (409).
+  const window = item && action !== 'resume' ? windowState(item, now) : 'open';
+  const isBlocked = action === 'no_attempts_left' || action === 'cooldown' || window !== 'open';
+  const blockedLabel =
+    window === 'not_open'
+      ? 'courses.test_not_open'
+      : window === 'closed'
+        ? 'courses.test_closed'
+        : action === 'cooldown'
+          ? 'courses.cooldown_wait'
+          : 'courses.no_attempts_left';
+  const dateFormat = { dateStyle: 'short', timeStyle: 'short' } as const;
 
   const lines = [
     item?.timeLimitMinutes
@@ -37,6 +49,8 @@ export function AttemptStartCard({ item, isStarting, onStart }: Props) {
     item?.maxAttempts === null || item?.maxAttempts === undefined
       ? t('courses.attempt_unlimited')
       : t('courses.attempts_left', { left: item.attemptsLeft ?? 0, max: item.maxAttempts }),
+    item?.opensAt ? t('courses.schedule_label_opens', { date: format.dateTime(item.opensAt, dateFormat) }) : null,
+    item?.closesAt ? t('courses.schedule_label_closes', { date: format.dateTime(item.closesAt, dateFormat) }) : null,
     action === 'cooldown' && item?.nextAttemptAt
       ? t('courses.next_attempt', {
           date: format.dateTime(item.nextAttemptAt, { dateStyle: 'short', timeStyle: 'short' }),
@@ -57,13 +71,7 @@ export function AttemptStartCard({ item, isStarting, onStart }: Props) {
       </ul>
       <p className="text-sm text-foreground">{t('courses.attempt_start_description')}</p>
       <Button icon={Play} className="self-start" loading={isStarting} disabled={isBlocked} onClick={onStart}>
-        {t(
-          isBlocked
-            ? action === 'cooldown'
-              ? 'courses.cooldown_wait'
-              : 'courses.no_attempts_left'
-            : 'courses.start_test'
-        )}
+        {t(isBlocked ? blockedLabel : 'courses.start_test')}
       </Button>
     </div>
   );

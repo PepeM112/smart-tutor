@@ -1,12 +1,13 @@
-from datetime import date
+from collections.abc import Sequence
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Integer, Row, cast, func, literal, select
+from sqlalchemy import Integer, Row, case, cast, func, literal, select
 from sqlalchemy.orm import Session
 from sqlalchemy.types import Date
 
-from app.core.enums import AIFeature, AIProvider
+from app.core.enums import AIFeature, AIProvider, KeySource
 from app.models.token_usage import TokenUsage
 from app.schemas.token_usage import UsageGroupBy
 
@@ -21,6 +22,8 @@ def create(
     input_tokens: int,
     output_tokens: int,
     estimated_cost: Decimal | None = None,
+    space_id: str | None = None,
+    key_source: KeySource = KeySource.STUDENT,
 ) -> TokenUsage:
     record = TokenUsage(
         user_id=user_id,
@@ -30,6 +33,8 @@ def create(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         estimated_cost=estimated_cost,
+        space_id=space_id,
+        key_source=int(key_source),
     )
     db.add(record)
     db.flush()
@@ -130,5 +135,35 @@ def get_hourly_summary(
         .where(*conditions)
         .group_by(*group_cols)
         .order_by(hour_col)
+    )
+    return list(db.execute(stmt).all())
+
+
+def sum_paid_by_class(db: Session, *, user_id: str, space_ids: Sequence[str], since: datetime) -> int:
+    """Tokens (input + output) that the classroom paid for the user in these spaces since `since`."""
+    stmt = select(func.coalesce(func.sum(TokenUsage.input_tokens + TokenUsage.output_tokens), 0)).where(
+        TokenUsage.user_id == user_id,
+        TokenUsage.space_id.in_(space_ids),
+        TokenUsage.key_source == int(KeySource.CLASS),
+        TokenUsage.created_at >= since,
+    )
+    return int(db.scalar(stmt) or 0)
+
+
+def spend_by_user_and_source(db: Session, *, space_ids: Sequence[str], month_start: datetime) -> list[Row[Any]]:
+    """One row per (user, key source) for the spaces: tokens and cost for this month and in total."""
+    this_month = TokenUsage.created_at >= month_start
+    tokens = TokenUsage.input_tokens + TokenUsage.output_tokens
+    stmt = (
+        select(
+            TokenUsage.user_id,
+            TokenUsage.key_source,
+            func.sum(case((this_month, tokens), else_=0)).label("month_tokens"),
+            func.sum(case((this_month, TokenUsage.estimated_cost), else_=None)).label("month_cost"),
+            func.sum(tokens).label("total_tokens"),
+            func.sum(TokenUsage.estimated_cost).label("total_cost"),
+        )
+        .where(TokenUsage.space_id.in_(space_ids))
+        .group_by(TokenUsage.user_id, TokenUsage.key_source)
     )
     return list(db.execute(stmt).all())

@@ -4,11 +4,14 @@ import { ArrowLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
+import { SpaceKind } from '@/client';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 import { displayTitle } from '@/lib/displayTitle';
-import { courseHref, Routes } from '@/lib/routes';
+import { Routes } from '@/lib/routes';
 
 import { useCourse } from '../hooks/useCourse';
+import { courseBackHref } from '../lib/spaceCrumbs';
+import { spaceHref } from '../lib/spaceHref';
 
 type Props = {
   courseId: string;
@@ -22,7 +25,7 @@ type Props = {
 export function CourseNoteBreadcrumb({ courseId, noteTitle }: Props) {
   const t = useTranslations();
   const { data: course } = useCourse(courseId);
-  const goBack = useBackNavigation(course ? courseHref(course) : Routes.COURSES);
+  const goBack = useBackNavigation(course ? spaceHref(course) : Routes.COURSES);
 
   return (
     <nav aria-label={t('files.breadcrumb_label')} className="flex min-w-0 items-center gap-1 text-sm">
@@ -35,11 +38,22 @@ export function CourseNoteBreadcrumb({ courseId, noteTitle }: Props) {
         <ArrowLeft className="size-4" />
       </button>
       <div className="hidden items-center gap-0.5 lg:flex">
-        <Crumb href={Routes.COURSES}>{t('courses.title')}</Crumb>
+        {/* A note placed straight in a classroom has the classroom as its home, not Courses. */}
+        {course?.kind === SpaceKind.CLASSROOM ? (
+          <Crumb href={Routes.CLASSROOMS}>{t('classrooms.title')}</Crumb>
+        ) : course?.parentId ? (
+          <>
+            <Crumb href={Routes.CLASSROOMS}>{t('classrooms.title')}</Crumb>
+            <Sep />
+            <Crumb href={courseBackHref(course)}>{course.parentTitle}</Crumb>
+          </>
+        ) : (
+          <Crumb href={Routes.COURSES}>{t('courses.title')}</Crumb>
+        )}
         <Sep />
         {course && (
           <>
-            <Crumb href={courseHref(course)}>{course.title}</Crumb>
+            <Crumb href={spaceHref(course)}>{course.title}</Crumb>
             <Sep />
           </>
         )}

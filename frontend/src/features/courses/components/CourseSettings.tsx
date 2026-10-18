@@ -4,7 +4,7 @@ import { Archive, ArchiveRestore, Link2, RefreshCw, Share2, Trash2, UserPlus } f
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { SpaceStatus, type SpaceDetail, type SpaceVisibility } from '@/client';
+import { SpaceKind, SpaceStatus, type SpaceDetail, type SpaceVisibility } from '@/client';
 import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { CopyChip } from '@/components/shared/CopyChip';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { copyText } from '@/lib/copyText';
 import { Routes } from '@/lib/routes';
 
 import { type useCourseActions } from '../hooks/useCourseActions';
+import { CLASSROOM_VISIBILITY } from '../lib/labels';
 import { COURSE_LIMITS } from '../lib/limits';
 
 import { DuplicateCourseDialog } from './DuplicateCourseDialog';
@@ -31,15 +32,21 @@ type Props = {
   actions: Actions;
 };
 
-/** The owner page: details, join code, Duplicate, archive and delete. Only the owner reaches it. */
-export function CourseSettings({ course, actions }: Props) {
+/**
+ * The owner page: details, join code, Duplicate, archive and delete. Only the owner reaches it.
+ * A classroom has no Duplicate and no public visibility. A course of a classroom has details only:
+ * the classroom owns its visibility, code, archive and delete. `extra` goes after the details (classroom settings).
+ */
+export function CourseSettings({ course, actions, extra }: Props & { extra?: React.ReactNode }) {
+  const isChild = Boolean(course.parentId);
   return (
     // Flat sections, not cards: they are parts of one settings page (design.md).
     <div className="flex flex-col gap-8">
       {course.canEdit && <DetailsForm course={course} actions={actions} />}
+      {extra}
       {course.joinCode && <JoinCodeCard course={course} joinCode={course.joinCode} actions={actions} />}
-      <DuplicateCard course={course} actions={actions} />
-      <DangerZone course={course} actions={actions} />
+      {!isChild && course.kind !== SpaceKind.CLASSROOM && <DuplicateCard course={course} actions={actions} />}
+      {!isChild && <DangerZone course={course} actions={actions} />}
     </div>
   );
 }
@@ -50,10 +57,18 @@ function DetailsForm({ course, actions }: Props) {
   const [description, setDescription] = useState(course.description);
   const [tags, setTags] = useState(course.tags);
   const [visibility, setVisibility] = useState<SpaceVisibility>(course.visibility);
+  const isClassroom = course.kind === SpaceKind.CLASSROOM;
+  // A course of a classroom has no visibility of its own (the backend refuses it with a 400).
+  const hasVisibility = !course.parentId;
 
   function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    actions.updateCourse.mutate({ title: title.trim(), description, tags, visibility });
+    actions.updateCourse.mutate({
+      title: title.trim(),
+      description,
+      tags,
+      ...(hasVisibility && { visibility }),
+    });
   }
 
   return (
@@ -82,7 +97,13 @@ function DetailsForm({ course, actions }: Props) {
           <Label>{t('courses.tags_label')}</Label>
           <TagInput tags={tags} onChange={setTags} />
         </div>
-        <VisibilitySelect value={visibility} onChange={setVisibility} />
+        {hasVisibility && (
+          <VisibilitySelect
+            value={visibility}
+            onChange={setVisibility}
+            options={isClassroom ? CLASSROOM_VISIBILITY : undefined}
+          />
+        )}
         <div>
           <Button type="submit" disabled={!title.trim()} loading={actions.updateCourse.isPending}>
             {t('common.save')}
@@ -157,6 +178,7 @@ function DangerZone({ course, actions }: Props) {
   const t = useTranslations();
   const [confirmTitle, setConfirmTitle] = useState('');
   const isArchived = course.status === SpaceStatus.ARCHIVED;
+  const ns = course.kind === SpaceKind.CLASSROOM ? 'classrooms' : 'courses';
 
   return (
     <SettingsSection title={t('courses.danger_zone')}>
@@ -178,7 +200,7 @@ function DangerZone({ course, actions }: Props) {
               </Button>
             }
             title={t('courses.archive')}
-            description={t('courses.archive_description')}
+            description={t(`${ns}.archive_description`)}
             confirmLabel={t('courses.archive')}
             onConfirm={() => actions.archive.mutate()}
           />
@@ -192,7 +214,7 @@ function DangerZone({ course, actions }: Props) {
             </Button>
           }
           title={t('courses.delete_forever')}
-          description={t('courses.delete_forever_description', { title: course.title })}
+          description={t(`${ns}.delete_forever_description`, { title: course.title })}
           confirmLabel={t('courses.delete_forever')}
           confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           disableConfirm={confirmTitle !== course.title || actions.deleteForever.isPending}
@@ -203,7 +225,7 @@ function DangerZone({ course, actions }: Props) {
             value={confirmTitle}
             onChange={e => setConfirmTitle(e.target.value)}
             placeholder={course.title}
-            aria-label={t('courses.delete_forever_confirm_label')}
+            aria-label={t(`${ns}.delete_forever_confirm_label`)}
           />
         </ConfirmDialog>
       </div>

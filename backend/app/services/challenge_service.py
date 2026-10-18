@@ -22,9 +22,11 @@ from app.services import space_progress_service
 from app.services.challenge_prompts import CHALLENGE_SYSTEM_PROMPT, build_challenge_user_prompt
 from app.services.grading_prompts import strip_code_fences
 from app.services.grading_service import effective_met, recalculate_test_result
-from app.services.llm import get_user_llm_client
+from app.services.llm_key_service import resolve_llm, space_id_of_result
 
 logger = logging.getLogger("smarttutor.grading")
+
+OVERRIDDEN_ANSWER_MESSAGE = "A teacher graded this answer. It cannot be challenged."
 
 
 def _validate_challenge_eligibility(
@@ -38,6 +40,10 @@ def _validate_challenge_eligibility(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test result not found")
     if test_result.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    # The teacher grade is final: it replaces the AI grade, so a challenge to the AI has no effect.
+    if answer.override_score is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=OVERRIDDEN_ANSWER_MESSAGE)
 
     if QuestionType(question.question_type) != QuestionType.LONG_TEXT:
         raise HTTPException(
@@ -196,12 +202,14 @@ def process_challenge(answer_id: str) -> None:
             len(pending_indices),
         )
 
-        llm = get_user_llm_client(user)
-        completion = llm.complete(system=CHALLENGE_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
+        resolved = resolve_llm(db, user, space_id_of_result(db, test_result))
+        completion = resolved.client.complete(system=CHALLENGE_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
 
         from app.services import token_usage_service
 
-        token_usage_service.record_usage(db, user_id=user.id, result=completion, feature=AIFeature.CHALLENGE)
+        token_usage_service.record_usage(
+            db, user_id=user.id, result=resolved.tag(completion), feature=AIFeature.CHALLENGE
+        )
 
         cleaned = strip_code_fences(completion.text)
         parsed = json.loads(cleaned)

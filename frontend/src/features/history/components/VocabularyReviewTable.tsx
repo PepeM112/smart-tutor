@@ -6,7 +6,13 @@ import { type AnswerRead } from '@/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong, type ResultQuestion } from './resultDetailUtils';
+import {
+  effectiveStatus,
+  getCorrectAnswer,
+  getUserAnswerDisplay,
+  isAnswerWrong,
+  type ResultQuestion,
+} from './resultDetailUtils';
 import { StatusIcon } from './StatusIcon';
 
 export function VocabularyReviewTable({
@@ -34,7 +40,7 @@ export function VocabularyReviewTable({
       <TableBody>
         {questions.map((q, idx) => {
           const answer = answerMap.get(q.id);
-          const status = answer?.status ?? null;
+          const status = effectiveStatus(answer);
           const isWrong = isAnswerWrong(status);
           return (
             <TableRow key={q.id}>

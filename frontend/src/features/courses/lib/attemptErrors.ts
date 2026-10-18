@@ -1,6 +1,16 @@
 export type AttemptRefusal =
   | { kind: 'cooldown'; nextAttemptAt: Date | null }
-  | { kind: 'no_attempts_left' | 'time_over' | 'closed' | 'archived' | 'no_questions' | 'unknown' };
+  | {
+      kind:
+        | 'no_attempts_left'
+        | 'time_over'
+        | 'closed'
+        | 'not_open'
+        | 'window_closed'
+        | 'archived'
+        | 'no_questions'
+        | 'unknown';
+    };
 
 const COOLDOWN_PREFIX = 'The next attempt is possible at ';
 
@@ -23,7 +33,12 @@ export function classifyAttemptRefusal(detail: string | undefined): AttemptRefus
     case 'This attempt is already closed':
     case 'This attempt can not be continued':
       return { kind: 'closed' };
+    case 'The test is not open yet':
+      return { kind: 'not_open' };
+    case 'The test is closed':
+      return { kind: 'window_closed' };
     case 'The course is archived':
+    case 'The classroom is archived':
       return { kind: 'archived' };
     case 'This test has no questions available':
       return { kind: 'no_questions' };

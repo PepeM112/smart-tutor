@@ -64,8 +64,19 @@ def _structure(sections: Sequence[SpaceSection], items: Sequence[SpaceItem], *, 
     ]
 
 
-def _policy_key(item: SpaceItem) -> tuple[float, int | None, int | None, int, int | None]:
-    return item.pass_threshold, item.max_attempts, item.cooldown_hours, item.reveal_answers, item.time_limit_minutes
+def _policy_key(item: SpaceItem) -> tuple[object, ...]:
+    """The attempt policy and the schedule of an item."""
+    return (
+        item.pass_threshold,
+        item.max_attempts,
+        item.cooldown_hours,
+        item.reveal_answers,
+        item.time_limit_minutes,
+        item.due_at,
+        item.opens_at,
+        item.closes_at,
+        item.visible_from,
+    )
 
 
 def item_changed(draft: SpaceItem, live: SpaceItem, links: dict[str, list[str]]) -> bool:

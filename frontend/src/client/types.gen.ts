@@ -43,6 +43,27 @@ export enum AiFeature {
 }
 
 /**
+ * AIKeyStatusRead
+ *
+ * The key that the current user would use for AI in the classroom (and its courses).
+ */
+export type AiKeyStatusRead = {
+    status: KeyStatus;
+    /**
+     * Capreached
+     */
+    capReached: boolean;
+    /**
+     * Tokensusedthismonth
+     */
+    tokensUsedThisMonth: number;
+    /**
+     * Monthlytokencap
+     */
+    monthlyTokenCap: number | null;
+};
+
+/**
  * AIProvider
  */
 export enum AiProvider {
@@ -91,6 +112,18 @@ export type AiToolPermissionsUpdate = {
 };
 
 /**
+ * AnswerOverrideRequest
+ *
+ * The points a teacher gives to one answer: 0 up to the points of the question.
+ */
+export type AnswerOverrideRequest = {
+    /**
+     * Score
+     */
+    score: number;
+};
+
+/**
  * AnswerRead
  */
 export type AnswerRead = {
@@ -115,6 +148,19 @@ export type AnswerRead = {
      * Rubricresult
      */
     rubricResult?: Array<RubricResultItem> | null;
+    /**
+     * Overridescore
+     */
+    overrideScore?: number | null;
+    overrideStatus?: AnswerStatus | null;
+    /**
+     * Overriddenby
+     */
+    overriddenBy?: string | null;
+    /**
+     * Overriddenat
+     */
+    overriddenAt?: Date | null;
 };
 
 /**
@@ -188,6 +234,10 @@ export type AssistRequest = {
      * Toolconfirmations
      */
     toolConfirmations?: Array<ToolConfirmation> | null;
+    /**
+     * Spaceid
+     */
+    spaceId?: string | null;
 };
 
 /**
@@ -325,6 +375,138 @@ export type ChallengeResultItem = {
 };
 
 /**
+ * ClassroomCourseCreate
+ *
+ * A new course inside a classroom. `section_id` is a draft section of the classroom (edit mode).
+ */
+export type ClassroomCourseCreate = {
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
+    /**
+     * Sectionid
+     */
+    sectionId: string;
+};
+
+/**
+ * ClassroomCourseDuplicate
+ *
+ * Copy the published content of a standalone course of the current user into a classroom.
+ */
+export type ClassroomCourseDuplicate = {
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
+    /**
+     * Sectionid
+     */
+    sectionId: string;
+    /**
+     * Sourceid
+     */
+    sourceId: string;
+};
+
+/**
+ * ClassroomCreate
+ *
+ * A classroom is never public: it has no catalog.
+ */
+export type ClassroomCreate = {
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
+    /**
+     * Visibility
+     */
+    visibility?: 1 | 2;
+};
+
+/**
+ * ClassroomSettingsRead
+ *
+ * Owner only. The Class key itself is never returned.
+ */
+export type ClassroomSettingsRead = {
+    feedPermission: FeedPermission;
+    aiProvider: AiProvider | null;
+    /**
+     * Hasclasskey
+     */
+    hasClassKey: boolean;
+    keyPriority: KeyPriority;
+    keyScope: KeyScope;
+    /**
+     * Monthlytokencapperstudent
+     */
+    monthlyTokenCapPerStudent: number | null;
+};
+
+/**
+ * ClassroomSettingsUpdate
+ *
+ * Only the sent fields change.
+ *
+ * `class_key`: send "" to remove the key. `monthly_token_cap_per_student`: null = no cap.
+ */
+export type ClassroomSettingsUpdate = {
+    feedPermission?: FeedPermission | null;
+    aiProvider?: AiProvider | null;
+    /**
+     * Classkey
+     */
+    classKey?: string | null;
+    keyPriority?: KeyPriority | null;
+    keyScope?: KeyScope | null;
+    /**
+     * Monthlytokencapperstudent
+     */
+    monthlyTokenCapPerStudent?: number | null;
+};
+
+/**
+ * ClassroomTokenUsageRead
+ */
+export type ClassroomTokenUsageRead = {
+    /**
+     * Monthstart
+     */
+    monthStart: Date;
+    /**
+     * Students
+     */
+    students: Array<StudentTokenUsage>;
+};
+
+/**
  * CriterionChallengeInput
  */
 export type CriterionChallengeInput = {
@@ -337,6 +519,59 @@ export type CriterionChallengeInput = {
      */
     argument: string;
 };
+
+/**
+ * DueSoonItem
+ *
+ * A classwork item due in the next 24 hours that the current student has not completed.
+ */
+export type DueSoonItem = {
+    /**
+     * Itemid
+     */
+    itemId: string;
+    kind: SpaceItemKind;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Dueat
+     */
+    dueAt: Date;
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    /**
+     * Classroomid
+     */
+    classroomId: string;
+};
+
+/**
+ * FeedPermission
+ *
+ * What students may do in the classroom stream (M5 uses it).
+ */
+export enum FeedPermission {
+    /**
+     * TEACHERS_ONLY
+     */
+    TEACHERS_ONLY = 1,
+    /**
+     * STUDENTS_COMMENT
+     */
+    STUDENTS_COMMENT = 2,
+    /**
+     * STUDENTS_POST_AND_COMMENT
+     */
+    STUDENTS_POST_AND_COMMENT = 3
+}
 
 /**
  * FileTree
@@ -523,6 +758,185 @@ export type GeneratedQuestionPreviewOutput = {
 };
 
 /**
+ * GradeCellStatus
+ *
+ * The state of one student on one test in the gradebook.
+ */
+export enum GradeCellStatus {
+    /**
+     * NOT_STARTED
+     */
+    NOT_STARTED = 1,
+    /**
+     * IN_PROGRESS
+     */
+    IN_PROGRESS = 2,
+    /**
+     * PENDING
+     */
+    PENDING = 3,
+    /**
+     * PASSED
+     */
+    PASSED = 4,
+    /**
+     * FAILED
+     */
+    FAILED = 5
+}
+
+/**
+ * GradebookCell
+ */
+export type GradebookCell = {
+    /**
+     * Itemid
+     */
+    itemId: string;
+    status: GradeCellStatus;
+    /**
+     * Bestscore
+     */
+    bestScore: number | null;
+    /**
+     * Attemptsused
+     */
+    attemptsUsed: number;
+    /**
+     * Bestresultid
+     */
+    bestResultId: string | null;
+    /**
+     * Overridden
+     */
+    overridden: boolean;
+};
+
+/**
+ * GradebookColumn
+ *
+ * One published TEST item. `course_id` is None for a loose item of the classroom.
+ */
+export type GradebookColumn = {
+    /**
+     * Itemid
+     */
+    itemId: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Courseid
+     */
+    courseId: string | null;
+    /**
+     * Passthreshold
+     */
+    passThreshold: number;
+    /**
+     * Maxattempts
+     */
+    maxAttempts: number | null;
+    /**
+     * Dueat
+     */
+    dueAt: Date | null;
+    /**
+     * Hidden
+     */
+    hidden: boolean;
+};
+
+/**
+ * GradebookCourse
+ *
+ * One published course of the classroom. It has one % column.
+ */
+export type GradebookCourse = {
+    /**
+     * Courseid
+     */
+    courseId: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Hidden
+     */
+    hidden: boolean;
+    /**
+     * Totalitems
+     */
+    totalItems: number;
+};
+
+/**
+ * GradebookCourseProgress
+ */
+export type GradebookCourseProgress = {
+    /**
+     * Courseid
+     */
+    courseId: string;
+    /**
+     * Completeditems
+     */
+    completedItems: number;
+    /**
+     * Percent
+     */
+    percent: number;
+};
+
+/**
+ * GradebookRead
+ *
+ * The whole gradebook in one response (no paging: a classroom has tens of students).
+ */
+export type GradebookRead = {
+    /**
+     * Columns
+     */
+    columns: Array<GradebookColumn>;
+    /**
+     * Courses
+     */
+    courses: Array<GradebookCourse>;
+    /**
+     * Rows
+     */
+    rows: Array<GradebookRow>;
+};
+
+/**
+ * GradebookRow
+ */
+export type GradebookRow = {
+    /**
+     * Userid
+     */
+    userId: string;
+    /**
+     * Username
+     */
+    username: string;
+    /**
+     * Displayname
+     */
+    displayName: string | null;
+    /**
+     * Cells
+     */
+    cells: Array<GradebookCell>;
+    /**
+     * Courses
+     */
+    courses: Array<GradebookCourseProgress>;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -531,6 +945,97 @@ export type HttpValidationError = {
      */
     detail?: Array<ValidationError>;
 };
+
+/**
+ * KeyPriority
+ *
+ * Which AI key is used first when a student has a key and the classroom has a Class key.
+ */
+export enum KeyPriority {
+    /**
+     * STUDENT
+     */
+    STUDENT = 1,
+    /**
+     * CLASS
+     */
+    CLASS = 2
+}
+
+/**
+ * KeyScope
+ *
+ * Where the Class key may be used.
+ */
+export enum KeyScope {
+    /**
+     * CLASSROOM_CONTENT
+     */
+    CLASSROOM_CONTENT = 1,
+    /**
+     * ALL
+     */
+    ALL = 2
+}
+
+/**
+ * KeySource
+ *
+ * Which key paid for an AI call (`token_usage.key_source`). Rows from before ST-68 count as STUDENT.
+ */
+export enum KeySource {
+    /**
+     * STUDENT
+     */
+    STUDENT = 1,
+    /**
+     * CLASS
+     */
+    CLASS = 2
+}
+
+/**
+ * KeySourceUsage
+ */
+export type KeySourceUsage = {
+    keySource: KeySource;
+    /**
+     * Monthtokens
+     */
+    monthTokens: number;
+    /**
+     * Monthcost
+     */
+    monthCost: string | null;
+    /**
+     * Totaltokens
+     */
+    totalTokens: number;
+    /**
+     * Totalcost
+     */
+    totalCost: string | null;
+};
+
+/**
+ * KeyStatus
+ *
+ * Which AI key the current user would use in a classroom (`GET /classrooms/{id}/ai-key-status`).
+ */
+export enum KeyStatus {
+    /**
+     * NONE
+     */
+    NONE = 1,
+    /**
+     * STUDENT
+     */
+    STUDENT = 2,
+    /**
+     * CLASS
+     */
+    CLASS = 3
+}
 
 /**
  * LongTextContent
@@ -1498,6 +2003,10 @@ export type SpaceDetail = {
     id: string;
     kind: SpaceKind;
     /**
+     * Parentid
+     */
+    parentId?: string | null;
+    /**
      * Ownerid
      */
     ownerId: string;
@@ -1542,6 +2051,10 @@ export type SpaceDetail = {
      * Includeinsrs
      */
     includeInSrs?: boolean;
+    /**
+     * Parenttitle
+     */
+    parentTitle?: string | null;
     /**
      * Canedit
      */
@@ -1712,6 +2225,10 @@ export type SpaceItemRead = {
      */
     testId: string | null;
     /**
+     * Childspaceid
+     */
+    childSpaceId?: string | null;
+    /**
      * Position
      */
     position: number;
@@ -1749,6 +2266,22 @@ export type SpaceItemRead = {
      */
     timeLimitMinutes?: number | null;
     /**
+     * Dueat
+     */
+    dueAt?: Date | null;
+    /**
+     * Opensat
+     */
+    opensAt?: Date | null;
+    /**
+     * Closesat
+     */
+    closesAt?: Date | null;
+    /**
+     * Visiblefrom
+     */
+    visibleFrom?: Date | null;
+    /**
      * Variants
      */
     variants?: Array<SpaceItemVariantRead>;
@@ -1780,14 +2313,17 @@ export type SpaceItemRead = {
      * Openattemptdeadlineat
      */
     openAttemptDeadlineAt?: Date | null;
+    childProgress?: SpaceProgress | null;
 };
 
 /**
  * SpaceItemUpdate
  *
- * The attempt policy of a TEST item. Only the sent fields change.
+ * The attempt policy of a TEST item and the schedule of any item. Only the sent fields change.
  *
  * `max_attempts`, `cooldown_hours` and `time_limit_minutes`: null = no limit (a sent null is valid).
+ * `due_at`, `opens_at`, `closes_at` and `visible_from`: null = clear (a sent null is valid).
+ * `opens_at` and `closes_at` apply to TEST items only.
  */
 export type SpaceItemUpdate = {
     /**
@@ -1807,6 +2343,22 @@ export type SpaceItemUpdate = {
      * Timelimitminutes
      */
     timeLimitMinutes?: number | null;
+    /**
+     * Dueat
+     */
+    dueAt?: Date | null;
+    /**
+     * Opensat
+     */
+    opensAt?: Date | null;
+    /**
+     * Closesat
+     */
+    closesAt?: Date | null;
+    /**
+     * Visiblefrom
+     */
+    visibleFrom?: Date | null;
 };
 
 /**
@@ -2059,6 +2611,10 @@ export type SpaceSummary = {
     id: string;
     kind: SpaceKind;
     /**
+     * Parentid
+     */
+    parentId?: string | null;
+    /**
      * Ownerid
      */
     ownerId: string;
@@ -2178,6 +2734,48 @@ export type SpaceVisitRequest = {
      * Itemid
      */
     itemId: string;
+};
+
+/**
+ * StudentTokenUsage
+ */
+export type StudentTokenUsage = {
+    /**
+     * Userid
+     */
+    userId: string;
+    /**
+     * Username
+     */
+    username: string;
+    /**
+     * Displayname
+     */
+    displayName: string | null;
+    /**
+     * Isactive
+     */
+    isActive: boolean;
+    /**
+     * Monthtokens
+     */
+    monthTokens: number;
+    /**
+     * Monthcost
+     */
+    monthCost: string | null;
+    /**
+     * Totaltokens
+     */
+    totalTokens: number;
+    /**
+     * Totalcost
+     */
+    totalCost: string | null;
+    /**
+     * Bysource
+     */
+    bySource: Array<KeySourceUsage>;
 };
 
 /**
@@ -2559,6 +3157,10 @@ export type TestResultRead = {
      * Isolderversion
      */
     isOlderVersion?: boolean;
+    /**
+     * Canoverride
+     */
+    canOverride?: boolean;
     /**
      * Answers
      */
@@ -3982,6 +4584,66 @@ export type AnswersChallengeResponses = {
 };
 
 export type AnswersChallengeResponse = AnswersChallengeResponses[keyof AnswersChallengeResponses];
+
+export type AnswersClearOverrideData = {
+    body?: never;
+    path: {
+        /**
+         * Answer Id
+         */
+        answer_id: string;
+    };
+    query?: never;
+    url: '/api/v1/answers/{answer_id}/override';
+};
+
+export type AnswersClearOverrideErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AnswersClearOverrideError = AnswersClearOverrideErrors[keyof AnswersClearOverrideErrors];
+
+export type AnswersClearOverrideResponses = {
+    /**
+     * Successful Response
+     */
+    200: TestResultRead;
+};
+
+export type AnswersClearOverrideResponse = AnswersClearOverrideResponses[keyof AnswersClearOverrideResponses];
+
+export type AnswersSetOverrideData = {
+    body: AnswerOverrideRequest;
+    path: {
+        /**
+         * Answer Id
+         */
+        answer_id: string;
+    };
+    query?: never;
+    url: '/api/v1/answers/{answer_id}/override';
+};
+
+export type AnswersSetOverrideErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AnswersSetOverrideError = AnswersSetOverrideErrors[keyof AnswersSetOverrideErrors];
+
+export type AnswersSetOverrideResponses = {
+    /**
+     * Successful Response
+     */
+    200: TestResultRead;
+};
+
+export type AnswersSetOverrideResponse = AnswersSetOverrideResponses[keyof AnswersSetOverrideResponses];
 
 export type ReviewListData = {
     body?: never;
@@ -6033,6 +6695,309 @@ export type SpacesSetMemberRoleResponses = {
 };
 
 export type SpacesSetMemberRoleResponse = SpacesSetMemberRoleResponses[keyof SpacesSetMemberRoleResponses];
+
+export type ClassroomsListMineData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: 'active' | 'archived' | 'all';
+        /**
+         * Role
+         */
+        role?: Array<SpaceRole> | null;
+    };
+    url: '/api/v1/classrooms';
+};
+
+export type ClassroomsListMineErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsListMineError = ClassroomsListMineErrors[keyof ClassroomsListMineErrors];
+
+export type ClassroomsListMineResponses = {
+    /**
+     * Response Classroomslistmine
+     *
+     * Successful Response
+     */
+    200: Array<SpaceSummary>;
+};
+
+export type ClassroomsListMineResponse = ClassroomsListMineResponses[keyof ClassroomsListMineResponses];
+
+export type ClassroomsCreateData = {
+    body: ClassroomCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/classrooms';
+};
+
+export type ClassroomsCreateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsCreateError = ClassroomsCreateErrors[keyof ClassroomsCreateErrors];
+
+export type ClassroomsCreateResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceDetail;
+};
+
+export type ClassroomsCreateResponse = ClassroomsCreateResponses[keyof ClassroomsCreateResponses];
+
+export type ClassroomsGetSettingsData = {
+    body?: never;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/settings';
+};
+
+export type ClassroomsGetSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsGetSettingsError = ClassroomsGetSettingsErrors[keyof ClassroomsGetSettingsErrors];
+
+export type ClassroomsGetSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ClassroomSettingsRead;
+};
+
+export type ClassroomsGetSettingsResponse = ClassroomsGetSettingsResponses[keyof ClassroomsGetSettingsResponses];
+
+export type ClassroomsUpdateSettingsData = {
+    body: ClassroomSettingsUpdate;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/settings';
+};
+
+export type ClassroomsUpdateSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsUpdateSettingsError = ClassroomsUpdateSettingsErrors[keyof ClassroomsUpdateSettingsErrors];
+
+export type ClassroomsUpdateSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ClassroomSettingsRead;
+};
+
+export type ClassroomsUpdateSettingsResponse = ClassroomsUpdateSettingsResponses[keyof ClassroomsUpdateSettingsResponses];
+
+export type ClassroomsAddCourseData = {
+    body: ClassroomCourseCreate;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/courses';
+};
+
+export type ClassroomsAddCourseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsAddCourseError = ClassroomsAddCourseErrors[keyof ClassroomsAddCourseErrors];
+
+export type ClassroomsAddCourseResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceDetail;
+};
+
+export type ClassroomsAddCourseResponse = ClassroomsAddCourseResponses[keyof ClassroomsAddCourseResponses];
+
+export type ClassroomsAddCourseCopyData = {
+    body: ClassroomCourseDuplicate;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/courses/duplicate';
+};
+
+export type ClassroomsAddCourseCopyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsAddCourseCopyError = ClassroomsAddCourseCopyErrors[keyof ClassroomsAddCourseCopyErrors];
+
+export type ClassroomsAddCourseCopyResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceDetail;
+};
+
+export type ClassroomsAddCourseCopyResponse = ClassroomsAddCourseCopyResponses[keyof ClassroomsAddCourseCopyResponses];
+
+export type ClassroomsDueSoonData = {
+    body?: never;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/due-soon';
+};
+
+export type ClassroomsDueSoonErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsDueSoonError = ClassroomsDueSoonErrors[keyof ClassroomsDueSoonErrors];
+
+export type ClassroomsDueSoonResponses = {
+    /**
+     * Response Classroomsduesoon
+     *
+     * Successful Response
+     */
+    200: Array<DueSoonItem>;
+};
+
+export type ClassroomsDueSoonResponse = ClassroomsDueSoonResponses[keyof ClassroomsDueSoonResponses];
+
+export type ClassroomsGradebookData = {
+    body?: never;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/gradebook';
+};
+
+export type ClassroomsGradebookErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsGradebookError = ClassroomsGradebookErrors[keyof ClassroomsGradebookErrors];
+
+export type ClassroomsGradebookResponses = {
+    /**
+     * Successful Response
+     */
+    200: GradebookRead;
+};
+
+export type ClassroomsGradebookResponse = ClassroomsGradebookResponses[keyof ClassroomsGradebookResponses];
+
+export type ClassroomsAiKeyStatusData = {
+    body?: never;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/ai-key-status';
+};
+
+export type ClassroomsAiKeyStatusErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsAiKeyStatusError = ClassroomsAiKeyStatusErrors[keyof ClassroomsAiKeyStatusErrors];
+
+export type ClassroomsAiKeyStatusResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiKeyStatusRead;
+};
+
+export type ClassroomsAiKeyStatusResponse = ClassroomsAiKeyStatusResponses[keyof ClassroomsAiKeyStatusResponses];
+
+export type ClassroomsTokenUsageData = {
+    body?: never;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/token-usage';
+};
+
+export type ClassroomsTokenUsageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsTokenUsageError = ClassroomsTokenUsageErrors[keyof ClassroomsTokenUsageErrors];
+
+export type ClassroomsTokenUsageResponses = {
+    /**
+     * Successful Response
+     */
+    200: ClassroomTokenUsageRead;
+};
+
+export type ClassroomsTokenUsageResponse = ClassroomsTokenUsageResponses[keyof ClassroomsTokenUsageResponses];
 
 export type DefaultHealthData = {
     body?: never;

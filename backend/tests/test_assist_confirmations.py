@@ -23,6 +23,7 @@ from app.models.user import User
 from app.schemas.assist import AssistMessage, AssistRequest, ToolCallData, ToolConfirmation, ToolResultData
 from app.services.assist_service import DECLINED_OUTPUT, NOT_CONFIRMED_OUTPUT, stream_assist
 from app.services.llm import StreamResult, TextDelta, ToolCallDelta
+from tests.llm_fakes import resolve_to
 
 ASSIST = "app.services.assist_service"
 
@@ -74,7 +75,7 @@ def _run(
 ) -> tuple[list[tuple[str, dict[str, Any]]], MagicMock, MagicMock]:
     request = AssistRequest(messages=messages, tool_confirmations=confirmations)
     with (
-        patch(f"{ASSIST}.get_user_llm_client", return_value=llm),
+        patch(f"{ASSIST}.resolve_llm", side_effect=resolve_to(llm)),
         patch(f"{ASSIST}.build_confirm_context", return_value=None),
         patch(f"{ASSIST}.execute_tool") as execute,
         patch(f"{ASSIST}.token_usage_service") as usage_service,
@@ -208,7 +209,7 @@ class TestDoneAndUsage:
         llm = _FakeLLM(_end())
         request = AssistRequest(messages=[USER_MSG])
         with (
-            patch(f"{ASSIST}.get_user_llm_client", return_value=llm),
+            patch(f"{ASSIST}.resolve_llm", side_effect=resolve_to(llm)),
             patch(f"{ASSIST}.token_usage_service") as usage_service,
         ):
             usage_service.record_usage.side_effect = RuntimeError("db down")
@@ -225,7 +226,7 @@ class TestDoneAndUsage:
         )
         request = AssistRequest(messages=[USER_MSG])
         with (
-            patch(f"{ASSIST}.get_user_llm_client", return_value=_FakeLLM(read_round, _end())),
+            patch(f"{ASSIST}.resolve_llm", side_effect=resolve_to(_FakeLLM(read_round, _end()))),
             patch(f"{ASSIST}.execute_tool") as execute,
             patch(f"{ASSIST}.token_usage_service") as usage_service,
         ):

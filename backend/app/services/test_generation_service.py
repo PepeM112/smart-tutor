@@ -442,7 +442,7 @@ def _call_and_validate(
 ) -> _GenerationResult:
     """Call the LLM and validate the response. Retry once on validation failure."""
     result = complete_for_user(
-        user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=max_tokens
+        user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=max_tokens, db=db
     )
     _record_usage(db, user=user, result=result)
     questions, errors = _validate_generated_questions(result.text, requested_types)
@@ -454,7 +454,7 @@ def _call_and_validate(
         logger.warning("First attempt failed validation: %s. Retrying...", errors)
         retry_prompt = build_retry_user_prompt(user_prompt, errors)
         result = complete_for_user(
-            user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=retry_prompt, max_tokens=max_tokens
+            user=user, system=TEST_GENERATION_SYSTEM_PROMPT, user_prompt=retry_prompt, max_tokens=max_tokens, db=db
         )
         _record_usage(db, user=user, result=result)
         questions, retry_errors = _validate_generated_questions(result.text, requested_types)

@@ -25,6 +25,7 @@ import { useCourse } from '../hooks/useCourse';
 import { useVisitItem } from '../hooks/useCourseProgress';
 import { findItem, isCourseViewer } from '../lib/progress';
 import { courseQueryKeys, markCourseDetailStale } from '../lib/queryKeys';
+import { courseCrumbs } from '../lib/spaceCrumbs';
 
 import { AttemptStartCard } from './AttemptStartCard';
 
@@ -149,7 +150,7 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
   useBreadcrumb(
     attempt?.test.title ?? t('tests.take_test'),
     [
-      { label: t('courses.title'), href: Routes.COURSES },
+      ...courseCrumbs(course, { courses: t('courses.title'), classrooms: t('classrooms.title') }),
       ...(course ? [{ label: course.title, href: courseHref(course) }] : []),
     ],
     courseUrl

@@ -67,3 +67,11 @@ class SpaceItem(Base, CreatedAtMixin):
     # this time no longer count (best score, completion, attempts used). NULL = nothing was reset.
     # Not copied to drafts or duplicates (`copy_policy` leaves it out).
     progress_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Scheduling (all optional, UTC). `due_at`: shown in "Due soon" (classroom items; allowed on any item).
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # TEST items: attempts can start only inside the window. The attempt deadline is never after `closes_at`.
+    opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # A future value hides the item from students (VIEWER). Authors still see it.
+    visible_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
