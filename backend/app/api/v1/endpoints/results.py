@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.dependencies.auth import CurrentUser
-from app.models.test_result import TestResult
+from app.schemas.test import TestRead, TestReadStripped
 from app.schemas.test_result import (
     PaginatedTestResultListItem,
     SortOrder,
@@ -56,5 +56,11 @@ def list_(
 
 
 @router.get("/{result_id}", response_model=TestResultRead)
-def get(result_id: str, db: DbSession, current_user: CurrentUser) -> TestResult:
-    return test_result_service.get_result(db, result_id=result_id, current_user=current_user)
+def get(result_id: str, db: DbSession, current_user: CurrentUser) -> TestResultRead:
+    return test_result_service.get_result_read(db, result_id=result_id, current_user=current_user)
+
+
+@router.get("/{result_id}/test", response_model=TestRead | TestReadStripped)
+def get_test(result_id: str, db: DbSession, current_user: CurrentUser) -> TestRead | TestReadStripped:
+    """The test version of a result. A VIEWER of a course gets it without answers until the item reveals them."""
+    return test_result_service.get_result_test(db, result_id=result_id, current_user=current_user)

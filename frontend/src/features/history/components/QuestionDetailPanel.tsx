@@ -2,20 +2,20 @@
 
 import { useTranslations } from 'next-intl';
 
-import { type AnswerRead, type QuestionRead, QuestionType } from '@/client';
+import { type AnswerRead, QuestionType } from '@/client';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import { LongTextReview } from './LongTextReview';
 import { MultipleChoiceReview } from './MultipleChoiceReview';
-import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong } from './resultDetailUtils';
+import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong, type ResultQuestion } from './resultDetailUtils';
 
 export function QuestionDetailPanel({
   question,
   answer,
   number,
 }: {
-  question: QuestionRead;
+  question: ResultQuestion;
   answer?: AnswerRead;
   number: number;
 }) {
@@ -45,7 +45,7 @@ export function QuestionDetailPanel({
   );
 }
 
-function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
+function SimpleQuestionDetail({ question, answer }: { question: ResultQuestion; answer?: AnswerRead }) {
   const t = useTranslations();
   const status = answer?.status ?? null;
   const isWrong = isAnswerWrong(status);
@@ -75,7 +75,7 @@ function SimpleQuestionDetail({ question, answer }: { question: QuestionRead; an
   );
 }
 
-function MCQuestionDetail({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
+function MCQuestionDetail({ question, answer }: { question: ResultQuestion; answer?: AnswerRead }) {
   const t = useTranslations();
 
   return (

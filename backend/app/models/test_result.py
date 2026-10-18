@@ -24,9 +24,19 @@ class TestResult(Base, CreatedAtMixin):
     earned_points: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
     total_points: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
 
+    # Set when the result comes from an attempt on a course test item. SET NULL if the item is removed.
+    space_item_id: Mapped[str | None] = mapped_column(
+        String(26), ForeignKey("space_item.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     answers: Mapped[list["Answer"]] = relationship(cascade="all, delete-orphan", foreign_keys="Answer.test_result_id")
     test: Mapped["Test"] = relationship(foreign_keys=[test_id])
 
     @property
     def test_title(self) -> str:
         return self.test.title if self.test else ""
+
+    @property
+    def is_older_version(self) -> bool:
+        """The result is on a frozen snapshot: the test was edited after this exam."""
+        return self.test is not None and self.test.parent_id is not None

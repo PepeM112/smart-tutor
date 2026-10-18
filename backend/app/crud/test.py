@@ -43,6 +43,16 @@ def get_by_id_for_update(db: Session, *, id: str) -> Test | None:
     return db.scalars(stmt).first()
 
 
+def get_snapshot(db: Session, *, parent_id: str, version: int) -> Test | None:
+    """The frozen copy of test `parent_id` that holds the content of `version` (see versioning_service)."""
+    stmt = (
+        select(Test)
+        .options(*active_load_options())
+        .where(Test.parent_id == parent_id, Test.version == version, Test.status == TestStatus.ACTIVE)
+    )
+    return db.scalars(stmt).first()
+
+
 _SORT_COLUMNS: dict[str, InstrumentedAttribute[object]] = {
     "title": Test.title,
     "created_at": Test.created_at,

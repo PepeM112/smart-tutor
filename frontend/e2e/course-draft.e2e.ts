@@ -26,6 +26,14 @@ test('a member opens a note in the preview panel', async ({ pageAs }) => {
   await expect(viewer.getByText('DRAFT CHANGE')).toHaveCount(0);
 });
 
+test('a member copies the previewed note to the library', async ({ pageAs }) => {
+  const viewer = await pageAs('viewer');
+  await openCourse(viewer, COURSE);
+  await viewer.getByRole('button', { name: 'Pronouns' }).click();
+  await viewer.getByRole('button', { name: 'Copy to my library' }).click();
+  await expectToast(viewer, 'Copied to your library');
+});
+
 test('the owner discards the draft', async ({ pageAs }) => {
   const owner = await pageAs('owner');
   await openCourse(owner, COURSE);

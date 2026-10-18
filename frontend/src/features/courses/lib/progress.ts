@@ -1,0 +1,51 @@
+import {
+  SpaceItemKind,
+  SpaceRole,
+  SpaceStatus,
+  type SpaceDetail,
+  type SpaceItemRead,
+  type SpaceSectionRead,
+} from '@/client';
+
+/** What the Start / Resume button of a test row does. */
+export type AttemptAction = 'resume' | 'start' | 'no_attempts_left' | 'cooldown';
+
+/** A viewer tracks progress. The owner and the editors preview the course: no completion, no attempt rows. */
+export function isCourseViewer(course: Pick<SpaceDetail, 'myRole'>): boolean {
+  return course.myRole === SpaceRole.VIEWER;
+}
+
+/** A viewer can mark notes and start attempts only while the course is not archived (the backend gives 409). */
+export function canTrackProgress(course: Pick<SpaceDetail, 'myRole' | 'status'>): boolean {
+  return isCourseViewer(course) && course.status !== SpaceStatus.ARCHIVED;
+}
+
+export function flattenItems(sections: SpaceSectionRead[]): SpaceItemRead[] {
+  return sections.flatMap(section => section.items);
+}
+
+/**
+ * The item that "Continue" opens: the item the student opened last (`progress.lastItemId`).
+ * If there is none, or it is not in the published outline any more, the first item that is not done.
+ * No item = the course is empty or done.
+ */
+export function continueItem(sections: SpaceSectionRead[], lastItemId?: string | null): SpaceItemRead | null {
+  const items = flattenItems(sections);
+  return items.find(item => item.id === lastItemId) ?? items.find(item => !item.completed) ?? null;
+}
+
+/** The NOTE item that shows a note, if any. */
+export function findNoteItem(sections: SpaceSectionRead[], noteId: string): SpaceItemRead | undefined {
+  return flattenItems(sections).find(item => item.kind === SpaceItemKind.NOTE && item.noteId === noteId);
+}
+
+/** An open attempt always resumes. A new attempt needs an attempt left and no running cooldown. */
+export function attemptAction(
+  item: Pick<SpaceItemRead, 'openAttemptId' | 'attemptsLeft' | 'nextAttemptAt'>,
+  now: Date
+): AttemptAction {
+  if (item.openAttemptId) return 'resume';
+  if (item.attemptsLeft === 0) return 'no_attempts_left';
+  if (item.nextAttemptAt && item.nextAttemptAt.getTime() > now.getTime()) return 'cooldown';
+  return 'start';
+}

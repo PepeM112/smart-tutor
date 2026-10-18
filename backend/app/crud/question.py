@@ -4,13 +4,16 @@ from datetime import datetime, timezone
 from typing import cast
 
 import sqlalchemy as sa
-from sqlalchemy import Select, UnaryExpression, func, select
+from sqlalchemy import ColumnElement, Select, UnaryExpression, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session, aliased, contains_eager, joinedload, selectinload
 
-from app.core.enums import QuestionStatus, QuestionType, TestStatus
+from app.core.enums import MemberStatus, QuestionStatus, QuestionType, RevealAnswers, TestStatus
 from app.crud.helpers import token_search
 from app.models.answer import Answer
 from app.models.question import Question
+from app.models.space_item import SpaceItem
+from app.models.space_item_test import SpaceItemTest
+from app.models.space_member import SpaceMember
 from app.models.test import Test
 from app.models.test_question_group import TestQuestionGroup
 from app.models.user_question_state import UserQuestionState
@@ -22,6 +25,10 @@ from app.schemas.question import (
     QuestionUpdate,
     SortOrder,
 )
+
+# Review scopes. Any other value is the id of one course.
+REVIEW_SCOPE_ALL = "all"
+REVIEW_SCOPE_PERSONAL = "personal"
 
 
 def get_by_id(db: Session, *, id: str, active_only: bool = False) -> Question | None:
@@ -264,11 +271,45 @@ def bulk_restore(db: Session, *, questions: Sequence[Question]) -> None:
     db.flush()
 
 
-def list_random_for_user(db: Session, *, user_id: str, limit: int) -> Sequence[Question]:
-    return db.scalars(_reviewable_base_query(user_id=user_id).order_by(func.random()).limit(limit)).all()
+def list_random_for_user(db: Session, *, user_id: str, limit: int, scope: str = REVIEW_SCOPE_ALL) -> Sequence[Question]:
+    return db.scalars(_reviewable_base_query(user_id=user_id, scope=scope).order_by(func.random()).limit(limit)).all()
 
 
-def _reviewable_base_query(*, user_id: str) -> Select[tuple[Question]]:
+def _reviewable_test_filter(*, user_id: str, scope: str) -> ColumnElement[bool]:
+    """Which tests feed Review (`scope`: "all", "personal", or the id of one course).
+
+    - Personal tests of the user.
+    - Course tests of the courses where the user is an ACTIVE member with `include_in_srs` on: published
+      only (never a draft), and linked to a published item that does not hide its answers (reveal NEVER).
+    """
+    personal = sa.and_(Test.user_id == user_id, Test.space_id.is_(None))
+    opted_in_spaces = select(SpaceMember.space_id).where(
+        SpaceMember.user_id == user_id,
+        SpaceMember.status == int(MemberStatus.ACTIVE),
+        SpaceMember.include_in_srs.is_(True),
+    )
+    reviewable_item = (
+        select(SpaceItemTest.test_id)
+        .join(SpaceItem, SpaceItem.id == SpaceItemTest.item_id)
+        .where(
+            SpaceItemTest.test_id == Test.id,
+            SpaceItem.is_draft.is_(False),
+            SpaceItem.reveal_answers != int(RevealAnswers.NEVER),
+        )
+    )
+    course = sa.and_(
+        Test.space_id.in_(opted_in_spaces),
+        Test.is_draft.is_(False),
+        reviewable_item.exists(),
+    )
+    if scope == REVIEW_SCOPE_PERSONAL:
+        return personal
+    if scope == REVIEW_SCOPE_ALL:
+        return sa.or_(personal, course)
+    return sa.and_(course, Test.space_id == scope)
+
+
+def _reviewable_base_query(*, user_id: str, scope: str = REVIEW_SCOPE_ALL) -> Select[tuple[Question]]:
     # Questions reach their owning test through two paths:
     #   - Standalone: Question.test_id → Test.id
     #   - Grouped:    Question.group_id → TestQuestionGroup.test_id → Test.id
@@ -279,8 +320,7 @@ def _reviewable_base_query(*, user_id: str) -> Select[tuple[Question]]:
         .outerjoin(TestQuestionGroup, Question.group_id == TestQuestionGroup.id)
         .join(Test, resolved_test_id == Test.id)
         .where(
-            Test.user_id == user_id,
-            Test.space_id.is_(None),  # personal tests only; course questions in SRS come later (opt-in)
+            _reviewable_test_filter(user_id=user_id, scope=scope),
             Test.status == int(TestStatus.ACTIVE),
             Test.parent_id.is_(None),
             Question.status == int(QuestionStatus.ACTIVE),
@@ -289,10 +329,16 @@ def _reviewable_base_query(*, user_id: str) -> Select[tuple[Question]]:
     )
 
 
-def list_due_for_review(db: Session, *, user_id: str, limit: int) -> Sequence[Question]:
+def is_reviewable(db: Session, *, question_id: str, user_id: str) -> bool:
+    """Is the question in the Review pool of the user (scope "all")? Used to check a course question."""
+    stmt = _reviewable_base_query(user_id=user_id).where(Question.id == question_id).limit(1)
+    return db.execute(stmt).first() is not None
+
+
+def list_due_for_review(db: Session, *, user_id: str, limit: int, scope: str = REVIEW_SCOPE_ALL) -> Sequence[Question]:
     now = datetime.now(timezone.utc)
     stmt = (
-        _reviewable_base_query(user_id=user_id)
+        _reviewable_base_query(user_id=user_id, scope=scope)
         .join(UserQuestionState, UserQuestionState.question_id == Question.id)
         .where(
             UserQuestionState.user_id == user_id,
@@ -304,9 +350,9 @@ def list_due_for_review(db: Session, *, user_id: str, limit: int) -> Sequence[Qu
     return db.scalars(stmt).all()
 
 
-def list_new_for_review(db: Session, *, user_id: str, limit: int) -> Sequence[Question]:
+def list_new_for_review(db: Session, *, user_id: str, limit: int, scope: str = REVIEW_SCOPE_ALL) -> Sequence[Question]:
     stmt = (
-        _reviewable_base_query(user_id=user_id)
+        _reviewable_base_query(user_id=user_id, scope=scope)
         .outerjoin(
             UserQuestionState,
             (UserQuestionState.question_id == Question.id) & (UserQuestionState.user_id == user_id),
@@ -318,6 +364,6 @@ def list_new_for_review(db: Session, *, user_id: str, limit: int) -> Sequence[Qu
     return db.scalars(stmt).all()
 
 
-def user_has_questions(db: Session, *, user_id: str) -> bool:
-    stmt = _reviewable_base_query(user_id=user_id).limit(1)
+def user_has_questions(db: Session, *, user_id: str, scope: str = REVIEW_SCOPE_ALL) -> bool:
+    stmt = _reviewable_base_query(user_id=user_id, scope=scope).limit(1)
     return db.execute(stmt).first() is not None

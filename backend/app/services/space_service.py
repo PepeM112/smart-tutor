@@ -14,11 +14,20 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.constants import SPACE_JOIN_CODE_LENGTH
-from app.core.enums import MemberStatus, SpaceItemKind, SpaceKind, SpaceRole, SpaceStatus, SpaceVisibility
+from app.core.enums import (
+    MemberStatus,
+    RevealAnswers,
+    SpaceItemKind,
+    SpaceKind,
+    SpaceRole,
+    SpaceStatus,
+    SpaceVisibility,
+)
 from app.crud import note as note_crud
 from app.crud import space as space_crud
 from app.crud import space_content as space_content_crud
 from app.crud import space_item as space_item_crud
+from app.crud import space_item_test as space_item_test_crud
 from app.crud import space_member as space_member_crud
 from app.crud import space_section as space_section_crud
 from app.crud import test as test_crud
@@ -35,13 +44,15 @@ from app.schemas.space import (
     SpaceDetail,
     SpaceDuplicateRequest,
     SpaceItemRead,
+    SpaceItemVariantRead,
     SpaceListStatus,
     SpaceSectionRead,
     SpaceSummary,
     SpaceUpdate,
 )
+from app.services import space_progress_service
 from app.services.access_service import EDIT_ROLES
-from app.services.space_changes_service import has_unpublished_changes
+from app.services.space_changes_service import has_unpublished_changes, item_changed
 from app.services.versioning_service import clone_test
 
 # Lowercase letters and digits without look-alikes (0/o, 1/l/i), so a code read aloud is not mistyped.
@@ -145,6 +156,15 @@ def build_summaries(db: Session, *, spaces: Sequence[Space], current_user: User)
     owners = {u.id: u for u in user_crud.list_by_ids(db, ids=list({s.owner_id for s in spaces}))}
     counts = space_crud.count_active_members(db, space_ids=space_ids)
     rows = space_member_crud.get_statuses(db, user_id=current_user.id, space_ids=space_ids)
+    viewer_ids = [
+        s.id
+        for s in spaces
+        if s.owner_id != current_user.id
+        and (row := rows.get(s.id)) is not None
+        and row == (int(SpaceRole.VIEWER), int(MemberStatus.ACTIVE))
+    ]
+    progress = space_progress_service.course_progress(db, space_ids=viewer_ids, user_id=current_user.id)
+    srs_space_ids = space_member_crud.list_srs_space_ids(db, user_id=current_user.id, space_ids=space_ids)
 
     def my_role(space: Space) -> SpaceRole | None:
         if space.owner_id == current_user.id:
@@ -173,21 +193,31 @@ def build_summaries(db: Session, *, spaces: Sequence[Space], current_user: User)
             member_count=counts.get(s.id, 0),
             my_role=my_role(s),
             my_status=my_status(s),
+            progress=progress.get(s.id),
+            include_in_srs=s.id in srs_space_ids,
         )
         for s in spaces
     ]
 
 
-def _build_sections(db: Session, *, space_id: str, is_draft: bool) -> list[SpaceSectionRead]:
+def _build_sections(
+    db: Session, *, space_id: str, is_draft: bool, viewer_id: str | None = None, can_author: bool = False
+) -> list[SpaceSectionRead]:
     """The structure with the title of each item.
 
     For a draft item, the title comes from the draft twin when one exists, and `has_changes`
-    marks a new item, new content or an edited twin.
+    marks a new item, new content, an edited twin, or a changed policy or variant list.
+    A TEST item shows its first variant (`test_id`, `title`). `can_author` adds the variant list.
+    `viewer_id` (a VIEWER of the course) adds the per-user progress fields: one query per kind.
     """
     sections = space_section_crud.list_by_space(db, space_id=space_id, is_draft=is_draft)
     items = space_item_crud.list_by_space(db, space_id=space_id, is_draft=is_draft)
+    published = (
+        {i.id: i for i in space_item_crud.list_by_space(db, space_id=space_id, is_draft=False)} if is_draft else {}
+    )
+    links = space_item_test_crud.list_by_items(db, item_ids=[i.id for i in [*items, *published.values()]])
     note_ids = [i.note_id for i in items if i.note_id]
-    test_ids = [i.test_id for i in items if i.test_id]
+    test_ids = [t for i in items for t in links.get(i.id, [])]
     notes = {n.id: n for n in space_content_crud.list_notes(db, ids=note_ids)}
     tests = {t.id: t for t in space_content_crud.list_tests(db, ids=test_ids)}
     note_twins = (
@@ -196,24 +226,59 @@ def _build_sections(db: Session, *, space_id: str, is_draft: bool) -> list[Space
     test_twins = (
         {t.draft_of_id: t for t in space_content_crud.list_test_twins(db, published_ids=test_ids)} if is_draft else {}
     )
+    states = space_progress_service.item_states(db, items=items, user_id=viewer_id) if viewer_id else {}
 
     def item_read(item: SpaceItem) -> SpaceItemRead:
-        content_id = item.note_id or item.test_id or ""
+        variant_ids = links.get(item.id, [])
+        content_id = item.note_id or (variant_ids[0] if variant_ids else "")
         source = notes.get(content_id) or tests.get(content_id)
-        twin = note_twins.get(content_id) or test_twins.get(content_id)
-        shown = twin or source
-        is_new_content = source is not None and source.is_draft
+        shown = note_twins.get(content_id) or test_twins.get(content_id) or source
+        is_test = item.kind == int(SpaceItemKind.TEST)
+        live = published.get(item.draft_of_id or "")
+        has_changes = is_draft and (
+            item.draft_of_id is None
+            or live is None
+            or item_changed(item, live, links)
+            or any(
+                (tests.get(c) is not None and tests[c].is_draft) or c in test_twins or c in note_twins
+                for c in ([item.note_id] if item.note_id else variant_ids)
+            )
+        )
+        state = states.get(item.id)
+        attempt = state.open_attempt if state else None
         return SpaceItemRead(
             id=item.id,
             section_id=item.section_id,
             kind=SpaceItemKind(item.kind),
             note_id=item.note_id,
-            test_id=item.test_id,
+            test_id=variant_ids[0] if variant_ids else None,
             position=item.position,
             title=shown.title if shown is not None else "",
             is_draft=item.is_draft,
             draft_of_id=item.draft_of_id,
-            has_changes=is_draft and (item.draft_of_id is None or is_new_content or twin is not None),
+            has_changes=has_changes,
+            pass_threshold=item.pass_threshold if is_test else None,
+            max_attempts=item.max_attempts,
+            cooldown_hours=item.cooldown_hours,
+            reveal_answers=RevealAnswers(item.reveal_answers) if is_test else None,
+            time_limit_minutes=item.time_limit_minutes,
+            variants=[
+                SpaceItemVariantRead(
+                    test_id=t,
+                    title=(test_twins.get(t) or tests[t]).title if t in tests else "",
+                    position=position,
+                )
+                for position, t in enumerate(variant_ids)
+            ]
+            if can_author and is_test
+            else [],
+            completed=state.completed if state else False,
+            best_score=state.best_score if state else None,
+            attempts_used=state.attempts_used if state else None,
+            attempts_left=state.attempts_left if state else None,
+            next_attempt_at=state.next_attempt_at if state else None,
+            open_attempt_id=attempt.id if attempt else None,
+            open_attempt_deadline_at=attempt.deadline_at if attempt else None,
         )
 
     def section_read(section: SpaceSection) -> SpaceSectionRead:
@@ -251,8 +316,18 @@ def build_detail(db: Session, *, space: Space, current_user: User) -> SpaceDetai
         is_editing=is_editing,
         has_unpublished_changes=show_draft and has_unpublished_changes(db, space=space),
         join_code=space.join_code if membership.can_author else None,
-        sections=_build_sections(db, space_id=space.id, is_draft=False) if is_member or can_preview else [],
-        draft_sections=_build_sections(db, space_id=space.id, is_draft=True) if show_draft else None,
+        sections=(
+            _build_sections(
+                db,
+                space_id=space.id,
+                is_draft=False,
+                viewer_id=current_user.id if membership.role == SpaceRole.VIEWER else None,
+                can_author=membership.can_author,
+            )
+            if is_member or can_preview
+            else []
+        ),
+        draft_sections=(_build_sections(db, space_id=space.id, is_draft=True, can_author=True) if show_draft else None),
     )
 
 
@@ -350,6 +425,7 @@ def duplicate_course(db: Session, *, space_id: str, current_user: User, data: Sp
         draft_started_at=now(),
     )
     items = space_item_crud.list_by_space(db, space_id=source.id, is_draft=False)
+    links = space_item_test_crud.list_by_items(db, item_ids=[i.id for i in items])
     notes = {n.id: n for n in space_content_crud.list_notes(db, ids=[i.note_id for i in items if i.note_id])}
 
     for section in space_section_crud.list_by_space(db, space_id=source.id, is_draft=False):
@@ -357,7 +433,9 @@ def duplicate_course(db: Session, *, space_id: str, current_user: User, data: Sp
             db, space_id=copy.id, title=section.title, position=section.position, is_draft=True
         )
         for item in (i for i in items if i.section_id == section.id):
-            note_id, test_id = _copy_item_content(db, item=item, notes=notes, space=copy, user=current_user)
+            note_id, test_ids = _copy_item_content(
+                db, item=item, notes=notes, variants=links.get(item.id, []), space=copy, user=current_user
+            )
             space_item_crud.create(
                 db,
                 space_id=copy.id,
@@ -366,16 +444,20 @@ def duplicate_course(db: Session, *, space_id: str, current_user: User, data: Sp
                 position=item.position,
                 is_draft=True,
                 note_id=note_id,
-                test_id=test_id,
+                test_ids=test_ids,
+                policy_from=item,
             )
     db.commit()
     return build_detail(db, space=copy, current_user=current_user)
 
 
 def _copy_item_content(
-    db: Session, *, item: SpaceItem, notes: dict[str, Note], space: Space, user: User
-) -> tuple[str | None, str | None]:
-    """Copy the content of one published item into `space` as draft content. Returns (note_id, test_id)."""
+    db: Session, *, item: SpaceItem, notes: dict[str, Note], variants: Sequence[str], space: Space, user: User
+) -> tuple[str | None, list[str]]:
+    """Copy the content of one published item into `space` as draft content. Returns (note_id, test ids).
+
+    A TEST item copies every variant, in order.
+    """
     if item.note_id is not None:
         source_note = notes[item.note_id]
         new_note = note_crud.create(
@@ -387,21 +469,24 @@ def _copy_item_content(
             space_id=space.id,
             is_draft=True,
         )
-        return new_note.id, None
-    source_test = test_crud.get_by_id(db, id=item.test_id or "")
-    if source_test is None:
-        raise conflict("A test of this course no longer exists")
-    new_test, _ = clone_test(
-        db,
-        test=source_test,
-        user_id=user.id,
-        parent_id=None,
-        space_id=space.id,
-        source_note_id=None,
-        link_origin=False,
-        is_draft=True,
-    )
-    return None, new_test.id
+        return new_note.id, []
+    new_ids: list[str] = []
+    for test_id in variants:
+        source_test = test_crud.get_by_id(db, id=test_id)
+        if source_test is None:
+            raise conflict("A test of this course no longer exists")
+        new_test, _ = clone_test(
+            db,
+            test=source_test,
+            user_id=user.id,
+            parent_id=None,
+            space_id=space.id,
+            source_note_id=None,
+            link_origin=False,
+            is_draft=True,
+        )
+        new_ids.append(new_test.id)
+    return None, new_ids
 
 
 # ── Lists ─────────────────────────────────────────────────────────────────────

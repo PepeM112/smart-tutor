@@ -1,6 +1,7 @@
 'use client';
 
 import { type ColumnDef } from '@tanstack/react-table';
+import { History } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo } from 'react';
@@ -8,6 +9,7 @@ import { useCallback, useMemo } from 'react';
 import type { TestResultListItem } from '@/client';
 import { DataTableV2 } from '@/components/shared/DataTableV2';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
+import { Tooltip } from '@/components/ui/tooltip';
 import { getScoreBadgeClasses } from '@/features/history/utils/scoreColors';
 import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
@@ -29,13 +31,17 @@ export function HistoryTable({ data, sort, onSort, onPreview, previewId }: Props
     (row: TestResultListItem) => (
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground truncate">{row.testTitle}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-sm font-medium text-foreground">{row.testTitle}</p>
+            <OlderVersionIcon isOlder={row.isOlderVersion} label={t('history.older_version')} />
+            <CourseLabel title={row.spaceTitle} label={t('history.course_label', { title: row.spaceTitle ?? '' })} />
+          </div>
           <p className="mt-0.5 text-xs text-muted-foreground">{formatShortDate(row.createdAt)}</p>
         </div>
         <ScoreBadge score={row.score ?? 0} />
       </div>
     ),
-    []
+    [t]
   );
 
   return (
@@ -55,6 +61,30 @@ export function HistoryTable({ data, sort, onSort, onPreview, previewId }: Props
   );
 }
 
+/** Names the course of a result taken in a course. Personal results have none. */
+function CourseLabel({ title, label }: { title?: string | null; label: string }) {
+  if (!title) return null;
+  return (
+    <span
+      title={label}
+      data-testid="course-label"
+      className="inline-flex max-w-40 shrink-0 items-center truncate rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+    >
+      {title}
+    </span>
+  );
+}
+
+/** Marks a result on a test that has a newer version. */
+function OlderVersionIcon({ isOlder, label }: { isOlder?: boolean; label: string }) {
+  if (!isOlder) return null;
+  return (
+    <Tooltip content={label}>
+      <History aria-label={label} className="size-3.5 shrink-0 text-muted-foreground" data-testid="older-version" />
+    </Tooltip>
+  );
+}
+
 function ScoreBadge({ score }: { score: number }) {
   return (
     <span
@@ -71,7 +101,16 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
       accessorKey: 'testTitle',
       header: t('history.column_test'),
       meta: { grow: true },
-      cell: ({ row }) => <p className="font-medium text-foreground truncate ">{row.original.testTitle}</p>,
+      cell: ({ row }) => (
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="truncate font-medium text-foreground">{row.original.testTitle}</p>
+          <OlderVersionIcon isOlder={row.original.isOlderVersion} label={t('history.older_version')} />
+          <CourseLabel
+            title={row.original.spaceTitle}
+            label={t('history.course_label', { title: row.original.spaceTitle ?? '' })}
+          />
+        </div>
+      ),
     },
     {
       id: 'score',

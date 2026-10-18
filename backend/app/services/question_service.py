@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import QuestionStatus, QuestionType
 from app.crud import question as question_crud
+from app.crud import space_item_test as space_item_test_crud
 from app.crud import test as test_crud
 from app.models.question import Question
 from app.models.test import Test
@@ -22,8 +23,10 @@ from app.schemas.question import (
     SortOrder,
     _validate_content,
 )
+from app.services import space_progress_service
 from app.services.access_service import (
     AccessLevel,
+    can_access_question,
     get_question_or_404,
     get_test_or_404,
     question_space_id,
@@ -279,10 +282,43 @@ def delete_question(db: Session, *, question_id: str, current_user: User) -> Non
     db.commit()
 
 
+def _answers_revealed_to(db: Session, *, question: Question, current_user: User) -> bool:
+    """May the user see the answer key of this question after a check?
+
+    Personal questions and the authors of a course: always. A course member: when a published item
+    that links the test reveals its answers (`reveal_answers`, the same rule as the exam results).
+    """
+    test = question.owning_test
+    if test is None or test.space_id is None:
+        return True
+    if can_access_question(db, question=question, current_user=current_user, level=AccessLevel.AUTHOR):
+        return True
+    items = space_item_test_crud.list_published_items_for_test(db, test_id=test.id)
+    return any(space_progress_service.answers_revealed(db, item=item, user_id=current_user.id) for item in items)
+
+
+def _require_reviewable_course_question(db: Session, *, question: Question, current_user: User) -> bool:
+    """For a course question: the user must have it in Review (opted in, published, the item does not hide
+    its answers), or be an author of the course. Returns True when the question is in the Review pool.
+
+    A course member who is not an author and has not opted in gets 403, as before.
+    """
+    reviewable = question_crud.is_reviewable(db, question_id=question.id, user_id=current_user.id)
+    is_author = can_access_question(db, question=question, current_user=current_user, level=AccessLevel.AUTHOR)
+    if not reviewable and not is_author:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    return reviewable
+
+
 def check_question(
     db: Session, *, question_id: str, current_user: User, user_answer: str, update_srs: bool = True
 ) -> QuestionCheckResponse:
-    question = get_question(db, question_id=question_id, current_user=current_user)
+    # READ first: a course member (VIEWER) can reach a course question only through Review (below).
+    question = get_question(db, question_id=question_id, current_user=current_user, level=AccessLevel.READ)
+    in_course = question_space_id(question) is not None
+    in_review = (
+        _require_reviewable_course_question(db, question=question, current_user=current_user) if in_course else False
+    )
     if QuestionType(question.question_type) == QuestionType.LONG_TEXT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -291,8 +327,8 @@ def check_question(
     answer_status = correct_question(user_answer, question)
 
     srs_state = None
-    # Space questions are not in SRS (M3 adds an opt-in), so a check must not create SRS state for them.
-    if update_srs and question_space_id(question) is None:
+    # A course question writes SRS only when it is in the Review pool of the user (the membership opted in).
+    if update_srs and (not in_course or in_review):
         srs_state = record_answer(
             db,
             user_id=current_user.id,
@@ -302,7 +338,12 @@ def check_question(
         )
         db.commit()
 
-    answer_fields = get_correct_answer_fields(question)
+    # The answer key follows `reveal_answers` for a course member: correct / wrong only until it is revealed.
+    answer_fields = (
+        get_correct_answer_fields(question)
+        if _answers_revealed_to(db, question=question, current_user=current_user)
+        else {}
+    )
     return QuestionCheckResponse(
         status=answer_status,
         srs_state=srs_state,

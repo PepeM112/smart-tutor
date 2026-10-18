@@ -2,18 +2,18 @@
 
 import { useTranslations } from 'next-intl';
 
-import { type AnswerRead, type QuestionRead } from '@/client';
+import { type AnswerRead } from '@/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong } from './resultDetailUtils';
+import { getCorrectAnswer, getUserAnswerDisplay, isAnswerWrong, type ResultQuestion } from './resultDetailUtils';
 import { StatusIcon } from './StatusIcon';
 
 export function VocabularyReviewTable({
   questions,
   answerMap,
 }: {
-  questions: QuestionRead[];
+  questions: ResultQuestion[];
   answerMap: Map<string, AnswerRead>;
 }) {
   const t = useTranslations();

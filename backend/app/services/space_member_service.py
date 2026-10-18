@@ -8,17 +8,22 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.enums import MemberStatus, SpaceRole, SpaceStatus, SpaceVisibility
+from app.core.enums import MemberStatus, SpaceItemKind, SpaceRole, SpaceStatus, SpaceVisibility
 from app.crud import space as space_crud
+from app.crud import space_item as space_item_crud
+from app.crud import space_item_completion as space_item_completion_crud
 from app.crud import space_member as space_member_crud
 from app.crud import user as user_crud
 from app.models.space import Space
+from app.models.space_item import SpaceItem
 from app.models.space_member import SpaceMember
 from app.models.user import User
-from app.schemas.space import SpaceDetail, SpaceMemberRead
+from app.schemas.space import SpaceDetail, SpaceMemberRead, SpaceProgress
+from app.services import space_progress_service
 from app.services.space_service import (
     build_detail,
     conflict,
+    forbidden,
     get_course_or_404,
     get_membership,
     now,
@@ -212,4 +217,77 @@ def set_role(db: Session, *, space_id: str, user_id: str, current_user: User, ro
     if row.status != int(MemberStatus.ACTIVE):
         raise conflict("Only active members can get a role")
     space_member_crud.set_role(db, member=row, role=int(role))
+    db.commit()
+
+
+# ── Progress of the current user ──────────────────────────────────────────────
+
+
+def _get_published_item_or_404(db: Session, *, space: Space, item_id: str) -> SpaceItem:
+    item = space_item_crud.get(db, item_id=item_id)
+    if item is None or item.space_id != space.id or item.is_draft:
+        raise _not_found("Item not found")
+    return item
+
+
+def _progress_of(db: Session, *, space_id: str, user_id: str) -> SpaceProgress:
+    return space_progress_service.course_progress(db, space_ids=[space_id], user_id=user_id).get(
+        space_id, SpaceProgress(completed_items=0, total_items=0, percent=0)
+    )
+
+
+def set_item_completed(
+    db: Session, *, space_id: str, item_id: str, current_user: User, completed: bool
+) -> SpaceProgress:
+    """Mark (or unmark) a NOTE item as done. A TEST item is completed by its attempts, never by hand.
+
+    Owner and editor preview the course: no row is written. An archived course is read-only.
+    """
+    space = get_course_or_404(db, space_id=space_id)
+    membership = get_membership(db, space=space, user=current_user)
+    if membership.role is None:
+        raise forbidden()
+    item = _get_published_item_or_404(db, space=space, item_id=item_id)
+    if item.kind != int(SpaceItemKind.NOTE):
+        raise conflict("Only notes can be marked as done")
+    require_active(space)
+    if membership.role != SpaceRole.VIEWER:
+        return _progress_of(db, space_id=space.id, user_id=current_user.id)
+    if completed:
+        space_item_completion_crud.add(db, item_id=item.id, user_id=current_user.id, completed_at=now())
+    else:
+        space_item_completion_crud.remove(db, item_id=item.id, user_id=current_user.id)
+    space_progress_service.sync_member_completion(db, space_id=space.id, user_id=current_user.id)
+    db.commit()
+    return _progress_of(db, space_id=space.id, user_id=current_user.id)
+
+
+def set_membership(db: Session, *, space_id: str, current_user: User, include_in_srs: bool) -> SpaceDetail:
+    """Change the own settings of the member: now only `include_in_srs` (the course questions in Review).
+
+    Any ACTIVE member row can do it (VIEWER or EDITOR). The owner has no row. This is a personal
+    setting, so it is allowed in an archived course too (the questions stay readable).
+    """
+    space = get_course_or_404(db, space_id=space_id)
+    membership = get_membership(db, space=space, user=current_user)
+    if membership.role is None:
+        raise forbidden()
+    if membership.row is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The owner has no membership to change")
+    membership.row.include_in_srs = include_in_srs
+    db.commit()
+    return build_detail(db, space=space, current_user=current_user)
+
+
+def record_visit(db: Session, *, space_id: str, item_id: str, current_user: User) -> None:
+    """Remember the last item the VIEWER opened ("continue where you left off"). Allowed in an archived course."""
+    space = get_course_or_404(db, space_id=space_id)
+    membership = get_membership(db, space=space, user=current_user)
+    if membership.role is None:
+        raise forbidden()
+    item = _get_published_item_or_404(db, space=space, item_id=item_id)
+    if membership.role != SpaceRole.VIEWER or membership.row is None:
+        return
+    membership.row.last_item_id = item.id
+    membership.row.last_accessed_at = now()
     db.commit()

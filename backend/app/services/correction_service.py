@@ -18,6 +18,7 @@ from app.core.enums import AnswerStatus, QuestionType
 from app.crud import test_result as test_result_crud
 from app.models.answer import Answer
 from app.models.question import Question
+from app.models.test import Test
 from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.correction import TestSubmission
@@ -160,20 +161,39 @@ def correct_test(
     current_user: User,
     submission: TestSubmission,
 ) -> TestResult:
-    """
-    Grade a full test submission with weighted scoring.
-
-    Standalone questions use their own `points` value.
-    Grouped questions are scored at the group level: `group.points * (correct / total)`.
-    PARTIAL answers earn 50% credit. PENDING answers are excluded from scoring.
-    """
+    """Submit to a live test. A frozen version, a draft and a VIEWER on a course test are refused."""
     test = get_takeable_test(db, test_id=test_id, current_user=current_user)
     if test.parent_id is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot submit to a frozen test version",
         )
+    test_result = grade_submission(db, test=test, current_user=current_user, submission=submission)
+    db.commit()
+    db.refresh(test_result)
+    return test_result
 
+
+def grade_submission(
+    db: Session,
+    *,
+    test: Test,
+    current_user: User,
+    submission: TestSubmission,
+    space_item_id: str | None = None,
+    question_id_map: dict[str, str] | None = None,
+) -> TestResult:
+    """
+    The grading core: grade a submission against `test` and save the result. No access checks, no commit.
+
+    `test` can be a frozen version: the attempt flow of a course grades the version the student started
+    on. `question_id_map` = {submitted question id: question id in `test`}, for that case.
+    `space_item_id` links the result to its course item.
+
+    Standalone questions use their own `points` value.
+    Grouped questions are scored at the group level: `group.points * (correct / total)`.
+    PARTIAL answers earn 50% credit. PENDING answers are excluded from scoring.
+    """
     all_questions: list[Question] = list(test.questions)
     for group in test.question_groups:
         all_questions.extend(group.questions)
@@ -187,7 +207,9 @@ def correct_test(
     pending_count = 0
 
     for question_answer in submission.answers:
-        question = questions_by_id.get(question_answer.question_id)
+        question = questions_by_id.get(
+            (question_id_map or {}).get(question_answer.question_id, question_answer.question_id)
+        )
         if question is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -250,10 +272,11 @@ def correct_test(
     graded_pts = total_pts - pending_pts
     score = round(earned_pts / graded_pts * 100, 2) if graded_pts > 0 else 0.0
 
-    test_result = test_result_crud.create(
+    return test_result_crud.create(
         db,
-        test_id=test_id,
+        test_id=test.id,
         user_id=current_user.id,
+        space_item_id=space_item_id,
         score=score,
         total_questions=len(all_questions),
         correct_answers=correct_count,
@@ -262,7 +285,3 @@ def correct_test(
         total_points=round(total_pts, 2),
         answers=answers,
     )
-    db.commit()
-    db.refresh(test_result)
-
-    return test_result

@@ -1,10 +1,10 @@
 'use client';
 
-import { type AnswerRead, type QuestionRead, QuestionGroupType } from '@/client';
+import { type AnswerRead, QuestionGroupType } from '@/client';
 
 import { NumberedScoreRow } from './NumberedScoreRow';
 import { QuestionDetailPanel } from './QuestionDetailPanel';
-import { countCorrectInGroup } from './resultDetailUtils';
+import { countCorrectInGroup, type ResultQuestion } from './resultDetailUtils';
 import { VocabularyReviewTable } from './VocabularyReviewTable';
 
 export function GroupDetailPanel({
@@ -16,7 +16,7 @@ export function GroupDetailPanel({
 }: {
   title: string;
   type?: QuestionGroupType;
-  questions: QuestionRead[];
+  questions: ResultQuestion[];
   answerMap: Map<string, AnswerRead>;
   number: number;
 }) {

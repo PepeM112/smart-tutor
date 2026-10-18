@@ -118,9 +118,9 @@ def index_note(db: Session, *, note_id: str) -> None:
         logger.info("index_note: note %s is in Trash, skipping", note_id)
         db.rollback()
         return
-    if note.space_id is not None:
-        # Search reads personal notes only. Space RAG (M3) indexes published space notes in its own flow.
-        logger.info("index_note: note %s is course content, skipping", note_id)
+    if note.is_draft:
+        # A draft is not searchable: only the published note of a course is. Publish indexes the changed notes.
+        logger.info("index_note: note %s is a draft, skipping", note_id)
         db.rollback()
         return
 
@@ -199,7 +199,9 @@ class SearchResult:
 
 
 def search_notes(db: Session, *, user_id: str, query: str, limit: int = 5) -> list[SearchResult]:
-    """Search user's notes by semantic similarity. Returns top matching chunks.
+    """Search the notes of the user by semantic similarity. Returns top matching chunks.
+
+    The notes are the personal notes and the published notes of the spaces the user can read.
 
     Stale notes (is_indexed=False) are indexed lazily before the search so the
     results reflect the latest saved content. A failure on any individual note is

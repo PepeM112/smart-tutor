@@ -530,3 +530,43 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** The edit-mode header shows "Not saved" when the newest course write failed. A later successful write clears it. Move buttons are disabled while any course write is pending.
 
 **Why:** The error toast goes away, so the header must show that the draft is not saved. A full-order reorder payload comes from the cached course; while a delete is pending that order is old, so a reorder must wait.
+
+---
+
+## Course Attempts Are Rows, Graded Against the Started Version
+
+**Decision:** A course test starts through `space_attempt`. The row pins the variant, the test version and the deadline. The submit grades the version the student started (the frozen snapshot after a publish). There is no "409 Test updated".
+
+**Why:** A trusted timer needs a server start time, and a reload must not give a new variant. With the row, seen-version grading is one code path. An edit by the author never loses the work of a student (worse with a timer). A wrong answer key is a regrade, not a reason to refuse the submit.
+
+---
+
+## Variants Live Only in `space_item_test`
+
+**Decision:** `space_item.test_id` is dropped. A TEST item links 1..N tests in `space_item_test`. A new attempt uses the variant this student used least, random on a tie.
+
+**Why:** One source of truth: a column plus a link table can drift. Random ties give students in the same class different exams on the same attempt. An order flag later is one enum column.
+
+---
+
+## In-Progress Exam Answers Stay in the Browser
+
+**Decision:** Answers of an open attempt are kept in `localStorage` (key = user id + attempt id) and deleted on submit. A leave guard asks before a reload or an in-app link.
+
+**Why:** No DB cost for data that lives minutes. A device change loses the answers; a debounced server-side save is in `IDEAS.md`.
+
+---
+
+## The Answer Key Follows `reveal_answers` Everywhere
+
+**Decision:** The result test, the result rubric text and Review use the same policy. Items with NEVER stay out of Review. `GET /results/{id}/test` serves all results (personal too).
+
+**Why:** One policy, one code path. Else Review or the result rubric could leak an answer key that the exam hides.
+
+---
+
+## Progress and Limits Are for Viewers Only; Archived Is Frozen
+
+**Decision:** Owners and editors take course tests with no limits and no rows. An archived course takes no attempts and no marks.
+
+**Why:** Authors must preview their own tests freely. Rule 7 (an archived space is read-only) covers personal progress too.

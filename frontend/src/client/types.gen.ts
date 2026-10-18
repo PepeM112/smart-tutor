@@ -1300,6 +1300,26 @@ export type QuestionUpdate = {
 };
 
 /**
+ * RevealAnswers
+ *
+ * When a student may see the answer key of a course test.
+ */
+export enum RevealAnswers {
+    /**
+     * ALWAYS
+     */
+    ALWAYS = 1,
+    /**
+     * AFTER_PASS_OR_LAST
+     */
+    AFTER_PASS_OR_LAST = 2,
+    /**
+     * NEVER
+     */
+    NEVER = 3
+}
+
+/**
  * ReviewResponse
  */
 export type ReviewResponse = {
@@ -1403,6 +1423,31 @@ export type SimpleContentStripped = {
 };
 
 /**
+ * SpaceAttemptStart
+ *
+ * The exam of one attempt. `attempt_id` is None for an author preview (no rows, no limits).
+ */
+export type SpaceAttemptStart = {
+    /**
+     * Attemptid
+     */
+    attemptId: string | null;
+    test: TestReadStripped;
+    /**
+     * Startedat
+     */
+    startedAt: Date | null;
+    /**
+     * Deadlineat
+     */
+    deadlineAt: Date | null;
+    /**
+     * Resumed
+     */
+    resumed?: boolean;
+};
+
+/**
  * SpaceCreate
  */
 export type SpaceCreate = {
@@ -1488,6 +1533,11 @@ export type SpaceDetail = {
     memberCount: number;
     myRole: SpaceRole | null;
     myStatus: MemberStatus | null;
+    progress?: SpaceProgress | null;
+    /**
+     * Includeinsrs
+     */
+    includeInSrs?: boolean;
     /**
      * Canedit
      */
@@ -1677,6 +1727,102 @@ export type SpaceItemRead = {
      * Haschanges
      */
     hasChanges?: boolean;
+    /**
+     * Passthreshold
+     */
+    passThreshold?: number | null;
+    /**
+     * Maxattempts
+     */
+    maxAttempts?: number | null;
+    /**
+     * Cooldownhours
+     */
+    cooldownHours?: number | null;
+    revealAnswers?: RevealAnswers | null;
+    /**
+     * Timelimitminutes
+     */
+    timeLimitMinutes?: number | null;
+    /**
+     * Variants
+     */
+    variants?: Array<SpaceItemVariantRead>;
+    /**
+     * Completed
+     */
+    completed?: boolean;
+    /**
+     * Bestscore
+     */
+    bestScore?: number | null;
+    /**
+     * Attemptsused
+     */
+    attemptsUsed?: number | null;
+    /**
+     * Attemptsleft
+     */
+    attemptsLeft?: number | null;
+    /**
+     * Nextattemptat
+     */
+    nextAttemptAt?: Date | null;
+    /**
+     * Openattemptid
+     */
+    openAttemptId?: string | null;
+    /**
+     * Openattemptdeadlineat
+     */
+    openAttemptDeadlineAt?: Date | null;
+};
+
+/**
+ * SpaceItemUpdate
+ *
+ * The attempt policy of a TEST item. Only the sent fields change.
+ *
+ * `max_attempts`, `cooldown_hours` and `time_limit_minutes`: null = no limit (a sent null is valid).
+ */
+export type SpaceItemUpdate = {
+    /**
+     * Passthreshold
+     */
+    passThreshold?: number | null;
+    /**
+     * Maxattempts
+     */
+    maxAttempts?: number | null;
+    /**
+     * Cooldownhours
+     */
+    cooldownHours?: number | null;
+    revealAnswers?: RevealAnswers | null;
+    /**
+     * Timelimitminutes
+     */
+    timeLimitMinutes?: number | null;
+};
+
+/**
+ * SpaceItemVariantRead
+ *
+ * One test (variant) of a TEST item. Authors only.
+ */
+export type SpaceItemVariantRead = {
+    /**
+     * Testid
+     */
+    testId: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Position
+     */
+    position: number;
 };
 
 /**
@@ -1741,6 +1887,46 @@ export type SpaceMemberRoleUpdate = {
      * Role
      */
     role: 2 | 3;
+};
+
+/**
+ * SpaceMembershipUpdate
+ *
+ * The settings of the current user in a course.
+ */
+export type SpaceMembershipUpdate = {
+    /**
+     * Includeinsrs
+     */
+    includeInSrs: boolean;
+};
+
+/**
+ * SpaceProgress
+ *
+ * The progress of a VIEWER in a course: done items of the published items.
+ */
+export type SpaceProgress = {
+    /**
+     * Completeditems
+     */
+    completedItems: number;
+    /**
+     * Totalitems
+     */
+    totalItems: number;
+    /**
+     * Percent
+     */
+    percent: number;
+    /**
+     * Lastitemid
+     */
+    lastItemId?: string | null;
+    /**
+     * Completedat
+     */
+    completedAt?: Date | null;
 };
 
 /**
@@ -1908,6 +2094,11 @@ export type SpaceSummary = {
     memberCount: number;
     myRole: SpaceRole | null;
     myStatus: MemberStatus | null;
+    progress?: SpaceProgress | null;
+    /**
+     * Includeinsrs
+     */
+    includeInSrs?: boolean;
 };
 
 /**
@@ -1930,6 +2121,34 @@ export type SpaceUpdate = {
 };
 
 /**
+ * SpaceVariantCreate
+ *
+ * Add a variant to a TEST item: a new empty test (`title`) or a copy of a personal test (`test_id`).
+ */
+export type SpaceVariantCreate = {
+    /**
+     * Title
+     */
+    title?: string | null;
+    /**
+     * Testid
+     */
+    testId?: string | null;
+};
+
+/**
+ * SpaceVariantOrder
+ *
+ * The full order of the variants of an item.
+ */
+export type SpaceVariantOrder = {
+    /**
+     * Testids
+     */
+    testIds: Array<string>;
+};
+
+/**
  * SpaceVisibility
  */
 export enum SpaceVisibility {
@@ -1946,6 +2165,16 @@ export enum SpaceVisibility {
      */
     PUBLIC = 3
 }
+
+/**
+ * SpaceVisitRequest
+ */
+export type SpaceVisitRequest = {
+    /**
+     * Itemid
+     */
+    itemId: string;
+};
 
 /**
  * TestCreate
@@ -2260,6 +2489,18 @@ export type TestResultListItem = {
      * Createdat
      */
     createdAt: Date;
+    /**
+     * Spaceitemid
+     */
+    spaceItemId?: string | null;
+    /**
+     * Isolderversion
+     */
+    isOlderVersion?: boolean;
+    /**
+     * Spacetitle
+     */
+    spaceTitle?: string | null;
 };
 
 /**
@@ -2306,6 +2547,14 @@ export type TestResultRead = {
      * Createdat
      */
     createdAt: Date;
+    /**
+     * Spaceitemid
+     */
+    spaceItemId?: string | null;
+    /**
+     * Isolderversion
+     */
+    isOlderVersion?: boolean;
     /**
      * Answers
      */
@@ -3330,6 +3579,38 @@ export type ResultsGetResponses = {
 
 export type ResultsGetResponse = ResultsGetResponses[keyof ResultsGetResponses];
 
+export type ResultsGetTestData = {
+    body?: never;
+    path: {
+        /**
+         * Result Id
+         */
+        result_id: string;
+    };
+    query?: never;
+    url: '/api/v1/results/{result_id}/test';
+};
+
+export type ResultsGetTestErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResultsGetTestError = ResultsGetTestErrors[keyof ResultsGetTestErrors];
+
+export type ResultsGetTestResponses = {
+    /**
+     * Response Resultsgettest
+     *
+     * Successful Response
+     */
+    200: TestRead | TestReadStripped;
+};
+
+export type ResultsGetTestResponse = ResultsGetTestResponses[keyof ResultsGetTestResponses];
+
 export type QuestionsListData = {
     body?: never;
     path?: never;
@@ -3710,6 +3991,10 @@ export type ReviewListData = {
          * Mode
          */
         mode?: 'review' | 'practice';
+        /**
+         * Scope
+         */
+        scope?: string;
     };
     url: '/api/v1/review/questions';
 };
@@ -4074,6 +4359,36 @@ export type NotesEditChunkResponses = {
 };
 
 export type NotesEditChunkResponse = NotesEditChunkResponses[keyof NotesEditChunkResponses];
+
+export type NotesCopyToLibraryData = {
+    body?: never;
+    path: {
+        /**
+         * Note Id
+         */
+        note_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notes/{note_id}/copy-to-library';
+};
+
+export type NotesCopyToLibraryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotesCopyToLibraryError = NotesCopyToLibraryErrors[keyof NotesCopyToLibraryErrors];
+
+export type NotesCopyToLibraryResponses = {
+    /**
+     * Successful Response
+     */
+    201: NoteRead;
+};
+
+export type NotesCopyToLibraryResponse = NotesCopyToLibraryResponses[keyof NotesCopyToLibraryResponses];
 
 export type NotesMoveData = {
     body: NoteMove;
@@ -5056,6 +5371,40 @@ export type SpacesDeleteItemResponses = {
 
 export type SpacesDeleteItemResponse = SpacesDeleteItemResponses[keyof SpacesDeleteItemResponses];
 
+export type SpacesUpdateItemData = {
+    body: SpaceItemUpdate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}';
+};
+
+export type SpacesUpdateItemErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesUpdateItemError = SpacesUpdateItemErrors[keyof SpacesUpdateItemErrors];
+
+export type SpacesUpdateItemResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesUpdateItemResponse = SpacesUpdateItemResponses[keyof SpacesUpdateItemResponses];
+
 export type SpacesMakeItemEditableData = {
     body?: never;
     path: {
@@ -5068,7 +5417,12 @@ export type SpacesMakeItemEditableData = {
          */
         item_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Test Id
+         */
+        test_id?: string | null;
+    };
     url: '/api/v1/spaces/{space_id}/items/{item_id}/draft';
 };
 
@@ -5089,6 +5443,308 @@ export type SpacesMakeItemEditableResponses = {
 };
 
 export type SpacesMakeItemEditableResponse = SpacesMakeItemEditableResponses[keyof SpacesMakeItemEditableResponses];
+
+export type SpacesAddVariantData = {
+    body: SpaceVariantCreate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/variants';
+};
+
+export type SpacesAddVariantErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesAddVariantError = SpacesAddVariantErrors[keyof SpacesAddVariantErrors];
+
+export type SpacesAddVariantResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceItemContent;
+};
+
+export type SpacesAddVariantResponse = SpacesAddVariantResponses[keyof SpacesAddVariantResponses];
+
+export type SpacesReorderVariantsData = {
+    body: SpaceVariantOrder;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/variants/order';
+};
+
+export type SpacesReorderVariantsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesReorderVariantsError = SpacesReorderVariantsErrors[keyof SpacesReorderVariantsErrors];
+
+export type SpacesReorderVariantsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesReorderVariantsResponse = SpacesReorderVariantsResponses[keyof SpacesReorderVariantsResponses];
+
+export type SpacesRemoveVariantData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+        /**
+         * Test Id
+         */
+        test_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/variants/{test_id}';
+};
+
+export type SpacesRemoveVariantErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesRemoveVariantError = SpacesRemoveVariantErrors[keyof SpacesRemoveVariantErrors];
+
+export type SpacesRemoveVariantResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesRemoveVariantResponse = SpacesRemoveVariantResponses[keyof SpacesRemoveVariantResponses];
+
+export type SpacesUnmarkDoneData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/completion';
+};
+
+export type SpacesUnmarkDoneErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesUnmarkDoneError = SpacesUnmarkDoneErrors[keyof SpacesUnmarkDoneErrors];
+
+export type SpacesUnmarkDoneResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceProgress;
+};
+
+export type SpacesUnmarkDoneResponse = SpacesUnmarkDoneResponses[keyof SpacesUnmarkDoneResponses];
+
+export type SpacesMarkDoneData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/completion';
+};
+
+export type SpacesMarkDoneErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesMarkDoneError = SpacesMarkDoneErrors[keyof SpacesMarkDoneErrors];
+
+export type SpacesMarkDoneResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceProgress;
+};
+
+export type SpacesMarkDoneResponse = SpacesMarkDoneResponses[keyof SpacesMarkDoneResponses];
+
+export type SpacesUpdateMembershipData = {
+    body: SpaceMembershipUpdate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/membership';
+};
+
+export type SpacesUpdateMembershipErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesUpdateMembershipError = SpacesUpdateMembershipErrors[keyof SpacesUpdateMembershipErrors];
+
+export type SpacesUpdateMembershipResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceDetail;
+};
+
+export type SpacesUpdateMembershipResponse = SpacesUpdateMembershipResponses[keyof SpacesUpdateMembershipResponses];
+
+export type SpacesVisitData = {
+    body: SpaceVisitRequest;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/visit';
+};
+
+export type SpacesVisitErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesVisitError = SpacesVisitErrors[keyof SpacesVisitErrors];
+
+export type SpacesVisitResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesVisitResponse = SpacesVisitResponses[keyof SpacesVisitResponses];
+
+export type SpacesStartAttemptData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/items/{item_id}/attempts';
+};
+
+export type SpacesStartAttemptErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesStartAttemptError = SpacesStartAttemptErrors[keyof SpacesStartAttemptErrors];
+
+export type SpacesStartAttemptResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceAttemptStart;
+};
+
+export type SpacesStartAttemptResponse = SpacesStartAttemptResponses[keyof SpacesStartAttemptResponses];
+
+export type SpacesSubmitAttemptData = {
+    body: TestSubmission;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Attempt Id
+         */
+        attempt_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/attempts/{attempt_id}/submit';
+};
+
+export type SpacesSubmitAttemptErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesSubmitAttemptError = SpacesSubmitAttemptErrors[keyof SpacesSubmitAttemptErrors];
+
+export type SpacesSubmitAttemptResponses = {
+    /**
+     * Successful Response
+     */
+    201: TestResultRead;
+};
+
+export type SpacesSubmitAttemptResponse = SpacesSubmitAttemptResponses[keyof SpacesSubmitAttemptResponses];
 
 export type SpacesJoinData = {
     body?: never;

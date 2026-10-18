@@ -11,6 +11,8 @@ import {
   type SpaceItemContent,
   type SpaceItemCopy,
   type SpaceItemCreate,
+  type SpaceItemUpdate,
+  type SpaceVariantCreate,
   type SpacePublishRequest,
   type SpaceRole,
   type SpaceUpdate,
@@ -124,9 +126,56 @@ export function useCourseActions(courseId: string) {
   // The twin is a new draft row: the detail must show `hasChanges` for the item.
   const makeEditable = useInvalidatingMutation(
     courseId,
-    async (itemId: string): Promise<SpaceItemContent> =>
-      (await sdk.spacesMakeItemEditable({ path: { ...path, item_id: itemId }, throwOnError: true })).data,
+    // TEST items: `testId` picks the variant to edit (default: the first one).
+    async (arg: string | { itemId: string; testId?: string }): Promise<SpaceItemContent> => {
+      const { itemId, testId } = typeof arg === 'string' ? { itemId: arg, testId: undefined } : arg;
+      return (
+        await sdk.spacesMakeItemEditable({
+          path: { ...path, item_id: itemId },
+          query: { test_id: testId ?? null },
+          throwOnError: true,
+        })
+      ).data;
+    },
     { error: 'courses.failed_to_edit' }
+  );
+
+  // ── Test items: attempt policy and variants ──────────────────────────────────
+
+  const updateItem = useDetailMutation(
+    courseId,
+    async ({ itemId, body }: { itemId: string; body: SpaceItemUpdate }) =>
+      (await sdk.spacesUpdateItem({ path: { ...path, item_id: itemId }, body, throwOnError: true })).data,
+    { error: 'courses.failed_to_save' }
+  );
+  const addVariant = useInvalidatingMutation(
+    courseId,
+    async ({ itemId, body }: { itemId: string; body: SpaceVariantCreate }): Promise<SpaceItemContent> =>
+      (await sdk.spacesAddVariant({ path: { ...path, item_id: itemId }, body, throwOnError: true })).data,
+    { error: 'courses.failed_to_save' }
+  );
+  const reorderVariants = useDetailMutation(
+    courseId,
+    async ({ itemId, testIds }: { itemId: string; testIds: string[] }) =>
+      (
+        await sdk.spacesReorderVariants({
+          path: { ...path, item_id: itemId },
+          body: { testIds },
+          throwOnError: true,
+        })
+      ).data,
+    { error: 'courses.failed_to_save' }
+  );
+  const removeVariant = useDetailMutation(
+    courseId,
+    async ({ itemId, testId }: { itemId: string; testId: string }) =>
+      (
+        await sdk.spacesRemoveVariant({
+          path: { ...path, item_id: itemId, test_id: testId },
+          throwOnError: true,
+        })
+      ).data,
+    { error: 'courses.failed_to_save' }
   );
 
   // ── The course ───────────────────────────────────────────────────────────────
@@ -192,6 +241,19 @@ export function useCourseActions(courseId: string) {
     { success: 'courses.left', error: 'courses.failed_to_leave' }
   );
 
+  // The course questions in Review is a personal setting of the member. The response is the new detail.
+  const setIncludeInSrs = useDetailMutation(
+    courseId,
+    async (includeInSrs: boolean) =>
+      (await sdk.spacesUpdateMembership({ path, body: { includeInSrs }, throwOnError: true })).data,
+    {
+      success: detail => (detail.includeInSrs ? 'courses.included_in_review' : 'courses.removed_from_review'),
+      error: 'courses.failed_to_save',
+      // The Review pool changes: the next Review page load must fetch again.
+      markStale: [['review']],
+    }
+  );
+
   // ── Members (owner) ──────────────────────────────────────────────────────────
 
   const invite = useInvalidatingMutation(
@@ -228,6 +290,10 @@ export function useCourseActions(courseId: string) {
     createItem,
     copyItem,
     makeEditable,
+    updateItem,
+    addVariant,
+    reorderVariants,
+    removeVariant,
     updateCourse,
     archive,
     unarchive,
@@ -238,6 +304,7 @@ export function useCourseActions(courseId: string) {
     acceptInvitation,
     declineInvitation,
     leave,
+    setIncludeInSrs,
     invite,
     approveRequest,
     setMemberRole,

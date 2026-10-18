@@ -65,6 +65,11 @@ export function courseSettingsHref(course: { id: string; title: string }): strin
   return `${courseHref(course)}/settings`;
 }
 
+/** The page of one attempt on a TEST item of a course. The item id is known before the attempt id. */
+export function courseAttemptHref(course: { id: string; title: string }, itemId: string): string {
+  return `${courseHref(course)}/tests/${itemId}`;
+}
+
 /**
  * Extract the ID from a URL segment of a note or a folder. The segment can be:
  *   - A bare ULID: `01J9XYZ…`

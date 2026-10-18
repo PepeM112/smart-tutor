@@ -99,7 +99,7 @@ class TestNavigateTo:
 
 
 class TestSearchUserNotes:
-    def test_note_lookup_is_filtered_by_owner(self) -> None:
+    def test_note_lookup_uses_the_ids_of_the_search(self) -> None:
         hit = MagicMock(note_id="n1", note_title="T", chunk_content="text", similarity=0.9)
         db = MagicMock()
 
@@ -108,7 +108,8 @@ class TestSearchUserNotes:
             patch("app.services.assist_tools.notes.note_crud") as mock_note_crud,
             patch("app.services.assist_tools.notes.folder_service.load_folder_map", return_value={}),
         ):
-            mock_note_crud.list_live_by_ids.return_value = []
+            mock_note_crud.list_by_ids.return_value = []
             notes.search_user_notes(db, current_user=_user("u1"), arguments={"query": "q"})
 
-        mock_note_crud.list_live_by_ids.assert_called_once_with(db, user_id="u1", ids=["n1"])
+        # The search already applied the access rule, so the lookup has no owner filter.
+        mock_note_crud.list_by_ids.assert_called_once_with(db, ids=["n1"])

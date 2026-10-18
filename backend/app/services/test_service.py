@@ -12,7 +12,14 @@ from app.models.user import User
 from app.schemas.question import QuestionCreate
 from app.schemas.test import SortOrder, TestCreate, TestRead, TestSortBy, TestUpdate
 from app.schemas.test_question_group import TestQuestionGroupCreate
-from app.services.access_service import AccessLevel, get_note_or_404, get_test_or_404, require_personal
+from app.services.access_service import (
+    EDIT_ROLES,
+    AccessLevel,
+    get_note_or_404,
+    get_space_access,
+    get_test_or_404,
+    require_personal,
+)
 from app.services.versioning_service import version_test_if_needed
 
 
@@ -29,10 +36,21 @@ def get_test(
 
 
 def get_takeable_test(db: Session, *, test_id: str, current_user: User) -> Test:
-    """Fetch a test for an exam (start or submit). A draft is not published content: 409."""
+    """Fetch a test for an exam (start or submit). A draft is not published content: 409.
+
+    A VIEWER of the course can not take a course test here: the attempt endpoint of its item is the only
+    way in, so `max_attempts`, the cooldown and the timer can not be bypassed.
+    """
     test = get_test(db, test_id=test_id, current_user=current_user, level=AccessLevel.READ)
     if test.is_draft:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Draft tests can not be taken")
+    if test.space_id is not None:
+        access = get_space_access(db, space_id=test.space_id, user_id=current_user.id)
+        if access.role not in EDIT_ROLES:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Start this test from its course page",
+            )
     return test
 
 

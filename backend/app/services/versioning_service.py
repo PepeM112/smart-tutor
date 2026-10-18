@@ -28,13 +28,16 @@ from app.models.test_result import TestResult
 # ---------------------------------------------------------------------------
 
 
-def version_test_if_needed(db: Session, *, test: Test) -> bool:
+def version_test_if_needed(db: Session, *, test: Test, force: bool = False) -> bool:
     """Clone the test into a frozen version if it has any results.
+
+    `force`: clone also when there are no results. A course publish needs it: an open attempt
+    (no result yet) is graded against the version it started on, so that version must exist.
 
     Returns True if a frozen version was created, False otherwise.
     """
     has_results = db.execute(select(TestResult.id).where(TestResult.test_id == test.id).limit(1)).first()
-    if not has_results:
+    if not has_results and not force:
         return False
 
     # Re-fetch with eager loading so the snapshot only includes active questions/groups,

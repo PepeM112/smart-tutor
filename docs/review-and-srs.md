@@ -84,6 +84,12 @@ When the review endpoint fetches questions, it follows this priority:
 
 **Excluded from review:** Long Text questions (require async AI grading), questions belonging to soft-deleted tests, and bank questions (`test_id IS NULL`) are all filtered out of the review pool. Bank question exclusion is a known limitation — SRS queries filter by test, so standalone questions are skipped. Acceptable for now.
 
+### Course questions (scope)
+
+Course questions are in Review only when the member turns on "Include in Review" (`space_member.include_in_srs`, default off). `GET /review/questions?scope=` takes `all` (personal + opted-in courses, the default), `personal`, or one course id. The Review page has a scope select.
+
+Course questions come only from published, live tests (`parent_id IS NULL`) of ACTIVE memberships. Items with `reveal_answers = NEVER` stay out, so Review can not show a hidden answer key. `/check` on a course question gives correct / wrong and writes SRS state for a VIEWER who opted in. The correct answers come back only when the policy reveals them. Without the opt-in, `/check` gives 403.
+
 ### Practice Mode
 
 Sometimes users want to practice without SRS constraints. The `?mode=practice` query parameter bypasses SRS and returns random questions, similar to pre-SRS behavior.

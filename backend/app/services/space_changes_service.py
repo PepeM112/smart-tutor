@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.crud import space_content as space_content_crud
 from app.crud import space_item as space_item_crud
+from app.crud import space_item_test as space_item_test_crud
 from app.crud import space_section as space_section_crud
 from app.models.note import Note
 from app.models.space import Space
@@ -41,7 +42,11 @@ def has_unpublished_changes(db: Session, *, space: Space) -> bool:
     )
     if draft_structure != published_structure:
         return True
-    return _notes_changed(db, items=draft_items) or _tests_changed(db, items=draft_items)
+    return (
+        _items_changed(db, drafts=draft_items, published=published_items)
+        or _notes_changed(db, items=draft_items)
+        or _tests_changed(db, items=draft_items)
+    )
 
 
 def _structure(sections: Sequence[SpaceSection], items: Sequence[SpaceItem], *, as_published: bool) -> _Structure:
@@ -59,6 +64,25 @@ def _structure(sections: Sequence[SpaceSection], items: Sequence[SpaceItem], *, 
     ]
 
 
+def _policy_key(item: SpaceItem) -> tuple[float, int | None, int | None, int, int | None]:
+    return item.pass_threshold, item.max_attempts, item.cooldown_hours, item.reveal_answers, item.time_limit_minutes
+
+
+def item_changed(draft: SpaceItem, live: SpaceItem, links: dict[str, list[str]]) -> bool:
+    """The attempt policy or the variant list of a draft item differs from its published item.
+
+    `links` = `space_item_test_crud.list_by_items` for both items.
+    """
+    return _policy_key(draft) != _policy_key(live) or links.get(draft.id, []) != links.get(live.id, [])
+
+
+def _items_changed(db: Session, *, drafts: Sequence[SpaceItem], published: Sequence[SpaceItem]) -> bool:
+    by_id = {i.id: i for i in published}
+    pairs = [(d, by_id[d.draft_of_id]) for d in drafts if d.draft_of_id in by_id]
+    links = space_item_test_crud.list_by_items(db, item_ids=[i.id for pair in pairs for i in pair])
+    return any(item_changed(draft, live, links) for draft, live in pairs)
+
+
 def _notes_changed(db: Session, *, items: Sequence[SpaceItem]) -> bool:
     published_ids = [i.note_id for i in items if i.note_id]
     twins = space_content_crud.list_note_twins(db, published_ids=published_ids)
@@ -73,7 +97,8 @@ def _note_key(note: Note) -> tuple[str, str | None, list[str]]:
 
 
 def _tests_changed(db: Session, *, items: Sequence[SpaceItem]) -> bool:
-    published_ids = [i.test_id for i in items if i.test_id]
+    links = space_item_test_crud.list_by_items(db, item_ids=[i.id for i in items])
+    published_ids = [t for tests in links.values() for t in tests]
     # Eager-load the ACTIVE children: `_test_key` reads them (no lazy queries, no DELETED rows).
     twins = space_content_crud.list_test_twins(db, published_ids=published_ids, active_children=True)
     if not twins:
@@ -82,7 +107,12 @@ def _tests_changed(db: Session, *, items: Sequence[SpaceItem]) -> bool:
         t.id: t
         for t in space_content_crud.list_tests(db, ids=[t.draft_of_id or "" for t in twins], active_children=True)
     }
-    return any(_test_key(twin) != _test_key(published[twin.draft_of_id or ""]) for twin in twins)
+    return any(test_changed(twin, published[twin.draft_of_id or ""]) for twin in twins)
+
+
+def test_changed(twin: Test, published: Test) -> bool:
+    """The twin differs from the published test. Both need their ACTIVE children loaded."""
+    return _test_key(twin) != _test_key(published)
 
 
 def _test_key(test: Test) -> tuple[str, str | None, Sequence[tuple[object, ...]], Sequence[tuple[object, ...]]]:

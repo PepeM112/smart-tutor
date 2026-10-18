@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy import Row, delete, func, select
 from sqlalchemy.orm import Session
 
-from app.crud.note import PERSONAL_NOTE
+from app.crud.note import readable_by_assistant
 from app.models.note import Note
 from app.models.note_chunk import NoteChunk
 
@@ -14,7 +14,7 @@ def count_by_user(db: Session, *, user_id: str) -> int:
         select(func.count())
         .select_from(NoteChunk)
         .join(Note, NoteChunk.note_id == Note.id)
-        .where(Note.user_id == user_id, PERSONAL_NOTE, Note.deleted_at.is_(None))
+        .where(readable_by_assistant(user_id=user_id), Note.deleted_at.is_(None))
     )
     return db.scalar(stmt) or 0
 
@@ -54,7 +54,7 @@ def search_by_similarity(
             similarity_col,
         )
         .join(Note, NoteChunk.note_id == Note.id)
-        .where(Note.user_id == user_id, PERSONAL_NOTE, Note.deleted_at.is_(None))
+        .where(readable_by_assistant(user_id=user_id), Note.deleted_at.is_(None))
         .order_by(similarity_col.desc())
         .limit(limit)
     )

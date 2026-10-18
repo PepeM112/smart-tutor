@@ -9,6 +9,9 @@ import { courseHref } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 import { ROLE_ICONS, ROLE_LABELS, VISIBILITY_ICONS, VISIBILITY_LABELS } from '../lib/labels';
+import { isCourseViewer } from '../lib/progress';
+
+import { CourseProgressBar } from './CourseProgress';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -44,6 +47,7 @@ export function CourseCard({ course }: Props) {
       </div>
       <p className="text-xs text-muted-foreground">{t('courses.by_owner', { name: course.ownerName })}</p>
       {course.description && <p className="line-clamp-3 text-sm text-muted-foreground">{course.description}</p>}
+      {isCourseViewer(course) && course.progress && <CourseProgressBar progress={course.progress} className="pt-1" />}
       {(isArchived || isDraft) && (
         <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
           {isArchived && <StatusBadge>{t('courses.archived_badge')}</StatusBadge>}

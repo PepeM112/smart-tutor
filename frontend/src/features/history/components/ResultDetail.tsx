@@ -3,19 +3,19 @@
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
-import { AnswerStatus, type AnswerRead, type TestRead, type TestResultRead } from '@/client';
+import { AnswerStatus, type AnswerRead, type TestResultRead } from '@/client';
 import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 import { GroupDetailPanel } from './GroupDetailPanel';
 import { QuestionDetailPanel } from './QuestionDetailPanel';
 import { CompactGroupCard, CompactQuestionCard } from './QuestionReviewCards';
-import { ExamItemType, buildExamItems, countCorrectInGroup, type ExamItem } from './resultDetailUtils';
+import { ExamItemType, buildExamItems, countCorrectInGroup, type ExamItem, type ResultTest } from './resultDetailUtils';
 import { ScoreBanner } from './ScoreBanner';
 
 type Props = {
   result: TestResultRead;
-  test: TestRead;
+  test: ResultTest;
 };
 
 type SelectedItem = { type: ExamItemType; id: string };
@@ -50,7 +50,7 @@ export function ResultDetail({ result, test }: Props) {
 
   const listContent = (
     <>
-      <ScoreBanner result={result} testTitle={test.title} isOlderVersion={!!test.parentId} />
+      <ScoreBanner result={result} testTitle={test.title} isOlderVersion={result.isOlderVersion} />
       {items.map((item, idx) => {
         if (item.type === ExamItemType.QUESTION) {
           const question = item.question;
@@ -117,7 +117,7 @@ function RightPanel({
 }: {
   selectedItem: SelectedItem | null;
   items: ExamItem[];
-  test: TestRead;
+  test: ResultTest;
   answerMap: Map<string, AnswerRead>;
   itemNumbers: number[];
 }) {

@@ -1,8 +1,8 @@
 'use client';
 
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, Timer } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   LongTextLength,
@@ -20,8 +20,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 import { LONG_TEXT_LENGTH_TIERS } from '../constants';
+import { formatCountdown, secondsLeft } from '../utils/countdown';
 import { parseMcAnswer, toggleMcOption } from '../utils/questionContent';
 
 type ExamItem =
@@ -32,23 +34,43 @@ type Props = {
   test: TestReadStripped;
   onSubmit: (answers: Record<string, string>) => void;
   isSubmitting: boolean;
+  /** Answers to start with, for example the ones saved before a reload. Read once. */
+  initialAnswers?: Record<string, string>;
+  /** Runs with all answers after each change, for example to save them. */
+  onAnswersChange?: (answers: Record<string, string>) => void;
+  /** With a deadline: a countdown shows, and the exam submits itself at 0. */
+  deadlineAt?: Date | null;
 };
 
-export function ExamView({ test, onSubmit, isSubmitting }: Props) {
+export function ExamView({ test, onSubmit, isSubmitting, initialAnswers, onAnswersChange, deadlineAt }: Props) {
   const t = useTranslations();
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers ?? {});
   const items = buildExamItems(test);
 
   const allQuestions = items.flatMap(item =>
     item.kind === 'question' ? [item.question] : (item.group.questions ?? [])
   );
 
+  // The latest values for the timer, which must not restart on each keystroke.
+  const latest = useRef({ answers, onSubmit, onAnswersChange });
+  useEffect(() => {
+    latest.current = { answers, onSubmit, onAnswersChange };
+  });
+
+  const updateAnswers = (update: (prev: Record<string, string>) => Record<string, string>) => {
+    const next = update(latest.current.answers);
+    // Set at once: two changes in one tick must both count.
+    latest.current = { ...latest.current, answers: next };
+    setAnswers(next);
+    onAnswersChange?.(next);
+  };
+
   const handleTextChange = (questionId: string, value: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: value }));
+    updateAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
   const handleCheckboxToggle = (questionId: string, index: number) => {
-    setAnswers(prev => ({
+    updateAnswers(prev => ({
       ...prev,
       [questionId]: toggleMcOption(prev[questionId] ?? '', index),
     }));
@@ -58,10 +80,14 @@ export function ExamView({ test, onSubmit, isSubmitting }: Props) {
     onSubmit(answers);
   };
 
+  const submitOnTimeout = () => latest.current.onSubmit(latest.current.answers);
+
   let itemNumber = 0;
 
   return (
     <div className="space-y-6">
+      {deadlineAt && <Countdown deadlineAt={deadlineAt} onTimeout={submitOnTimeout} />}
+
       {/* Test title */}
       <h2 className="text-2xl font-bold text-balance">{test.title}</h2>
       {test.description && <p className="text-sm text-muted-foreground -mt-4">{test.description}</p>}
@@ -131,6 +157,50 @@ export function ExamView({ test, onSubmit, isSubmitting }: Props) {
           {isSubmitting ? t('exam.submitting') : t('exam.submit_exam')}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** A sticky countdown. It calls `onTimeout` once, when the time is over. */
+function Countdown({ deadlineAt, onTimeout }: { deadlineAt: Date; onTimeout: () => void }) {
+  const t = useTranslations();
+  const [remaining, setRemaining] = useState(() => secondsLeft(deadlineAt, Date.now()));
+  const timeoutRef = useRef(onTimeout);
+  const hasFired = useRef(false);
+
+  useEffect(() => {
+    timeoutRef.current = onTimeout;
+  });
+
+  useEffect(() => {
+    const tick = () => {
+      const left = secondsLeft(deadlineAt, Date.now());
+      setRemaining(left);
+      if (left === 0 && !hasFired.current) {
+        hasFired.current = true;
+        timeoutRef.current();
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 500);
+    return () => window.clearInterval(id);
+  }, [deadlineAt]);
+
+  const isLow = remaining <= 60;
+
+  return (
+    <div
+      role="timer"
+      aria-label={t('exam.time_left')}
+      data-testid="exam-countdown"
+      className={cn(
+        'sticky top-0 z-10 flex items-center justify-end gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium tabular-nums shadow-card',
+        isLow ? 'text-destructive' : 'text-foreground'
+      )}
+    >
+      <Timer className="size-4" />
+      <span>{t('exam.time_left')}</span>
+      <span>{formatCountdown(remaining)}</span>
     </div>
   );
 }

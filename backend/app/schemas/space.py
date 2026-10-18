@@ -4,10 +4,19 @@ from typing import Literal
 from pydantic import Field, field_validator, model_validator
 
 from app.core.constants import SPACE_TITLE_MAX
-from app.core.enums import MemberStatus, SpaceItemKind, SpaceKind, SpaceRole, SpaceStatus, SpaceVisibility
+from app.core.enums import (
+    MemberStatus,
+    RevealAnswers,
+    SpaceItemKind,
+    SpaceKind,
+    SpaceRole,
+    SpaceStatus,
+    SpaceVisibility,
+)
 from app.schemas.base import BaseSchema
 from app.schemas.note import normalize_tags
 from app.schemas.pagination import PaginatedResponse
+from app.schemas.test import TestReadStripped
 
 SPACE_DESCRIPTION_MAX = 5000
 SPACE_PUBLISH_MESSAGE_MAX = 2000
@@ -57,6 +66,18 @@ class SpaceUpdate(BaseSchema):
         return None if tags is None else normalize_tags(tags)
 
 
+class SpaceProgress(BaseSchema):
+    """The progress of a VIEWER in a course: done items of the published items."""
+
+    completed_items: int
+    total_items: int
+    percent: int
+    # "Continue" opens this item. None = no item opened yet (or it was removed).
+    last_item_id: str | None = None
+    # Set when every published item is done.
+    completed_at: datetime | None = None
+
+
 class SpaceSummary(BaseSchema):
     """A space in a list (my courses, catalog, invitations)."""
 
@@ -77,6 +98,18 @@ class SpaceSummary(BaseSchema):
     my_role: SpaceRole | None
     # The status of the current user's membership row. None for the owner and for non-members.
     my_status: MemberStatus | None
+    # VIEWER only (None for owner, editor and non-members: they have no progress rows).
+    progress: SpaceProgress | None = None
+    # The questions of this course are in the Review of the current user (opt-in, off by default).
+    include_in_srs: bool = False
+
+
+class SpaceItemVariantRead(BaseSchema):
+    """One test (variant) of a TEST item. Authors only."""
+
+    test_id: str
+    title: str
+    position: int
 
 
 class SpaceItemRead(BaseSchema):
@@ -92,6 +125,24 @@ class SpaceItemRead(BaseSchema):
     draft_of_id: str | None
     # Draft items only: the content is new or has an edited twin (it changes on publish).
     has_changes: bool = False
+    # TEST items: the attempt policy. `test_id` above is the first variant.
+    pass_threshold: float | None = None
+    max_attempts: int | None = None
+    cooldown_hours: int | None = None
+    reveal_answers: RevealAnswers | None = None
+    time_limit_minutes: int | None = None
+    # TEST items, authors only: the variants in order.
+    variants: list[SpaceItemVariantRead] = []
+    # Per-user fields, VIEWER only (the defaults mean "no progress").
+    completed: bool = False
+    best_score: float | None = None
+    attempts_used: int | None = None
+    # None = unlimited.
+    attempts_left: int | None = None
+    # The earliest time of the next attempt (cooldown). None = now.
+    next_attempt_at: datetime | None = None
+    open_attempt_id: str | None = None
+    open_attempt_deadline_at: datetime | None = None
 
 
 class SpaceSectionRead(BaseSchema):
@@ -179,6 +230,43 @@ class SpaceItemContent(BaseSchema):
     test_id: str | None
 
 
+class SpaceItemUpdate(BaseSchema):
+    """The attempt policy of a TEST item. Only the sent fields change.
+
+    `max_attempts`, `cooldown_hours` and `time_limit_minutes`: null = no limit (a sent null is valid).
+    """
+
+    pass_threshold: float | None = Field(default=None, ge=0, le=1)
+    max_attempts: int | None = Field(default=None, ge=1)
+    cooldown_hours: int | None = Field(default=None, ge=1)
+    reveal_answers: RevealAnswers | None = None
+    time_limit_minutes: int | None = Field(default=None, ge=1)
+
+    @field_validator("pass_threshold", "reveal_answers", mode="before")
+    @classmethod
+    def _no_null(cls, value: object) -> object:
+        return _reject_null(value)
+
+
+class SpaceVariantCreate(BaseSchema):
+    """Add a variant to a TEST item: a new empty test (`title`) or a copy of a personal test (`test_id`)."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=SPACE_TITLE_MAX)
+    test_id: str | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one(self) -> "SpaceVariantCreate":
+        if (self.title is None) == (self.test_id is None):
+            raise ValueError("Send exactly one of title and testId")
+        return self
+
+
+class SpaceVariantOrder(BaseSchema):
+    """The full order of the variants of an item."""
+
+    test_ids: list[str]
+
+
 class SpaceSectionOrder(BaseSchema):
     id: str
     item_ids: list[str]
@@ -224,3 +312,28 @@ class SpaceMemberRead(BaseSchema):
     status: MemberStatus
     joined_at: datetime | None
     created_at: datetime
+
+
+# ── Progress and attempts ─────────────────────────────────────────────────────
+
+
+class SpaceMembershipUpdate(BaseSchema):
+    """The settings of the current user in a course."""
+
+    include_in_srs: bool
+
+
+class SpaceVisitRequest(BaseSchema):
+    item_id: str
+
+
+class SpaceAttemptStart(BaseSchema):
+    """The exam of one attempt. `attempt_id` is None for an author preview (no rows, no limits)."""
+
+    attempt_id: str | None
+    test: TestReadStripped
+    started_at: datetime | None
+    # None = no timer.
+    deadline_at: datetime | None
+    # True when the attempt was already open (a reload or another device).
+    resumed: bool = False

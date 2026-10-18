@@ -13,18 +13,22 @@ from seed_data.clean import clean_user_spaces
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.enums import SpaceItemKind, SpaceRole, SpaceVisibility
+from app.core.enums import QuestionType, RevealAnswers, SpaceItemKind, SpaceRole, SpaceVisibility
 from app.database import SessionLocal
 from app.models.note import Note
+from app.models.question import Question
 from app.models.space import Space
+from app.models.space_item import SpaceItem
 from app.models.test import Test
 from app.models.user import User
 from app.schemas.space import (
     SpaceCreate,
     SpaceItemCopy,
     SpaceItemCreate,
+    SpaceItemUpdate,
     SpacePublishRequest,
     SpaceSectionCreate,
+    SpaceVariantCreate,
 )
 from app.services import space_draft_service, space_member_service, space_service
 
@@ -169,6 +173,63 @@ def seed_archived(db: Session, owner: User, viewer: User) -> str:
     return space_id
 
 
+def add_question(db: Session, owner: User, test_id: str, prompt: str, answer: str) -> None:
+    question = Question(
+        user_id=owner.id,
+        test_id=test_id,
+        question_type=QuestionType.SIMPLE,
+        prompt=prompt,
+        content={"answers": [answer]},
+    )
+    db.add(question)
+    db.commit()
+
+
+def seed_progress(db: Session, owner: User, viewer: User) -> str:
+    """PUBLIC, published: a note and a test item with 2 variants, for the progress and attempt specs.
+
+    The test item: 2 attempts, 30 minutes, reveal AFTER_PASS_OR_LAST. Variant A asks for "alpha", variant B
+    for "beta", so a spec can tell which variant an attempt got.
+    """
+    space_id = create(db, owner, "Progress Course", "Notes and a test with 2 variants.", SpaceVisibility.PUBLIC, [])
+    section = add_section(db, owner, space_id, "Unit 1")
+    new_note(db, owner, space_id, section, "Intro note", "# Intro note\n\nRead this note, then take the quiz.")
+    first = space_draft_service.create_item(
+        db,
+        space_id=space_id,
+        current_user=owner,
+        data=SpaceItemCreate(section_id=section, kind=SpaceItemKind.TEST, title="Unit quiz A"),
+    )
+    assert first.test_id is not None
+    add_question(db, owner, first.test_id, "Variant A: type alpha", "alpha")
+    second = space_draft_service.add_variant(
+        db,
+        space_id=space_id,
+        item_id=test_item_id(db, space_id),
+        current_user=owner,
+        data=SpaceVariantCreate(title="Unit quiz B"),
+    )
+    assert second.test_id is not None
+    add_question(db, owner, second.test_id, "Variant B: type beta", "beta")
+    policy = SpaceItemUpdate(
+        pass_threshold=0.5, max_attempts=2, time_limit_minutes=30, reveal_answers=RevealAnswers.AFTER_PASS_OR_LAST
+    )
+    space_draft_service.update_item(
+        db, space_id=space_id, item_id=test_item_id(db, space_id), current_user=owner, data=policy
+    )
+    publish(db, owner, space_id, "Initial")
+    add_member(db, owner, space_id, viewer, SpaceRole.VIEWER)
+    return space_id
+
+
+def test_item_id(db: Session, space_id: str) -> str:
+    item = db.scalars(
+        select(SpaceItem).where(SpaceItem.space_id == space_id, SpaceItem.kind == int(SpaceItemKind.TEST))
+    ).first()
+    assert item is not None
+    return item.id
+
+
 def seed_other_owner(db: Session, editor: User) -> str:
     """A PUBLIC course of another user: the main user sees it in the catalog as a non-member."""
     space_id = create(
@@ -196,6 +257,7 @@ ids = {
     "Private Study Group": seed_private(db, owner, viewer, outsider),
     "Draft Course": seed_unpublished(db, owner),
     "Old Course": seed_archived(db, owner, viewer),
+    "Progress Course": seed_progress(db, owner, viewer),
     "Intro to Chemistry": seed_other_owner(db, editor),
 }
 print("done\n")

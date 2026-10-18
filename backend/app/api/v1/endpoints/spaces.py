@@ -1,13 +1,16 @@
 from typing import Annotated, TypeAlias
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import SpaceRole, SpaceVisibility
 from app.database import get_session
 from app.dependencies.auth import CurrentUser
+from app.models.test_result import TestResult
+from app.schemas.correction import TestSubmission
 from app.schemas.space import (
     PaginatedSpaceSummary,
+    SpaceAttemptStart,
     SpaceCatalogSort,
     SpaceCreate,
     SpaceDeleteConfirm,
@@ -18,17 +21,24 @@ from app.schemas.space import (
     SpaceItemContent,
     SpaceItemCopy,
     SpaceItemCreate,
+    SpaceItemUpdate,
     SpaceJoinByCode,
     SpaceListStatus,
     SpaceMemberRead,
     SpaceMemberRoleUpdate,
+    SpaceMembershipUpdate,
+    SpaceProgress,
     SpacePublishRequest,
     SpaceSectionCreate,
     SpaceSectionUpdate,
     SpaceSummary,
     SpaceUpdate,
+    SpaceVariantCreate,
+    SpaceVariantOrder,
+    SpaceVisitRequest,
 )
-from app.services import space_draft_service, space_member_service, space_service
+from app.schemas.test_result import TestResultRead
+from app.services import space_attempt_service, space_draft_service, space_member_service, space_service
 
 router = APIRouter()
 
@@ -135,8 +145,16 @@ def discard_draft(space_id: str, db: DbSession, current_user: CurrentUser) -> Sp
 
 
 @router.post("/{space_id}/draft/publish", response_model=SpaceDetail)
-def publish(space_id: str, data: SpacePublishRequest, db: DbSession, current_user: CurrentUser) -> SpaceDetail:
-    return space_draft_service.publish(db, space_id=space_id, current_user=current_user, data=data)
+def publish(
+    space_id: str,
+    data: SpacePublishRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+    background_tasks: BackgroundTasks,
+) -> SpaceDetail:
+    return space_draft_service.publish(
+        db, space_id=space_id, current_user=current_user, data=data, background_tasks=background_tasks
+    )
 
 
 @router.put("/{space_id}/draft/order", response_model=SpaceDetail)
@@ -180,9 +198,114 @@ def delete_item(space_id: str, item_id: str, db: DbSession, current_user: Curren
 
 
 @router.post("/{space_id}/items/{item_id}/draft", response_model=SpaceItemContent)
-def make_item_editable(space_id: str, item_id: str, db: DbSession, current_user: CurrentUser) -> SpaceItemContent:
-    """The id of the note / test to edit for this item (its draft twin is made on the first call)."""
-    return space_draft_service.make_editable(db, space_id=space_id, item_id=item_id, current_user=current_user)
+def make_item_editable(
+    space_id: str,
+    item_id: str,
+    db: DbSession,
+    current_user: CurrentUser,
+    test_id: str | None = None,
+) -> SpaceItemContent:
+    """The id of the note / test to edit for this item (its draft twin is made on the first call).
+
+    TEST items: `test_id` picks the variant (default: the first one).
+    """
+    return space_draft_service.make_editable(
+        db, space_id=space_id, item_id=item_id, current_user=current_user, test_id=test_id
+    )
+
+
+@router.patch("/{space_id}/items/{item_id}", response_model=SpaceDetail)
+def update_item(
+    space_id: str, item_id: str, data: SpaceItemUpdate, db: DbSession, current_user: CurrentUser
+) -> SpaceDetail:
+    """The attempt policy of a draft TEST item."""
+    return space_draft_service.update_item(db, space_id=space_id, item_id=item_id, current_user=current_user, data=data)
+
+
+@router.post(
+    "/{space_id}/items/{item_id}/variants", response_model=SpaceItemContent, status_code=status.HTTP_201_CREATED
+)
+def add_variant(
+    space_id: str, item_id: str, data: SpaceVariantCreate, db: DbSession, current_user: CurrentUser
+) -> SpaceItemContent:
+    return space_draft_service.add_variant(db, space_id=space_id, item_id=item_id, current_user=current_user, data=data)
+
+
+@router.put("/{space_id}/items/{item_id}/variants/order", response_model=SpaceDetail)
+def reorder_variants(
+    space_id: str, item_id: str, data: SpaceVariantOrder, db: DbSession, current_user: CurrentUser
+) -> SpaceDetail:
+    return space_draft_service.reorder_variants(
+        db, space_id=space_id, item_id=item_id, current_user=current_user, data=data
+    )
+
+
+@router.delete("/{space_id}/items/{item_id}/variants/{test_id}", response_model=SpaceDetail)
+def remove_variant(space_id: str, item_id: str, test_id: str, db: DbSession, current_user: CurrentUser) -> SpaceDetail:
+    return space_draft_service.remove_variant(
+        db, space_id=space_id, item_id=item_id, test_id=test_id, current_user=current_user
+    )
+
+
+# ── Progress and attempts (VIEWER) ────────────────────────────────────────────
+
+
+@router.post("/{space_id}/items/{item_id}/completion", response_model=SpaceProgress)
+def mark_done(space_id: str, item_id: str, db: DbSession, current_user: CurrentUser) -> SpaceProgress:
+    """Mark a note as done."""
+    return space_member_service.set_item_completed(
+        db, space_id=space_id, item_id=item_id, current_user=current_user, completed=True
+    )
+
+
+@router.delete("/{space_id}/items/{item_id}/completion", response_model=SpaceProgress)
+def unmark_done(space_id: str, item_id: str, db: DbSession, current_user: CurrentUser) -> SpaceProgress:
+    return space_member_service.set_item_completed(
+        db, space_id=space_id, item_id=item_id, current_user=current_user, completed=False
+    )
+
+
+@router.patch("/{space_id}/membership", response_model=SpaceDetail)
+def update_membership(
+    space_id: str, data: SpaceMembershipUpdate, db: DbSession, current_user: CurrentUser
+) -> SpaceDetail:
+    """The own settings of the member: include the course questions in Review (SRS)."""
+    return space_member_service.set_membership(
+        db, space_id=space_id, current_user=current_user, include_in_srs=data.include_in_srs
+    )
+
+
+@router.post("/{space_id}/visit", status_code=status.HTTP_204_NO_CONTENT)
+def visit(space_id: str, data: SpaceVisitRequest, db: DbSession, current_user: CurrentUser) -> None:
+    """Remember the item the student opened last."""
+    space_member_service.record_visit(db, space_id=space_id, item_id=data.item_id, current_user=current_user)
+
+
+@router.post("/{space_id}/items/{item_id}/attempts", response_model=SpaceAttemptStart)
+def start_attempt(space_id: str, item_id: str, db: DbSession, current_user: CurrentUser) -> SpaceAttemptStart:
+    """Start an attempt on a TEST item, or resume the open one."""
+    return space_attempt_service.start_attempt(db, space_id=space_id, item_id=item_id, current_user=current_user)
+
+
+@router.post(
+    "/{space_id}/attempts/{attempt_id}/submit", response_model=TestResultRead, status_code=status.HTTP_201_CREATED
+)
+def submit_attempt(
+    space_id: str,
+    attempt_id: str,
+    data: TestSubmission,
+    db: DbSession,
+    current_user: CurrentUser,
+    background_tasks: BackgroundTasks,
+) -> TestResult:
+    return space_attempt_service.submit_attempt(
+        db,
+        space_id=space_id,
+        attempt_id=attempt_id,
+        current_user=current_user,
+        submission=data,
+        background_tasks=background_tasks,
+    )
 
 
 # ── Members ───────────────────────────────────────────────────────────────────

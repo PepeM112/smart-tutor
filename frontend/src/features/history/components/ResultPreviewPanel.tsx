@@ -1,20 +1,25 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
-import { AnswerStatus, type AnswerRead, type QuestionRead, QuestionType } from '@/client';
+import { AnswerStatus, type AnswerRead, QuestionType } from '@/client';
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
 import { QueryState } from '@/components/shared/QueryState';
-import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
+import { useResultTest } from '../hooks/useResultTest';
 import { useTestResult } from '../hooks/useTestResult';
 
 import { MultipleChoiceReview } from './MultipleChoiceReview';
 import { CompactGroupCard, CompactQuestionCard } from './QuestionReviewCards';
-import { buildExamItems, countCorrectInGroup, ExamItemType, getUserAnswerDisplay } from './resultDetailUtils';
+import {
+  buildExamItems,
+  countCorrectInGroup,
+  ExamItemType,
+  getUserAnswerDisplay,
+  type ResultQuestion,
+} from './resultDetailUtils';
 import { ScoreBanner } from './ScoreBanner';
 
 type Props = {
@@ -36,15 +41,7 @@ export function ResultPreviewPanel({ resultId, onClose }: Props) {
   const { data: resultRes, isLoading: isLoadingResult, isError: isResultError } = useTestResult(resultId);
   const result = resultRes?.data;
 
-  const {
-    data: testRes,
-    isLoading: isLoadingTest,
-    isError: isTestError,
-  } = useQuery({
-    queryKey: ['tests', result?.testId],
-    queryFn: () => sdk.testsGet({ path: { test_id: result!.testId } }),
-    enabled: !!result?.testId,
-  });
+  const { data: testRes, isLoading: isLoadingTest, isError: isTestError } = useResultTest(resultId);
   const test = testRes?.data;
 
   const items = useMemo(() => (test ? buildExamItems(test) : []), [test]);
@@ -67,7 +64,7 @@ export function ResultPreviewPanel({ resultId, onClose }: Props) {
       >
         {result && test ? (
           <div className="space-y-4">
-            <ScoreBanner result={result} testTitle={test.title} isOlderVersion={!!test.parentId} />
+            <ScoreBanner result={result} testTitle={test.title} isOlderVersion={result.isOlderVersion} />
             {items.map((item, index) =>
               item.type === ExamItemType.QUESTION ? (
                 <div key={item.question.id} className="space-y-2">
@@ -109,7 +106,7 @@ export function ResultPreviewPanel({ resultId, onClose }: Props) {
 }
 
 /** The answer of the user in a short, read-only form. */
-function AnswerSummary({ question, answer }: { question: QuestionRead; answer?: AnswerRead }) {
+function AnswerSummary({ question, answer }: { question: ResultQuestion; answer?: AnswerRead }) {
   const t = useTranslations();
 
   if (!answer) return <p className="text-sm text-muted-foreground">{t('history.no_answer')}</p>;

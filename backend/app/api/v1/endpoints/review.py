@@ -20,10 +20,14 @@ def list_(
     current_user: CurrentUser,
     limit: int = Query(default=10, ge=1, le=50),
     mode: Annotated[ReviewMode, Query()] = "review",
+    scope: Annotated[str, Query(max_length=26)] = "all",
 ) -> ReviewResponse:
-    """Fetch questions for review. SRS-prioritised by default, random in practice mode."""
+    """Fetch questions for review. SRS-prioritised by default, random in practice mode.
+
+    `scope`: `all` (personal + courses with Include in Review on), `personal`, or one course id.
+    """
     questions, has_questions = review_service.get_review_questions(
-        db, current_user=current_user, limit=limit, mode=mode
+        db, current_user=current_user, limit=limit, mode=mode, scope=scope
     )
     return ReviewResponse(
         questions=[build_stripped_question(q) for q in questions],

@@ -1,12 +1,14 @@
 'use client';
 
 import { useIsMutating, useMutationState } from '@tanstack/react-query';
-import { Archive, Check, Loader2, LogOut, Pencil, Settings, TriangleAlert } from 'lucide-react';
+import { Archive, Check, GraduationCap, Loader2, LogOut, Pencil, Play, Settings, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { MemberStatus, SpaceStatus, SpaceVisibility, type SpaceDetail } from '@/client';
+import { MemberStatus, SpaceItemKind, SpaceStatus, SpaceVisibility, type SpaceDetail } from '@/client';
+import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
@@ -15,18 +17,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useUrlTab } from '@/hooks/useUrlTab';
-import { courseSettingsHref, Routes } from '@/lib/routes';
+import { courseAttemptHref, courseSettingsHref, Routes } from '@/lib/routes';
 import { cn, errorStatus } from '@/lib/utils';
 
 import { useCourse } from '../hooks/useCourse';
 import { courseWriteKey, useCourseActions } from '../hooks/useCourseActions';
+import { useVisitItem } from '../hooks/useCourseProgress';
 import { ROLE_LABELS, VISIBILITY_LABELS } from '../lib/labels';
 import { COURSE_COLUMN_CLASS } from '../lib/layout';
 import { courseAccess } from '../lib/membership';
+import { canTrackProgress, continueItem, findNoteItem, isCourseViewer } from '../lib/progress';
 
+import { CopyToLibraryButton } from './CopyToLibraryButton';
 import { CourseDraftEditor } from './CourseDraftEditor';
 import { CourseMembers } from './CourseMembers';
 import { CourseOutline } from './CourseOutline';
+import { CourseProgressBar, NoteDoneButton } from './CourseProgress';
 import { CourseUnavailable } from './CourseUnavailable';
 import { PublishDialog } from './PublishDialog';
 
@@ -40,12 +46,17 @@ const AUTHOR_TABS = ['content', 'members'] as const;
 /** `/courses/[slug-id]`: header, membership and author actions, and the Content / Members tabs (settings is a sub-page). */
 export function CoursePage({ courseId }: { courseId: string }) {
   const t = useTranslations();
+  const router = useRouter();
   const { data: course, isLoading, error } = useCourse(courseId);
   const actions = useCourseActions(courseId);
   const [tab, changeTab] = useUrlTab(AUTHOR_TABS, 'content');
   const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
 
   useBreadcrumb(course?.title ?? '', [{ label: t('courses.title'), href: Routes.COURSES }], Routes.COURSES);
+
+  // A viewer who opens a note in the preview sets "Continue" to that note.
+  const previewItem = course && previewNote ? findNoteItem(course.sections, previewNote.noteId) : undefined;
+  useVisitItem(courseId, previewItem?.id, course !== undefined && isCourseViewer(course));
 
   const status = errorStatus(error);
 
@@ -58,10 +69,17 @@ export function CoursePage({ courseId }: { courseId: string }) {
   const previewNoteId = previewNote?.isEditing === course.isEditing ? previewNote.noteId : null;
   const openNote = (noteId: string) => setPreviewNote({ noteId, isEditing: course.isEditing });
   const closePreview = () => setPreviewNote(null);
+  const openContinue = (): void => {
+    const next = continueItem(course.sections, course.progress?.lastItemId);
+    if (!next) return;
+    if (next.kind === SpaceItemKind.NOTE && next.noteId) openNote(next.noteId);
+    else router.push(courseAttemptHref(course, next.id));
+  };
+  const previewDoneItem = previewNoteId ? findNoteItem(course.sections, previewNoteId) : undefined;
 
   const main = (
     <div className={COURSE_COLUMN_CLASS}>
-      <CourseHeader course={course} actions={actions} />
+      <CourseHeader course={course} actions={actions} onContinue={openContinue} />
 
       {course.status === SpaceStatus.ARCHIVED && (
         <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
@@ -84,7 +102,7 @@ export function CoursePage({ courseId }: { courseId: string }) {
           </TabsContent>
         </Tabs>
       ) : (
-        <CourseOutline sections={course.sections} linkItems={isMember} onOpenNote={openNote} />
+        <CourseOutline sections={course.sections} course={course} linkItems={isMember} onOpenNote={openNote} />
       )}
     </div>
   );
@@ -97,7 +115,20 @@ export function CoursePage({ courseId }: { courseId: string }) {
         // The course scrolls at the page edge (the layout padding moves inside the pane).
         bleed
         main={main}
-        side={previewNoteId ? <NotePreviewPanel noteId={previewNoteId} onClose={closePreview} /> : null}
+        side={
+          previewNoteId ? (
+            <NotePreviewPanel
+              noteId={previewNoteId}
+              onClose={closePreview}
+              extraActions={
+                <>
+                  <CopyToLibraryButton noteId={previewNoteId} />
+                  {previewDoneItem && <NoteDoneButton course={course} item={previewDoneItem} />}
+                </>
+              }
+            />
+          ) : null
+        }
         onSideClose={closePreview}
         // The preview panel has its own frame and scroll.
         insetDrawerBody={false}
@@ -106,8 +137,17 @@ export function CoursePage({ courseId }: { courseId: string }) {
   );
 }
 
-function CourseHeader({ course, actions }: { course: SpaceDetail; actions: Actions }) {
+function CourseHeader({
+  course,
+  actions,
+  onContinue,
+}: {
+  course: SpaceDetail;
+  actions: Actions;
+  onContinue: () => void;
+}) {
   const t = useTranslations();
+  const hasContinue = canTrackProgress(course) && continueItem(course.sections, course.progress?.lastItemId) !== null;
 
   return (
     <header className="flex flex-col gap-3">
@@ -122,6 +162,16 @@ function CourseHeader({ course, actions }: { course: SpaceDetail; actions: Actio
         </div>
       </div>
       {course.description && <p className="text-sm whitespace-pre-line text-foreground">{course.description}</p>}
+      {isCourseViewer(course) && course.progress && (
+        <div className="flex flex-wrap items-center gap-3">
+          <CourseProgressBar progress={course.progress} className="min-w-48 flex-1" />
+          {hasContinue && (
+            <Button size="sm" icon={Play} onClick={onContinue}>
+              {t('courses.continue')}
+            </Button>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 text-xs">
         <Badge>{t(VISIBILITY_LABELS[course.visibility])}</Badge>
         {course.myRole && <Badge>{t(ROLE_LABELS[course.myRole])}</Badge>}
@@ -178,8 +228,15 @@ function MembershipActions({ course, actions }: { course: SpaceDetail; actions: 
   }
 
   if (course.myStatus === MemberStatus.ACTIVE) {
+    const reviewAction: MobileAction = {
+      label: t(course.includeInSrs ? 'courses.remove_from_review' : 'courses.include_in_review'),
+      icon: GraduationCap,
+      onClick: () => actions.setIncludeInSrs.mutate(!course.includeInSrs),
+    };
     return (
       <>
+        {/* Only a course member has a membership to set. Editors may use Review too. */}
+        <ActionsMenu actions={[reviewAction]} />
         <Button variant="outline" icon={LogOut} onClick={() => setIsLeaveOpen(true)}>
           {t('courses.leave')}
         </Button>
