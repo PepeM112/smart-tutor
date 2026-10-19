@@ -18,6 +18,6 @@ class SpacePost(Base, CreatedAtMixin, UpdatedAtMixin):
     )
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
-    space_id: Mapped[str] = mapped_column(String(26), ForeignKey("space.id", ondelete="CASCADE"), index=True)
+    space_id: Mapped[str] = mapped_column(String(26), ForeignKey("space.id", ondelete="CASCADE"))
     author_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id", ondelete="CASCADE"), index=True)
     body: Mapped[str] = mapped_column(Text)

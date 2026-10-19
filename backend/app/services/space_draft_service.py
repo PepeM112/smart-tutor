@@ -740,6 +740,11 @@ def publish(
         notify_members=data.notify_members,
         reset_item_ids=reset_item_ids,
     )
+    # Lock order of the progress writes: member rows first, then completion rows (see
+    # `space_progress_service.recheck_test_completion`). Sorted, so two publishes can not deadlock.
+    space_member_crud.lock_rows(
+        db, space_id=space.id, user_ids=space_item_completion_crud.list_user_ids_for_items(db, item_ids=reset_item_ids)
+    )
     space_item_completion_crud.remove_for_items(db, item_ids=reset_item_ids)
     # Old results and attempts stop counting: without this the next recheck finds the old best score.
     space_item_crud.set_progress_reset(db, item_ids=reset_item_ids, at=at)

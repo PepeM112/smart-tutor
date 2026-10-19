@@ -50,6 +50,7 @@ from app.schemas.space import (
     SpaceItemCopy,
     SpacePublishRequest,
     SpaceSectionCreate,
+    SpaceSectionUpdate,
 )
 from app.schemas.test import TestRead
 from app.services import (
@@ -78,7 +79,7 @@ from app.services.llm import (
     CompletionResult,
 )
 from tests.llm_fakes import resolve_to
-from tests.space_factories import add_member, new_test, new_user
+from tests.space_factories import add_member, new_item, new_note, new_test, new_user
 
 pytestmark = pytest.mark.db
 
@@ -1243,6 +1244,22 @@ def _remove(db: Session, room: Room, item_id: str, student: User, by: User) -> N
     )
 
 
+def _record_sql(db: Session) -> list[str]:
+    """Start to record the SQL text of every statement of this test connection, in order."""
+    statements: list[str] = []
+    event.listen(
+        db.get_bind(),
+        "before_cursor_execute",
+        lambda _conn, _cursor, statement, *_args: statements.append(" ".join(statement.split())),
+    )
+    return statements
+
+
+def _first_index(statements: list[str], *needles: str) -> int:
+    """The position of the first statement that has every needle. Fails when there is none."""
+    return next(i for i, text in enumerate(statements) if all(needle in text for needle in needles))
+
+
 class TestStudentName:
     def test_a_teacher_sees_the_name_of_the_student_and_the_student_does_not(
         self, db_session: Session, owner: User
@@ -1445,3 +1462,100 @@ class TestRemoveCompletion:
         assert code("missing", student) == 404
         # A course id is not a classroom.
         assert code(room.loose_item_id, student, room.course_id) == 404
+
+    def test_a_note_item_is_refused_with_404(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        classroom = db_session.get(Space, room.classroom_id)
+        assert classroom is not None
+        note_item = new_item(
+            db_session, space=classroom, kind=SpaceItemKind.NOTE, note=new_note(db_session, user=owner)
+        )
+        # A NOTE can be done too: the guard is the item kind, not a missing completion row.
+        space_item_completion_crud.add(
+            db_session, item_id=note_item.id, user_id=student.id, completed_at=space_progress_service.utcnow()
+        )
+
+        with pytest.raises(HTTPException) as error:
+            _remove(db_session, room, note_item.id, student, owner)
+
+        assert (error.value.status_code, error.value.detail) == (404, "Item not found")
+        assert _is_done(db_session, note_item.id, student) is True
+
+    def test_a_draft_item_is_refused_with_404(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        classroom = db_session.get(Space, room.classroom_id)
+        assert classroom is not None
+        draft_item = new_item(
+            db_session, space=classroom, kind=SpaceItemKind.TEST, test=new_test(db_session, user=owner), is_draft=True
+        )
+
+        with pytest.raises(HTTPException) as error:
+            _remove(db_session, room, draft_item.id, student, owner)
+
+        assert (error.value.status_code, error.value.detail) == (404, "Item not found")
+
+    def test_it_locks_the_member_row_before_it_reads_the_score_or_deletes(
+        self, db_session: Session, owner: User
+    ) -> None:
+        """One lock order for every progress write: member row, then completion rows (see the classroom service)."""
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.loose_item_id, space_id=room.classroom_id)
+        statements = _record_sql(db_session)
+
+        _remove(db_session, room, room.loose_item_id, student, owner)
+
+        lock = _first_index(statements, "FROM space_member", "FOR UPDATE")
+        assert lock < _first_index(statements, "FROM test_result")
+        assert lock < _first_index(statements, "DELETE FROM space_item_completion")
+
+
+class TestRecheckLockOrder:
+    def test_a_passing_recheck_locks_the_member_row_before_the_score_and_the_completion_insert(
+        self, db_session: Session, owner: User
+    ) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        result = _take(db_session, room.classroom_id, room.loose_item_id, student, "ir")
+        space_item_completion_crud.remove(db_session, item_id=room.loose_item_id, user_id=student.id)
+        statements = _record_sql(db_session)
+
+        space_progress_service.recheck_result_completion(db_session, test_result=result)
+
+        lock = _first_index(statements, "FROM space_member", "FOR UPDATE")
+        assert lock < _first_index(statements, "FROM test_result")
+        assert lock < _first_index(statements, "INSERT INTO space_item_completion")
+        assert _is_done(db_session, room.loose_item_id, student) is True
+
+    def test_publish_with_a_reset_locks_the_member_rows_before_it_deletes_the_completions(
+        self, db_session: Session, owner: User
+    ) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _take(db_session, room.classroom_id, room.loose_item_id, student, "ir")
+        detail = space_draft_service.enter_edit_mode(db_session, space_id=room.classroom_id, current_user=owner)
+        assert detail.draft_sections
+        space_draft_service.rename_section(  # a structure change, so that publish has something to publish
+            db_session,
+            space_id=room.classroom_id,
+            section_id=detail.draft_sections[0].id,
+            current_user=owner,
+            data=SpaceSectionUpdate(title="Renamed"),
+        )
+        draft_item_id = db_session.scalars(
+            select(SpaceItem.id).where(SpaceItem.draft_of_id == room.loose_item_id)
+        ).one()
+        statements = _record_sql(db_session)
+
+        space_draft_service.publish(
+            db_session,
+            space_id=room.classroom_id,
+            current_user=owner,
+            data=SpacePublishRequest.model_validate({"reset_item_ids": [draft_item_id]}),
+        )
+
+        lock = _first_index(statements, "FROM space_member", "FOR UPDATE")
+        assert lock < _first_index(statements, "DELETE FROM space_item_completion")
+        assert _is_done(db_session, room.loose_item_id, student) is False

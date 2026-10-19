@@ -1,10 +1,11 @@
 import { expect, request as pwRequest } from '@playwright/test';
 
-import { openClassroom, reseedCourses, test } from './helpers';
+import { expectToast, openClassroom, reseedCourses, test } from './helpers';
 import { authFile } from './users';
 
-// The Stream pages with a cursor. After a write the list restarts from its first page, so a new post at the
-// top does not repeat or hide an older post (the cursors of the extra pages were stale).
+// The Stream pages with a cursor. After a new post or a deleted post the list restarts from its first page, so
+// the shifted rows do not repeat or hide an older post (the cursors of the extra pages were stale). A comment
+// or an edit does not shift the posts: the loaded pages stay, so the post that the user comments on stays.
 test.use({ storageState: authFile('owner') });
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(reseedCourses);
@@ -51,4 +52,24 @@ test('a new post after "Load more" repeats no post and hides none', async ({ pag
   // Every post shows once and in order: nothing repeated, nothing missing.
   expected.forEach((text, index) => expect(texts[index]).toContain(text));
   expect(texts).toHaveLength(expected.length);
+});
+
+test('a comment on a post of page 2 keeps the loaded pages and the post stays visible', async ({ page }) => {
+  await openClassroom(page, CLASSROOM);
+  await page.getByRole('tab', { name: 'Stream' }).click();
+  const posts = page.getByTestId('feed-post');
+  await expect(posts).toHaveCount(20);
+  await page.getByRole('button', { name: 'Load more' }).click();
+  // 2 seeded posts + 25 + 1 new post of the first test.
+  await expect(posts).toHaveCount(EXTRA_POSTS + 3);
+
+  // The oldest post is on page 2.
+  const card = posts.filter({ hasText: 'Welcome to Biology 101!' });
+  await card.getByRole('textbox', { name: 'Write a comment' }).fill('Comment on page 2');
+  await card.getByRole('button', { name: 'Comment', exact: true }).click();
+  await expectToast(page, 'Comment added');
+
+  // The list did not go back to 20 posts: the post is still there, with the new comment.
+  await expect(card.getByTestId('feed-comment').filter({ hasText: 'Comment on page 2' })).toBeVisible();
+  await expect(posts).toHaveCount(EXTRA_POSTS + 3);
 });

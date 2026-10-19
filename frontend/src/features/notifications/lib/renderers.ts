@@ -1,8 +1,19 @@
-import { BookOpen, Clock, GraduationCap, Mail, MessageCircle, MessageSquare, UserCheck, UserPlus } from 'lucide-react';
+import {
+  Bell,
+  BookOpen,
+  Clock,
+  GraduationCap,
+  Mail,
+  MessageCircle,
+  MessageSquare,
+  UserCheck,
+  UserPlus,
+} from 'lucide-react';
 
 import { type NotificationRead } from '@/client';
+import { dueSoonHref } from '@/features/classrooms/lib/dueSoonHref';
 import { spaceHref } from '@/features/courses/lib/spaceHref';
-import { classroomHref, classroomItemHref, courseHref, Routes } from '@/lib/routes';
+import { classroomHref, courseHref, Routes } from '@/lib/routes';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -23,15 +34,12 @@ export type RenderedNotification = {
 /** Query param of a space page that opens one tab (`useUrlTab`). */
 const tabHref = (href: string, tab: string): string => `${href}?tab=${tab}`;
 
-function assertNever(value: never): never {
-  throw new Error(`Unhandled notification payload: ${JSON.stringify(value)}`);
-}
-
 /**
  * Turns a notification into its text key, params, target page and icon. The payload keeps the titles and
  * ids from the time of the event, so no extra request is needed. The `switch` is exhaustive on the payload
  * `kind`: the backend ties each `NotificationType` to one `kind`, so a new type fails the type check here
- * until it has a renderer.
+ * until it has a renderer. A kind that the backend sends before the frontend knows it (deploy order, an old
+ * tab) gets a generic text that opens the notifications page: one unknown row must not crash the bell.
  */
 export function renderNotification(notification: NotificationRead): RenderedNotification {
   const payload: Payload = notification.payload;
@@ -99,7 +107,13 @@ export function renderNotification(notification: NotificationRead): RenderedNoti
       return {
         textKey: 'types.due_soon',
         params: { item: payload.itemTitle, space: payload.spaceTitle, dueAt: new Date(payload.dueAt) },
-        href: classroomItemHref({ id: payload.classroomId, title: payload.spaceTitle }, payload.itemId),
+        href: dueSoonHref({
+          itemId: payload.itemId,
+          kind: payload.itemKind,
+          spaceId: payload.spaceId,
+          spaceTitle: payload.spaceTitle,
+          classroomId: payload.classroomId,
+        }),
         icon: Clock,
       };
     case 'grade_overridden':
@@ -115,7 +129,10 @@ export function renderNotification(notification: NotificationRead): RenderedNoti
         href: Routes.RESULT_DETAIL(payload.resultId),
         icon: GraduationCap,
       };
-    default:
-      return assertNever(payload);
+    default: {
+      const _exhaustive: never = payload;
+      void _exhaustive;
+      return { textKey: 'types.unknown', params: {}, href: Routes.NOTIFICATIONS, icon: Bell };
+    }
   }
 }

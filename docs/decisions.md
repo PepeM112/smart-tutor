@@ -702,3 +702,40 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Alternative considered:** A reset of the item progress for one student. `progress_reset_at` is one value per item, so a reset time per member needs a bigger change.
 
 **Why:** Completion is sticky, so a fail override does not remove it (see "A Fail Override Keeps the Completion"). The teacher still needs a way to correct a wrong pass, for example after a fail override. A reset would delete grades. Removing the row only changes progress, never results. The 409 rule stops a removal that the next check would undo at once, and the lock stops a race with a submit that completes the item at the same time.
+
+## One Lock Order for Progress Writes
+
+**Context:** The ST-69 audit found two problems with completion rows:
+- `recheck_test_completion` read the best score before it locked anything. Remove completion could then delete a pass that a parallel submit, grading run or override had just earned.
+- Remove completion locked the member row and then the completion row. Publish with a reset did the opposite, so the two could deadlock.
+
+**Options considered:**
+- Record both as known limits.
+- Lock the member row first in every path that writes a completion row or `completed_at`.
+
+**Decision:** Every progress write locks the member row of the student first (`FOR UPDATE`), then reads the best score and writes the completion row. This covers recheck, mark done, Remove completion and publish with a reset. Publish with a reset locks the rows of all affected users, sorted by `user_id`.
+
+**Why:** One lock order makes a deadlock between these paths impossible. The pass check and the write become one step. The cost is one more row lock per write, and only writes of the same student wait for each other.
+
+## The Stream Restarts From Page 1 Only After a Post Create or Delete
+
+**Context:** At first, every feed write cut the Stream to its first page (`resetToFirstPage`), so that stale cursors could not repeat or skip a post. The audit and Playwright showed the cost: a comment on a post from page 2 made that post disappear. An error also reset the list and lost the text that the user typed.
+
+**Decision:** Only a post create and a post delete reset the list, because they add or remove a row and so move the cursors. A post edit and every comment write use a plain invalidate, which keeps the loaded pages. An error never resets.
+
+**Why:** An edit or a comment does not change which posts are on each page, so the loaded pages stay valid.
+
+## Join Requests Go Only to Users Who Can Approve
+
+**Decision:** JOIN_REQUESTED goes to the owner of a standalone course, and to the owner and the ACTIVE co-teachers of a classroom.
+
+**Why:** On a standalone course only the owner can approve (see "Only the Owner Manages Members"). A course editor got the notification but got 403 on approve.
+
+## Shared Service Helpers With No Service Imports
+
+**Context:** `notification_service` imported `classroom_service` for the due-soon helper. This closed a cycle (`classroom_service` → `space_draft_service` → `notification_service` → `classroom_service`). The app started only because of the import order in `main.py`.
+
+**Decision:** The due-soon helper (`DUE_SOON_WINDOW`, `PendingDueItem`, `pending_due_items`) is in `services/due_soon_service.py`, which imports only CRUD and models. `tests/test_imports.py` imports every service and endpoint module in a fresh process.
+
+**Why:** A module import (`from app.services import x`) only hides a cycle. A helper with no service imports removes it, and the test finds a new cycle at once.
+

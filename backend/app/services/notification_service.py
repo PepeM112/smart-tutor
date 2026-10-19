@@ -24,7 +24,7 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app.core.constants import NOTIFICATION_RETENTION_DAYS
+from app.core.constants import FEED_PAGE_SIZE, NOTIFICATION_RETENTION_DAYS
 from app.core.enums import NotificationType, SpaceItemKind, SpaceRole
 from app.crud import notification as notification_crud
 from app.crud import space as space_crud
@@ -38,12 +38,10 @@ from app.schemas.notification import (
     NotificationRead,
     UnreadCount,
 )
-from app.services import classroom_service
+from app.services import due_soon_service
 from app.services.access_service import resolve_role
 
 logger = logging.getLogger("smarttutor.notifications")
-
-DEFAULT_PAGE_SIZE = 20
 
 
 def actor_name(user: User) -> str:
@@ -147,11 +145,12 @@ def with_space_access(db: Session, *, space: Space, user_ids: Iterable[str]) -> 
 def _generate_due_soon(db: Session, *, user_id: str) -> None:
     """One DUE_SOON notification per (user, item) due in the next 24h, across every classroom the user studies in.
 
-    Same filters as `classroom_service.due_soon`, but scanning all of the user's classrooms at once
-    (`pending_due_items` takes a list). The user's existing `due:*` keys are read first, so a bell poll with
-    nothing new writes nothing and does not commit. `dedupe_key = "due:<item_id>"` + `UNIQUE(user_id, dedupe_key)`
-    still covers the race: two concurrent fetches that both see a key as missing produce one row, because the
-    second insert is a silent no-op (`ON CONFLICT DO NOTHING`), never a duplicate row or an error.
+    Same filters as `classroom_service.due_soon` (both call `due_soon_service.pending_due_items`), but scanning all
+    of the user's classrooms at once (`pending_due_items` takes a list). The user's existing `due:*` keys are read
+    first, so a bell poll with nothing new writes nothing and does not commit. `dedupe_key = "due:<item_id>"` +
+    `UNIQUE(user_id, dedupe_key)` still covers the race: two concurrent fetches that both see a key as missing
+    produce one row, because the second insert is a silent no-op (`ON CONFLICT DO NOTHING`), never a duplicate
+    row or an error.
     """
     classrooms = space_crud.list_for_user(
         db, user_id=user_id, status="active", roles=[SpaceRole.VIEWER], classrooms=True
@@ -159,8 +158,8 @@ def _generate_due_soon(db: Session, *, user_id: str) -> None:
     if not classrooms:
         return
     start = datetime.now(timezone.utc)
-    end = start + classroom_service.DUE_SOON_WINDOW
-    pending = classroom_service.pending_due_items(db, classrooms=classrooms, user_id=user_id, start=start, end=end)
+    end = start + due_soon_service.DUE_SOON_WINDOW
+    pending = due_soon_service.pending_due_items(db, classrooms=classrooms, user_id=user_id, start=start, end=end)
     existing = notification_crud.list_dedupe_keys(db, user_id=user_id, keys=[f"due:{p.item.id}" for p in pending])
     missing = [p for p in pending if f"due:{p.item.id}" not in existing]
     if not missing:
@@ -208,7 +207,7 @@ def _read_or_none(row: Notification) -> NotificationRead | None:
 
 
 def list_for_user(
-    db: Session, *, current_user: User, unread_only: bool, cursor: str | None, limit: int = DEFAULT_PAGE_SIZE
+    db: Session, *, current_user: User, unread_only: bool, cursor: str | None, limit: int = FEED_PAGE_SIZE
 ) -> NotificationPage:
     # Read the id once: a commit below expires `current_user`, and each later `.id` would reload the row.
     user_id = current_user.id

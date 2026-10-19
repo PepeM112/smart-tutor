@@ -25,7 +25,10 @@ const PAGE_LIMIT = 20;
 /** The bell asks for the unread count this often (ms). It is the only polling in the app. */
 export const UNREAD_COUNT_INTERVAL_MS = 30_000;
 
-/** The number on the bell. The same request makes the due-soon notifications and purges the old read ones. */
+/**
+ * The number on the bell. The same request makes the due-soon notifications. It does not purge old read
+ * rows: only the list fetch does.
+ */
 export function useUnreadCount(): UseQueryResult<number> {
   return useQuery({
     queryKey: notificationQueryKeys.unreadCount(),

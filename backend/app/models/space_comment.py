@@ -15,6 +15,6 @@ class SpaceComment(Base, CreatedAtMixin, UpdatedAtMixin):
     )
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=generate_ulid)
-    post_id: Mapped[str] = mapped_column(String(26), ForeignKey("space_post.id", ondelete="CASCADE"), index=True)
+    post_id: Mapped[str] = mapped_column(String(26), ForeignKey("space_post.id", ondelete="CASCADE"))
     author_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id", ondelete="CASCADE"), index=True)
     body: Mapped[str] = mapped_column(Text)

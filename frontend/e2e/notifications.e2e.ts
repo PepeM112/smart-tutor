@@ -91,7 +91,7 @@ test('N4: the page lists all notifications, and the Unread filter shows the unre
   await expect(bell(student)).toHaveAccessibleName(unreadName(0));
 });
 
-test('N5: the due-soon notification for the Cell quiz shows exactly once', async ({ pageAs }) => {
+test('N5: the due-soon notification for the Cell quiz shows once, and a click opens the test', async ({ pageAs }) => {
   const student = await pageAs('viewer');
   await student.goto('/notifications');
   const dueSoon = student.getByTestId('notification-item').filter({ hasText: 'Cell quiz' });
@@ -103,7 +103,12 @@ test('N5: the due-soon notification for the Cell quiz shows exactly once', async
   await expect(bell(student)).toBeVisible();
   await student.goto('/dashboard');
   await bell(student).click();
-  await expect(student.getByTestId('notification-item').filter({ hasText: 'Cell quiz' })).toHaveCount(1);
+  const popoverItem = student.getByTestId('notification-item').filter({ hasText: 'Cell quiz' });
+  await expect(popoverItem).toHaveCount(1);
+
+  // The Cell quiz is a test in the classroom itself: a click opens its attempt page (as the Due soon list does).
+  await popoverItem.click();
+  await expect(student).toHaveURL(/\/courses\/biology-101-[^/]+\/tests\/[^/?]+$/);
 });
 
 test('N6: a grade override reaches the student, and a click opens the result', async ({ page, pageAs }) => {

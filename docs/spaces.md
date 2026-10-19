@@ -351,7 +351,7 @@ Four fields on `space_item`. UTC, null = not set. The teacher sets them in Edit 
 - **Rule:** allowed only while the best score of the student is below `pass_threshold`. The best score counts overrides and uses only results after `progress_reset_at`. If the best score reaches the threshold, the answer is 409 "The best score of the student reaches the pass threshold".
 - **One pass rule:** `space_progress_service.reaches_threshold` is used by the completion recheck, the gradebook status and this action, so they always agree.
 - **Order of checks:** 404 classroom, 403 not a teacher, 409 archived, 404 item (a draft item, a non-TEST item or an item of another classroom), 404 student (not an ACTIVE VIEWER), 404 "Completion not found", then the 409 above.
-- **Member row lock:** the action locks the member row of the student (`get_member_row(for_update=True)`). The check and the delete are one step, so a parallel completion write can not slip in between.
+- **Member row lock:** the action locks the member row of the student (`get_member_row(for_update=True)`). Every progress write takes the same lock first: `recheck_test_completion` (submit, grading, override, challenge), mark done, and publish with a reset (it locks the member rows of the affected users, sorted by `user_id`, before it deletes their completion rows). So a pass that a parallel write earns is never deleted, and two paths can not lock the rows in opposite order (no deadlock).
 - **No return of the row.** `recheck_test_completion` does not write the row while the best score is below the threshold. A new pass writes it again.
 - **Why not reset the progress of the student:** `progress_reset_at` is one value per item and resets all students. A reset time per member is a bigger change (see [decisions](decisions.md#remove-completion-instead-of-a-per-student-reset)).
 - **UI:** `GradebookCell.canUndoPass` (a row exists, the best score is below the threshold, and the classroom is not archived) shows a "Remove completion" button with a `ConfirmDialog` in the gradebook cell, outside the result link.
@@ -473,10 +473,10 @@ Only an ACTIVE member reads the feed (owner, co-teacher, student). A user with n
 | `GET /api/v1/spaces/{id}/posts` | Newest first, cursor paged (`cursor`, `limit` 1..50, default 20). Each post has its comments (oldest first), loaded in one query for the whole page |
 | `POST /api/v1/spaces/{id}/posts` | Create a post (201) |
 | `PATCH` / `DELETE /api/v1/posts/{id}` | Edit (author only) / delete (author or teacher, 204) |
-| `GET` / `POST /api/v1/posts/{id}/comments` | The comments of one post (oldest first) / create a comment (201) |
+| `POST /api/v1/posts/{id}/comments` | Create a comment (201). The comments come in the post list, so there is no separate GET |
 | `PATCH` / `DELETE /api/v1/comments/{id}` | Edit (author only) / delete (author or teacher, 204) |
 
-`SpacePostPage` is a cursor page (`items`, `nextCursor`) with two flags, `canPost` and `canComment`. They follow `feed_permission` and the archive state (both false when archived). Students can not read the classroom settings, so the backend sends the flags. `can_edit` and `can_delete` of each post and comment come from the backend too, the same way as `can_override`. `author` has `userId`, `username` and `displayName`. The owner is an author with no member row.
+`SpacePostPage` is a cursor page (`items`, `nextCursor`) with two flags, `canPost` and `canComment`. They follow `feed_permission` and the archive state (both false when archived). The `canEdit` and `canDelete` of each post and comment are also false when the classroom is archived. Students can not read the classroom settings, so the backend sends the flags. `can_edit` and `can_delete` of each post and comment come from the backend too, the same way as `can_override`. `author` has `userId`, `username` and `displayName`. The owner is an author with no member row.
 
 The cursor is the id of the last item on the page, not of the lookahead row. The query is `WHERE id < cursor`, so the id of the lookahead row would skip that row.
 
@@ -503,7 +503,7 @@ The cursor is the id of the last item on the page, not of the lookahead row. The
 | `dedupe_key` | String(64), NULL. UNIQUE `(user_id, dedupe_key)` (`uq_notification_user_dedupe`) |
 | `read_at`, `created_at` | DateTime with time zone |
 
-Indexes: `(user_id)` and `(user_id, read_at, created_at)`. A NULL `dedupe_key` never conflicts (Postgres treats NULLs as distinct), so only an event that needs idempotency sets it. Today only due soon does.
+Indexes: `(user_id, id)` (the list, newest first), `(user_id, read_at, id)` (the Unread filter and the count), `(space_id)` and `(actor_id)` (the foreign keys, for a delete of a space or a user). Migration `ab32ee8727de` replaced the first indexes, which could not give the `id` order. A NULL `dedupe_key` never conflicts (Postgres treats NULLs as distinct), so only an event that needs idempotency sets it. Today only due soon does.
 
 ### Events and recipients
 `NotificationType` (`NamedIntEnum`): INVITE_RECEIVED, JOIN_REQUESTED, REQUEST_APPROVED, CONTENT_PUBLISHED, POST_CREATED, COMMENT_CREATED, DUE_SOON, GRADE_OVERRIDDEN.
@@ -511,7 +511,7 @@ Indexes: `(user_id)` and `(user_id, read_at, created_at)`. A NULL `dedupe_key` n
 | Event | Starts in | Recipients |
 |---|---|---|
 | Invite received | `space_member_service.invite` (a new INVITED row) | the invited user |
-| Join request | `join` by link to a PRIVATE space (a new REQUESTED row) | the owner and the ACTIVE co-teachers |
+| Join request | `join` by link to a PRIVATE space (a new REQUESTED row) | the users who can approve: the owner of a standalone course; the owner and the ACTIVE co-teachers of a classroom |
 | Request approved | `approve_request`, or `invite` of a user who has a pending request | the requester |
 | Publish with "Notify members" | `space_draft_service.publish` when `notify_members` is true (it is false by default) | ACTIVE students only (a classroom course: the students of the classroom) |
 | New post | `space_feed_service.create_post` | every ACTIVE member and the owner |
@@ -537,7 +537,7 @@ Indexes: `(user_id)` and `(user_id, read_at, created_at)`. A NULL `dedupe_key` n
 ### Due soon (lazy)
 Nothing happens at the due time, so the bell fetch makes the notification (`list_for_user` and `unread_count` both call `_generate_due_soon`). A poll with nothing new reads only and does not commit:
 1. Take the user's ACTIVE classrooms where the user is a student (VIEWER).
-2. Find the items due in the next 24 hours with the same filters as `classroom_service.due_soon` (`pending_due_items`): published, visible, not done.
+2. Find the items due in the next 24 hours with the same filters as `classroom_service.due_soon` (`due_soon_service.pending_due_items`): published, visible, not done.
 3. Read the user's existing `due:*` keys for these items (one query) and insert a row only for the missing ones, with `dedupe_key = "due:<item_id>"`. Commit only if something was inserted.
 4. `ON CONFLICT DO NOTHING` plus UNIQUE `(user_id, dedupe_key)` still cover the race: two parallel bell fetches that both see a key as missing produce one row, never a duplicate and never an error.
 
@@ -558,11 +558,13 @@ A teacher, a completed item, a hidden item and an item with no `due_at` get noth
 - `NotificationBell` is in `Sidebar` (desktop) and in `MobileHeader`. Both mount (CSS hides one) and share one query key, so there is one request. `useUnreadCount` polls every 30 s (`refetchInterval`) and on window focus. The badge shows `99+` above 99.
 - The bell popover loads the latest 10 only while it is open. A click marks one read, then goes to the target. It has "Mark all read" and a link to the page.
 - `/notifications` (`NotificationsPage`): all notifications, an Unread filter (the standard `useFilters` + `FilterPopover`), "Mark all read" and "Load more" (cursor paging, 20).
-- `lib/renderers.ts` has one renderer per type: it gives the text key (`notifications.types.*`, en and es), the ICU params, the target link and the icon. The `switch` is exhaustive on `payload.kind` (`assertNever`), so a new type does not compile until it has a renderer.
+- `lib/renderers.ts` has one renderer per type: it gives the text key (`notifications.types.*`, en and es), the ICU params, the target link and the icon. The `switch` is exhaustive on `payload.kind` (`const _exhaustive: never`), so a new type does not compile until it has a renderer. At run time, an unknown kind (a backend that deploys before the frontend, or an old tab) gets a generic text (`notifications.types.unknown`) and a link to `/notifications`. It does not throw.
 - **Date in the payload.** Only `DueSoonPayload.dueAt` is a date. The generated transformer (`transformers.gen.ts`) does not reach the payload union, so `dueAt` is an ISO string at run time, although the type says `Date`. The due-soon renderer makes a `Date` from it. A payload with a new date field needs the same step.
-- **Lists restart from the first page after a write.** `lib/infiniteQuery.ts` (`resetToFirstPage`) cuts an infinite query to its first page before it refetches. The cursors of page 2, 3, ... are stale after a new post or a read mark, so a refetch could repeat or skip a row. The Stream does the same after every write. The user presses "Load more" again.
+- **Lists restart from the first page only when a write moves the cursors.** `lib/infiniteQuery.ts` (`resetToFirstPage`) cuts an infinite query to its first page before it refetches. The Stream calls it only after a post create or a post delete, because these add or remove a row in the list. The notifications page calls it after a read mark. A post edit and every comment write use a plain invalidate, so the loaded pages stay and a post on page 2 stays on the screen. An error never resets, so a PostCard with typed text does not unmount.
+- **The bell popover follows the count.** When the 30 s poll changes the unread count while the popover is open, the popover list is invalidated and refetched. A closed popover does not fetch.
+- **A failed background refetch keeps the cached Stream.** The error state shows only when there is no data.
 - **Publish text.** A publish of the classroom itself has the classroom as `space`: the text names it once. The text with "(classroom)" is only for a course inside a classroom.
-- Targets: invite and approved → the space page; join request → the Members tab; publish → the course or classroom; post and comment → the Stream tab; due soon → the classroom item; grade overridden → the result page.
+- Targets: invite and approved → the space page; join request → the Members tab; publish → the course or classroom; post and comment → the Stream tab; due soon → the same target as the "Due soon" list (`classrooms/lib/dueSoonHref.ts`: a test opens its attempt page, a course note opens the course, a classroom note opens the classroom); grade overridden → the result page.
 
 ### Known limits (M5)
 - 105 parallel posts exhaust the database pool (5 + 10 connections) and give some 500 answers. Normal use is far below this.

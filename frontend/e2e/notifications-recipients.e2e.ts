@@ -34,6 +34,8 @@ const delta = (before: Record<UserKey, number>, after: Record<UserKey, number>):
   Object.fromEntries(USERS.map(user => [user, after[user] - before[user]])) as Record<UserKey, number>;
 
 let classroomId = '';
+/** More than 99, so the badge shows "99+". */
+const BULK_POSTS = 105;
 
 test('a post and a comment reach the right people, and never the actor', async () => {
   const owner = await as('owner');
@@ -95,13 +97,15 @@ test('the publish text does not repeat the classroom title', async ({ pageAs }) 
   await student.goto('/notifications');
   const item = student.getByTestId('notification-item').filter({ hasText: 'New content in' }).first();
   await expect(item).toBeVisible();
-  await expect(item).not.toContainText('Biology 101 (Biology 101)', { timeout: 2000 });
+  // The text is rendered (positive check first), so the negative check cannot pass on an empty row.
+  await expect(item).toContainText('New content in Biology 101');
+  await expect(item).not.toContainText('Biology 101 (Biology 101)');
 });
 
 test('the badge stops at 99+, and the page pages through every notification', async ({ pageAs }) => {
   const owner = await as('owner');
   // One after the other: 100 parallel posts exhaust the pool of the database connections (see the report).
-  await Array.from({ length: 105 }, (_, index) => index).reduce<Promise<void>>(async (previous, index) => {
+  await Array.from({ length: BULK_POSTS }, (_, index) => index).reduce<Promise<void>>(async (previous, index) => {
     await previous;
     expect((await owner.post(`${API}/spaces/${classroomId}/posts`, { data: { body: `bulk ${index}` } })).status()).toBe(
       201
@@ -123,7 +127,9 @@ test('the badge stops at 99+, and the page pages through every notification', as
     if (await more.isVisible()) await more.click();
     expect(await more.count()).toBe(0);
   }).toPass();
-  expect(await items.count()).toBeGreaterThan(105);
+  // The student (viewer) has: the due-soon of the seed (1), the comment on the own post (1), the "Loud note"
+  // publish (1) and the 105 bulk posts of the owner. The "Silent note" and the own comment make none.
+  expect(await items.count()).toBe(1 + 1 + 1 + BULK_POSTS);
 });
 
 test('a removed member who clicks an old notification sees the access page, not an error', async ({ pageAs }) => {

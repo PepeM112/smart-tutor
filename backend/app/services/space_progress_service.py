@@ -183,7 +183,12 @@ def recheck_test_completion(db: Session, *, item: SpaceItem, user_id: str) -> No
 
     A result with an answer still being graded is not counted: call this again after
     `grade_pending_answers` and after a challenge recalculation.
+
+    Lock order of the progress writes: the member row FIRST, then the completion rows. The lock comes before
+    the best-score read, so "Remove completion" (`classroom_service.remove_completion`) never judges a score
+    older than a pass that a parallel write is about to commit.
     """
+    get_member_row(db, space_id=item.space_id, user_id=user_id, for_update=True)
     best = test_result_crud.best_scores_by_item(db, user_id=user_id, item_ids=[item.id]).get(item.id)
     if not reaches_threshold(item, best):
         return
@@ -204,6 +209,7 @@ def sync_member_completion(db: Session, *, space_id: str, user_id: str) -> None:
     """`space_member.completed_at` = set when the user is done with every published item, else cleared."""
     # Row lock: two parallel completions (a mark and a background grade) would each count one item
     # less and both write `completed_at = None`. The second waits and counts after the first commit.
+    # Callers that write a completion row take this lock BEFORE the write (see `recheck_test_completion`).
     member = get_member_row(db, space_id=space_id, user_id=user_id, for_update=True)
     if member is None:
         return

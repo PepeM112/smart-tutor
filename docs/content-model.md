@@ -33,7 +33,7 @@ User → Notification (one row per recipient; optional space_id)
 **Feed and notification tables (M5, ST-69).** Migration `7246afeea176` adds three tables (details in [Spaces — Feed](spaces.md#feed-m5) and [Spaces — Notifications](spaces.md#notifications-m5)):
 - `space_post` (`space_id` → `space` CASCADE, `author_id` → `user` CASCADE, `body`, `created_at`, `updated_at`), index `(space_id, id)`. IDs are ULIDs, so the id order is the time order and the feed pages by `id < cursor`.
 - `space_comment` (`post_id` → `space_post` CASCADE, `author_id` → `user` CASCADE, `body`, `created_at`, `updated_at`), index `(post_id, id)`. Comments are flat.
-- `notification` (`user_id` → `user` CASCADE, `type`, `space_id` → `space` CASCADE (NULL), `actor_id` → `user` SET NULL, `payload` JSONB, `dedupe_key` (NULL), `read_at`, `created_at`). `UNIQUE(user_id, dedupe_key)`, and an index on `(user_id, read_at, created_at)`.
+- `notification` (`user_id` → `user` CASCADE, `type`, `space_id` → `space` CASCADE (NULL), `actor_id` → `user` SET NULL, `payload` JSONB, `dedupe_key` (NULL), `read_at`, `created_at`). `UNIQUE(user_id, dedupe_key)`, and indexes on `(user_id, id)`, `(user_id, read_at, id)`, `(space_id)` and `(actor_id)`.
 
 Questions have a `user_id` FK for direct ownership. A question's `test_id` is **nullable** — questions with `test_id = NULL` are **bank questions** (standalone, not part of any test). Bank questions are owned via `user_id` directly.
 

@@ -40,39 +40,54 @@ export function usePosts(classroomId: string): UseInfiniteQueryResult<InfiniteDa
   });
 }
 
-/** A refused write gets its own translated text when the `detail` is known, else the detail or the fallback. */
+/**
+ * A refused write shows a translated text. The backend `detail` is English only, so a known detail maps to
+ * its own key and any other detail gives the translated fallback of the action, never the raw text.
+ */
 function useWriteErrorToast(fallbackKey: string): (err: unknown) => void {
   const t = useTranslations();
-  return err => {
-    const key = feedErrorKey(getErrorDetail(err, ''));
-    toast.error(key ? t(key) : getErrorDetail(err, t(fallbackKey)));
-  };
+  return err => toast.error(t(feedErrorKey(getErrorDetail(err, '')) ?? fallbackKey));
 }
 
+type PostsRefresh = {
+  /** Refetches the pages that are loaded. Nothing unmounts, so a draft in a PostCard survives. */
+  invalidate: () => void;
+  /** Cuts the list back to its first page, then refetches (see `resetToFirstPage`). */
+  reset: () => void;
+};
+
 /**
- * Every write refetches the list from its first page (also after an error: a refused write often means the
- * permission or the content changed, so the composers and the list must show the current state). The extra
- * pages are dropped first: their cursors are stale after a write (see `resetToFirstPage`).
+ * Every write refetches the list (also after an error: a refused write often means the permission or the
+ * content changed, so the composers and the list must show the current state).
+ *
+ * A new post or a deleted post shifts the rows that the stored cursors of page 2, 3, ... point at, so a
+ * refetch of those pages could repeat or skip a post: these two writes reset to the first page. A comment
+ * write or a post edit does not change the post order: the loaded pages stay and TanStack refetches them, so
+ * the post that the user comments on stays on screen. The error path never resets: the PostCard would
+ * unmount and the text the user typed would be lost.
  */
-function useRefreshPosts(classroomId: string): () => void {
+function useRefreshPosts(classroomId: string): PostsRefresh {
   const queryClient = useQueryClient();
-  return () => void resetToFirstPage(queryClient, feedQueryKeys.posts(classroomId));
+  return {
+    invalidate: () => void queryClient.invalidateQueries({ queryKey: feedQueryKeys.posts(classroomId) }),
+    reset: () => void resetToFirstPage(queryClient, feedQueryKeys.posts(classroomId)),
+  };
 }
 
 export function useCreatePost(classroomId: string): UseMutationResult<SpacePostRead, unknown, string> {
   const t = useTranslations();
-  const refresh = useRefreshPosts(classroomId);
+  const { invalidate, reset } = useRefreshPosts(classroomId);
   const onWriteError = useWriteErrorToast('feed.failed_to_post');
 
   return useMutation({
     mutationFn: async (body: string): Promise<SpacePostRead> =>
       (await sdk.spacesCreatePost({ path: { space_id: classroomId }, body: { body }, throwOnError: true })).data,
     onSuccess: () => {
-      refresh();
+      reset();
       toast.success(t('feed.posted'));
     },
     onError: err => {
-      refresh();
+      invalidate();
       onWriteError(err);
     },
   });
@@ -80,18 +95,18 @@ export function useCreatePost(classroomId: string): UseMutationResult<SpacePostR
 
 export function useUpdatePost(classroomId: string): UseMutationResult<SpacePostRead, unknown, UpdateInput> {
   const t = useTranslations();
-  const refresh = useRefreshPosts(classroomId);
+  const { invalidate } = useRefreshPosts(classroomId);
   const onWriteError = useWriteErrorToast('feed.failed_to_save');
 
   return useMutation({
     mutationFn: async ({ id, body }: UpdateInput): Promise<SpacePostRead> =>
       (await sdk.postsUpdatePost({ path: { post_id: id }, body: { body }, throwOnError: true })).data,
     onSuccess: () => {
-      refresh();
+      invalidate();
       toast.success(t('feed.post_saved'));
     },
     onError: err => {
-      refresh();
+      invalidate();
       onWriteError(err);
     },
   });
@@ -99,17 +114,17 @@ export function useUpdatePost(classroomId: string): UseMutationResult<SpacePostR
 
 export function useDeletePost(classroomId: string): UseMutationResult<unknown, unknown, string> {
   const t = useTranslations();
-  const refresh = useRefreshPosts(classroomId);
+  const { invalidate, reset } = useRefreshPosts(classroomId);
   const onWriteError = useWriteErrorToast('feed.failed_to_delete');
 
   return useMutation({
     mutationFn: (id: string) => sdk.postsDeletePost({ path: { post_id: id }, throwOnError: true }),
     onSuccess: () => {
-      refresh();
+      reset();
       toast.success(t('feed.post_deleted'));
     },
     onError: err => {
-      refresh();
+      invalidate();
       onWriteError(err);
     },
   });
@@ -117,18 +132,18 @@ export function useDeletePost(classroomId: string): UseMutationResult<unknown, u
 
 export function useCreateComment(classroomId: string): UseMutationResult<SpaceCommentRead, unknown, CommentInput> {
   const t = useTranslations();
-  const refresh = useRefreshPosts(classroomId);
+  const { invalidate } = useRefreshPosts(classroomId);
   const onWriteError = useWriteErrorToast('feed.failed_to_comment');
 
   return useMutation({
     mutationFn: async ({ postId, body }: CommentInput): Promise<SpaceCommentRead> =>
       (await sdk.postsCreateComment({ path: { post_id: postId }, body: { body }, throwOnError: true })).data,
     onSuccess: () => {
-      refresh();
+      invalidate();
       toast.success(t('feed.commented'));
     },
     onError: err => {
-      refresh();
+      invalidate();
       onWriteError(err);
     },
   });
@@ -136,18 +151,18 @@ export function useCreateComment(classroomId: string): UseMutationResult<SpaceCo
 
 export function useUpdateComment(classroomId: string): UseMutationResult<SpaceCommentRead, unknown, UpdateInput> {
   const t = useTranslations();
-  const refresh = useRefreshPosts(classroomId);
+  const { invalidate } = useRefreshPosts(classroomId);
   const onWriteError = useWriteErrorToast('feed.failed_to_save');
 
   return useMutation({
     mutationFn: async ({ id, body }: UpdateInput): Promise<SpaceCommentRead> =>
       (await sdk.commentsUpdateComment({ path: { comment_id: id }, body: { body }, throwOnError: true })).data,
     onSuccess: () => {
-      refresh();
+      invalidate();
       toast.success(t('feed.comment_saved'));
     },
     onError: err => {
-      refresh();
+      invalidate();
       onWriteError(err);
     },
   });
@@ -155,17 +170,17 @@ export function useUpdateComment(classroomId: string): UseMutationResult<SpaceCo
 
 export function useDeleteComment(classroomId: string): UseMutationResult<unknown, unknown, string> {
   const t = useTranslations();
-  const refresh = useRefreshPosts(classroomId);
+  const { invalidate } = useRefreshPosts(classroomId);
   const onWriteError = useWriteErrorToast('feed.failed_to_delete');
 
   return useMutation({
     mutationFn: (id: string) => sdk.commentsDeleteComment({ path: { comment_id: id }, throwOnError: true }),
     onSuccess: () => {
-      refresh();
+      invalidate();
       toast.success(t('feed.comment_deleted'));
     },
     onError: err => {
-      refresh();
+      invalidate();
       onWriteError(err);
     },
   });

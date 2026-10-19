@@ -28,7 +28,8 @@ export function Stream({ classroomId }: { classroomId: string }) {
   return (
     <QueryState
       isLoading={isLoading}
-      isError={isError}
+      // A failed background refetch keeps the cached stream (and the open drafts) on screen.
+      isError={isError && !data}
       errorMessage={t('failed_to_load')}
       className="flex flex-col gap-4"
     >

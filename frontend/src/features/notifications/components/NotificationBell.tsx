@@ -1,9 +1,10 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 import { useLatestNotifications, useMarkAllRead, useUnreadCount } from '../hooks/useNotifications';
 import { badgeText } from '../lib/badge';
+import { notificationQueryKeys } from '../lib/queryKeys';
 
 import { NotificationItem } from './NotificationItem';
 
@@ -27,10 +29,18 @@ type NotificationBellProps = {
 export function NotificationBell({ side = 'bottom', align = 'start', className }: NotificationBellProps) {
   const t = useTranslations('notifications');
   const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
   const { data: count = 0 } = useUnreadCount();
   const { data, isLoading, isError } = useLatestNotifications(open);
   const { mutate: markAllRead, isPending: isMarkingAll } = useMarkAllRead();
   const items = data?.items ?? [];
+
+  // The count poll runs while the popover is open, but the list does not. A new count means a new row, so
+  // the list refetches. Why not poll the list too: it needs a second timer, and it asks the server when
+  // nothing changed. A closed popover has no active list query, so the invalidate does not fetch for it.
+  useEffect(() => {
+    void queryClient.invalidateQueries({ queryKey: notificationQueryKeys.latest() });
+  }, [count, queryClient]);
 
   return (
     <FloatingCard open={open} onOpenChange={setOpen}>

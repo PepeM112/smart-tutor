@@ -155,3 +155,19 @@ test('S8: a user who is not a member cannot open the Stream', async ({ pageAs })
   const response = await outsider.request.get(`/api/v1/spaces/${classroomId}/posts`);
   expect([403, 404]).toContain(response.status());
 });
+
+test('S9: an invited user who is not a member yet sees the members-only text in the Stream tab', async ({
+  page,
+  pageAs,
+}) => {
+  // The page of a classroom opens for a non-member only with a pending row (an invitation or a request).
+  const invited = await page.request.post(`/api/v1/spaces/${classroomId}/members`, {
+    data: { identifier: 'outsider' },
+  });
+  expect(invited.ok()).toBe(true);
+
+  const outsider = await pageAs('outsider');
+  await outsider.goto(`${classroomPath}?tab=stream`);
+  await expect(outsider.getByText('Join this classroom to see its stream.')).toBeVisible();
+  await expect(outsider.getByTestId('feed-post')).toHaveCount(0);
+});

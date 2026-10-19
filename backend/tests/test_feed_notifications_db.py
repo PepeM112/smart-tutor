@@ -10,7 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.constants import NOTIFICATION_RETENTION_DAYS
-from app.core.enums import FeedPermission, MemberStatus, NotificationType, SpaceItemKind, SpaceKind, SpaceRole
+from app.core.enums import (
+    FeedPermission,
+    MemberStatus,
+    NotificationType,
+    SpaceItemKind,
+    SpaceKind,
+    SpaceRole,
+    SpaceVisibility,
+)
 from app.crud import notification as notification_crud
 from app.models.answer import Answer
 from app.models.notification import Notification
@@ -19,11 +27,14 @@ from app.models.space_item import SpaceItem
 from app.models.user import User
 from app.schemas.correction import TestSubmission
 from app.schemas.space import (
+    ClassroomCourseCreate,
     ClassroomCreate,
     ClassroomSettingsUpdate,
+    SpaceCreate,
     SpaceItemCopy,
     SpacePublishRequest,
     SpaceSectionCreate,
+    SpaceSectionUpdate,
 )
 from app.schemas.space_feed import SpaceCommentCreate, SpaceCommentUpdate, SpacePostCreate, SpacePostUpdate
 from app.services import (
@@ -109,6 +120,18 @@ def _section(db: Session, user: User, space_id: str) -> str:
     )
     assert detail.draft_sections
     return detail.draft_sections[-1].id
+
+
+def _publish_a_note(db: Session, user: User, space_id: str) -> None:
+    """Put one note in a new course (it starts in edit mode) and publish, so that the course can be joined."""
+    section_id = _section(db, user, space_id)
+    space_draft_service.copy_item(
+        db,
+        space_id=space_id,
+        current_user=user,
+        data=SpaceItemCopy(section_id=section_id, note_id=new_note(db, user=user).id),
+    )
+    space_draft_service.publish(db, space_id=space_id, current_user=user, data=SpacePublishRequest.model_validate({}))
 
 
 def _published_items(db: Session, space_id: str) -> list[SpaceItem]:
@@ -300,6 +323,29 @@ class TestFeedAccess:
         # The Stream hides both composers, even for the owner.
         assert (page.can_post, page.can_comment) == (False, False)
 
+    def test_an_archived_classroom_hides_edit_and_delete(self, db_session: Session, owner: User) -> None:
+        """`can_edit` / `can_delete` follow `writable`: the buttons must not show when the API gives 409."""
+        classroom_id = _classroom(db_session, owner)
+        _set_feed_permission(db_session, owner, classroom_id, FeedPermission.STUDENTS_POST_AND_COMMENT)
+        student = _student(db_session, classroom_id)
+        post_id = _post(db_session, classroom_id, student)
+        _comment(db_session, post_id, student)
+
+        def flags(viewer: User) -> list[tuple[bool, bool]]:
+            page = space_feed_service.list_posts(
+                db_session, space_id=classroom_id, current_user=viewer, cursor=None, limit=20
+            )
+            post = page.items[0]
+            return [(post.can_edit, post.can_delete), (post.comments[0].can_edit, post.comments[0].can_delete)]
+
+        assert flags(student) == [(True, True), (True, True)]
+        assert flags(owner) == [(False, True), (False, True)]
+
+        space_service.set_archived(db_session, space_id=classroom_id, current_user=owner, archived=True)
+
+        assert flags(student) == [(False, False), (False, False)]
+        assert flags(owner) == [(False, False), (False, False)]
+
 
 # ── Moderation ─────────────────────────────────────────────────────────────────
 
@@ -447,6 +493,23 @@ class TestNotificationEvents:
             assert [n.type for n in _notifications_of(db_session, recipient)] == [int(NotificationType.JOIN_REQUESTED)]
         assert _notifications_of(db_session, requester) == []
 
+    def test_join_requested_on_a_private_course_notifies_the_owner_only(self, db_session: Session, owner: User) -> None:
+        """Only the owner of a standalone course can approve, so an editor gets no notice."""
+        course = space_service.create_course(
+            db_session, current_user=owner, data=SpaceCreate(title="Biology", visibility=SpaceVisibility.PRIVATE)
+        )
+        _publish_a_note(db_session, owner, course.id)
+        space = db_session.get(Space, course.id)
+        assert space is not None
+        editor = new_user(db_session)
+        add_member(db_session, space=space, user=editor, role=SpaceRole.EDITOR)
+        requester = new_user(db_session)
+
+        space_member_service.join(db_session, space_id=course.id, current_user=requester)
+
+        assert [n.type for n in _notifications_of(db_session, owner)] == [int(NotificationType.JOIN_REQUESTED)]
+        assert _notifications_of(db_session, editor) == []
+
     def test_a_pending_request_is_not_renotified(self, db_session: Session, owner: User) -> None:
         """Simulates the race `_add_viewer` guards: a concurrent call already made the REQUESTED row."""
         classroom_id = _classroom(db_session, owner)
@@ -470,6 +533,47 @@ class TestNotificationEvents:
             db_session, space_id=classroom_id, user_id=requester.id, current_user=owner
         )
 
+        assert [n.type for n in _notifications_of(db_session, requester)] == [int(NotificationType.REQUEST_APPROVED)]
+
+    def test_a_second_approve_gets_409_and_sends_no_second_notification(self, db_session: Session, owner: User) -> None:
+        """`approve_request` reads the row `FOR UPDATE`: the loser of a race sees ACTIVE and stops."""
+        classroom_id = _classroom(db_session, owner)
+        requester = new_user(db_session)
+        space_member_service.join(db_session, space_id=classroom_id, current_user=requester)
+        space_member_service.approve_request(
+            db_session, space_id=classroom_id, user_id=requester.id, current_user=owner
+        )
+
+        status = _status_code(
+            space_member_service.approve_request,
+            db_session,
+            space_id=classroom_id,
+            user_id=requester.id,
+            current_user=owner,
+        )
+
+        assert status == 409
+        assert [n.type for n in _notifications_of(db_session, requester)] == [int(NotificationType.REQUEST_APPROVED)]
+
+    def test_invite_on_an_already_approved_row_gets_409_and_sends_no_second_notification(
+        self, db_session: Session, owner: User
+    ) -> None:
+        classroom_id = _classroom(db_session, owner)
+        requester = new_user(db_session)
+        space_member_service.join(db_session, space_id=classroom_id, current_user=requester)
+        space_member_service.approve_request(
+            db_session, space_id=classroom_id, user_id=requester.id, current_user=owner
+        )
+
+        status = _status_code(
+            space_member_service.invite,
+            db_session,
+            space_id=classroom_id,
+            current_user=owner,
+            identifier=requester.username,
+        )
+
+        assert status == 409
         assert [n.type for n in _notifications_of(db_session, requester)] == [int(NotificationType.REQUEST_APPROVED)]
 
     def test_request_approved_via_invite_on_a_requested_row(self, db_session: Session, owner: User) -> None:
@@ -500,6 +604,72 @@ class TestNotificationEvents:
         assert _notifications_of(db_session, owner) == []
         row = _notifications_of(db_session, student)[0]
         assert row.payload["classroom_id"] == classroom_id and row.payload["message"] == "New stuff"
+
+    def test_a_classroom_course_notifies_students_only_once_it_is_visible(
+        self, db_session: Session, owner: User
+    ) -> None:
+        classroom_id = _classroom(db_session, owner)
+        student = _student(db_session, classroom_id)
+        class_section = _section(db_session, owner, classroom_id)
+        course = classroom_service.add_course(
+            db_session,
+            classroom_id=classroom_id,
+            current_user=owner,
+            data=ClassroomCourseCreate(title="Course", section_id=class_section),
+        )
+        notify = SpacePublishRequest(notify_members=True, message="Course news")
+        course_section = _section(db_session, owner, course.id)
+        space_draft_service.copy_item(
+            db_session,
+            space_id=course.id,
+            current_user=owner,
+            data=SpaceItemCopy(section_id=course_section, note_id=new_note(db_session, user=owner).id),
+        )
+
+        def publish_course() -> None:
+            space_draft_service.publish(db_session, space_id=course.id, current_user=owner, data=notify)
+
+        # The classroom has no published COURSE item yet: students can not open the course, so no notice.
+        publish_course()
+        assert _notifications_of(db_session, student) == []
+
+        space_draft_service.publish(
+            db_session, space_id=classroom_id, current_user=owner, data=SpacePublishRequest.model_validate({})
+        )
+        detail = space_draft_service.enter_edit_mode(db_session, space_id=course.id, current_user=owner)
+        assert detail.draft_sections
+        space_draft_service.rename_section(  # a structure change, so that publish has something to publish
+            db_session,
+            space_id=course.id,
+            section_id=detail.draft_sections[0].id,
+            current_user=owner,
+            data=SpaceSectionUpdate(title="Renamed"),
+        )
+        publish_course()
+
+        rows = _notifications_of(db_session, student)
+        assert [n.type for n in rows] == [int(NotificationType.CONTENT_PUBLISHED)]
+        assert rows[0].space_id == course.id
+        assert rows[0].payload["classroom_id"] == classroom_id and rows[0].payload["message"] == "Course news"
+
+    def test_a_standalone_course_notifies_its_active_viewers_only(self, db_session: Session, owner: User) -> None:
+        course = space_service.create_course(db_session, current_user=owner, data=SpaceCreate(title="Biology"))
+        space = db_session.get(Space, course.id)
+        assert space is not None
+        viewer, editor, pending = new_user(db_session), new_user(db_session), new_user(db_session)
+        add_member(db_session, space=space, user=viewer, role=SpaceRole.VIEWER)
+        add_member(db_session, space=space, user=editor, role=SpaceRole.EDITOR)
+        add_member(db_session, space=space, user=pending, role=SpaceRole.VIEWER, member_status=MemberStatus.REQUESTED)
+
+        space_draft_service.publish(
+            db_session, space_id=course.id, current_user=owner, data=SpacePublishRequest(notify_members=True)
+        )
+
+        assert [n.type for n in _notifications_of(db_session, viewer)] == [int(NotificationType.CONTENT_PUBLISHED)]
+        row = _notifications_of(db_session, viewer)[0]
+        assert row.payload["classroom_id"] is None
+        for other in (owner, editor, pending):
+            assert _notifications_of(db_session, other) == []
 
     def test_publish_without_notify_members_sends_nothing(self, db_session: Session, owner: User) -> None:
         classroom_id = _classroom(db_session, owner)

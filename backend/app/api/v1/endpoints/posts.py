@@ -25,12 +25,6 @@ def delete_post(post_id: str, db: DbSession, current_user: CurrentUser) -> None:
     space_feed_service.delete_post(db, post_id=post_id, current_user=current_user)
 
 
-@router.get("/{post_id}/comments", response_model=list[SpaceCommentRead])
-def list_comments(post_id: str, db: DbSession, current_user: CurrentUser) -> list[SpaceCommentRead]:
-    """Oldest first. The post list already embeds this; useful to refresh one post's thread on its own."""
-    return space_feed_service.list_comments(db, post_id=post_id, current_user=current_user)
-
-
 @router.post("/{post_id}/comments", response_model=SpaceCommentRead, status_code=status.HTTP_201_CREATED)
 def create_comment(
     post_id: str, data: SpaceCommentCreate, db: DbSession, current_user: CurrentUser

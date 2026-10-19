@@ -7678,38 +7678,6 @@ export type PostsUpdatePostResponses = {
 
 export type PostsUpdatePostResponse = PostsUpdatePostResponses[keyof PostsUpdatePostResponses];
 
-export type PostsListCommentsData = {
-    body?: never;
-    path: {
-        /**
-         * Post Id
-         */
-        post_id: string;
-    };
-    query?: never;
-    url: '/api/v1/posts/{post_id}/comments';
-};
-
-export type PostsListCommentsErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PostsListCommentsError = PostsListCommentsErrors[keyof PostsListCommentsErrors];
-
-export type PostsListCommentsResponses = {
-    /**
-     * Response Postslistcomments
-     *
-     * Successful Response
-     */
-    200: Array<SpaceCommentRead>;
-};
-
-export type PostsListCommentsResponse = PostsListCommentsResponses[keyof PostsListCommentsResponses];
-
 export type PostsCreateCommentData = {
     body: SpaceCommentCreate;
     path: {

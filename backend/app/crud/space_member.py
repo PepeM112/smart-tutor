@@ -38,6 +38,19 @@ def get_for_update(db: Session, *, space_id: str, user_id: str) -> SpaceMember |
     return db.scalars(stmt).first()
 
 
+def lock_rows(db: Session, *, space_id: str, user_ids: Sequence[str]) -> None:
+    """Lock the member rows of these users, sorted by user id so two callers can not deadlock each other."""
+    if not user_ids:
+        return
+    stmt = (
+        select(SpaceMember.user_id)
+        .where(SpaceMember.space_id == space_id, SpaceMember.user_id.in_(user_ids))
+        .order_by(SpaceMember.user_id)
+        .with_for_update()
+    )
+    db.execute(stmt).all()
+
+
 def get_statuses(db: Session, *, user_id: str, space_ids: Sequence[str]) -> dict[str, tuple[int | None, int]]:
     """`{space_id: (role, status)}` of the rows of `user_id` among `space_ids` (any status).
 
@@ -155,7 +168,7 @@ def sync_completed_at(db: Session, *, space_id: str, done_user_ids: Sequence[str
 
 
 def list_active_students(db: Session, *, space_id: str) -> Sequence[tuple[SpaceMember, User]]:
-    """The ACTIVE students (VIEWER) of a classroom with their user, by username."""
+    """The ACTIVE students (VIEWER) of a space (a classroom, or a standalone course) with their user, by username."""
     stmt = (
         select(SpaceMember, User)
         .join(User, User.id == SpaceMember.user_id)

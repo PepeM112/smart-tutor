@@ -141,23 +141,46 @@ describe('renderNotification', () => {
     expect(comment.href).toBe(`/classrooms/biology-101-${ID}?tab=stream`);
   });
 
-  it('selects the due item in the classroom', () => {
+  describe('due soon', () => {
+    const COURSE_ID = '01JBBBBBBBBBBBBBBBBBBBBBBB';
     const dueAt = new Date('2026-05-02T10:00:00Z');
-    const result = renderNotification(
+    const due = (itemKind: SpaceItemKind, spaceId: string, spaceTitle: string): NotificationRead =>
       make(NotificationType.DUE_SOON, {
         kind: 'due_soon',
         itemId: 'item1',
         itemTitle: 'Cell quiz',
-        itemKind: SpaceItemKind.TEST,
-        spaceId: ID,
-        spaceTitle: 'Biology 101',
+        itemKind,
+        spaceId,
+        spaceTitle,
         classroomId: ID,
         dueAt,
-      })
-    );
-    expect(result.textKey).toBe('types.due_soon');
-    expect(result.params).toEqual({ item: 'Cell quiz', space: 'Biology 101', dueAt });
-    expect(result.href).toBe(`/classrooms/biology-101-${ID}?item=item1`);
+      });
+
+    it('renders the text and the params', () => {
+      const result = renderNotification(due(SpaceItemKind.TEST, ID, 'Biology 101'));
+      expect(result.textKey).toBe('types.due_soon');
+      expect(result.params).toEqual({ item: 'Cell quiz', space: 'Biology 101', dueAt });
+    });
+
+    it('selects a note that sits in the classroom itself', () => {
+      const result = renderNotification(due(SpaceItemKind.NOTE, ID, 'Biology 101'));
+      expect(result.href).toBe(`/classrooms/biology-101-${ID}?item=item1`);
+    });
+
+    it('opens the attempt page for a test that sits in the classroom itself', () => {
+      const result = renderNotification(due(SpaceItemKind.TEST, ID, 'Biology 101'));
+      expect(result.href).toBe(`/courses/biology-101-${ID}/tests/item1`);
+    });
+
+    it('selects a note of a course in the course page', () => {
+      const result = renderNotification(due(SpaceItemKind.NOTE, COURSE_ID, 'Cell Lab'));
+      expect(result.href).toBe(`/courses/cell-lab-${COURSE_ID}?item=item1`);
+    });
+
+    it('opens the attempt page for a test of a course', () => {
+      const result = renderNotification(due(SpaceItemKind.TEST, COURSE_ID, 'Cell Lab'));
+      expect(result.href).toBe(`/courses/cell-lab-${COURSE_ID}/tests/item1`);
+    });
   });
 
   it('turns a dueAt string from the API into a Date', () => {
@@ -192,5 +215,15 @@ describe('renderNotification', () => {
     expect(result.textKey).toBe('types.grade_overridden');
     expect(result.params).toMatchObject({ item: 'Cell quiz', score: 3, points: 5 });
     expect(result.href).toBe('/history/r1');
+  });
+
+  it('falls back to a generic text that opens the notifications page for an unknown kind', () => {
+    const unknown = make(NotificationType.POST_CREATED, {
+      kind: 'brand_new_kind',
+    } as unknown as NotificationRead['payload']);
+    const result = renderNotification(unknown);
+    expect(result.textKey).toBe('types.unknown');
+    expect(result.href).toBe('/notifications');
+    expect(result.icon).toBeDefined();
   });
 });

@@ -72,8 +72,9 @@ def _not_found(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
 
-def _get_row_or_404(db: Session, *, space_id: str, user_id: str) -> SpaceMember:
-    row = space_member_crud.get(db, space_id=space_id, user_id=user_id)
+def _get_row_or_404(db: Session, *, space_id: str, user_id: str, for_update: bool = False) -> SpaceMember:
+    fetch = space_member_crud.get_for_update if for_update else space_member_crud.get
+    row = fetch(db, space_id=space_id, user_id=user_id)
     if row is None:
         raise _not_found("Member not found")
     return row
@@ -83,7 +84,7 @@ def _add_viewer(db: Session, *, space: Space, user: User, member_status: MemberS
     """A savepoint: when a parallel call (a double click) added the row first, keep that row, not a 500.
 
     Returns True when this call made the row, False when a concurrent call won the race -- the caller
-    uses this to notify at most once per request (see `join`).
+    uses this to notify at most once per request (`join` and `invite`).
     """
     try:
         with db.begin_nested():
@@ -118,8 +119,13 @@ def _notify_invite_received(db: Session, *, space: Space, invited_user: User, cu
 
 
 def _notify_join_requested(db: Session, *, space: Space, requester: User) -> None:
-    """Owner + ACTIVE co-teachers, so any manager can approve."""
-    recipients = {space.owner_id} | space_member_crud.list_active_editor_ids(db, space_id=space.id)
+    """The people who can approve: the owner of a course; the owner and the ACTIVE co-teachers of a classroom.
+
+    On a course only the owner approves (`_require_manager`), so an editor would get a notice it can not act on.
+    """
+    recipients = {space.owner_id}
+    if _is_classroom(space):
+        recipients |= space_member_crud.list_active_editor_ids(db, space_id=space.id)
     notification_service.notify(
         db,
         notification_type=NotificationType.JOIN_REQUESTED,
@@ -261,7 +267,8 @@ def invite(db: Session, *, space_id: str, current_user: User, identifier: str) -
         raise _not_found("User not found")
     if user.id == space.owner_id:
         raise conflict("The owner is already in the course")
-    row = space_member_crud.get(db, space_id=space.id, user_id=user.id)
+    # Row lock: two parallel approvals of a request (REQUESTED branch) must not both notify.
+    row = space_member_crud.get_for_update(db, space_id=space.id, user_id=user.id)
     if row is None:
         # Notify only when this call made the row: a double click must not send two notifications.
         if _add_viewer(db, space=space, user=user, member_status=MemberStatus.INVITED, invited_by=current_user.id):
@@ -279,7 +286,8 @@ def approve_request(db: Session, *, space_id: str, user_id: str, current_user: U
     space = get_joinable_or_404(db, space_id=space_id)
     _require_manager(db, space=space, user=current_user)
     require_active(db, space)
-    row = _get_row_or_404(db, space_id=space.id, user_id=user_id)
+    # Row lock: the second of two parallel approvals waits, then sees ACTIVE and gets 409 (no second notification).
+    row = _get_row_or_404(db, space_id=space.id, user_id=user_id, for_update=True)
     if row.status != int(MemberStatus.REQUESTED):
         raise conflict("There is no request to approve")
     space_member_crud.activate(db, member=row, joined_at=now())
@@ -353,6 +361,8 @@ def set_item_completed(
     require_active(db, space)
     if membership.role != SpaceRole.VIEWER:
         return _progress_of(db, space_id=space.id, user_id=current_user.id)
+    # Lock order: the member row first, then the completion row (see `recheck_test_completion`).
+    space_progress_service.get_member_row(db, space_id=space.id, user_id=current_user.id, for_update=True)
     if completed:
         space_item_completion_crud.add(db, item_id=item.id, user_id=current_user.id, completed_at=now())
     else:

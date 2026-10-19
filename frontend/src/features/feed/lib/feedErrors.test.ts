@@ -9,6 +9,8 @@ describe('feedErrorKey', () => {
     ['Only the author can edit this post', 'feed.error_author_only_edit'],
     ['Only the author can edit this comment', 'feed.error_author_only_edit'],
     ['The classroom is archived', 'feed.error_archived'],
+    ['Post not found', 'feed.error_post_not_found'],
+    ['Comment not found', 'feed.error_comment_not_found'],
   ])('maps "%s" to %s', (detail, key) => {
     expect(feedErrorKey(detail)).toBe(key);
   });

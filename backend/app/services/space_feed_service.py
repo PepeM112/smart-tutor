@@ -125,6 +125,7 @@ def _post_read(
     *,
     current_user: User,
     membership: Membership,
+    writable: bool,
 ) -> SpacePostRead:
     is_author = post.author_id == current_user.id
     return SpacePostRead(
@@ -132,16 +133,19 @@ def _post_read(
         space_id=post.space_id,
         author=_author(authors, post.author_id),
         body=post.body,
-        can_edit=is_author,
-        can_delete=is_author or membership.can_author,
-        comments=[_comment_read(c, authors, current_user=current_user, membership=membership) for c in comments],
+        can_edit=writable and is_author,
+        can_delete=writable and (is_author or membership.can_author),
+        comments=[
+            _comment_read(c, authors, current_user=current_user, membership=membership, writable=writable)
+            for c in comments
+        ],
         created_at=post.created_at,
         updated_at=post.updated_at,
     )
 
 
 def _comment_read(
-    comment: SpaceComment, authors: dict[str, User], *, current_user: User, membership: Membership
+    comment: SpaceComment, authors: dict[str, User], *, current_user: User, membership: Membership, writable: bool
 ) -> SpaceCommentRead:
     is_author = comment.author_id == current_user.id
     return SpaceCommentRead(
@@ -149,8 +153,8 @@ def _comment_read(
         post_id=comment.post_id,
         author=_author(authors, comment.author_id),
         body=comment.body,
-        can_edit=is_author,
-        can_delete=is_author or membership.can_author,
+        can_edit=writable and is_author,
+        can_delete=writable and (is_author or membership.can_author),
         created_at=comment.created_at,
         updated_at=comment.updated_at,
     )
@@ -171,12 +175,14 @@ def list_posts(db: Session, *, space_id: str, current_user: User, cursor: str | 
     for c in comments:
         by_post.setdefault(c.post_id, []).append(c)
     authors = _authors_of(db, posts=page, comments=comments)
+    # An archived classroom is read-only for everyone: no composer, no Edit, no Delete.
+    writable = not is_archived(db, space=classroom)
     items = [
-        _post_read(post, by_post.get(post.id, []), authors, current_user=current_user, membership=membership)
+        _post_read(
+            post, by_post.get(post.id, []), authors, current_user=current_user, membership=membership, writable=writable
+        )
         for post in page
     ]
-    # An archived classroom is read-only for everyone, so no composer is offered.
-    writable = not is_archived(db, space=classroom)
     permission = _feed_permission(db, classroom=classroom)
     return SpacePostPage(
         items=items,
@@ -213,7 +219,9 @@ def create_post(db: Session, *, space_id: str, current_user: User, data: SpacePo
     _notify_post_created(db, classroom=classroom, post=post, current_user=current_user)
     db.commit()
     db.refresh(post)
-    return _post_read(post, [], {current_user.id: current_user}, current_user=current_user, membership=membership)
+    return _post_read(
+        post, [], {current_user.id: current_user}, current_user=current_user, membership=membership, writable=True
+    )
 
 
 def update_post(db: Session, *, post_id: str, current_user: User, data: SpacePostUpdate) -> SpacePostRead:
@@ -226,7 +234,7 @@ def update_post(db: Session, *, post_id: str, current_user: User, data: SpacePos
     db.commit()
     comments = list(space_comment_crud.list_for_posts(db, post_ids=[post.id]))
     authors = _authors_of(db, posts=[post], comments=comments)
-    return _post_read(post, comments, authors, current_user=current_user, membership=membership)
+    return _post_read(post, comments, authors, current_user=current_user, membership=membership, writable=True)
 
 
 def delete_post(db: Session, *, post_id: str, current_user: User) -> None:
@@ -240,14 +248,6 @@ def delete_post(db: Session, *, post_id: str, current_user: User) -> None:
 
 
 # ── Comments ──────────────────────────────────────────────────────────────────
-
-
-def list_comments(db: Session, *, post_id: str, current_user: User) -> list[SpaceCommentRead]:
-    post, classroom = _get_post_and_classroom(db, post_id=post_id)
-    membership = _require_member(db, classroom=classroom, user=current_user)
-    comments = list(space_comment_crud.list_for_posts(db, post_ids=[post.id]))
-    authors = _authors_of(db, posts=[], comments=comments)
-    return [_comment_read(c, authors, current_user=current_user, membership=membership) for c in comments]
 
 
 def _notify_comment_created(
@@ -281,7 +281,9 @@ def create_comment(db: Session, *, post_id: str, current_user: User, data: Space
     _notify_comment_created(db, classroom=classroom, post=post, comment=comment, current_user=current_user)
     db.commit()
     db.refresh(comment)
-    return _comment_read(comment, {current_user.id: current_user}, current_user=current_user, membership=membership)
+    return _comment_read(
+        comment, {current_user.id: current_user}, current_user=current_user, membership=membership, writable=True
+    )
 
 
 def update_comment(db: Session, *, comment_id: str, current_user: User, data: SpaceCommentUpdate) -> SpaceCommentRead:
@@ -293,7 +295,7 @@ def update_comment(db: Session, *, comment_id: str, current_user: User, data: Sp
     space_comment_crud.update(db, comment=comment, body=data.body)
     db.commit()
     authors = _authors_of(db, posts=[], comments=[comment])
-    return _comment_read(comment, authors, current_user=current_user, membership=membership)
+    return _comment_read(comment, authors, current_user=current_user, membership=membership, writable=True)
 
 
 def delete_comment(db: Session, *, comment_id: str, current_user: User) -> None:
