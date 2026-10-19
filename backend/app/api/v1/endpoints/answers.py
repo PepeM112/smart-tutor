@@ -9,7 +9,7 @@ from app.dependencies.auth import CurrentUser
 from app.models.answer import Answer
 from app.schemas.answer import AnswerOverrideRequest, AnswerRead, ChallengeRequest
 from app.schemas.test_result import TestResultRead
-from app.services import challenge_service, grade_override_service, grading_service
+from app.services import challenge_service, grade_override_service, grading_service, test_result_service
 
 router = APIRouter()
 
@@ -41,7 +41,7 @@ def set_override(
     """Teacher grade of one answer (classroom OWNER / EDITOR). Returns the updated result."""
     result = grade_override_service.set_override(db, answer_id=answer_id, score=data.score, current_user=current_user)
     # Only a teacher gets here (`grade_override_service` checks the role).
-    return TestResultRead.model_validate(result).model_copy(update={"can_override": True})
+    return test_result_service.teacher_read(db, result=result, current_user=current_user)
 
 
 @router.delete("/{answer_id}/override", response_model=TestResultRead)
@@ -52,4 +52,4 @@ def clear_override(
     result = grade_override_service.clear_override(db, answer_id=answer_id, current_user=current_user)
     if any(a.id == answer_id and a.status == int(AnswerStatus.PENDING) for a in result.answers):
         background_tasks.add_task(grading_service.grade_pending_answers, result.id)
-    return TestResultRead.model_validate(result).model_copy(update={"can_override": True})
+    return test_result_service.teacher_read(db, result=result, current_user=current_user)

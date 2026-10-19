@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { AnswerRead } from '@/client';
 import { sdk } from '@/lib/apiClient';
+import { retryUnlessDenied } from '@/lib/utils';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -17,6 +18,8 @@ export function useTestResult(resultId: string | null) {
     queryKey: ['results', resultId],
     queryFn: () => sdk.resultsGet({ path: { result_id: resultId! } }),
     enabled: !!resultId,
+    // A 403 / 404 will not change: no retries, so the no-access text shows at once.
+    retry: retryUnlessDenied,
     refetchInterval: query => {
       const data = query.state.data?.data;
       if (!data) return false;

@@ -86,6 +86,14 @@ Every AI call is metered — input/output tokens, model, provider, feature, and 
 - **Roles** — owner, editor and viewer; viewers can take a course test but never see its answer key
 - **Archive, duplicate and delete forever**, with the typed title as a safeguard
 
+### Classrooms
+
+- **Classwork** — courses, notes and tests with a schedule (due date, test window, visibility date)
+- **Teachers and students** — an owner, co-teachers and students, with a gradebook and a teacher grade override
+- **Stream** — a feed of posts and comments, with a setting for who can write
+- **Notifications** — a bell and a `/notifications` page for invitations, new posts, due dates and grade changes
+- **Class AI key** — one key for the students, with a monthly cap per student
+
 ### Additional Features
 
 - **12 color themes** (8 light + 4 dark) with system-preference detection
@@ -232,7 +240,7 @@ Detailed documentation lives in [`docs/`](docs/):
 | [AI Test Generation](docs/test-generation.md)      | Generating tests from notes, preferences, preview                  |
 | [AI Assistant](docs/ai-assistant.md)               | Chat panel, SSE protocol, agentic tool-calling, streaming pipeline |
 | [Token Usage & Cost Tracking](docs/token-usage.md) | Token metering, model pricing, cost calculation                    |
-| [Spaces](docs/spaces.md)                           | Courses, roles, access layer, draft and publish, joining           |
+| [Spaces](docs/spaces.md)                           | Courses, classrooms, feed, notifications, roles, access layer      |
 
 ## License
 

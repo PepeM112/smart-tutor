@@ -50,6 +50,7 @@ from app.schemas.space import (
     SpaceItemCopy,
     SpacePublishRequest,
     SpaceSectionCreate,
+    SpaceSectionUpdate,
 )
 from app.schemas.test import TestRead
 from app.services import (
@@ -65,6 +66,7 @@ from app.services import (
     space_attempt_service,
     space_draft_service,
     space_member_service,
+    space_progress_service,
     space_service,
     test_result_service,
     token_usage_service,
@@ -77,7 +79,7 @@ from app.services.llm import (
     CompletionResult,
 )
 from tests.llm_fakes import resolve_to
-from tests.space_factories import add_member, new_test, new_user
+from tests.space_factories import add_member, new_item, new_note, new_test, new_user
 
 pytestmark = pytest.mark.db
 
@@ -1223,3 +1225,337 @@ class TestSpendListsStudentsOnly:
         usage = classroom_ai_service.get_token_usage(db_session, classroom_id=room.classroom_id, current_user=owner)
 
         assert [s.user_id for s in usage.students] == [student.id]
+
+
+# ── ST-69 Phase C: student name on the teacher result (R15), remove completion (R17) ──────────────
+
+
+def _failed_after_a_pass(db: Session, room: Room, student: User, owner: User, *, item_id: str, space_id: str) -> None:
+    """A pass, then a fail override: the completion row stays (progress is sticky), the best score is 0."""
+    result = _take(db, space_id, item_id, student, "ir")
+    assert _is_done(db, item_id, student) is True
+    grade_override_service.set_override(db, answer_id=_answer(db, result.id).id, score=0, current_user=owner)
+    assert _is_done(db, item_id, student) is True
+
+
+def _remove(db: Session, room: Room, item_id: str, student: User, by: User) -> None:
+    classroom_service.remove_completion(
+        db, classroom_id=room.classroom_id, item_id=item_id, user_id=student.id, current_user=by
+    )
+
+
+def _record_sql(db: Session) -> list[str]:
+    """Start to record the SQL text of every statement of this test connection, in order."""
+    statements: list[str] = []
+    event.listen(
+        db.get_bind(),
+        "before_cursor_execute",
+        lambda _conn, _cursor, statement, *_args: statements.append(" ".join(statement.split())),
+    )
+    return statements
+
+
+def _first_index(statements: list[str], *needles: str) -> int:
+    """The position of the first statement that has every needle. Fails when there is none."""
+    return next(i for i, text in enumerate(statements) if all(needle in text for needle in needles))
+
+
+class TestStudentName:
+    def test_a_teacher_sees_the_name_of_the_student_and_the_student_does_not(
+        self, db_session: Session, owner: User
+    ) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        teacher = _teacher(db_session, room)
+        result_id = _take(db_session, room.classroom_id, room.loose_item_id, student).id
+
+        def name_for(reader: User) -> str | None:
+            return test_result_service.get_result_read(
+                db_session, result_id=result_id, current_user=reader
+            ).student_name
+
+        student.display_name = None
+        assert [name_for(owner), name_for(teacher), name_for(student)] == [student.username, student.username, None]
+        student.display_name = "Ada Lovelace"
+        assert [name_for(owner), name_for(teacher), name_for(student)] == ["Ada Lovelace", "Ada Lovelace", None]
+
+    def test_a_personal_result_has_no_student_name(self, db_session: Session, owner: User) -> None:
+        source = new_test(db_session, user=owner)
+        result = TestResult(
+            test_id=source.id, user_id=owner.id, total_questions=1, correct_answers=1, score=100.0, answers=[]
+        )
+        db_session.add(result)
+        db_session.flush()
+
+        read = test_result_service.get_result_read(db_session, result_id=result.id, current_user=owner)
+
+        assert read.student_name is None and read.can_override is False
+
+    def test_the_override_response_keeps_the_student_name(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        student.display_name = "Ada Lovelace"
+        result = _take(db_session, room.classroom_id, room.loose_item_id, student, "wrong")
+        updated = grade_override_service.set_override(
+            db_session, answer_id=_answer(db_session, result.id).id, score=1, current_user=owner
+        )
+
+        read = test_result_service.teacher_read(db_session, result=updated, current_user=owner)
+
+        assert read.student_name == "Ada Lovelace" and read.can_override is True
+
+
+class TestRemoveCompletion:
+    def test_it_removes_a_stale_pass_and_the_progress_follows(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.course_item_id, space_id=room.course_id)
+        before = _book(db_session, room, owner)
+        assert before.rows[0].courses[0].percent == 100
+        assert _cell(before, student, room.course_item_id).can_undo_pass is True
+
+        _remove(db_session, room, room.course_item_id, student, owner)
+
+        assert _is_done(db_session, room.course_item_id, student) is False
+        after = _book(db_session, room, owner)
+        assert after.rows[0].courses[0].percent == 0
+        cell = _cell(after, student, room.course_item_id)
+        assert cell.can_undo_pass is False and cell.status == GradeCellStatus.FAILED and cell.best_score == 0
+
+    def test_a_recheck_does_not_make_the_row_again_while_the_score_is_below(
+        self, db_session: Session, owner: User
+    ) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.loose_item_id, space_id=room.classroom_id)
+        _remove(db_session, room, room.loose_item_id, student, owner)
+        result = db_session.scalars(select(TestResult).where(TestResult.user_id == student.id)).one()
+
+        space_progress_service.recheck_result_completion(db_session, test_result=result)
+        grade_override_service.set_override(
+            db_session, answer_id=_answer(db_session, result.id).id, score=0, current_user=owner
+        )
+
+        assert _is_done(db_session, room.loose_item_id, student) is False
+
+    def test_a_new_pass_makes_the_row_again(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.loose_item_id, space_id=room.classroom_id)
+        _remove(db_session, room, room.loose_item_id, student, owner)
+
+        _take(db_session, room.classroom_id, room.loose_item_id, student, "ir")
+
+        assert _is_done(db_session, room.loose_item_id, student) is True
+
+    def test_it_changes_only_the_chosen_student_and_item(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student, other = _student(db_session, room), _student(db_session, room)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.loose_item_id, space_id=room.classroom_id)
+        _take(db_session, room.classroom_id, room.loose_item_id, other, "ir")
+        _take(db_session, room.course_id, room.course_item_id, student, "ir")
+
+        _remove(db_session, room, room.loose_item_id, student, owner)
+
+        assert _is_done(db_session, room.loose_item_id, other) is True
+        assert _is_done(db_session, room.course_item_id, student) is True
+
+    def test_a_best_score_at_the_threshold_is_refused(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        item = db_session.get(SpaceItem, room.loose_item_id)
+        assert item is not None
+        item.pass_threshold = 0.5
+        result = _take(db_session, room.classroom_id, room.loose_item_id, student, "wrong")
+        answer = _answer(db_session, result.id)
+        grade_override_service.set_override(
+            db_session, answer_id=answer.id, score=_points(db_session, answer) / 2, current_user=owner
+        )
+        assert _is_done(db_session, room.loose_item_id, student) is True
+
+        kwargs: dict[str, Any] = {
+            "classroom_id": room.classroom_id,
+            "item_id": room.loose_item_id,
+            "user_id": student.id,
+            "current_user": owner,
+        }
+        assert _status_code(classroom_service.remove_completion, db_session, **kwargs) == 409
+        assert _detail(classroom_service.remove_completion, db_session, **kwargs) == classroom_service.COMPLETION_PASSED
+        assert _is_done(db_session, room.loose_item_id, student) is True
+
+    def test_a_passing_student_is_refused(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _take(db_session, room.classroom_id, room.loose_item_id, student, "ir")
+
+        cell = _cell(_book(db_session, room, owner), student, room.loose_item_id)
+        assert cell.can_undo_pass is False
+        with pytest.raises(HTTPException) as error:
+            _remove(db_session, room, room.loose_item_id, student, owner)
+        assert error.value.status_code == 409
+
+    def test_results_before_a_progress_reset_do_not_count(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _take(db_session, room.classroom_id, room.loose_item_id, student, "ir")
+        item = db_session.get(SpaceItem, room.loose_item_id)
+        assert item is not None
+        item.progress_reset_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+        db_session.flush()
+
+        _remove(db_session, room, room.loose_item_id, student, owner)
+
+        assert _is_done(db_session, room.loose_item_id, student) is False
+
+    def test_a_co_teacher_may_remove_and_a_student_may_not(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student, classmate = _student(db_session, room), _student(db_session, room)
+        teacher = _teacher(db_session, room)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.loose_item_id, space_id=room.classroom_id)
+
+        for refused in (student, classmate, new_user(db_session)):
+            with pytest.raises(HTTPException) as error:
+                _remove(db_session, room, room.loose_item_id, student, refused)
+            assert error.value.status_code == 403
+        assert _is_done(db_session, room.loose_item_id, student) is True
+
+        _remove(db_session, room, room.loose_item_id, student, teacher)
+
+        assert _is_done(db_session, room.loose_item_id, student) is False
+
+    def test_an_archived_classroom_is_refused(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.loose_item_id, space_id=room.classroom_id)
+        assert _cell(_book(db_session, room, owner), student, room.loose_item_id).can_undo_pass is True
+        space_service.set_archived(db_session, space_id=room.classroom_id, current_user=owner, archived=True)
+
+        # The gradebook offers no "Remove completion" button, because the action is refused.
+        assert _cell(_book(db_session, room, owner), student, room.loose_item_id).can_undo_pass is False
+        with pytest.raises(HTTPException) as error:
+            _remove(db_session, room, room.loose_item_id, student, owner)
+
+        assert error.value.status_code == 409 and error.value.detail == "The classroom is archived"
+        assert _is_done(db_session, room.loose_item_id, student) is True
+
+    def test_unknown_targets_are_404(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        teacher = _teacher(db_session, room)
+        other_room = _room(db_session, owner)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.loose_item_id, space_id=room.classroom_id)
+
+        def code(item_id: str, user: User, room_id: str | None = None) -> int:
+            return _status_code(
+                classroom_service.remove_completion,
+                db_session,
+                classroom_id=room_id or room.classroom_id,
+                item_id=item_id,
+                user_id=user.id,
+                current_user=owner,
+            )
+
+        # No completion row for this item, a teacher as target, an item of another classroom, an unknown item.
+        assert code(room.course_item_id, student) == 404
+        assert code(room.loose_item_id, teacher) == 404
+        assert code(other_room.loose_item_id, student) == 404
+        assert code("missing", student) == 404
+        # A course id is not a classroom.
+        assert code(room.loose_item_id, student, room.course_id) == 404
+
+    def test_a_note_item_is_refused_with_404(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        classroom = db_session.get(Space, room.classroom_id)
+        assert classroom is not None
+        note_item = new_item(
+            db_session, space=classroom, kind=SpaceItemKind.NOTE, note=new_note(db_session, user=owner)
+        )
+        # A NOTE can be done too: the guard is the item kind, not a missing completion row.
+        space_item_completion_crud.add(
+            db_session, item_id=note_item.id, user_id=student.id, completed_at=space_progress_service.utcnow()
+        )
+
+        with pytest.raises(HTTPException) as error:
+            _remove(db_session, room, note_item.id, student, owner)
+
+        assert (error.value.status_code, error.value.detail) == (404, "Item not found")
+        assert _is_done(db_session, note_item.id, student) is True
+
+    def test_a_draft_item_is_refused_with_404(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        classroom = db_session.get(Space, room.classroom_id)
+        assert classroom is not None
+        draft_item = new_item(
+            db_session, space=classroom, kind=SpaceItemKind.TEST, test=new_test(db_session, user=owner), is_draft=True
+        )
+
+        with pytest.raises(HTTPException) as error:
+            _remove(db_session, room, draft_item.id, student, owner)
+
+        assert (error.value.status_code, error.value.detail) == (404, "Item not found")
+
+    def test_it_locks_the_member_row_before_it_reads_the_score_or_deletes(
+        self, db_session: Session, owner: User
+    ) -> None:
+        """One lock order for every progress write: member row, then completion rows (see the classroom service)."""
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _failed_after_a_pass(db_session, room, student, owner, item_id=room.loose_item_id, space_id=room.classroom_id)
+        statements = _record_sql(db_session)
+
+        _remove(db_session, room, room.loose_item_id, student, owner)
+
+        lock = _first_index(statements, "FROM space_member", "FOR UPDATE")
+        assert lock < _first_index(statements, "FROM test_result")
+        assert lock < _first_index(statements, "DELETE FROM space_item_completion")
+
+
+class TestRecheckLockOrder:
+    def test_a_passing_recheck_locks_the_member_row_before_the_score_and_the_completion_insert(
+        self, db_session: Session, owner: User
+    ) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        result = _take(db_session, room.classroom_id, room.loose_item_id, student, "ir")
+        space_item_completion_crud.remove(db_session, item_id=room.loose_item_id, user_id=student.id)
+        statements = _record_sql(db_session)
+
+        space_progress_service.recheck_result_completion(db_session, test_result=result)
+
+        lock = _first_index(statements, "FROM space_member", "FOR UPDATE")
+        assert lock < _first_index(statements, "FROM test_result")
+        assert lock < _first_index(statements, "INSERT INTO space_item_completion")
+        assert _is_done(db_session, room.loose_item_id, student) is True
+
+    def test_publish_with_a_reset_locks_the_member_rows_before_it_deletes_the_completions(
+        self, db_session: Session, owner: User
+    ) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _take(db_session, room.classroom_id, room.loose_item_id, student, "ir")
+        detail = space_draft_service.enter_edit_mode(db_session, space_id=room.classroom_id, current_user=owner)
+        assert detail.draft_sections
+        space_draft_service.rename_section(  # a structure change, so that publish has something to publish
+            db_session,
+            space_id=room.classroom_id,
+            section_id=detail.draft_sections[0].id,
+            current_user=owner,
+            data=SpaceSectionUpdate(title="Renamed"),
+        )
+        draft_item_id = db_session.scalars(
+            select(SpaceItem.id).where(SpaceItem.draft_of_id == room.loose_item_id)
+        ).one()
+        statements = _record_sql(db_session)
+
+        space_draft_service.publish(
+            db_session,
+            space_id=room.classroom_id,
+            current_user=owner,
+            data=SpacePublishRequest.model_validate({"reset_item_ids": [draft_item_id]}),
+        )
+
+        lock = _first_index(statements, "FROM space_member", "FOR UPDATE")
+        assert lock < _first_index(statements, "DELETE FROM space_item_completion")
+        assert _is_done(db_session, room.loose_item_id, student) is False

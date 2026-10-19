@@ -12,7 +12,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.enums import MemberStatus, SpaceItemKind, SpaceKind, SpaceRole, SpaceVisibility
+from app.core.enums import MemberStatus, NotificationType, SpaceItemKind, SpaceKind, SpaceRole, SpaceVisibility
 from app.crud import space as space_crud
 from app.crud import space_item as space_item_crud
 from app.crud import space_item_completion as space_item_completion_crud
@@ -22,8 +22,9 @@ from app.models.space import Space
 from app.models.space_item import SpaceItem
 from app.models.space_member import SpaceMember
 from app.models.user import User
+from app.schemas.notification import InviteReceivedPayload, JoinRequestedPayload, RequestApprovedPayload
 from app.schemas.space import SpaceDetail, SpaceMemberRead, SpaceProgress
-from app.services import space_progress_service
+from app.services import notification_service, space_progress_service
 from app.services.space_service import (
     Membership,
     build_detail,
@@ -71,15 +72,20 @@ def _not_found(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
 
-def _get_row_or_404(db: Session, *, space_id: str, user_id: str) -> SpaceMember:
-    row = space_member_crud.get(db, space_id=space_id, user_id=user_id)
+def _get_row_or_404(db: Session, *, space_id: str, user_id: str, for_update: bool = False) -> SpaceMember:
+    fetch = space_member_crud.get_for_update if for_update else space_member_crud.get
+    row = fetch(db, space_id=space_id, user_id=user_id)
     if row is None:
         raise _not_found("Member not found")
     return row
 
 
-def _add_viewer(db: Session, *, space: Space, user: User, member_status: MemberStatus, invited_by: str | None) -> None:
-    """A savepoint: when a parallel call (a double click) added the row first, keep that row, not a 500."""
+def _add_viewer(db: Session, *, space: Space, user: User, member_status: MemberStatus, invited_by: str | None) -> bool:
+    """A savepoint: when a parallel call (a double click) added the row first, keep that row, not a 500.
+
+    Returns True when this call made the row, False when a concurrent call won the race -- the caller
+    uses this to notify at most once per request (`join` and `invite`).
+    """
     try:
         with db.begin_nested():
             space_member_crud.create(
@@ -91,8 +97,59 @@ def _add_viewer(db: Session, *, space: Space, user: User, member_status: MemberS
                 invited_by=invited_by,
                 joined_at=now() if member_status == MemberStatus.ACTIVE else None,
             )
+        return True
     except IntegrityError:
-        pass
+        return False
+
+
+def _notify_invite_received(db: Session, *, space: Space, invited_user: User, current_user: User) -> None:
+    notification_service.notify(
+        db,
+        notification_type=NotificationType.INVITE_RECEIVED,
+        recipients={invited_user.id},
+        actor_id=current_user.id,
+        space_id=space.id,
+        payload=InviteReceivedPayload(
+            space_id=space.id,
+            space_title=space.title,
+            space_kind=SpaceKind(space.kind),
+            actor_name=notification_service.actor_name(current_user),
+        ),
+    )
+
+
+def _notify_join_requested(db: Session, *, space: Space, requester: User) -> None:
+    """The people who can approve: the owner of a course; the owner and the ACTIVE co-teachers of a classroom.
+
+    On a course only the owner approves (`_require_manager`), so an editor would get a notice it can not act on.
+    """
+    recipients = {space.owner_id}
+    if _is_classroom(space):
+        recipients |= space_member_crud.list_active_editor_ids(db, space_id=space.id)
+    notification_service.notify(
+        db,
+        notification_type=NotificationType.JOIN_REQUESTED,
+        recipients=recipients,
+        actor_id=requester.id,
+        space_id=space.id,
+        payload=JoinRequestedPayload(
+            space_id=space.id,
+            space_title=space.title,
+            space_kind=SpaceKind(space.kind),
+            actor_name=notification_service.actor_name(requester),
+        ),
+    )
+
+
+def _notify_request_approved(db: Session, *, space: Space, requester_id: str, current_user: User) -> None:
+    notification_service.notify(
+        db,
+        notification_type=NotificationType.REQUEST_APPROVED,
+        recipients={requester_id},
+        actor_id=current_user.id,
+        space_id=space.id,
+        payload=RequestApprovedPayload(space_id=space.id, space_title=space.title, space_kind=SpaceKind(space.kind)),
+    )
 
 
 # ── The current user ──────────────────────────────────────────────────────────
@@ -111,7 +168,9 @@ def join(db: Session, *, space_id: str, current_user: User) -> SpaceDetail:
         if row is None:
             self_enroll = space.visibility in _SELF_ENROLL_VISIBILITIES
             member_status = MemberStatus.ACTIVE if self_enroll else MemberStatus.REQUESTED
-            _add_viewer(db, space=space, user=current_user, member_status=member_status, invited_by=None)
+            created = _add_viewer(db, space=space, user=current_user, member_status=member_status, invited_by=None)
+            if created and not self_enroll:
+                _notify_join_requested(db, space=space, requester=current_user)
         elif row.status == int(MemberStatus.INVITED):
             space_member_crud.activate(db, member=row, joined_at=now())
         db.commit()
@@ -208,11 +267,16 @@ def invite(db: Session, *, space_id: str, current_user: User, identifier: str) -
         raise _not_found("User not found")
     if user.id == space.owner_id:
         raise conflict("The owner is already in the course")
-    row = space_member_crud.get(db, space_id=space.id, user_id=user.id)
+    # Row lock: two parallel approvals of a request (REQUESTED branch) must not both notify.
+    row = space_member_crud.get_for_update(db, space_id=space.id, user_id=user.id)
     if row is None:
-        _add_viewer(db, space=space, user=user, member_status=MemberStatus.INVITED, invited_by=current_user.id)
+        # Notify only when this call made the row: a double click must not send two notifications.
+        if _add_viewer(db, space=space, user=user, member_status=MemberStatus.INVITED, invited_by=current_user.id):
+            _notify_invite_received(db, space=space, invited_user=user, current_user=current_user)
     elif row.status == int(MemberStatus.REQUESTED):
+        # The user already asked to join; inviting them here is how the owner/co-teacher approves that request.
         space_member_crud.activate(db, member=row, joined_at=now())
+        _notify_request_approved(db, space=space, requester_id=user.id, current_user=current_user)
     else:
         raise conflict("The user is already invited or a member")
     db.commit()
@@ -222,10 +286,12 @@ def approve_request(db: Session, *, space_id: str, user_id: str, current_user: U
     space = get_joinable_or_404(db, space_id=space_id)
     _require_manager(db, space=space, user=current_user)
     require_active(db, space)
-    row = _get_row_or_404(db, space_id=space.id, user_id=user_id)
+    # Row lock: the second of two parallel approvals waits, then sees ACTIVE and gets 409 (no second notification).
+    row = _get_row_or_404(db, space_id=space.id, user_id=user_id, for_update=True)
     if row.status != int(MemberStatus.REQUESTED):
         raise conflict("There is no request to approve")
     space_member_crud.activate(db, member=row, joined_at=now())
+    _notify_request_approved(db, space=space, requester_id=user_id, current_user=current_user)
     db.commit()
 
 
@@ -295,6 +361,8 @@ def set_item_completed(
     require_active(db, space)
     if membership.role != SpaceRole.VIEWER:
         return _progress_of(db, space_id=space.id, user_id=current_user.id)
+    # Lock order: the member row first, then the completion row (see `recheck_test_completion`).
+    space_progress_service.get_member_row(db, space_id=space.id, user_id=current_user.id, for_update=True)
     if completed:
         space_item_completion_crud.add(db, item_id=item.id, user_id=current_user.id, completed_at=now())
     else:

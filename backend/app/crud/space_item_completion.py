@@ -31,6 +31,19 @@ def remove(db: Session, *, item_id: str, user_id: str) -> None:
     db.flush()
 
 
+def list_user_ids_for_items(db: Session, *, item_ids: Sequence[str]) -> list[str]:
+    """The users that have a completion row for any of these items, sorted."""
+    if not item_ids:
+        return []
+    stmt = (
+        select(SpaceItemCompletion.user_id)
+        .where(SpaceItemCompletion.item_id.in_(item_ids))
+        .distinct()
+        .order_by(SpaceItemCompletion.user_id)
+    )
+    return list(db.scalars(stmt).all())
+
+
 def remove_for_items(db: Session, *, item_ids: Sequence[str]) -> None:
     """Delete the rows of every user for these items (a publish with `reset_item_ids`)."""
     if item_ids:

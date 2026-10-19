@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { sdk } from '@/lib/apiClient';
+import { retryUnlessDenied } from '@/lib/utils';
 
 /**
  * The test of a result, as the student took it (a frozen version).
@@ -11,5 +12,6 @@ export function useResultTest(resultId: string | null) {
     queryKey: ['results', resultId, 'test'],
     queryFn: () => sdk.resultsGetTest({ path: { result_id: resultId! } }),
     enabled: !!resultId,
+    retry: retryUnlessDenied,
   });
 }

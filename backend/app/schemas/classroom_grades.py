@@ -39,6 +39,9 @@ class GradebookCell(BaseSchema):
     best_result_id: str | None
     # A teacher changed the grade of an answer in a result of this student on this item.
     overridden: bool
+    # A completion row exists but the best score is below the pass threshold (a fail override after a pass):
+    # a teacher may remove the completion (`DELETE /classrooms/{id}/items/{iid}/students/{uid}/completion`).
+    can_undo_pass: bool = False
 
 
 class GradebookCourseProgress(BaseSchema):

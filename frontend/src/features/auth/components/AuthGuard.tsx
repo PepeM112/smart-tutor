@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
@@ -14,6 +14,7 @@ import { useAuthStore } from '../store/authStore';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const t = useTranslations();
   const setUser = useAuthStore(s => s.setUser);
   const logout = useAuthStore(s => s.logout);
@@ -43,9 +44,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (isAuthError && !didRedirect.current) {
       didRedirect.current = true;
       logout();
+      // Same as the logout button: no cached data of this user stays after the session ended.
+      queryClient.clear();
       router.replace(Routes.LOGIN);
     }
-  }, [isAuthError, logout, router]);
+  }, [isAuthError, logout, queryClient, router]);
 
   if (isAuthError) return null;
 

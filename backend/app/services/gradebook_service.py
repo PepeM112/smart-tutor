@@ -35,8 +35,8 @@ from app.schemas.classroom_grades import (
     GradebookRead,
     GradebookRow,
 )
-from app.services.space_progress_service import is_hidden, utcnow
-from app.services.space_service import get_classroom_or_404, require_author
+from app.services.space_progress_service import is_hidden, reaches_threshold, utcnow
+from app.services.space_service import get_classroom_or_404, is_archived, require_author
 
 
 def _status(
@@ -48,7 +48,7 @@ def _status(
     has_open: bool,
     attempts_used: int,
 ) -> GradeCellStatus:
-    if completed or (best_score is not None and best_score / 100 >= item.pass_threshold):
+    if completed or reaches_threshold(item, best_score):
         return GradeCellStatus.PASSED
     if has_pending:
         return GradeCellStatus.PENDING
@@ -63,6 +63,8 @@ def get_gradebook(db: Session, *, classroom_id: str, current_user: User) -> Grad
     classroom = get_classroom_or_404(db, space_id=classroom_id)
     require_author(db, space=classroom, user=current_user)
     now = utcnow()
+    # An archived classroom is read-only: "Remove completion" would be refused with 409, so no button.
+    archived = is_archived(db, space=classroom)
 
     # Published courses, in classwork order. A course with only a draft item is not in the gradebook.
     course_items = space_item_crud.list_published_course_items(db, space_id=classroom.id)
@@ -134,6 +136,7 @@ def get_gradebook(db: Session, *, classroom_id: str, current_user: User) -> Grad
             attempts_used=used,
             best_result_id=result_id,
             overridden=pair in overridden,
+            can_undo_pass=not archived and pair in completed and not reaches_threshold(item, score),
         )
 
     def course_progress(user_id: str, course_id: str) -> GradebookCourseProgress:

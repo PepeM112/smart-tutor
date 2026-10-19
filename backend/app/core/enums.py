@@ -205,3 +205,19 @@ class KeyStatus(NamedIntEnum):
     NONE = 1
     STUDENT = 2
     CLASS = 3
+
+
+# --- Feed and notifications (ST-69). See docs/spaces.md. ---
+
+
+class NotificationType(NamedIntEnum):
+    """One row per recipient is written per event (`notification_service.notify`)."""
+
+    INVITE_RECEIVED = 1
+    JOIN_REQUESTED = 2
+    REQUEST_APPROVED = 3
+    CONTENT_PUBLISHED = 4
+    POST_CREATED = 5
+    COMMENT_CREATED = 6
+    DUE_SOON = 7
+    GRADE_OVERRIDDEN = 8

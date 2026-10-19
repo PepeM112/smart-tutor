@@ -33,6 +33,22 @@ describe('useResizableSplit', () => {
     expect(result.current.splitRatio).toBe(MIN_SPLIT_RATIO);
   });
 
+  it('starts from the legacy key until the own key has a value, and never writes the legacy key', () => {
+    localStorage.setItem('old-split', '0.35');
+    const { result } = renderHook(() => useResizableSplit(KEY, 0.5, 0, 'old-split'));
+    expect(result.current.splitRatio).toBe(0.35);
+
+    act(() => result.current.handleDividerKeyDown(keyEvent('ArrowRight')));
+    expect(localStorage.getItem('old-split')).toBe('0.35');
+    expect(localStorage.getItem(KEY)).toBe(String(result.current.splitRatio));
+
+    // The own key wins on the next load. A bad legacy value gives the default.
+    expect(renderHook(() => useResizableSplit(KEY, 0.5, 0, 'old-split')).result.current.splitRatio).toBeCloseTo(0.37);
+    localStorage.clear();
+    localStorage.setItem('old-split', '5');
+    expect(renderHook(() => useResizableSplit(KEY, 0.5, 0, 'old-split')).result.current.splitRatio).toBe(0.5);
+  });
+
   it('ignores other keys', () => {
     const { result } = renderHook(() => useResizableSplit(KEY, 0.5));
     act(() => result.current.handleDividerKeyDown(keyEvent('a')));

@@ -1,5 +1,6 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -17,6 +18,7 @@ type LogoutButtonProps = {
 
 export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const t = useTranslations();
   const logout = useAuthStore(state => state.logout);
 
@@ -27,6 +29,8 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
       // Best-effort — clear client state regardless
     }
     logout();
+    // Drop every cached answer: the next user of this browser must not see this user's data.
+    queryClient.clear();
     router.push(Routes.LOGIN);
     router.refresh();
   };

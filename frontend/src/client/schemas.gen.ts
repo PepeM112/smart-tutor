@@ -864,6 +864,110 @@ export const ClassroomTokenUsageReadSchema = {
     title: 'ClassroomTokenUsageRead'
 } as const;
 
+export const CommentCreatedPayloadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            const: 'comment_created',
+            title: 'Kind',
+            default: 'comment_created'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        postId: {
+            type: 'string',
+            title: 'Postid'
+        },
+        commentId: {
+            type: 'string',
+            title: 'Commentid'
+        },
+        excerpt: {
+            type: 'string',
+            title: 'Excerpt'
+        },
+        actorName: {
+            type: 'string',
+            title: 'Actorname'
+        }
+    },
+    type: 'object',
+    required: [
+        'spaceId',
+        'spaceTitle',
+        'postId',
+        'commentId',
+        'excerpt',
+        'actorName'
+    ],
+    title: 'CommentCreatedPayload'
+} as const;
+
+export const ContentPublishedPayloadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            const: 'content_published',
+            title: 'Kind',
+            default: 'content_published'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        classroomId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Classroomid'
+        },
+        classroomTitle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Classroomtitle'
+        },
+        message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Message'
+        }
+    },
+    type: 'object',
+    required: [
+        'spaceId',
+        'spaceTitle'
+    ],
+    title: 'ContentPublishedPayload',
+    description: '`classroom_id` / `classroom_title` are set only for a classroom course; None for a standalone course.'
+} as const;
+
 export const CriterionChallengeInputSchema = {
     properties: {
         criterionIndex: {
@@ -884,6 +988,35 @@ export const CriterionChallengeInputSchema = {
         'argument'
     ],
     title: 'CriterionChallengeInput'
+} as const;
+
+export const CursorPage_NotificationRead_Schema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/NotificationRead'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        nextCursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nextcursor'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'nextCursor'
+    ],
+    title: 'CursorPage[NotificationRead]'
 } as const;
 
 export const DueSoonItemSchema = {
@@ -929,6 +1062,88 @@ export const DueSoonItemSchema = {
     ],
     title: 'DueSoonItem',
     description: 'A classwork item due in the next 24 hours that the current student has not completed.'
+} as const;
+
+export const DueSoonPayloadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            const: 'due_soon',
+            title: 'Kind',
+            default: 'due_soon'
+        },
+        itemId: {
+            type: 'string',
+            title: 'Itemid'
+        },
+        itemTitle: {
+            type: 'string',
+            title: 'Itemtitle'
+        },
+        itemKind: {
+            $ref: '#/components/schemas/SpaceItemKind'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        classroomId: {
+            type: 'string',
+            title: 'Classroomid'
+        },
+        dueAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Dueat'
+        }
+    },
+    type: 'object',
+    required: [
+        'itemId',
+        'itemTitle',
+        'itemKind',
+        'spaceId',
+        'spaceTitle',
+        'classroomId',
+        'dueAt'
+    ],
+    title: 'DueSoonPayload'
+} as const;
+
+export const FeedAuthorSchema = {
+    properties: {
+        userId: {
+            type: 'string',
+            title: 'Userid'
+        },
+        username: {
+            type: 'string',
+            title: 'Username'
+        },
+        displayName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Displayname'
+        }
+    },
+    type: 'object',
+    required: [
+        'userId',
+        'username',
+        'displayName'
+    ],
+    title: 'FeedAuthor',
+    description: 'Mirrors the identifying fields of `SpaceMemberRead`. The owner is an author too (no member row).'
 } as const;
 
 export const FeedPermissionSchema = {
@@ -1303,6 +1518,56 @@ export const GradeCellStatusSchema = {
     ]
 } as const;
 
+export const GradeOverriddenPayloadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            const: 'grade_overridden',
+            title: 'Kind',
+            default: 'grade_overridden'
+        },
+        resultId: {
+            type: 'string',
+            title: 'Resultid'
+        },
+        itemTitle: {
+            type: 'string',
+            title: 'Itemtitle'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        score: {
+            type: 'number',
+            title: 'Score'
+        },
+        points: {
+            type: 'number',
+            title: 'Points'
+        },
+        actorName: {
+            type: 'string',
+            title: 'Actorname'
+        }
+    },
+    type: 'object',
+    required: [
+        'resultId',
+        'itemTitle',
+        'spaceId',
+        'spaceTitle',
+        'score',
+        'points',
+        'actorName'
+    ],
+    title: 'GradeOverriddenPayload'
+} as const;
+
 export const GradebookCellSchema = {
     properties: {
         itemId: {
@@ -1341,6 +1606,11 @@ export const GradebookCellSchema = {
         overridden: {
             type: 'boolean',
             title: 'Overridden'
+        },
+        canUndoPass: {
+            type: 'boolean',
+            title: 'Canundopass',
+            default: false
         }
     },
     type: 'object',
@@ -1569,6 +1839,74 @@ export const HTTPValidationErrorSchema = {
     },
     type: 'object',
     title: 'HTTPValidationError'
+} as const;
+
+export const InviteReceivedPayloadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            const: 'invite_received',
+            title: 'Kind',
+            default: 'invite_received'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        spaceKind: {
+            $ref: '#/components/schemas/SpaceKind'
+        },
+        actorName: {
+            type: 'string',
+            title: 'Actorname'
+        }
+    },
+    type: 'object',
+    required: [
+        'spaceId',
+        'spaceTitle',
+        'spaceKind',
+        'actorName'
+    ],
+    title: 'InviteReceivedPayload'
+} as const;
+
+export const JoinRequestedPayloadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            const: 'join_requested',
+            title: 'Kind',
+            default: 'join_requested'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        spaceKind: {
+            $ref: '#/components/schemas/SpaceKind'
+        },
+        actorName: {
+            type: 'string',
+            title: 'Actorname'
+        }
+    },
+    type: 'object',
+    required: [
+        'spaceId',
+        'spaceTitle',
+        'spaceKind',
+        'actorName'
+    ],
+    title: 'JoinRequestedPayload'
 } as const;
 
 export const KeyPrioritySchema = {
@@ -2214,6 +2552,136 @@ export const NoteUpdateSchema = {
     title: 'NoteUpdate'
 } as const;
 
+export const NotificationReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        type: {
+            $ref: '#/components/schemas/NotificationType'
+        },
+        spaceId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Spaceid'
+        },
+        actorId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Actorid'
+        },
+        payload: {
+            oneOf: [
+                {
+                    $ref: '#/components/schemas/InviteReceivedPayload'
+                },
+                {
+                    $ref: '#/components/schemas/JoinRequestedPayload'
+                },
+                {
+                    $ref: '#/components/schemas/RequestApprovedPayload'
+                },
+                {
+                    $ref: '#/components/schemas/ContentPublishedPayload'
+                },
+                {
+                    $ref: '#/components/schemas/PostCreatedPayload'
+                },
+                {
+                    $ref: '#/components/schemas/CommentCreatedPayload'
+                },
+                {
+                    $ref: '#/components/schemas/DueSoonPayload'
+                },
+                {
+                    $ref: '#/components/schemas/GradeOverriddenPayload'
+                }
+            ],
+            title: 'Payload',
+            discriminator: {
+                propertyName: 'kind',
+                mapping: {
+                    comment_created: '#/components/schemas/CommentCreatedPayload',
+                    content_published: '#/components/schemas/ContentPublishedPayload',
+                    due_soon: '#/components/schemas/DueSoonPayload',
+                    grade_overridden: '#/components/schemas/GradeOverriddenPayload',
+                    invite_received: '#/components/schemas/InviteReceivedPayload',
+                    join_requested: '#/components/schemas/JoinRequestedPayload',
+                    post_created: '#/components/schemas/PostCreatedPayload',
+                    request_approved: '#/components/schemas/RequestApprovedPayload'
+                }
+            }
+        },
+        readAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Readat'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'type',
+        'spaceId',
+        'actorId',
+        'payload',
+        'readAt',
+        'createdAt'
+    ],
+    title: 'NotificationRead'
+} as const;
+
+export const NotificationTypeSchema = {
+    type: 'integer',
+    enum: [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+    ],
+    title: 'NotificationType',
+    description: 'One row per recipient is written per event (`notification_service.notify`).',
+    'x-enum-varnames': [
+        'INVITE_RECEIVED',
+        'JOIN_REQUESTED',
+        'REQUEST_APPROVED',
+        'CONTENT_PUBLISHED',
+        'POST_CREATED',
+        'COMMENT_CREATED',
+        'DUE_SOON',
+        'GRADE_OVERRIDDEN'
+    ]
+} as const;
+
 export const PageContextSchema = {
     properties: {
         route: {
@@ -2395,6 +2863,46 @@ export const PaginatedResponse_TestResultListItem_Schema = {
         'perPage'
     ],
     title: 'PaginatedResponse[TestResultListItem]'
+} as const;
+
+export const PostCreatedPayloadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            const: 'post_created',
+            title: 'Kind',
+            default: 'post_created'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        postId: {
+            type: 'string',
+            title: 'Postid'
+        },
+        excerpt: {
+            type: 'string',
+            title: 'Excerpt'
+        },
+        actorName: {
+            type: 'string',
+            title: 'Actorname'
+        }
+    },
+    type: 'object',
+    required: [
+        'spaceId',
+        'spaceTitle',
+        'postId',
+        'excerpt',
+        'actorName'
+    ],
+    title: 'PostCreatedPayload'
 } as const;
 
 export const QuestionAnswerSchema = {
@@ -3104,6 +3612,35 @@ export const QuestionUpdateSchema = {
     title: 'QuestionUpdate'
 } as const;
 
+export const RequestApprovedPayloadSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            const: 'request_approved',
+            title: 'Kind',
+            default: 'request_approved'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        spaceTitle: {
+            type: 'string',
+            title: 'Spacetitle'
+        },
+        spaceKind: {
+            $ref: '#/components/schemas/SpaceKind'
+        }
+    },
+    type: 'object',
+    required: [
+        'spaceId',
+        'spaceTitle',
+        'spaceKind'
+    ],
+    title: 'RequestApprovedPayload'
+} as const;
+
 export const RevealAnswersSchema = {
     type: 'integer',
     enum: [
@@ -3352,6 +3889,86 @@ export const SpaceAttemptStartSchema = {
     ],
     title: 'SpaceAttemptStart',
     description: 'The exam of one attempt. `attempt_id` is None for an author preview (no rows, no limits).'
+} as const;
+
+export const SpaceCommentCreateSchema = {
+    properties: {
+        body: {
+            type: 'string',
+            maxLength: 2000,
+            title: 'Body'
+        }
+    },
+    type: 'object',
+    required: [
+        'body'
+    ],
+    title: 'SpaceCommentCreate'
+} as const;
+
+export const SpaceCommentReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        postId: {
+            type: 'string',
+            title: 'Postid'
+        },
+        author: {
+            $ref: '#/components/schemas/FeedAuthor'
+        },
+        body: {
+            type: 'string',
+            title: 'Body'
+        },
+        canEdit: {
+            type: 'boolean',
+            title: 'Canedit',
+            default: false
+        },
+        canDelete: {
+            type: 'boolean',
+            title: 'Candelete',
+            default: false
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'postId',
+        'author',
+        'body',
+        'createdAt',
+        'updatedAt'
+    ],
+    title: 'SpaceCommentRead'
+} as const;
+
+export const SpaceCommentUpdateSchema = {
+    properties: {
+        body: {
+            type: 'string',
+            maxLength: 2000,
+            title: 'Body'
+        }
+    },
+    type: 'object',
+    required: [
+        'body'
+    ],
+    title: 'SpaceCommentUpdate'
 } as const;
 
 export const SpaceCreateSchema = {
@@ -4334,6 +4951,134 @@ export const SpaceMembershipUpdateSchema = {
     ],
     title: 'SpaceMembershipUpdate',
     description: 'The settings of the current user in a course.'
+} as const;
+
+export const SpacePostCreateSchema = {
+    properties: {
+        body: {
+            type: 'string',
+            maxLength: 5000,
+            title: 'Body'
+        }
+    },
+    type: 'object',
+    required: [
+        'body'
+    ],
+    title: 'SpacePostCreate'
+} as const;
+
+export const SpacePostPageSchema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/SpacePostRead'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        nextCursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nextcursor'
+        },
+        canPost: {
+            type: 'boolean',
+            title: 'Canpost',
+            default: false
+        },
+        canComment: {
+            type: 'boolean',
+            title: 'Cancomment',
+            default: false
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'nextCursor'
+    ],
+    title: 'SpacePostPage',
+    description: '`can_post` / `can_comment` tell the Stream which composers to show. They follow `feed_permission`\nand the archive state, which only the owner can read from the settings endpoint.'
+} as const;
+
+export const SpacePostReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        spaceId: {
+            type: 'string',
+            title: 'Spaceid'
+        },
+        author: {
+            $ref: '#/components/schemas/FeedAuthor'
+        },
+        body: {
+            type: 'string',
+            title: 'Body'
+        },
+        canEdit: {
+            type: 'boolean',
+            title: 'Canedit',
+            default: false
+        },
+        canDelete: {
+            type: 'boolean',
+            title: 'Candelete',
+            default: false
+        },
+        comments: {
+            items: {
+                $ref: '#/components/schemas/SpaceCommentRead'
+            },
+            type: 'array',
+            title: 'Comments',
+            default: []
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'spaceId',
+        'author',
+        'body',
+        'createdAt',
+        'updatedAt'
+    ],
+    title: 'SpacePostRead'
+} as const;
+
+export const SpacePostUpdateSchema = {
+    properties: {
+        body: {
+            type: 'string',
+            maxLength: 5000,
+            title: 'Body'
+        }
+    },
+    type: 'object',
+    required: [
+        'body'
+    ],
+    title: 'SpacePostUpdate'
 } as const;
 
 export const SpaceProgressSchema = {
@@ -5558,6 +6303,17 @@ export const TestResultReadSchema = {
             title: 'Canoverride',
             default: false
         },
+        studentName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Studentname'
+        },
         answers: {
             items: {
                 $ref: '#/components/schemas/AnswerRead'
@@ -6011,6 +6767,20 @@ export const TrashTreeNoteSchema = {
     ],
     title: 'TrashTreeNote',
     description: 'Trashed note record. `deleted_at` is the key of its delete batch.'
+} as const;
+
+export const UnreadCountSchema = {
+    properties: {
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: [
+        'count'
+    ],
+    title: 'UnreadCount'
 } as const;
 
 export const UserCreateSchema = {

@@ -10,8 +10,11 @@ from app.api.v1.endpoints import (
     answers,
     assist,
     classrooms,
+    comments,
     folders,
     notes,
+    notifications,
+    posts,
     questions,
     results,
     review,
@@ -51,6 +54,9 @@ app.include_router(token_usage.router, prefix="/api/v1/token-usage", tags=["toke
 app.include_router(assist.router, prefix="/api/v1/assist", tags=["assist"])
 app.include_router(spaces.router, prefix="/api/v1/spaces", tags=["spaces"])
 app.include_router(classrooms.router, prefix="/api/v1/classrooms", tags=["classrooms"])
+app.include_router(posts.router, prefix="/api/v1/posts", tags=["posts"])
+app.include_router(comments.router, prefix="/api/v1/comments", tags=["comments"])
+app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["notifications"])
 
 app.add_middleware(
     CORSMiddleware,

@@ -21,6 +21,7 @@ import { VISIBILITY_LABELS, roleLabelKey } from '@/features/courses/lib/labels';
 import { COURSE_COLUMN_CLASS } from '@/features/courses/lib/layout';
 import { courseAccess } from '@/features/courses/lib/membership';
 import { findItem, findNoteItem, isCourseViewer } from '@/features/courses/lib/progress';
+import { Stream } from '@/features/feed/components/Stream';
 import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -31,7 +32,6 @@ import { AiKeyNotice } from './AiKeyNotice';
 import { ClassroomSettingsTab } from './ClassroomSettingsTab';
 import { DueSoonList } from './DueSoonList';
 import { GradesTab } from './GradesTab';
-import { PlaceholderTab } from './PlaceholderTab';
 
 const TABS = ['stream', 'classwork', 'members', 'grades', 'settings'] as const;
 type ClassroomTab = (typeof TABS)[number];
@@ -99,7 +99,11 @@ export function ClassroomPage({ classroomId }: { classroomId: string }) {
           ))}
         </TabsList>
         <TabsContent value="stream" className="pt-4">
-          <PlaceholderTab title={t('classrooms.tab_stream')} text={t('classrooms.stream_coming_soon')} />
+          {isMember ? (
+            <Stream classroomId={classroom.id} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('feed.members_only')}</p>
+          )}
         </TabsContent>
         <TabsContent value="classwork" className="flex flex-col gap-6 pt-4">
           {isCourseViewer(classroom) && <DueSoonList classroomId={classroom.id} />}
@@ -137,7 +141,9 @@ export function ClassroomPage({ classroomId }: { classroomId: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ResponsiveSplitPane
-        storageKey="course-preview-split-ratio"
+        storageKey="classroom-preview-split-ratio"
+        // The classroom used the course key before: keep the saved width until the first resize.
+        legacyStorageKey="course-preview-split-ratio"
         defaultRatio={0.6}
         bleed
         main={main}

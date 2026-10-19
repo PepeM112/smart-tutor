@@ -13,6 +13,7 @@ import { useResultTest } from '@/features/history/hooks/useResultTest';
 import { useTestResult } from '@/features/history/hooks/useTestResult';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { Routes } from '@/lib/routes';
+import { errorStatus } from '@/lib/utils';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -40,7 +41,12 @@ function ResultDetailContent({ id }: { id: string }) {
     classroomBackHref ?? Routes.HISTORY
   );
 
-  const { data: resultResponse, isLoading: isLoadingResult, isError: isResultError } = useTestResult(id);
+  const {
+    data: resultResponse,
+    isLoading: isLoadingResult,
+    isError: isResultError,
+    error: resultError,
+  } = useTestResult(id);
 
   const result = resultResponse?.data;
 
@@ -62,7 +68,16 @@ function ResultDetailContent({ id }: { id: string }) {
     )
   );
 
-  const { data: testResponse, isLoading: isLoadingTest, isError: isTestError } = useResultTest(id);
+  const { data: testResponse, isLoading: isLoadingTest, isError: isTestError, error: testError } = useResultTest(id);
+
+  // Someone who is not allowed to read the result (403) or a result that does not exist (404) gets its own text.
+  const status = errorStatus(resultError) ?? errorStatus(testError);
+  const errorMessage =
+    status === 403
+      ? t('history.no_access')
+      : status === 404
+        ? t('history.result_not_found')
+        : t('history.failed_to_load_result');
 
   const test = testResponse?.data;
 
@@ -72,7 +87,7 @@ function ResultDetailContent({ id }: { id: string }) {
       className="h-full"
       isLoading={isLoadingResult || isLoadingTest}
       isError={isResultError || isTestError}
-      errorMessage={t('history.failed_to_load_result')}
+      errorMessage={errorMessage}
     >
       {result && test ? (
         <ResultDetail result={result} test={test} canOverride={result.canOverride ?? false} />

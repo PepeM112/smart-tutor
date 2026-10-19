@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 
 import { SidebarNav } from './SidebarNav';
 
@@ -33,7 +34,8 @@ export function MobileHeader() {
           <SidebarNav onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
-      <span className="text-sm font-semibold text-sidebar-foreground truncate">{t('app.title')}</span>
+      <span className="min-w-0 flex-1 text-sm font-semibold text-sidebar-foreground truncate">{t('app.title')}</span>
+      <NotificationBell align="end" />
     </header>
   );
 }

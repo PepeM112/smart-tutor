@@ -4,10 +4,10 @@ import { CalendarClock, FileText, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import { useFormatter, useTranslations } from 'next-intl';
 
-import { SpaceItemKind, type DueSoonItem } from '@/client';
-import { classroomItemHref, courseAttemptHref, courseItemHref } from '@/lib/routes';
+import { SpaceItemKind } from '@/client';
 
 import { useDueSoon } from '../hooks/useClassrooms';
+import { dueSoonHref } from '../lib/dueSoonHref';
 
 /** Students: the next items with a due date, at the top of Classwork. It shows nothing when there are none. */
 export function DueSoonList({ classroomId }: { classroomId: string }) {
@@ -27,7 +27,7 @@ export function DueSoonList({ classroomId }: { classroomId: string }) {
         {items.map(item => (
           <li key={item.itemId}>
             <Link
-              href={itemHref(item)}
+              href={dueSoonHref(item)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40"
             >
               {item.kind === SpaceItemKind.TEST ? (
@@ -53,14 +53,4 @@ export function DueSoonList({ classroomId }: { classroomId: string }) {
       </ul>
     </section>
   );
-}
-
-/**
- * A test opens its attempt page. A note opens in its space with the item marked: a note of a course
- * goes to the course page, a note placed straight in the classroom goes to the classroom (Classwork tab).
- */
-function itemHref(item: DueSoonItem): string {
-  const space = { id: item.spaceId, title: item.spaceTitle };
-  if (item.kind === SpaceItemKind.TEST) return courseAttemptHref(space, item.itemId);
-  return item.spaceId === item.classroomId ? classroomItemHref(space, item.itemId) : courseItemHref(space, item.itemId);
 }

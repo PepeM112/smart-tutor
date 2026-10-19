@@ -30,6 +30,8 @@ export const Routes = {
 
   CLASSROOMS: '/classrooms',
 
+  NOTIFICATIONS: '/notifications',
+
   SETTINGS: '/settings',
 
   SANDBOX: '/sandbox',

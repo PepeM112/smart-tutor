@@ -11,10 +11,13 @@ import {
   type GradebookRead,
   type SpaceSummary,
 } from '@/client';
+import { courseQueryKeys } from '@/features/courses/lib/queryKeys';
+import { feedQueryKeys } from '@/features/feed/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
 import { getErrorDetail } from '@/lib/utils';
 
 import { classSettingsErrorKey } from '../lib/classKey';
+import { removeCompletionErrorKey } from '../lib/completionErrors';
 import { classroomQueryKeys, type MyClassroomsParams } from '../lib/queryKeys';
 
 /** The classrooms the user owns or is an active member of. */
@@ -56,6 +59,8 @@ export function useUpdateClassroomSettings(classroomId: string) {
       queryClient.setQueryData(classroomQueryKeys.settings(classroomId), settings);
       // The key, its priority and the cap change which key the students use.
       void queryClient.invalidateQueries({ queryKey: classroomQueryKeys.aiKeyStatus(classroomId) });
+      // The feed permission decides which composers the Stream shows.
+      void queryClient.invalidateQueries({ queryKey: feedQueryKeys.posts(classroomId) });
       toast.success(t('classrooms.settings_saved'));
     },
     onError: err => {
@@ -91,5 +96,32 @@ export function useClassroomTokenUsage(classroomId: string): UseQueryResult<Clas
     queryKey: classroomQueryKeys.tokenUsage(classroomId),
     queryFn: async (): Promise<ClassroomTokenUsageRead> =>
       (await sdk.classroomsTokenUsage({ path: { classroom_id: classroomId }, throwOnError: true })).data,
+  });
+}
+
+/** Teacher: delete the completion of one student for one test (only while the best score is below the pass mark). */
+export function useRemoveCompletion(classroomId: string) {
+  const t = useTranslations();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ itemId, userId }: { itemId: string; userId: string }): Promise<void> => {
+      await sdk.classroomsRemoveCompletion({
+        path: { classroom_id: classroomId, item_id: itemId, user_id: userId },
+        throwOnError: true,
+      });
+    },
+    onSuccess: () => {
+      // The cell and the course % change here. A course page of the student shows the same progress.
+      void queryClient.invalidateQueries({ queryKey: classroomQueryKeys.gradebook(classroomId) });
+      void queryClient.invalidateQueries({ queryKey: courseQueryKeys.all() });
+      toast.success(t('classrooms.completion_removed'));
+    },
+    onError: err => {
+      const key = removeCompletionErrorKey(getErrorDetail(err, ''));
+      toast.error(t(`classrooms.${key ?? 'completion_remove_failed'}`));
+      // A refused request often means the gradebook is stale (the score changed): show the real state.
+      void queryClient.invalidateQueries({ queryKey: classroomQueryKeys.gradebook(classroomId) });
+    },
   });
 }

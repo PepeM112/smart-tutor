@@ -15,7 +15,10 @@ User
 Space (course / classroom, see spaces.md)
  ├── Note  (space_id set)
  ├── Test  (space_id set) → its questions follow the test
- └── SpaceSection → SpaceItem (points to one note or test: the course structure)
+ ├── SpaceSection → SpaceItem (points to one note or test: the course structure)
+ └── SpacePost → SpaceComment  (classroom feed, M5)
+
+User → Notification (one row per recipient; optional space_id)
 ```
 
 **Personal vs space content.** `note.space_id` and `test.space_id` are `NULL` for personal content. A row with `space_id` set belongs to a [space](spaces.md): access comes from the role in the space, and `user_id` only records the creator. Space rows also use `is_draft` (members can not see the row yet) and `draft_of_id` (the published row that this draft replaces on publish). CHECK constraints keep `is_draft = false` and `draft_of_id = NULL` on personal rows, and keep space notes out of folders, Trash and favorites. Personal queries filter `space_id IS NULL`. The course structure (sections and items) is separate from the content: `space_item` points to a note or a test. The note page shows a published course note read-only; authors change it through a draft twin (see [Spaces](spaces.md#draft-engine-servicesspace_draft_servicepy)). Load single notes, tests and questions through `access_service` (see [Spaces](spaces.md#access-layer-servicesaccess_servicepy)).
@@ -26,6 +29,11 @@ Space (course / classroom, see spaces.md)
 - `classroom_settings` (PK `space_id` → `space` CASCADE, one row per classroom): `feed_permission`, `ai_provider`, `encrypted_class_key` (Fernet), `key_priority`, `key_scope`, `monthly_token_cap_per_student`.
 - `answer.override_score`, `override_status`, `overridden_by` (→ `user` SET NULL), `overridden_at`: the teacher grade. The AI grade stays in `status` and `rubric_result`. See [Answer Grading](answer-grading.md#teacher-override).
 - `token_usage.space_id` (→ `space` SET NULL, indexed) and `token_usage.key_source` (default STUDENT), with an index on `(user_id, space_id, key_source)`. See [Token Usage](token-usage.md#classroom-spend).
+
+**Feed and notification tables (M5, ST-69).** Migration `7246afeea176` adds three tables (details in [Spaces — Feed](spaces.md#feed-m5) and [Spaces — Notifications](spaces.md#notifications-m5)):
+- `space_post` (`space_id` → `space` CASCADE, `author_id` → `user` CASCADE, `body`, `created_at`, `updated_at`), index `(space_id, id)`. IDs are ULIDs, so the id order is the time order and the feed pages by `id < cursor`.
+- `space_comment` (`post_id` → `space_post` CASCADE, `author_id` → `user` CASCADE, `body`, `created_at`, `updated_at`), index `(post_id, id)`. Comments are flat.
+- `notification` (`user_id` → `user` CASCADE, `type`, `space_id` → `space` CASCADE (NULL), `actor_id` → `user` SET NULL, `payload` JSONB, `dedupe_key` (NULL), `read_at`, `created_at`). `UNIQUE(user_id, dedupe_key)`, and indexes on `(user_id, id)`, `(user_id, read_at, id)`, `(space_id)` and `(actor_id)`.
 
 Questions have a `user_id` FK for direct ownership. A question's `test_id` is **nullable** — questions with `test_id = NULL` are **bank questions** (standalone, not part of any test). Bank questions are owned via `user_id` directly.
 

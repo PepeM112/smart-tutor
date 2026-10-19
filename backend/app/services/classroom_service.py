@@ -7,20 +7,16 @@ Who can do what (R33): OWNER = everything. EDITOR (co-teacher) = content and stu
 Settings, the Class key and the co-teachers are for the OWNER only.
 """
 
-from datetime import timedelta
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import SpaceItemKind, SpaceKind, SpaceRole, SpaceVisibility
 from app.crud import classroom_settings as classroom_settings_crud
 from app.crud import space as space_crud
-from app.crud import space_content as space_content_crud
 from app.crud import space_item as space_item_crud
 from app.crud import space_item_completion as space_item_completion_crud
-from app.crud import space_item_test as space_item_test_crud
-from app.crud import space_member as space_member_crud
 from app.crud import space_section as space_section_crud
+from app.crud import test_result as test_result_crud
 from app.models.classroom_settings import ClassroomSettings
 from app.models.space import Space
 from app.models.user import User
@@ -34,6 +30,8 @@ from app.schemas.space import (
     SpaceDetail,
 )
 from app.services import encryption, space_progress_service
+from app.services.access_service import resolve_role
+from app.services.due_soon_service import DUE_SOON_WINDOW, pending_due_items
 from app.services.space_draft_service import lock_editing
 from app.services.space_service import (
     build_detail,
@@ -48,8 +46,8 @@ from app.services.space_service import (
     require_owner,
 )
 
-DUE_SOON_WINDOW = timedelta(hours=24)
 PROVIDER_CHANGE_NEEDS_KEY = "Send a new Class key when you change the provider"
+COMPLETION_PASSED = "The best score of the student reaches the pass threshold"
 
 
 def create_classroom(db: Session, *, current_user: User, data: ClassroomCreate) -> SpaceDetail:
@@ -233,40 +231,50 @@ def due_soon(db: Session, *, classroom_id: str, current_user: User) -> list[DueS
     classroom = get_classroom_or_404(db, space_id=classroom_id)
     if get_membership(db, space=classroom, user=current_user).role != SpaceRole.VIEWER:
         return []
-    children = space_crud.list_children(db, parent_id=classroom.id)
-    hidden = space_item_crud.list_hidden_course_ids(db, course_ids=[c.id for c in children])
-    courses = [c for c in children if c.id not in hidden]
-    spaces = {s.id: s for s in [classroom, *courses]}
     start = space_progress_service.utcnow()
-    items = space_item_crud.list_due(db, space_ids=list(spaces), start=start, end=start + DUE_SOON_WINDOW)
-
-    done = space_item_completion_crud.list_completed_ids(db, user_id=current_user.id, item_ids=[i.id for i in items])
-    course_rows = space_member_crud.list_for_user(
-        db, user_id=current_user.id, space_ids=[i.child_space_id for i in items if i.child_space_id]
+    pending = pending_due_items(
+        db, classrooms=[classroom], user_id=current_user.id, start=start, end=start + DUE_SOON_WINDOW
     )
-    done_courses = {r.space_id for r in course_rows if r.completed_at is not None}
-    pending = [i for i in items if i.id not in done and (i.child_space_id or "") not in done_courses]
-
-    links = space_item_test_crud.list_by_items(db, item_ids=[i.id for i in pending])
-    first_test = {item_id: tests[0] for item_id, tests in links.items() if tests}
-    notes = {n.id: n.title for n in space_content_crud.list_notes(db, ids=[i.note_id for i in pending if i.note_id])}
-    tests = {t.id: t.title for t in space_content_crud.list_tests(db, ids=list(first_test.values()))}
-
-    def title_of(item_id: str, note_id: str | None, child_id: str | None) -> str:
-        if child_id is not None:
-            return spaces[child_id].title if child_id in spaces else ""
-        return notes.get(note_id or "") or tests.get(first_test.get(item_id, "")) or ""
-
     return [
         DueSoonItem(
-            item_id=i.id,
-            kind=SpaceItemKind(i.kind),
-            title=title_of(i.id, i.note_id, i.child_space_id),
-            due_at=i.due_at,
-            space_id=i.space_id,
-            space_title=spaces[i.space_id].title,
-            classroom_id=classroom.id,
+            item_id=p.item.id,
+            kind=SpaceItemKind(p.item.kind),
+            title=p.title,
+            due_at=p.due_at,
+            space_id=p.space.id,
+            space_title=p.space.title,
+            classroom_id=p.classroom_id,
         )
-        for i in pending
-        if i.due_at is not None
+        for p in pending
     ]
+
+
+def remove_completion(db: Session, *, classroom_id: str, item_id: str, user_id: str, current_user: User) -> None:
+    """Teacher "Remove completion": delete the completion row of one student for one published TEST item.
+
+    It undoes a pass that a fail override (or a changed grade) left behind: progress is sticky, so the row
+    stays when the score drops. Allowed only while the best score (after overrides and `progress_reset_at`,
+    the rule of the gradebook) is below the pass threshold, else 409. `recheck_test_completion` never writes
+    the row again while the score stays below the threshold. Owner and co-teachers; archived is read-only.
+    """
+    classroom = get_classroom_or_404(db, space_id=classroom_id)
+    require_author(db, space=classroom, user=current_user)
+    require_active(db, classroom)
+    item = space_item_crud.get(db, item_id=item_id)
+    space = space_crud.get_by_id(db, id=item.space_id) if item is not None else None
+    in_classroom = space is not None and (space.id == classroom.id or space.parent_id == classroom.id)
+    if item is None or item.is_draft or item.kind != int(SpaceItemKind.TEST) or not in_classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    if resolve_role(db, space=classroom, user_id=user_id) != SpaceRole.VIEWER:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+    # Member row first, then the completion rows (the order of every progress write, see
+    # `recheck_test_completion`): a parallel pass waits here, so the best score below is never older than it.
+    space_progress_service.get_member_row(db, space_id=item.space_id, user_id=user_id, for_update=True)
+    if item.id not in space_item_completion_crud.list_completed_ids(db, user_id=user_id, item_ids=[item.id]):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Completion not found")
+    best = test_result_crud.best_scores_by_item(db, user_id=user_id, item_ids=[item.id]).get(item.id)
+    if space_progress_service.reaches_threshold(item, best):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=COMPLETION_PASSED)
+    space_item_completion_crud.remove(db, item_id=item.id, user_id=user_id)
+    space_progress_service.sync_member_completion(db, space_id=item.space_id, user_id=user_id)
+    db.commit()

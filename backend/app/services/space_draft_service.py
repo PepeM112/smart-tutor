@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import SpaceItemKind, SpaceKind
+from app.core.enums import NotificationType, SpaceItemKind, SpaceKind
 from app.crud import note as note_crud
 from app.crud import space as space_crud
 from app.crud import space_attempt as space_attempt_crud
@@ -39,6 +39,7 @@ from app.models.space_item import SpaceItem
 from app.models.space_section import SpaceSection
 from app.models.test import Test
 from app.models.user import User
+from app.schemas.notification import ContentPublishedPayload
 from app.schemas.space import (
     SpaceDetail,
     SpaceDraftOrder,
@@ -52,7 +53,7 @@ from app.schemas.space import (
     SpaceVariantCreate,
     SpaceVariantOrder,
 )
-from app.services import note_service, space_progress_service
+from app.services import note_service, notification_service, space_progress_service
 from app.services.access_service import AccessLevel, get_note_or_404, get_test_or_404, require_personal
 from app.services.space_changes_service import has_unpublished_changes, test_changed
 from app.services.space_service import (
@@ -654,6 +655,42 @@ def _remove_published_content(db: Session, *, removed: Sequence[SpaceItem], remo
         test_crud.delete(db, test=test)
 
 
+def _notify_content_published(db: Session, *, space: Space, current_user: User, message: str | None) -> None:
+    """ACTIVE students only. A classroom course is skipped while its students can not see it yet (no
+    published COURSE item pointing at it, or a `visible_from` still in the future) -- notifying them
+    would link to something that 404s for them."""
+    classroom: Space | None
+    if space.kind == int(SpaceKind.CLASSROOM):
+        classroom = space
+    elif space.parent_id is not None:
+        if space_item_crud.is_course_hidden(db, course_id=space.id):
+            return
+        classroom = space_crud.get_by_id(db, id=space.parent_id)
+        if classroom is None:
+            return
+    else:
+        classroom = None
+
+    students_of = classroom or space
+    student_ids = {user.id for _member, user in space_member_crud.list_active_students(db, space_id=students_of.id)}
+    if not student_ids:
+        return
+    notification_service.notify(
+        db,
+        notification_type=NotificationType.CONTENT_PUBLISHED,
+        recipients=student_ids,
+        actor_id=current_user.id,
+        space_id=space.id,
+        payload=ContentPublishedPayload(
+            space_id=space.id,
+            space_title=space.title,
+            classroom_id=classroom.id if classroom is not None else None,
+            classroom_title=classroom.title if classroom is not None else None,
+            message=message,
+        ),
+    )
+
+
 def publish(
     db: Session,
     *,
@@ -703,12 +740,19 @@ def publish(
         notify_members=data.notify_members,
         reset_item_ids=reset_item_ids,
     )
+    # Lock order of the progress writes: member rows first, then completion rows (see
+    # `space_progress_service.recheck_test_completion`). Sorted, so two publishes can not deadlock.
+    space_member_crud.lock_rows(
+        db, space_id=space.id, user_ids=space_item_completion_crud.list_user_ids_for_items(db, item_ids=reset_item_ids)
+    )
     space_item_completion_crud.remove_for_items(db, item_ids=reset_item_ids)
     # Old results and attempts stop counting: without this the next recheck finds the old best score.
     space_item_crud.set_progress_reset(db, item_ids=reset_item_ids, at=at)
     space_progress_service.sync_course_completion(db, space_id=space.id)
     space.published_at = now()
     space.draft_started_at = None
+    if data.notify_members:
+        _notify_content_published(db, space=space, current_user=current_user, message=data.message)
     db.commit()
     if background_tasks is not None:
         for note_id in notes_to_index:

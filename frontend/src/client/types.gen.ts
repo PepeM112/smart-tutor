@@ -507,6 +507,72 @@ export type ClassroomTokenUsageRead = {
 };
 
 /**
+ * CommentCreatedPayload
+ */
+export type CommentCreatedPayload = {
+    /**
+     * Kind
+     */
+    kind?: 'comment_created';
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    /**
+     * Postid
+     */
+    postId: string;
+    /**
+     * Commentid
+     */
+    commentId: string;
+    /**
+     * Excerpt
+     */
+    excerpt: string;
+    /**
+     * Actorname
+     */
+    actorName: string;
+};
+
+/**
+ * ContentPublishedPayload
+ *
+ * `classroom_id` / `classroom_title` are set only for a classroom course; None for a standalone course.
+ */
+export type ContentPublishedPayload = {
+    /**
+     * Kind
+     */
+    kind?: 'content_published';
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    /**
+     * Classroomid
+     */
+    classroomId?: string | null;
+    /**
+     * Classroomtitle
+     */
+    classroomTitle?: string | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+};
+
+/**
  * CriterionChallengeInput
  */
 export type CriterionChallengeInput = {
@@ -518,6 +584,20 @@ export type CriterionChallengeInput = {
      * Argument
      */
     argument: string;
+};
+
+/**
+ * CursorPage[NotificationRead]
+ */
+export type CursorPageNotificationRead = {
+    /**
+     * Items
+     */
+    items: Array<NotificationRead>;
+    /**
+     * Nextcursor
+     */
+    nextCursor: string | null;
 };
 
 /**
@@ -551,6 +631,61 @@ export type DueSoonItem = {
      * Classroomid
      */
     classroomId: string;
+};
+
+/**
+ * DueSoonPayload
+ */
+export type DueSoonPayload = {
+    /**
+     * Kind
+     */
+    kind?: 'due_soon';
+    /**
+     * Itemid
+     */
+    itemId: string;
+    /**
+     * Itemtitle
+     */
+    itemTitle: string;
+    itemKind: SpaceItemKind;
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    /**
+     * Classroomid
+     */
+    classroomId: string;
+    /**
+     * Dueat
+     */
+    dueAt: Date;
+};
+
+/**
+ * FeedAuthor
+ *
+ * Mirrors the identifying fields of `SpaceMemberRead`. The owner is an author too (no member row).
+ */
+export type FeedAuthor = {
+    /**
+     * Userid
+     */
+    userId: string;
+    /**
+     * Username
+     */
+    username: string;
+    /**
+     * Displayname
+     */
+    displayName: string | null;
 };
 
 /**
@@ -786,6 +921,44 @@ export enum GradeCellStatus {
 }
 
 /**
+ * GradeOverriddenPayload
+ */
+export type GradeOverriddenPayload = {
+    /**
+     * Kind
+     */
+    kind?: 'grade_overridden';
+    /**
+     * Resultid
+     */
+    resultId: string;
+    /**
+     * Itemtitle
+     */
+    itemTitle: string;
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    /**
+     * Score
+     */
+    score: number;
+    /**
+     * Points
+     */
+    points: number;
+    /**
+     * Actorname
+     */
+    actorName: string;
+};
+
+/**
  * GradebookCell
  */
 export type GradebookCell = {
@@ -810,6 +983,10 @@ export type GradebookCell = {
      * Overridden
      */
     overridden: boolean;
+    /**
+     * Canundopass
+     */
+    canUndoPass?: boolean;
 };
 
 /**
@@ -944,6 +1121,52 @@ export type HttpValidationError = {
      * Detail
      */
     detail?: Array<ValidationError>;
+};
+
+/**
+ * InviteReceivedPayload
+ */
+export type InviteReceivedPayload = {
+    /**
+     * Kind
+     */
+    kind?: 'invite_received';
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    spaceKind: SpaceKind;
+    /**
+     * Actorname
+     */
+    actorName: string;
+};
+
+/**
+ * JoinRequestedPayload
+ */
+export type JoinRequestedPayload = {
+    /**
+     * Kind
+     */
+    kind?: 'join_requested';
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    spaceKind: SpaceKind;
+    /**
+     * Actorname
+     */
+    actorName: string;
 };
 
 /**
@@ -1351,6 +1574,93 @@ export type NoteUpdate = {
 };
 
 /**
+ * NotificationRead
+ */
+export type NotificationRead = {
+    /**
+     * Id
+     */
+    id: string;
+    type: NotificationType;
+    /**
+     * Spaceid
+     */
+    spaceId: string | null;
+    /**
+     * Actorid
+     */
+    actorId: string | null;
+    /**
+     * Payload
+     */
+    payload: ({
+        kind: 'invite_received';
+    } & InviteReceivedPayload) | ({
+        kind: 'join_requested';
+    } & JoinRequestedPayload) | ({
+        kind: 'request_approved';
+    } & RequestApprovedPayload) | ({
+        kind: 'content_published';
+    } & ContentPublishedPayload) | ({
+        kind: 'post_created';
+    } & PostCreatedPayload) | ({
+        kind: 'comment_created';
+    } & CommentCreatedPayload) | ({
+        kind: 'due_soon';
+    } & DueSoonPayload) | ({
+        kind: 'grade_overridden';
+    } & GradeOverriddenPayload);
+    /**
+     * Readat
+     */
+    readAt: Date | null;
+    /**
+     * Createdat
+     */
+    createdAt: Date;
+};
+
+/**
+ * NotificationType
+ *
+ * One row per recipient is written per event (`notification_service.notify`).
+ */
+export enum NotificationType {
+    /**
+     * INVITE_RECEIVED
+     */
+    INVITE_RECEIVED = 1,
+    /**
+     * JOIN_REQUESTED
+     */
+    JOIN_REQUESTED = 2,
+    /**
+     * REQUEST_APPROVED
+     */
+    REQUEST_APPROVED = 3,
+    /**
+     * CONTENT_PUBLISHED
+     */
+    CONTENT_PUBLISHED = 4,
+    /**
+     * POST_CREATED
+     */
+    POST_CREATED = 5,
+    /**
+     * COMMENT_CREATED
+     */
+    COMMENT_CREATED = 6,
+    /**
+     * DUE_SOON
+     */
+    DUE_SOON = 7,
+    /**
+     * GRADE_OVERRIDDEN
+     */
+    GRADE_OVERRIDDEN = 8
+}
+
+/**
  * PageContext
  */
 export type PageContext = {
@@ -1458,6 +1768,36 @@ export type PaginatedResponseTestResultListItem = {
      * Perpage
      */
     perPage: number;
+};
+
+/**
+ * PostCreatedPayload
+ */
+export type PostCreatedPayload = {
+    /**
+     * Kind
+     */
+    kind?: 'post_created';
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    /**
+     * Postid
+     */
+    postId: string;
+    /**
+     * Excerpt
+     */
+    excerpt: string;
+    /**
+     * Actorname
+     */
+    actorName: string;
 };
 
 /**
@@ -1805,6 +2145,25 @@ export type QuestionUpdate = {
 };
 
 /**
+ * RequestApprovedPayload
+ */
+export type RequestApprovedPayload = {
+    /**
+     * Kind
+     */
+    kind?: 'request_approved';
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    /**
+     * Spacetitle
+     */
+    spaceTitle: string;
+    spaceKind: SpaceKind;
+};
+
+/**
  * RevealAnswers
  *
  * When a student may see the answer key of a course test.
@@ -1954,6 +2313,61 @@ export type SpaceAttemptStart = {
      * Resumed
      */
     resumed?: boolean;
+};
+
+/**
+ * SpaceCommentCreate
+ */
+export type SpaceCommentCreate = {
+    /**
+     * Body
+     */
+    body: string;
+};
+
+/**
+ * SpaceCommentRead
+ */
+export type SpaceCommentRead = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Postid
+     */
+    postId: string;
+    author: FeedAuthor;
+    /**
+     * Body
+     */
+    body: string;
+    /**
+     * Canedit
+     */
+    canEdit?: boolean;
+    /**
+     * Candelete
+     */
+    canDelete?: boolean;
+    /**
+     * Createdat
+     */
+    createdAt: Date;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
+};
+
+/**
+ * SpaceCommentUpdate
+ */
+export type SpaceCommentUpdate = {
+    /**
+     * Body
+     */
+    body: string;
 };
 
 /**
@@ -2455,6 +2869,90 @@ export type SpaceMembershipUpdate = {
      * Includeinsrs
      */
     includeInSrs: boolean;
+};
+
+/**
+ * SpacePostCreate
+ */
+export type SpacePostCreate = {
+    /**
+     * Body
+     */
+    body: string;
+};
+
+/**
+ * SpacePostPage
+ *
+ * `can_post` / `can_comment` tell the Stream which composers to show. They follow `feed_permission`
+ * and the archive state, which only the owner can read from the settings endpoint.
+ */
+export type SpacePostPage = {
+    /**
+     * Items
+     */
+    items: Array<SpacePostRead>;
+    /**
+     * Nextcursor
+     */
+    nextCursor: string | null;
+    /**
+     * Canpost
+     */
+    canPost?: boolean;
+    /**
+     * Cancomment
+     */
+    canComment?: boolean;
+};
+
+/**
+ * SpacePostRead
+ */
+export type SpacePostRead = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Spaceid
+     */
+    spaceId: string;
+    author: FeedAuthor;
+    /**
+     * Body
+     */
+    body: string;
+    /**
+     * Canedit
+     */
+    canEdit?: boolean;
+    /**
+     * Candelete
+     */
+    canDelete?: boolean;
+    /**
+     * Comments
+     */
+    comments?: Array<SpaceCommentRead>;
+    /**
+     * Createdat
+     */
+    createdAt: Date;
+    /**
+     * Updatedat
+     */
+    updatedAt: Date;
+};
+
+/**
+ * SpacePostUpdate
+ */
+export type SpacePostUpdate = {
+    /**
+     * Body
+     */
+    body: string;
 };
 
 /**
@@ -3162,6 +3660,10 @@ export type TestResultRead = {
      */
     canOverride?: boolean;
     /**
+     * Studentname
+     */
+    studentName?: string | null;
+    /**
      * Answers
      */
     answers?: Array<AnswerRead>;
@@ -3426,6 +3928,16 @@ export type TrashTreeNote = {
      * Deletedat
      */
     deletedAt: Date;
+};
+
+/**
+ * UnreadCount
+ */
+export type UnreadCount = {
+    /**
+     * Count
+     */
+    count: number;
 };
 
 /**
@@ -6696,6 +7208,75 @@ export type SpacesSetMemberRoleResponses = {
 
 export type SpacesSetMemberRoleResponse = SpacesSetMemberRoleResponses[keyof SpacesSetMemberRoleResponses];
 
+export type SpacesListPostsData = {
+    body?: never;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: {
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/spaces/{space_id}/posts';
+};
+
+export type SpacesListPostsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesListPostsError = SpacesListPostsErrors[keyof SpacesListPostsErrors];
+
+export type SpacesListPostsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpacePostPage;
+};
+
+export type SpacesListPostsResponse = SpacesListPostsResponses[keyof SpacesListPostsResponses];
+
+export type SpacesCreatePostData = {
+    body: SpacePostCreate;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/posts';
+};
+
+export type SpacesCreatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesCreatePostError = SpacesCreatePostErrors[keyof SpacesCreatePostErrors];
+
+export type SpacesCreatePostResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpacePostRead;
+};
+
+export type SpacesCreatePostResponse = SpacesCreatePostResponses[keyof SpacesCreatePostResponses];
+
 export type ClassroomsListMineData = {
     body?: never;
     path?: never;
@@ -6939,6 +7520,44 @@ export type ClassroomsGradebookResponses = {
 
 export type ClassroomsGradebookResponse = ClassroomsGradebookResponses[keyof ClassroomsGradebookResponses];
 
+export type ClassroomsRemoveCompletionData = {
+    body?: never;
+    path: {
+        /**
+         * Classroom Id
+         */
+        classroom_id: string;
+        /**
+         * Item Id
+         */
+        item_id: string;
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/classrooms/{classroom_id}/items/{item_id}/students/{user_id}/completion';
+};
+
+export type ClassroomsRemoveCompletionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassroomsRemoveCompletionError = ClassroomsRemoveCompletionErrors[keyof ClassroomsRemoveCompletionErrors];
+
+export type ClassroomsRemoveCompletionResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ClassroomsRemoveCompletionResponse = ClassroomsRemoveCompletionResponses[keyof ClassroomsRemoveCompletionResponses];
+
 export type ClassroomsAiKeyStatusData = {
     body?: never;
     path: {
@@ -6998,6 +7617,274 @@ export type ClassroomsTokenUsageResponses = {
 };
 
 export type ClassroomsTokenUsageResponse = ClassroomsTokenUsageResponses[keyof ClassroomsTokenUsageResponses];
+
+export type PostsDeletePostData = {
+    body?: never;
+    path: {
+        /**
+         * Post Id
+         */
+        post_id: string;
+    };
+    query?: never;
+    url: '/api/v1/posts/{post_id}';
+};
+
+export type PostsDeletePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostsDeletePostError = PostsDeletePostErrors[keyof PostsDeletePostErrors];
+
+export type PostsDeletePostResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type PostsDeletePostResponse = PostsDeletePostResponses[keyof PostsDeletePostResponses];
+
+export type PostsUpdatePostData = {
+    body: SpacePostUpdate;
+    path: {
+        /**
+         * Post Id
+         */
+        post_id: string;
+    };
+    query?: never;
+    url: '/api/v1/posts/{post_id}';
+};
+
+export type PostsUpdatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostsUpdatePostError = PostsUpdatePostErrors[keyof PostsUpdatePostErrors];
+
+export type PostsUpdatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpacePostRead;
+};
+
+export type PostsUpdatePostResponse = PostsUpdatePostResponses[keyof PostsUpdatePostResponses];
+
+export type PostsCreateCommentData = {
+    body: SpaceCommentCreate;
+    path: {
+        /**
+         * Post Id
+         */
+        post_id: string;
+    };
+    query?: never;
+    url: '/api/v1/posts/{post_id}/comments';
+};
+
+export type PostsCreateCommentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostsCreateCommentError = PostsCreateCommentErrors[keyof PostsCreateCommentErrors];
+
+export type PostsCreateCommentResponses = {
+    /**
+     * Successful Response
+     */
+    201: SpaceCommentRead;
+};
+
+export type PostsCreateCommentResponse = PostsCreateCommentResponses[keyof PostsCreateCommentResponses];
+
+export type CommentsDeleteCommentData = {
+    body?: never;
+    path: {
+        /**
+         * Comment Id
+         */
+        comment_id: string;
+    };
+    query?: never;
+    url: '/api/v1/comments/{comment_id}';
+};
+
+export type CommentsDeleteCommentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CommentsDeleteCommentError = CommentsDeleteCommentErrors[keyof CommentsDeleteCommentErrors];
+
+export type CommentsDeleteCommentResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type CommentsDeleteCommentResponse = CommentsDeleteCommentResponses[keyof CommentsDeleteCommentResponses];
+
+export type CommentsUpdateCommentData = {
+    body: SpaceCommentUpdate;
+    path: {
+        /**
+         * Comment Id
+         */
+        comment_id: string;
+    };
+    query?: never;
+    url: '/api/v1/comments/{comment_id}';
+};
+
+export type CommentsUpdateCommentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CommentsUpdateCommentError = CommentsUpdateCommentErrors[keyof CommentsUpdateCommentErrors];
+
+export type CommentsUpdateCommentResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpaceCommentRead;
+};
+
+export type CommentsUpdateCommentResponse = CommentsUpdateCommentResponses[keyof CommentsUpdateCommentResponses];
+
+export type NotificationsListNotificationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Unread Only
+         */
+        unread_only?: boolean;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/notifications';
+};
+
+export type NotificationsListNotificationsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotificationsListNotificationsError = NotificationsListNotificationsErrors[keyof NotificationsListNotificationsErrors];
+
+export type NotificationsListNotificationsResponses = {
+    /**
+     * Successful Response
+     */
+    200: CursorPageNotificationRead;
+};
+
+export type NotificationsListNotificationsResponse = NotificationsListNotificationsResponses[keyof NotificationsListNotificationsResponses];
+
+export type NotificationsUnreadCountData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/notifications/unread-count';
+};
+
+export type NotificationsUnreadCountErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotificationsUnreadCountError = NotificationsUnreadCountErrors[keyof NotificationsUnreadCountErrors];
+
+export type NotificationsUnreadCountResponses = {
+    /**
+     * Successful Response
+     */
+    200: UnreadCount;
+};
+
+export type NotificationsUnreadCountResponse = NotificationsUnreadCountResponses[keyof NotificationsUnreadCountResponses];
+
+export type NotificationsMarkReadData = {
+    body?: never;
+    path: {
+        /**
+         * Notification Id
+         */
+        notification_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notifications/{notification_id}/read';
+};
+
+export type NotificationsMarkReadErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotificationsMarkReadError = NotificationsMarkReadErrors[keyof NotificationsMarkReadErrors];
+
+export type NotificationsMarkReadResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type NotificationsMarkReadResponse = NotificationsMarkReadResponses[keyof NotificationsMarkReadResponses];
+
+export type NotificationsMarkAllReadData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/notifications/read-all';
+};
+
+export type NotificationsMarkAllReadErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotificationsMarkAllReadError = NotificationsMarkAllReadErrors[keyof NotificationsMarkAllReadErrors];
+
+export type NotificationsMarkAllReadResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type NotificationsMarkAllReadResponse = NotificationsMarkAllReadResponses[keyof NotificationsMarkAllReadResponses];
 
 export type DefaultHealthData = {
     body?: never;
