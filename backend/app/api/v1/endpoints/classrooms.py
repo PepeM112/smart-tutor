@@ -85,6 +85,14 @@ def gradebook(classroom_id: str, db: DbSession, current_user: CurrentUser) -> Gr
     return gradebook_service.get_gradebook(db, classroom_id=classroom_id, current_user=current_user)
 
 
+@router.delete("/{classroom_id}/items/{item_id}/students/{user_id}/completion", status_code=status.HTTP_204_NO_CONTENT)
+def remove_completion(classroom_id: str, item_id: str, user_id: str, db: DbSession, current_user: CurrentUser) -> None:
+    """Owner or editor. Undo a pass of one student: only while the best score is below the pass threshold (409)."""
+    classroom_service.remove_completion(
+        db, classroom_id=classroom_id, item_id=item_id, user_id=user_id, current_user=current_user
+    )
+
+
 @router.get("/{classroom_id}/ai-key-status", response_model=AIKeyStatusRead)
 def ai_key_status(classroom_id: str, db: DbSession, current_user: CurrentUser) -> AIKeyStatusRead:
     """Which key (Class, own or none) the user would use for AI in this classroom. Any member."""

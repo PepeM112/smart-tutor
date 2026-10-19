@@ -120,7 +120,8 @@ In a classroom, a teacher (OWNER or EDITOR) can give points to one answer (`PUT 
 - **The grader skips an overridden answer.** It makes no AI call and writes no AI grade. It reads the override again before it recalculates, so a teacher grade given while grading runs is not lost.
 - **Challenge:** a challenge on an overridden answer gives 409 "A teacher graded this answer. It cannot be challenged."
 - Clearing the override of a PENDING answer makes the grader run again for it. (If the clear comes while a grader already runs, the answer can be graded twice. This is a known limit.)
-- After each change the completion is checked again (`space_progress_service.recheck_result_completion`). A fail override never removes a completion.
+- After each change the completion is checked again (`space_progress_service.recheck_result_completion`). A fail override never removes a completion. To undo a pass, a teacher uses Remove completion ([Spaces](spaces.md#remove-completion-r17-st-69)).
+- A new override sends a `grade_overridden` notification to the student. A clear sends none.
 - Details and errors: [Spaces — Grade override](spaces.md#grade-override-r35).
 
 ## Answer Statuses

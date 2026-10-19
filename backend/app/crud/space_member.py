@@ -177,3 +177,14 @@ def list_active_editor_ids(db: Session, *, space_id: str) -> set[str]:
         SpaceMember.role == int(SpaceRole.EDITOR),
     )
     return set(db.scalars(stmt).all())
+
+
+def list_active_member_ids(db: Session, *, space_id: str) -> set[str]:
+    """The user ids of every ACTIVE member (EDITOR and VIEWER) of a space. The owner is not stored here.
+
+    Used for notification fan-out (e.g. a new post): the caller adds `space.owner_id` itself.
+    """
+    stmt = select(SpaceMember.user_id).where(
+        SpaceMember.space_id == space_id, SpaceMember.status == int(MemberStatus.ACTIVE), SpaceMember.role.is_not(None)
+    )
+    return set(db.scalars(stmt).all())

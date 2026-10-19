@@ -30,6 +30,12 @@ export function ScoreBanner({ result, testTitle, isOlderVersion }: Props) {
             </Tooltip>
           )}
         </div>
+        {result.studentName && (
+          // Only a teacher gets the name, when the result is a student's.
+          <p className="text-sm text-muted-foreground" data-testid="result-student">
+            {t('history.result_student', { name: result.studentName })}
+          </p>
+        )}
         {result.totalPoints != null && result.totalPoints > 0 && (
           <p className="text-sm text-muted-foreground tabular-nums">
             {result.earnedPoints} / {result.totalPoints} {t('history.pts')}

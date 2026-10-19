@@ -230,6 +230,14 @@ def list_children(db: Session, *, parent_id: str) -> Sequence[Space]:
     return db.scalars(stmt).all()
 
 
+def list_children_for_parents(db: Session, *, parent_ids: Sequence[str]) -> Sequence[Space]:
+    """The courses of any number of classrooms, in one query (the due-soon notification scan)."""
+    if not parent_ids:
+        return []
+    stmt = select(Space).where(Space.parent_id.in_(parent_ids)).order_by(Space.created_at, Space.id)
+    return db.scalars(stmt).all()
+
+
 def list_by_ids(db: Session, *, ids: Sequence[str]) -> Sequence[Space]:
     if not ids:
         return []

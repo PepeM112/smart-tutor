@@ -3,6 +3,7 @@ from typing import Annotated, TypeAlias
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.constants import FEED_PAGE_SIZE
 from app.core.enums import SpaceRole, SpaceVisibility
 from app.database import get_session
 from app.dependencies.auth import CurrentUser
@@ -37,8 +38,15 @@ from app.schemas.space import (
     SpaceVariantOrder,
     SpaceVisitRequest,
 )
+from app.schemas.space_feed import SpacePostCreate, SpacePostPage, SpacePostRead
 from app.schemas.test_result import TestResultRead
-from app.services import space_attempt_service, space_draft_service, space_member_service, space_service
+from app.services import (
+    space_attempt_service,
+    space_draft_service,
+    space_feed_service,
+    space_member_service,
+    space_service,
+)
 
 router = APIRouter()
 
@@ -358,3 +366,23 @@ def set_member_role(
 def remove_member(space_id: str, user_id: str, db: DbSession, current_user: CurrentUser) -> None:
     """Remove a member, deny a request or cancel an invitation."""
     space_member_service.remove_member(db, space_id=space_id, user_id=user_id, current_user=current_user)
+
+
+# ── Feed (classroom Stream, M5) ────────────────────────────────────────────────
+
+
+@router.get("/{space_id}/posts", response_model=SpacePostPage)
+def list_posts(
+    space_id: str,
+    db: DbSession,
+    current_user: CurrentUser,
+    cursor: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = FEED_PAGE_SIZE,
+) -> SpacePostPage:
+    """Newest-first, each post with its comments (oldest first)."""
+    return space_feed_service.list_posts(db, space_id=space_id, current_user=current_user, cursor=cursor, limit=limit)
+
+
+@router.post("/{space_id}/posts", response_model=SpacePostRead, status_code=status.HTTP_201_CREATED)
+def create_post(space_id: str, data: SpacePostCreate, db: DbSession, current_user: CurrentUser) -> SpacePostRead:
+    return space_feed_service.create_post(db, space_id=space_id, current_user=current_user, data=data)

@@ -8,7 +8,8 @@ Rules:
 - The effective grade is the override when set, else the AI grade (`grading_service.recalculate_test_result`).
 - An override works on a PENDING Long Text answer too. The background grader never writes the override columns.
 - A pass created by an override writes the completion row. A fail override never removes a completion row:
-  progress is sticky (same rule as a low score after a pass). To undo a pass, a teacher resets the item progress.
+  progress is sticky (same rule as a low score after a pass). To undo a pass, a teacher uses
+  "Remove completion" (`classroom_service.remove_completion`).
 """
 
 from datetime import datetime, timezone
@@ -16,7 +17,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import AnswerStatus
+from app.core.enums import AnswerStatus, NotificationType
 from app.crud import answer as answer_crud
 from app.crud import question as question_crud
 from app.crud import test_result as test_result_crud
@@ -24,7 +25,8 @@ from app.models.answer import Answer
 from app.models.question import Question
 from app.models.test_result import TestResult
 from app.models.user import User
-from app.services import space_progress_service
+from app.schemas.notification import GradeOverriddenPayload
+from app.services import notification_service, space_progress_service
 from app.services.access_service import EDIT_ROLES, is_classroom_space, resolve_role, result_item_and_space
 from app.services.grading_service import recalculate_test_result
 from app.services.space_service import require_active
@@ -76,6 +78,33 @@ def _refresh_result(db: Session, result: TestResult) -> TestResult:
     return fresh
 
 
+def _notify_grade_overridden(
+    db: Session, *, result: TestResult, score: float, points: float, current_user: User
+) -> None:
+    found = result_item_and_space(db, result=result)
+    if found is None:
+        return
+    _item, space = found
+    # The student may have been removed from the classroom since the attempt: no notification then.
+    recipients = notification_service.with_space_access(db, space=space, user_ids={result.user_id})
+    notification_service.notify(
+        db,
+        notification_type=NotificationType.GRADE_OVERRIDDEN,
+        recipients=recipients,
+        actor_id=current_user.id,
+        space_id=space.id,
+        payload=GradeOverriddenPayload(
+            result_id=result.id,
+            item_title=result.test_title,
+            space_id=space.id,
+            space_title=space.title,
+            score=score,
+            points=points,
+            actor_name=notification_service.actor_name(current_user),
+        ),
+    )
+
+
 def set_override(db: Session, *, answer_id: str, score: float, current_user: User) -> TestResult:
     """Give `score` points to the answer. Returns the updated result."""
     answer, result, question = _get_reviewable(db, answer_id=answer_id, current_user=current_user)
@@ -92,6 +121,7 @@ def set_override(db: Session, *, answer_id: str, score: float, current_user: Use
     target.overridden_at = datetime.now(timezone.utc)
     recalculate_test_result(db, result)
     space_progress_service.recheck_result_completion(db, test_result=result)
+    _notify_grade_overridden(db, result=result, score=score, points=question.points, current_user=current_user)
     db.commit()
     db.refresh(result)
     return result

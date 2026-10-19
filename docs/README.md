@@ -17,4 +17,4 @@ This folder documents **how features work and why they were built this way**. Fo
 | [AI Test Generation](test-generation.md)        | Generating tests from notes, question editing, preview, refinement     |
 | [AI Assistant](ai-assistant.md)                 | Chat panel, SSE protocol, agentic tool-calling, streaming pipeline     |
 | [Token Usage & Cost Tracking](token-usage.md)   | Token metering, model pricing, cost calculation, dashboard display     |
-| [Spaces](spaces.md)                             | Courses and classrooms: schema, roles, access layer, progress and attempts, classrooms (classwork, scheduling, gradebook, override, Class key) |
+| [Spaces](spaces.md)                             | Courses and classrooms: schema, roles, access layer, progress and attempts, classrooms (classwork, scheduling, gradebook, override, Class key), the Stream feed and notifications |

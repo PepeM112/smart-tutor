@@ -455,9 +455,11 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 ## Publish Options Are Stored Only
 
-**Decision:** `space_publish` stores `notify_members` and `reset_item_ids`, but they have no effect in M2.
+**Decision:** `space_publish` stores `notify_members` and `reset_item_ids`, but they had no effect in M2.
 
-**Why:** Notifications (M5) and progress (M3) do not exist yet. Storing the author's choice now means the publish dialog and the log row do not change later.
+**Why:** Notifications (M5) and progress (M3) did not exist yet. Storing the author's choice first meant the publish dialog and the log row did not change later.
+
+**Update (M5, ST-69):** `notify_members` now sends a notification. See "Publish Notifies Students Only".
 
 ---
 
@@ -595,7 +597,7 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 **Decision:** A teacher grade that fails a student never removes a completion row. A pass creates it.
 
-**Why:** Progress is sticky: a low score after a pass does not remove the pass either. To undo a pass, a teacher resets the item progress.
+**Why:** Progress is sticky: a low score after a pass does not remove the pass either. To undo a pass, a teacher uses Remove completion (see "Remove Completion Instead of a Per-Student Reset").
 
 ---
 
@@ -636,3 +638,67 @@ This means CRUD functions are reusable across services without importing HTTP co
 **Decision:** `_sweep_orphan_courses` (discard, delete section, delete item, publish) refuses with 409 when an orphan classroom course has a result or an attempt of a student. Nothing changes. The owner deletes the course on purpose with "Delete forever" (typed title).
 
 **Why:** A misclick on "Publish" must not delete a term of grades, and the Trash does not cover it. We did not detach or archive the course: that needs a new state for a course that no item points to. A refusal is the smallest change and keeps the explicit path (`delete_course_forever`, which now accepts a course of a classroom).
+
+---
+
+## Notifications Are Written Per Recipient, Through Channels
+
+**Decision:** `notification_service.notify()` inserts one `notification` row per recipient (fan-out on write) and hands the batch to a list of `Channel` objects. `InAppChannel` is the only one.
+
+**Alternative considered:** One row per event with a read-state table, or a query that builds the list when the user asks.
+
+**Why:** One row per recipient makes "unread count", "mark as read" and the 90-day purge simple indexed queries with no joins. A classroom has tens of members, so the write cost is small. The channel list is the extension point: an email or push channel is a new class, and no caller changes.
+
+---
+
+## `dedupe_key` Is a Column, Not a Search in the Payload
+
+**Decision:** `notification.dedupe_key` is a nullable column with `UNIQUE(user_id, dedupe_key)`. The insert uses `ON CONFLICT DO NOTHING`. Only due soon sets it (`due:<item_id>`).
+
+**Alternative considered:** Check for an existing row with a query on the JSON payload before the insert.
+
+**Why:** Due soon is made lazily on each bell fetch, so two requests can run at once. A check followed by an insert is a race. The unique index makes the database decide, with no error and no duplicate. A NULL key never conflicts, so other events are not affected.
+
+---
+
+## Publish Notifies Students Only, and Only If They Can See the Content
+
+**Decision:** With `notify_members` on, publish notifies the ACTIVE students (VIEWER). For a classroom course it notifies the students of the classroom, and only if a published item makes the course visible to them now.
+
+**Why:** Co-teachers made the change or see it in edit mode, so a message is noise. A link to content that a student cannot open yet (hidden by `visible_from`, or not in the plan) would give a 404 and teach students to ignore the bell.
+
+---
+
+## The Payload Keeps Snapshot Titles
+
+**Decision:** The notification payload stores the titles, names and a 140-character excerpt from the time of the event. It is a typed Pydantic model per type, in a union on a string `kind`.
+
+**Why:** The bell then renders with no joins and no extra requests. A renamed space keeps the old title in old notifications: a notification is a record of what happened, so this is correct. The typed union gives the frontend a `switch` that the compiler checks (`assertNever`).
+
+---
+
+## Notifications Are Deleted With the Space
+
+**Decision:** `notification.space_id` is a foreign key with `ON DELETE CASCADE`. `actor_id` is `SET NULL`.
+
+**Alternative considered:** Keep the rows with a NULL space.
+
+**Why:** After "Delete forever" the link of the notification can only give 404. The text would show a title of content that no longer exists. A deleted actor changes nothing for the recipient, so the row stays.
+
+---
+
+## `canPost` and `canComment` Come from the Backend
+
+**Decision:** The feed response has `canPost` and `canComment` (and each post and comment has `canEdit` and `canDelete`). They follow `feed_permission` and the archive state.
+
+**Why:** A student cannot read the classroom settings, so the frontend cannot know the permission. A guess from the role would show a composer that the backend then refuses. This is the same reason as `canOverride`.
+
+---
+
+## Remove Completion Instead of a Per-Student Reset
+
+**Decision:** A teacher can delete the completion of one student with `DELETE /classrooms/{id}/items/{iid}/students/{uid}/completion`, but only while the best score of the student is below the pass threshold. Otherwise the call gives 409. The rule for a pass is one function (`space_progress_service.reaches_threshold`), and the call locks the member row.
+
+**Alternative considered:** A reset of the item progress for one student. `progress_reset_at` is one value per item, so a reset time per member needs a bigger change.
+
+**Why:** Completion is sticky, so a fail override does not remove it (see "A Fail Override Keeps the Completion"). The teacher still needs a way to correct a wrong pass, for example after a fail override. A reset would delete grades. Removing the row only changes progress, never results. The 409 rule stops a removal that the next check would undo at once, and the lock stops a race with a submit that completes the item at the same time.

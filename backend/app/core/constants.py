@@ -17,3 +17,16 @@ ATTEMPT_GRACE_SECONDS = 60
 
 # Default `pass_threshold` of a course test: the share of the points (0..1) that passes.
 DEFAULT_PASS_THRESHOLD = 0.5
+
+# Maximum length of a Stream post / comment body (M5).
+POST_BODY_MAX = 5000
+COMMENT_BODY_MAX = 2000
+
+# Number of rows in one page of the Stream feed or the notifications list (M5).
+FEED_PAGE_SIZE = 20
+
+# Length of the post / comment excerpt stored in a POST_CREATED / COMMENT_CREATED notification payload.
+NOTIFICATION_EXCERPT_MAX = 140
+
+# Days a read notification is kept before the lazy purge removes it. Unread ones are never purged.
+NOTIFICATION_RETENTION_DAYS = 90

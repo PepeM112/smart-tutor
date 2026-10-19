@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.crud import space_item as space_item_crud
 from app.crud import test as test_crud
 from app.crud import test_result as test_result_crud
+from app.crud import user as user_crud
 from app.models.test import Test
 from app.models.test_result import TestResult
 from app.models.user import User
@@ -50,13 +51,24 @@ def _get_result_and_test(db: Session, *, result_id: str, current_user: User) -> 
     return result, test
 
 
+def teacher_read(db: Session, *, result: TestResult, current_user: User) -> TestResultRead:
+    """The read of a result for a teacher (`can_override`).
+    It adds the student name when the result is not the teacher's own."""
+    read = TestResultRead.model_validate(result).model_copy(update={"can_override": True})
+    if result.user_id == current_user.id:
+        return read
+    student = user_crud.get_by_id(db, id=result.user_id)
+    return read.model_copy(update={"student_name": (student.display_name or student.username) if student else None})
+
+
 def get_result_read(db: Session, *, result_id: str, current_user: User) -> TestResultRead:
     """The result with its answers. When the answers are hidden, the rubric criteria (`point`) are
     removed from the Long Text grades: a criterion is part of the answer key. The AI reason stays."""
     result, test = _get_result_and_test(db, result_id=result_id, current_user=current_user)
-    read = TestResultRead.model_validate(result).model_copy(
-        update={"can_override": can_review_result(db, result=result, current_user=current_user)}
-    )
+    if can_review_result(db, result=result, current_user=current_user):
+        read = teacher_read(db, result=result, current_user=current_user)
+    else:
+        read = TestResultRead.model_validate(result)
     if not _answers_hidden(db, result=result, test=test, current_user=current_user):
         return read
 

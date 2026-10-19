@@ -173,6 +173,11 @@ def course_progress(db: Session, *, space_ids: Sequence[str], user_id: str) -> d
 # ── Completion rules ──────────────────────────────────────────────────────────
 
 
+def reaches_threshold(item: SpaceItem, best_score: float | None) -> bool:
+    """The ONE pass rule: a graded best score (0..100) of at least `pass_threshold`. No score is no pass."""
+    return best_score is not None and best_score / 100 >= item.pass_threshold
+
+
 def recheck_test_completion(db: Session, *, item: SpaceItem, user_id: str) -> None:
     """Best score >= `pass_threshold` writes the completion row. A later low score never removes it.
 
@@ -180,7 +185,7 @@ def recheck_test_completion(db: Session, *, item: SpaceItem, user_id: str) -> No
     `grade_pending_answers` and after a challenge recalculation.
     """
     best = test_result_crud.best_scores_by_item(db, user_id=user_id, item_ids=[item.id]).get(item.id)
-    if best is None or best / 100 < item.pass_threshold:
+    if not reaches_threshold(item, best):
         return
     space_item_completion_crud.add(db, item_id=item.id, user_id=user_id, completed_at=utcnow())
     sync_member_completion(db, space_id=item.space_id, user_id=user_id)

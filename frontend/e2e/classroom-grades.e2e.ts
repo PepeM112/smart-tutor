@@ -33,6 +33,8 @@ test('C10: the gradebook shows the best score and opens the result', async ({ pa
   await row.getByRole('link', { name: /50%/ }).click();
   await expect(page).toHaveURL(/\/history\/.+/);
   resultUrl = page.url();
+  // R15: the teacher sees whose result it is.
+  await expect(page.getByTestId('result-student')).toContainText(/viewer/i);
   // The teacher sees the grade panel when a question opens.
   await page.getByRole('button', { name: /Type nucleus/ }).click();
   await expect(page.getByTestId('teacher-grade')).toBeVisible();
@@ -73,4 +75,53 @@ test('C11: the student sees "Graded by your teacher" and cannot override', async
   await expect(grade).toContainText('Graded by your teacher');
   await expect(student.getByRole('button', { name: 'Override grade' })).toHaveCount(0);
   await expect(student.getByRole('button', { name: 'Edit grade' })).toHaveCount(0);
+  // R15: the student gets no name line on a result.
+  await expect(student.getByRole('heading', { level: 1 }).first()).toBeVisible();
+  await expect(student.getByTestId('result-student')).toHaveCount(0);
+});
+
+test('R17: a passed cell has no Remove completion button', async ({ page }) => {
+  await openGrades(page);
+  const row = page
+    .getByTestId('gradebook')
+    .getByRole('row')
+    .filter({ hasText: /viewer/i });
+  await expect(row).toContainText('Passed');
+  await expect(row.getByRole('button', { name: 'Remove completion' })).toHaveCount(0);
+});
+
+test('R17: a lower grade keeps the completion, and the teacher removes it after a confirm', async ({ page }) => {
+  // The teacher removes the override: the score goes back to 50%, but the completion stays (progress is sticky).
+  await page.goto(resultUrl);
+  await page.getByRole('button', { name: /Type nucleus/ }).click();
+  await page.getByTestId('teacher-grade').getByRole('button', { name: 'Remove override' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove override' }).click();
+  await expectToast(page, 'Override removed');
+
+  await openGrades(page);
+  const row = page
+    .getByTestId('gradebook')
+    .getByRole('row')
+    .filter({ hasText: /viewer/i });
+  // The score is 50% again, but the pass stays (progress is sticky): the cell still says Passed.
+  await expect(row).toContainText('50%');
+  await expect(row).toContainText('Passed');
+  const remove = row.getByRole('button', { name: 'Remove completion' });
+  await expect(remove).toBeVisible();
+
+  // Cancel keeps the button.
+  await remove.click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
+  await expect(remove).toBeVisible();
+
+  const removed = page.waitForResponse(
+    response =>
+      response.request().method() === 'DELETE' && /\/items\/[^/]+\/students\/[^/]+\/completion$/.test(response.url())
+  );
+  await remove.click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove completion' }).click();
+  expect((await removed).status()).toBe(204);
+  await expectToast(page, 'Completion removed');
+  await expect(row.getByRole('button', { name: 'Remove completion' })).toHaveCount(0);
+  await expect(row).toContainText('Failed');
 });

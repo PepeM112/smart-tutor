@@ -38,10 +38,12 @@ from app.schemas.space import (
     SpaceSectionCreate,
     SpaceVariantCreate,
 )
+from app.schemas.space_feed import SpaceCommentCreate, SpacePostCreate
 from app.services import (
     classroom_service,
     space_attempt_service,
     space_draft_service,
+    space_feed_service,
     space_member_service,
     space_service,
 )
@@ -433,8 +435,38 @@ def seed_classroom(db: Session, owner: User, editor: User, viewer: User) -> str:
 
     add_member(db, owner, classroom_id, editor, SpaceRole.EDITOR)
     add_member(db, owner, classroom_id, viewer, SpaceRole.VIEWER)
+    seed_stream(db, classroom_id, owner, editor, viewer)
     take_cell_quiz(db, classroom_id, viewer)
     return classroom_id
+
+
+WELCOME_POST = "Welcome to Biology 101! Read Cell basics first, then take the Cell quiz."
+LAB_POST = "The lab starts next week. Bring your gloves."
+STUDENT_COMMENT = "Thanks, I will start tonight."
+
+
+def seed_stream(db: Session, classroom_id: str, owner: User, editor: User, viewer: User) -> None:
+    """Two posts (owner, then co-teacher) and a student comment on the first, through the services.
+
+    The default feed permission is STUDENTS_COMMENT, so the student comments but does not post.
+    """
+    welcome = space_feed_service.create_post(
+        db, space_id=classroom_id, current_user=owner, data=SpacePostCreate(body=WELCOME_POST)
+    )
+    space_feed_service.create_post(db, space_id=classroom_id, current_user=editor, data=SpacePostCreate(body=LAB_POST))
+    space_feed_service.create_comment(
+        db, post_id=welcome.id, current_user=viewer, data=SpaceCommentCreate(body=STUDENT_COMMENT)
+    )
+
+
+def clear_notifications(db: Session, users: tuple[User, ...]) -> None:
+    """Delete the notifications that the seed events made (invites, posts, comments).
+
+    A spec then starts from a known bell: the only notification a user gets is the lazy "due soon" one
+    (the student's Cell quiz), made on the first bell fetch.
+    """
+    db.execute(text("DELETE FROM notification WHERE user_id = ANY(:ids)"), {"ids": [u.id for u in users]})
+    db.commit()
 
 
 def take_cell_quiz(db: Session, classroom_id: str, student: User) -> None:
@@ -481,6 +513,10 @@ ids = {
     "Intro to Chemistry": seed_other_owner(db, editor),
 }
 classroom_id = seed_classroom(db, owner, editor, viewer)
+print("done\n")
+
+print("Clearing the seed notifications... ", end="", flush=True)
+clear_notifications(db, (owner, editor, viewer, outsider))
 print("done\n")
 
 print("Creating the older version result... ", end="", flush=True)

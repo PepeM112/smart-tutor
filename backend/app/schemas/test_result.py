@@ -32,6 +32,9 @@ class TestResultRead(TestResultBase):
     is_older_version: bool = False
     # The viewer is a teacher (OWNER / EDITOR) of the classroom that owns the item: they may override grades.
     can_override: bool = False
+    # The name of the student (display name, else username). Set only for a teacher who opens the result of
+    # another user. None for the owner of the result and for every non-teacher.
+    student_name: str | None = None
     answers: list[AnswerRead] = []
 
 

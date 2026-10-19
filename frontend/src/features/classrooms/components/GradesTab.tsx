@@ -6,11 +6,13 @@ import { useTranslations } from 'next-intl';
 
 import { type GradebookCell, type GradebookRead, type GradebookRow, type SpaceDetail } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
+import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Tooltip } from '@/components/ui/tooltip';
 import { classroomHref } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-import { useGradebook } from '../hooks/useClassrooms';
+import { useGradebook, useRemoveCompletion } from '../hooks/useClassrooms';
 import {
   CELL_STATUS_STYLES,
   canOpenCell,
@@ -149,20 +151,41 @@ function StudentRow({
         </span>
       </th>
       {groups.map(group => (
-        <GroupCells key={group.course?.courseId ?? 'loose'} group={group} row={row} backHref={backHref} />
+        <GroupCells
+          key={group.course?.courseId ?? 'loose'}
+          group={group}
+          row={row}
+          backHref={backHref}
+          classroomId={classroom.id}
+        />
       ))}
     </tr>
   );
 }
 
-function GroupCells({ group, row, backHref }: { group: GradebookGroup; row: GradebookRow; backHref: string }) {
+function GroupCells({
+  group,
+  row,
+  backHref,
+  classroomId,
+}: {
+  group: GradebookGroup;
+  row: GradebookRow;
+  backHref: string;
+  classroomId: string;
+}) {
   const progress = group.course ? findCourseProgress(row.courses, group.course.courseId) : undefined;
 
   return (
     <>
       {group.columns.map(({ column, index }, position) => (
         <td key={column.itemId} className={cn('px-3 py-2 align-middle', position === 0 && 'border-l border-border')}>
-          <GradeCell cell={row.cells[index]} maxAttempts={column.maxAttempts} backHref={backHref} />
+          <GradeCell
+            cell={row.cells[index]}
+            maxAttempts={column.maxAttempts}
+            backHref={backHref}
+            undo={{ classroomId, itemId: column.itemId, userId: row.userId, studentLabel: studentName(row) }}
+          />
         </td>
       ))}
       {group.course && (
@@ -180,14 +203,18 @@ function GroupCells({ group, row, backHref }: { group: GradebookGroup; row: Grad
   );
 }
 
+type UndoTarget = { classroomId: string; itemId: string; userId: string; studentLabel: string };
+
 function GradeCell({
   cell,
   maxAttempts,
   backHref,
+  undo,
 }: {
   cell: GradebookCell | undefined;
   maxAttempts: number | null;
   backHref: string;
+  undo: UndoTarget;
 }) {
   const t = useTranslations();
   if (!cell) return <span className="text-muted-foreground">-</span>;
@@ -217,14 +244,44 @@ function GradeCell({
     </span>
   );
 
-  if (!canOpenCell(cell) || cell.bestResultId === null) return content;
+  const body =
+    !canOpenCell(cell) || cell.bestResultId === null ? (
+      content
+    ) : (
+      <Link
+        href={resultHrefFromGrades(cell.bestResultId, backHref)}
+        className="-mx-1.5 block rounded-md px-1.5 py-1 transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        {content}
+      </Link>
+    );
+
+  if (!cell.canUndoPass) return body;
+  // The button sits outside the link: a click on it must not open the result.
+  return (
+    <div className="flex flex-col items-start gap-1">
+      {body}
+      <RemoveCompletionButton target={undo} />
+    </div>
+  );
+}
+
+/** Only for a completion that a lower grade left behind (`canUndoPass`). It asks first. */
+function RemoveCompletionButton({ target }: { target: UndoTarget }) {
+  const t = useTranslations();
+  const { mutate: removeCompletion, isPending: isRemoving } = useRemoveCompletion(target.classroomId);
 
   return (
-    <Link
-      href={resultHrefFromGrades(cell.bestResultId, backHref)}
-      className="-mx-1.5 block rounded-md px-1.5 py-1 transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-    >
-      {content}
-    </Link>
+    <ConfirmDialog
+      trigger={
+        <Button type="button" variant="outline" size="xs" disabled={isRemoving}>
+          {t('classrooms.completion_remove')}
+        </Button>
+      }
+      title={t('classrooms.completion_remove_title')}
+      description={t('classrooms.completion_remove_description', { student: target.studentLabel })}
+      confirmLabel={t('classrooms.completion_remove')}
+      onConfirm={() => removeCompletion({ itemId: target.itemId, userId: target.userId })}
+    />
   );
 }

@@ -13,9 +13,16 @@ const KEY_STEP = 0.02;
  * `dividerWidth` is the width in px of the divider between the panes. The ratio splits
  * the container width minus the divider, so the drag math removes it too.
  * The ratio is saved when a drag ends and after each key press or reset.
+ * `legacyStorageKey` is an old key that this split used to share with another one. It is read only when
+ * `storageKey` has no value yet, and it is never written, so the two splits part ways at the first resize.
  */
-export function useResizableSplit(storageKey: string, defaultRatio: number, dividerWidth = 0) {
-  const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(storageKey, defaultRatio));
+export function useResizableSplit(
+  storageKey: string,
+  defaultRatio: number,
+  dividerWidth = 0,
+  legacyStorageKey?: string
+) {
+  const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(storageKey, defaultRatio, legacyStorageKey));
   const containerRef = useRef<HTMLDivElement>(null);
   // Written where the ratio changes (not in an effect), so a release in the same frame saves the last value.
   const latestRatio = useRef(splitRatio);
@@ -92,16 +99,17 @@ function saveSplitRatio(storageKey: string, ratio: number): void {
   }
 }
 
-function loadSplitRatio(storageKey: string, defaultRatio: number): number {
-  if (typeof window === 'undefined') return defaultRatio;
+function readSplitRatio(storageKey: string): number | null {
   try {
     const stored = localStorage.getItem(storageKey);
-    if (stored) {
-      const parsed = parseFloat(stored);
-      if (!isNaN(parsed) && parsed >= MIN_SPLIT_RATIO && parsed <= MAX_SPLIT_RATIO) return parsed;
-    }
+    const parsed = stored ? parseFloat(stored) : NaN;
+    return !isNaN(parsed) && parsed >= MIN_SPLIT_RATIO && parsed <= MAX_SPLIT_RATIO ? parsed : null;
   } catch {
-    /* storage unavailable */
+    return null; // storage unavailable
   }
-  return defaultRatio;
+}
+
+function loadSplitRatio(storageKey: string, defaultRatio: number, legacyStorageKey?: string): number {
+  if (typeof window === 'undefined') return defaultRatio;
+  return readSplitRatio(storageKey) ?? (legacyStorageKey ? readSplitRatio(legacyStorageKey) : null) ?? defaultRatio;
 }

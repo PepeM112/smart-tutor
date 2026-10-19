@@ -6,7 +6,7 @@ A **space** is a shared learning area. There are two kinds:
 
 Personal content (notes, tests, questions, folders, Trash, SRS) does not change. Space content is a separate scope: `space_id IS NOT NULL`.
 
-> **Status:** M1 and M2 (ST-66), M3 (ST-67) and M4 (ST-68) are done: the schema foundation, the access layer, standalone courses end to end (API + UI), progress, course tests with attempt rules, variants and a timer, student AI / RAG and the SRS opt-in, and classrooms (classwork, scheduling, co-teachers, gradebook, grade override, Class key). The stream and notifications come in M5.
+> **Status:** All milestones are done. M1 and M2 (ST-66), M3 (ST-67), M4 (ST-68) and M5 (ST-69): the schema foundation, the access layer, standalone courses end to end (API + UI), progress, course tests with attempt rules, variants and a timer, student AI / RAG and the SRS opt-in, classrooms (classwork, scheduling, co-teachers, gradebook, grade override, Class key), and the Stream feed with in-app notifications.
 
 ---
 
@@ -157,7 +157,7 @@ Members see only published rows. Authors change a course in **edit mode**:
 5. **Discard** (`POST /draft/discard`): delete all draft rows and draft content. The published state does not change.
 6. **Change check** (`services/space_changes_service.py`): `SpaceDetail.has_unpublished_changes` is true when publish would change what members see: a new, removed, renamed or moved section or item, or a twin whose content is different from its published row. The editor makes a twin when it opens a published note or test, so a twin with the same content is not a change. A course that was never published always has changes. Publish with no changes gives 409 ("Nothing to publish").
 
-`notify_members` (M5) is stored only. `reset_item_ids` takes draft item ids and stores them as published item ids. Publish deletes the completion rows of those items and sets `space_item.progress_reset_at` to the publish time (M3). Best score, completion and the attempt count use only data after that time (see Rules).
+`notify_members` sends a notification to the students (M5, see [Notifications](#notifications-m5)). `reset_item_ids` takes draft item ids and stores them as published item ids. Publish deletes the completion rows of those items and sets `space_item.progress_reset_at` to the publish time (M3). Best score, completion and the attempt count use only data after that time (see Rules).
 
 ### Visibility and joining
 | | PUBLIC | UNLISTED | PRIVATE |
@@ -312,7 +312,7 @@ An archived classroom is read-only for all users. A course of an archived classr
 - **Duplicate into classroom** (`POST /classrooms/{id}/courses/duplicate`): copies the published content of one of my standalone courses (`copy_published_content`). No members, drafts, results or progress. A source that has a parent is refused (404).
 - **A course publishes on its own.** Publishing the classroom shows the COURSE item. Publishing the course shows its content.
 - **Orphan sweep:** a course that no COURSE item (draft or published) points to is deleted forever (`_sweep_orphan_courses`). The sweep runs after discard, publish, item delete and section delete. **It never deletes student data.** If an orphan course has a result or an attempt of a user who is not the owner or a co-teacher of the classroom, the whole call fails with 409 `"A removed course has student results. Delete the course forever first."` (`ORPHAN_HAS_RESULTS`) and nothing changes (the service rolls back). The owner then deletes the course on purpose: `DELETE /spaces/{course id}` with the typed title (`delete_course_forever`; it accepts a course of a classroom too, owner only). The COURSE items that point to it go with the FK cascade, so the next publish succeeds. An orphan with no student data (a new empty course, a discarded course) is swept as before.
-- The classroom page has 5 tabs: Stream (placeholder until M5), Classwork, Members, Grades (teachers), Settings (owner).
+- The classroom page has 5 tabs: Stream (the feed, M5), Classwork, Members, Grades (teachers), Settings (owner).
 
 ### Scheduling (R32, R32b)
 Four fields on `space_item`. UTC, null = not set. The teacher sets them in Edit mode (`PATCH /spaces/{id}/items/{iid}`; a sent null clears the value). They are part of the change check, so a changed date is an unpublished change. `opens_at` and `closes_at` are for TEST items only. `closes_at` must be after `opens_at` (else the request is refused). `opens_at`, `closes_at` and `visible_from` also work in standalone courses.
@@ -322,7 +322,7 @@ Four fields on `space_item`. UTC, null = not set. The teacher sets them in Edit 
 | `opens_at`, `closes_at` | TEST | The test window. A new attempt starts only inside it: before `opens_at` → 409 "The test is not open yet"; at or after `closes_at` → 409 "The test is closed". The submit is checked too: after `closes_at` + 60 s grace → 409 "The test is closed", and the attempt is EXPIRED. |
 | deadline | TEST | `deadline_at = min(started_at + time_limit_minutes, closes_at)`. The window is hard: the countdown shows the earlier time. The submit also checks `closes_at` itself, because a teacher can set `closes_at` after an attempt started. |
 | `visible_from` | any | A student does not see the item before this time. Owner and co-teachers see it with a "Scheduled" label. |
-| `due_at` | any | Shown in the "Due soon" list of the classroom (24 h window) for a student who has not done the item. The notification is M5. |
+| `due_at` | any | Shown in the "Due soon" list of the classroom (24 h window) for a student who has not done the item. It also makes the "due soon" notification (M5). |
 
 **`visible_from` skip paths.** A hidden item is skipped in all of these. A hidden COURSE item hides the whole course.
 1. `access_service` (a VIEWER gets 404 on the attempt and mark paths).
@@ -343,8 +343,18 @@ Four fields on `space_item`. UTC, null = not set. The teacher sets them in Edit 
 - `PUT /answers/{id}/override` with `{ score }`, and `DELETE /answers/{id}/override`. Both return the updated `TestResultRead`.
 - Only an OWNER or EDITOR of the classroom, and only in a classroom. A viewer or a personal result gives 403. A standalone course gives 400 "Grade overrides are only available in classrooms". The score must be from 0 to the points of the question (400). An archived classroom gives 409.
 - The `answer` row gets `override_score`, `override_status` (full points = CORRECT, 0 = WRONG, else PARTIAL), `overridden_by`, `overridden_at`. The AI grade (`status`, `rubric_result`) stays. See [Answer Grading](answer-grading.md#teacher-override).
-- The service locks the result, reads it again, calls `recalculate_test_result`, then `space_progress_service.recheck_result_completion`. A pass creates the completion row, so Review follows. **A fail override never removes a completion row.** Progress is sticky. To undo a pass, reset the item progress.
+- The service locks the result, reads it again, calls `recalculate_test_result`, then `space_progress_service.recheck_result_completion`. A pass creates the completion row, so Review follows. **A fail override never removes a completion row.** Progress is sticky. To undo a pass for one student, a teacher uses **Remove completion** (below).
 - The student sees "Graded by your teacher" and the AI grade.
+
+### Remove completion (R17, ST-69)
+`DELETE /api/v1/classrooms/{id}/items/{iid}/students/{uid}/completion` (204). Owner or co-teacher. It deletes the completion row of one student for one published TEST item. Use it to undo a pass that a fail override left behind.
+- **Rule:** allowed only while the best score of the student is below `pass_threshold`. The best score counts overrides and uses only results after `progress_reset_at`. If the best score reaches the threshold, the answer is 409 "The best score of the student reaches the pass threshold".
+- **One pass rule:** `space_progress_service.reaches_threshold` is used by the completion recheck, the gradebook status and this action, so they always agree.
+- **Order of checks:** 404 classroom, 403 not a teacher, 409 archived, 404 item (a draft item, a non-TEST item or an item of another classroom), 404 student (not an ACTIVE VIEWER), 404 "Completion not found", then the 409 above.
+- **Member row lock:** the action locks the member row of the student (`get_member_row(for_update=True)`). The check and the delete are one step, so a parallel completion write can not slip in between.
+- **No return of the row.** `recheck_test_completion` does not write the row while the best score is below the threshold. A new pass writes it again.
+- **Why not reset the progress of the student:** `progress_reset_at` is one value per item and resets all students. A reset time per member is a bigger change (see [decisions](decisions.md#remove-completion-instead-of-a-per-student-reset)).
+- **UI:** `GradebookCell.canUndoPass` (a row exists, the best score is below the threshold, and the classroom is not archived) shows a "Remove completion" button with a `ConfirmDialog` in the gradebook cell, outside the result link.
 
 ### Class key (R36 to R39)
 The owner sets a Class key in `classroom_settings`: a provider and a Fernet-encrypted key, the same as user keys. `GET` and `PATCH /classrooms/{id}/settings` (owner only) never return the key (`hasClassKey` only). An empty `classKey` removes it. A key with no provider gives 400 "Choose a provider for the Class key". Changing `aiProvider` to a different value while a key is stored needs a new `classKey` in the same request (an empty one removes the key); else 422 "Send a new Class key when you change the provider". An **archived** classroom is read-only, with one exception: `PATCH` with exactly `{"classKey": ""}` removes the key (any other body gives 409).
@@ -354,7 +364,7 @@ The owner sets a Class key in `classroom_settings`: a provider and a Fernet-encr
 | `key_priority` | STUDENT, CLASS | CLASS |
 | `key_scope` | CLASSROOM_CONTENT, ALL | CLASSROOM_CONTENT |
 | `monthly_token_cap_per_student` | integer, or null (no cap) | null |
-| `feed_permission` | TEACHERS_ONLY, STUDENTS_COMMENT, STUDENTS_POST_AND_COMMENT | STUDENTS_COMMENT (stored now, used in M5) |
+| `feed_permission` | TEACHERS_ONLY, STUDENTS_COMMENT, STUDENTS_POST_AND_COMMENT | STUDENTS_COMMENT (enforced by the feed, see [Feed](#feed-m5)) |
 
 **Resolution.** `services/llm_key_service.py` has one `resolve_llm(db, user, space_id)` for all AI features. `plan_key` makes the same decision with no client, for the status endpoint (R38 matrix):
 
@@ -387,7 +397,7 @@ Shared actions use the `/spaces` routes: get, update, archive, unarchive, delete
 | Settings (owner) | `GET` / `PATCH /{id}/settings` |
 | Courses | `POST /{id}/courses`, `POST /{id}/courses/duplicate` |
 | Students | `GET /{id}/due-soon` (empty for the owner and the co-teachers) |
-| Teachers | `GET /{id}/gradebook` |
+| Teachers | `GET /{id}/gradebook`, `DELETE /{id}/items/{iid}/students/{uid}/completion` (Remove completion) |
 | AI key | `GET /{id}/ai-key-status` (any member), `GET /{id}/token-usage` (owner) |
 | Override (`/api/v1/answers`) | `PUT` / `DELETE /{id}/override` |
 
@@ -405,10 +415,17 @@ The backend sends English `detail` only. The frontend matches the exact text and
 | "AI is not configured. Please add your API key in Settings." | any AI call (HTTP 403, or SSE `error` in the Assistant) | `assist/utils/assistErrors.ts` |
 | "The AI budget of this classroom is used up for this month. Add your own API key in Settings to continue." | any AI call (HTTP 403, or SSE `error` in the Assistant) | `assistErrors.ts` |
 | "The assistant is not available during a course test" | `/assist` (409) | `assistErrors.ts` |
+| "Only the teacher can post in this classroom" | feed post (403) | `feed/lib/feedErrors.ts` |
+| "Only the teacher can comment in this classroom" | feed comment (403) | `feedErrors.ts` |
+| "Only the author can edit this post" / "Only the author can edit this comment" | feed edit (403) | `feedErrors.ts` |
+| "The classroom is archived" | feed writes (409) | `feedErrors.ts` |
+| "The best score of the student reaches the pass threshold" | Remove completion (409) | `classrooms/lib/completionErrors.ts` |
+| "The classroom is archived" | Remove completion (409) | `completionErrors.ts` |
+| "Completion not found" | Remove completion (404) | `completionErrors.ts` |
 
 ### Frontend (`src/features/classrooms/`)
 - Routes `/classrooms` (list, create) and `/classrooms/[slug-id]` (the tab is in the URL, `?tab=`). The sidebar has a Classrooms entry. `spaceHref` gives the right link for a course or a classroom. Join and invitations route by kind.
-- `ClassroomPage`: Stream (`PlaceholderTab`, M5), Classwork (the outline and editor of `features/courses/`, plus `DueSoonList`), Members, Grades (`GradesTab`), Settings (`ClassroomSettingsTab`: feed permission, `ClassKeySection`, `ClassSpendTable`).
+- `ClassroomPage`: Stream (`features/feed/`, M5), Classwork (the outline and editor of `features/courses/`, plus `DueSoonList`), Members, Grades (`GradesTab`), Settings (`ClassroomSettingsTab`: feed permission, `ClassKeySection`, `ClassSpendTable`).
 - A course of a classroom uses the course pages: crumbs back to the classroom, no visibility badge, no join or leave, no Members tab, details only in its settings.
 - `lib/schedule.ts`, `ItemSchedulePanel` and `ScheduleBadges` edit and show the dates. The attempt card handles the window.
 - `AiKeyNotice` shows the student-key warning on the classroom page and on its course pages (students only).
@@ -416,8 +433,158 @@ The backend sends English `detail` only. The frontend matches the exact text and
 
 ---
 
+## Feed (M5)
+
+The Stream is the feed of a classroom: plain-text posts and flat comments. The v1 UI is the classroom Stream tab only. The tables point to `space`, so a course can get a feed later with no schema change. `space_feed_service` allows classrooms only (a course gives 404 "Classroom not found").
+
+### Schema
+Migration `7246afeea176` (one migration for the feed and the notifications).
+
+| Table | Columns | Notes |
+|---|---|---|
+| `space_post` | `id` (ULID), `space_id` → `space` CASCADE, `author_id` → `user` CASCADE, `body` Text, `created_at`, `updated_at` | index `(space_id, id)`: the ULID sorts by creation time, so it serves newest-first cursor paging |
+| `space_comment` | `id` (ULID), `post_id` → `space_post` CASCADE, `author_id` → `user` CASCADE, `body` Text, `created_at`, `updated_at` | index `(post_id, id)`. Flat: there are no replies to a comment |
+
+- A body is trimmed and not empty. Maximum: 5000 characters for a post, 2000 for a comment (`POST_BODY_MAX`, `COMMENT_BODY_MAX`; the frontend has the same numbers in `lib/limits.ts`).
+- There is no `edited` column. `updated_at > created_at` shows the "edited" label.
+- A deleted post deletes its comments (CASCADE). A deleted user deletes their posts and comments.
+
+### Permission matrix
+Only an ACTIVE member reads the feed (owner, co-teacher, student). A user with no role, or with an INVITED / REQUESTED row, gets 403. `feed_permission` (`classroom_settings`, set by the owner) decides who writes.
+
+| Action | Teacher (owner, co-teacher) | Student: TEACHERS_ONLY | Student: STUDENTS_COMMENT (default) | Student: STUDENTS_POST_AND_COMMENT |
+|---|---|---|---|---|
+| Read posts and comments | yes | yes | yes | yes |
+| Post | yes | 403 "Only the teacher can post in this classroom" | 403 (same text) | yes |
+| Comment | yes | 403 "Only the teacher can comment in this classroom" | yes | yes |
+| Edit own post or comment | yes | yes | yes | yes |
+| Delete own post or comment | yes | yes | yes | yes |
+| Edit the content of another user | no (403) | no (403) | no (403) | no (403) |
+| Delete the content of another user | yes (moderation) | no (403) | no (403) | no (403) |
+
+- **Archived classroom:** reading works. Every write gives 409 "The classroom is archived", also for the owner (core rule 7).
+- **Order of checks (create):** 404 classroom, 403 not a member, 409 archived, 403 `feed_permission`. Edit and delete load the post or comment first (404 "Post not found" / "Comment not found"), then check membership, then the author rule, then the archive.
+- **A change of `feed_permission` does not touch old posts.** An author can still edit and delete their own old content, because those two actions check the author, not the permission.
+- **Moderation sends no notification.** A teacher edit of another user is never allowed (only a delete).
+
+### Endpoints
+| Method and path | Use |
+|---|---|
+| `GET /api/v1/spaces/{id}/posts` | Newest first, cursor paged (`cursor`, `limit` 1..50, default 20). Each post has its comments (oldest first), loaded in one query for the whole page |
+| `POST /api/v1/spaces/{id}/posts` | Create a post (201) |
+| `PATCH` / `DELETE /api/v1/posts/{id}` | Edit (author only) / delete (author or teacher, 204) |
+| `GET` / `POST /api/v1/posts/{id}/comments` | The comments of one post (oldest first) / create a comment (201) |
+| `PATCH` / `DELETE /api/v1/comments/{id}` | Edit (author only) / delete (author or teacher, 204) |
+
+`SpacePostPage` is a cursor page (`items`, `nextCursor`) with two flags, `canPost` and `canComment`. They follow `feed_permission` and the archive state (both false when archived). Students can not read the classroom settings, so the backend sends the flags. `can_edit` and `can_delete` of each post and comment come from the backend too, the same way as `can_override`. `author` has `userId`, `username` and `displayName`. The owner is an author with no member row.
+
+The cursor is the id of the last item on the page, not of the lookahead row. The query is `WHERE id < cursor`, so the id of the lookahead row would skip that row.
+
+### Frontend (`src/features/feed/`)
+- `Stream` is the Stream tab of `ClassroomPage`. It shows the composer when `canPost`, the posts, and a "Load more" button. A user who is not a member sees a "members only" text.
+- `PostCard` shows the author, the relative time (`lib/relativeTime.ts`, `Intl.RelativeTimeFormat` with the locale), the "edited" label, the comments and the comment composer when `canComment`. `BodyForm` is the one composer and edit form (with a counter). Delete uses `ConfirmDialog`.
+- No live refresh. `usePosts` refetches on window focus, and every write refetches the pages (also after an error, because a refused write often means that the permission changed).
+- Saving the classroom settings invalidates the feed query, so the composers follow the new permission.
+- Refused writes: `lib/feedErrors.ts` matches the `detail` text (see [Error strings](#error-strings-that-the-frontend-matches)).
+
+---
+
+## Notifications (M5)
+
+### Schema: `notification`
+| Column | Notes |
+|---|---|
+| `id` | String(26) ULID |
+| `user_id` | FK → `user` CASCADE. One row per recipient (fan-out on write) |
+| `type` | Integer, `NotificationType` |
+| `space_id` | FK → `space` CASCADE, NULL. A delete forever of the space deletes its notifications. NULL stays possible for a future event with no space |
+| `actor_id` | FK → `user` SET NULL, NULL. The user who caused the event. A deleted actor keeps the old rows |
+| `payload` | JSONB. The data to render the text and the link (see below) |
+| `dedupe_key` | String(64), NULL. UNIQUE `(user_id, dedupe_key)` (`uq_notification_user_dedupe`) |
+| `read_at`, `created_at` | DateTime with time zone |
+
+Indexes: `(user_id)` and `(user_id, read_at, created_at)`. A NULL `dedupe_key` never conflicts (Postgres treats NULLs as distinct), so only an event that needs idempotency sets it. Today only due soon does.
+
+### Events and recipients
+`NotificationType` (`NamedIntEnum`): INVITE_RECEIVED, JOIN_REQUESTED, REQUEST_APPROVED, CONTENT_PUBLISHED, POST_CREATED, COMMENT_CREATED, DUE_SOON, GRADE_OVERRIDDEN.
+
+| Event | Starts in | Recipients |
+|---|---|---|
+| Invite received | `space_member_service.invite` (a new INVITED row) | the invited user |
+| Join request | `join` by link to a PRIVATE space (a new REQUESTED row) | the owner and the ACTIVE co-teachers |
+| Request approved | `approve_request`, or `invite` of a user who has a pending request | the requester |
+| Publish with "Notify members" | `space_draft_service.publish` when `notify_members` is true (it is false by default) | ACTIVE students only (a classroom course: the students of the classroom) |
+| New post | `space_feed_service.create_post` | every ACTIVE member and the owner |
+| New comment on my post | `space_feed_service.create_comment` | the author of the post, if still an active member (or the owner) |
+| Due soon | the bell fetch (lazy, see below) | the student |
+| Grade overridden | `grade_override_service.set_override` | the owner of the result, if still an active member |
+
+- **The actor never gets their own notification.** `notify()` removes the actor from the recipients. A teacher who comments on their own post gets nothing.
+- **Join by code and join by link to a PUBLIC or UNLISTED space** make an ACTIVE row at once, so they send no event.
+- **A double invite sends one notification.** `invite` notifies only when `_add_viewer` made the row (the same rule as `join`).
+- **Publish goes to students only.** Co-teachers see the change in edit mode. A classroom course whose students can not see it yet (no published COURSE item points to it, or `visible_from` is in the future) sends nothing: the link would give 404.
+- **Grade overridden:** the payload has the points given to the answer (`score` of `points`), not the new total. Clearing an override sends nothing.
+- **An invite notification stays** after accept or decline. A click opens the space page, which has Accept / Decline for an invited user.
+- **No new notification for a person who lost access.** Comment and grade override use `notification_service.with_space_access`: a recipient with no role in the space now (removed, left, or a course no longer visible to them) is skipped. It is per event, not inside `notify()`: an invite goes to an INVITED user and a join request is about a person who is not a member yet, so those events must not be filtered. The post event already reads only the ACTIVE members.
+- **A removed or left member keeps old notifications.** A click gives 403. A click on a deleted target gives the normal 404 / 403 page.
+
+### Delivery (`services/notification_service.py`)
+- `notify(db, notification_type, recipients, payload, actor_id, space_id, dedupe_key)` builds one pending row per recipient and passes the batch to every channel in `_CHANNELS`. `Channel` is an ABC. `InAppChannel` is the only one: it inserts the rows with `ON CONFLICT (user_id, dedupe_key) DO NOTHING`. An email or push channel is a new class in the list, and no caller changes.
+- `notify()` does not commit. The calling service commits, so the notification rows are in the same transaction as the write. A write that rolls back leaves no notification.
+- **Typed payload.** Each type has one Pydantic model in `schemas/notification.py` (`InviteReceivedPayload`, ...). They are a discriminated union on a string `kind` (for example `post_created`). `NotificationRead` checks that `kind` matches `type`. The generated client has the union, so the frontend narrows on `payload.kind`.
+- **The payload keeps titles at write time:** the space title, the item title, a 140-character excerpt of the post or comment, the actor name. The text renders with no joins. If the space is renamed later, the old notification keeps the old title. This is accepted.
+
+### Due soon (lazy)
+Nothing happens at the due time, so the bell fetch makes the notification (`list_for_user` and `unread_count` both call `_generate_due_soon`). A poll with nothing new reads only and does not commit:
+1. Take the user's ACTIVE classrooms where the user is a student (VIEWER).
+2. Find the items due in the next 24 hours with the same filters as `classroom_service.due_soon` (`pending_due_items`): published, visible, not done.
+3. Read the user's existing `due:*` keys for these items (one query) and insert a row only for the missing ones, with `dedupe_key = "due:<item_id>"`. Commit only if something was inserted.
+4. `ON CONFLICT DO NOTHING` plus UNIQUE `(user_id, dedupe_key)` still cover the race: two parallel bell fetches that both see a key as missing produce one row, never a duplicate and never an error.
+
+A teacher, a completed item, a hidden item and an item with no `due_at` get nothing. The notification is once per (user, item): a later change of `due_at` does not make a second one.
+
+### Purge (lazy)
+`list_for_user` (`GET ""`) deletes the read notifications of the user that are older than 90 days (`NOTIFICATION_RETENTION_DAYS`, by `created_at`). `unread_count` does not purge, so the 30 s poll stays cheap. Unread ones are never deleted. It commits only when a row was deleted. It follows the `trash_service._purge_expired` pattern.
+
+### Endpoints (`/api/v1/notifications`, tag `notifications`)
+| Endpoint | Use |
+|---|---|
+| `GET ""` | Newest first. `unread_only`, `cursor`, `limit` (1..50, default 20). Runs the due-soon generation and the purge first. A row whose stored payload no longer validates is skipped (a warning with its id is logged), not a 500 |
+| `GET /unread-count` | `{ count }`. The bell polls it. Runs the due-soon generation, not the purge |
+| `POST /{id}/read` | Mark one as read (204). Another user's id gives 404 |
+| `POST /read-all` | Mark all as read (204) |
+
+### Frontend (`src/features/notifications/`)
+- `NotificationBell` is in `Sidebar` (desktop) and in `MobileHeader`. Both mount (CSS hides one) and share one query key, so there is one request. `useUnreadCount` polls every 30 s (`refetchInterval`) and on window focus. The badge shows `99+` above 99.
+- The bell popover loads the latest 10 only while it is open. A click marks one read, then goes to the target. It has "Mark all read" and a link to the page.
+- `/notifications` (`NotificationsPage`): all notifications, an Unread filter (the standard `useFilters` + `FilterPopover`), "Mark all read" and "Load more" (cursor paging, 20).
+- `lib/renderers.ts` has one renderer per type: it gives the text key (`notifications.types.*`, en and es), the ICU params, the target link and the icon. The `switch` is exhaustive on `payload.kind` (`assertNever`), so a new type does not compile until it has a renderer.
+- **Date in the payload.** Only `DueSoonPayload.dueAt` is a date. The generated transformer (`transformers.gen.ts`) does not reach the payload union, so `dueAt` is an ISO string at run time, although the type says `Date`. The due-soon renderer makes a `Date` from it. A payload with a new date field needs the same step.
+- **Lists restart from the first page after a write.** `lib/infiniteQuery.ts` (`resetToFirstPage`) cuts an infinite query to its first page before it refetches. The cursors of page 2, 3, ... are stale after a new post or a read mark, so a refetch could repeat or skip a row. The Stream does the same after every write. The user presses "Load more" again.
+- **Publish text.** A publish of the classroom itself has the classroom as `space`: the text names it once. The text with "(classroom)" is only for a course inside a classroom.
+- Targets: invite and approved → the space page; join request → the Members tab; publish → the course or classroom; post and comment → the Stream tab; due soon → the classroom item; grade overridden → the result page.
+
+### Known limits (M5)
+- 105 parallel posts exhaust the database pool (5 + 10 connections) and give some 500 answers. Normal use is far below this.
+- A publish where only a hidden item (`visible_from` in the future) changed still notifies the students.
+- The comments of a post are not capped in the list: all comments of the 20 posts of a page load.
+- The purge uses `created_at`, not `read_at`: a notification that is read today but created over 90 days ago goes at once.
+- Due soon is once per item. A later change of `due_at` gives no new notification.
+- An author can still edit or delete own content after `feed_permission` gets stricter.
+
+---
+
+## Follow-ups from ST-68 (ST-69)
+
+- **R14: invitations are split by kind.** The invitations list (`GET /spaces/invitations`) already has `kind`, so the backend did not change. `courses/lib/invitations.ts` (`splitInvitations`) splits the list. The `InvitationsButton` popover shows a Courses section and a Classrooms section (an empty section is hidden). The badge counts both. The join toast and the error text follow the kind.
+- **R15: `studentName` is for teachers only.** `TestResultRead.student_name` (display name, else username) is set only by `test_result_service.teacher_read`, when a teacher opens a result of another user. The override endpoints return the same helper, so the cached result keeps the name. A student, and a teacher who opens their own result, get `null`, so no data of another user leaks. `ScoreBanner` shows the name.
+- **R16: separate split-pane keys.** The classroom page uses `classroom-preview-split-ratio`. The course page keeps `course-preview-split-ratio`. `useResizableSplit` and `SplitPane` take an optional `legacyStorageKey`. The classroom page passes the course key: it is read only when the new key has no value, and it is never written. A saved width keeps working until the first resize.
+- **R17: Remove completion.** See [Remove completion](#remove-completion-r17-st-69).
+
+---
+
 ## Planned
 
-- **M5 Feed and notifications:** plain-text posts and comments, in-app bell with polling. Hooks that M4 stores already: `space_publish.notify_members`, `classroom_settings.feed_permission`, `space_item.due_at`.
+No milestone is open. Ideas for later (for example email notifications) are in `.claude/local/IDEAS.md`. The channel list in `notification_service` and the `space_id` FK of the feed tables are the two extension points: a new channel is a new class, and a feed for courses needs no schema change.
 
-The full plan and decision log are in `.claude/local/TASK_CLASSROOM.md` while the feature is in progress.
+The full plan and the decision log are in `.claude/local/TASK_CLASSROOM.md`.

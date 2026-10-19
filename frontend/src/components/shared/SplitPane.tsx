@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 export type SplitPaneProps = {
   /** localStorage key for the saved ratio. Each split in the app uses its own key. */
   storageKey: string;
+  /** An old key that this split used to share with another split. Read once as the start value, never written. */
+  legacyStorageKey?: string;
   defaultRatio?: number;
   /** Left pane. It scrolls by itself. */
   main: ReactNode;
@@ -67,6 +69,7 @@ const CONTENT_FADE_DURATION = PANEL_FADE_DURATION;
  */
 export function SplitPane({
   storageKey,
+  legacyStorageKey,
   defaultRatio = 0.5,
   main,
   side,
@@ -78,7 +81,7 @@ export function SplitPane({
 }: SplitPaneProps) {
   const t = useTranslations('common');
   const { containerRef, splitRatio, handleDividerPointerDown, handleDividerKeyDown, resetRatio, isDragging } =
-    useResizableSplit(storageKey, defaultRatio, DIVIDER_WIDTH);
+    useResizableSplit(storageKey, defaultRatio, DIVIDER_WIDTH, legacyStorageKey);
   const prefersReduced = useReducedMotion();
   const instant = prefersReduced || isDragging;
 
