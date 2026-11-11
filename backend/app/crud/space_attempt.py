@@ -117,6 +117,18 @@ def expire_open_for_variants(db: Session, *, item_id: str, test_ids: Sequence[st
     db.flush()
 
 
+def expire_open_for_items(db: Session, *, item_ids: Sequence[str], finished_at: datetime) -> None:
+    """Close the OPEN attempts on these items (a progress reset: an attempt from before it never counts)."""
+    if not item_ids:
+        return
+    db.execute(
+        sql_update(SpaceAttempt)
+        .where(SpaceAttempt.item_id.in_(item_ids), SpaceAttempt.status == int(AttemptStatus.OPEN))
+        .values(status=int(AttemptStatus.EXPIRED), finished_at=finished_at)
+    )
+    db.flush()
+
+
 def usage_by_user_item(db: Session, *, item_ids: Sequence[str]) -> dict[tuple[str, str], tuple[int, bool]]:
     """`{(user id, item id): (started attempts, has an OPEN attempt)}` for all users.
 

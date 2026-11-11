@@ -82,6 +82,22 @@ function removeAttemptAnswers(key: string): void {
 }
 
 /**
+ * Deletes every draft of this user. Call it on an explicit logout only: the answers are plain text, so the
+ * next person on a shared device must not read them. An expired session keeps its drafts, so the user can resume.
+ */
+export function removeAttemptDrafts(userId: string): void {
+  try {
+    const prefix = attemptDraftPrefix(userId);
+    const storage = window.localStorage;
+    Array.from({ length: storage.length }, (_, index) => storage.key(index))
+      .filter((name): name is string => name !== null && name.startsWith(prefix))
+      .forEach(name => storage.removeItem(name));
+  } catch {
+    // Nothing to clean up when storage is not available.
+  }
+}
+
+/**
  * Deletes the drafts of this user that are older than `DRAFT_MAX_AGE_MS`, except the current attempt.
  * An attempt that expired and was never opened again leaves its draft behind: the next start cleans
  * it up (D11). A draft without `savedAt` (the format before timestamps) counts as expired.

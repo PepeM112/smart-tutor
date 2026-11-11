@@ -3,7 +3,13 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { attemptDraftKey, DRAFT_MAX_AGE_MS, readAttemptAnswers, useAttemptDraft } from './useAttemptDraft';
+import {
+  attemptDraftKey,
+  DRAFT_MAX_AGE_MS,
+  readAttemptAnswers,
+  removeAttemptDrafts,
+  useAttemptDraft,
+} from './useAttemptDraft';
 
 const NOW = Date.parse('2030-01-15T12:00:00Z');
 const storedDraft = (savedAt: number, answers: Record<string, string> = { q1: 'x' }): string =>
@@ -113,5 +119,28 @@ describe('readAttemptAnswers', () => {
   it('reads the answers of the timestamped format', () => {
     window.localStorage.setItem('k1', storedDraft(NOW, { a: 'x' }));
     expect(readAttemptAnswers('k1')).toEqual({ a: 'x' });
+  });
+});
+
+describe('removeAttemptDrafts', () => {
+  it('removes every draft of the user and keeps the drafts of another user', () => {
+    window.localStorage.setItem('st:attempt:u1:a1', storedDraft(NOW));
+    window.localStorage.setItem('st:attempt:u1:a2', storedDraft(NOW));
+    window.localStorage.setItem('st:attempt:u2:a1', storedDraft(NOW));
+    window.localStorage.setItem('other', 'keep');
+
+    removeAttemptDrafts('u1');
+
+    expect(window.localStorage.getItem('st:attempt:u1:a1')).toBeNull();
+    expect(window.localStorage.getItem('st:attempt:u1:a2')).toBeNull();
+    expect(window.localStorage.getItem('st:attempt:u2:a1')).not.toBeNull();
+    expect(window.localStorage.getItem('other')).toBe('keep');
+  });
+
+  it('does not throw when storage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'key').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(() => removeAttemptDrafts('u1')).not.toThrow();
   });
 });

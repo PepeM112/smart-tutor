@@ -214,6 +214,10 @@ def restore_questions(db: Session, *, question_ids: list[str], current_user: Use
     owned_deleted = [
         q for q in _owned_personal(all_questions, current_user=current_user) if q.status == int(QuestionStatus.DELETED)
     ]
+    # A restore changes the content of a live test: freeze its pre-restore state first, as a delete does.
+    owning_tests = {t.id: t for q in owned_deleted if (t := q.owning_test) is not None}
+    for test in owning_tests.values():
+        version_test_if_needed(db, test=test)
     question_crud.bulk_restore(db, questions=owned_deleted)
     db.commit()
     return len(owned_deleted)

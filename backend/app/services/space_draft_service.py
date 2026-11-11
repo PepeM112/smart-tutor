@@ -748,6 +748,9 @@ def publish(
     space_item_completion_crud.remove_for_items(db, item_ids=reset_item_ids)
     # Old results and attempts stop counting: without this the next recheck finds the old best score.
     space_item_crud.set_progress_reset(db, item_ids=reset_item_ids, at=at)
+    # An attempt open at the reset can never count (it started before it) and would block a new start
+    # through the one-OPEN index, so the student would have to take the test twice. Close it now.
+    space_attempt_crud.expire_open_for_items(db, item_ids=reset_item_ids, finished_at=at)
     space_progress_service.sync_course_completion(db, space_id=space.id)
     space.published_at = now()
     space.draft_started_at = None

@@ -1,4 +1,4 @@
-"""A frozen test version (`Test.parent_id` set) is read-only: edit paths give 404, result pages still load it.
+"""A frozen test version (`Test.parent_id` set) is read-only: edit paths give 404, reads still load it.
 
 Each test runs in one outer transaction that is rolled back (see `db_session` in `conftest.py`).
 """
@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.enums import QuestionStatus
 from app.models.question import Question
 from app.models.test import Test as ExamTest
 from app.models.test_result import TestResult as ResultRow
@@ -109,12 +110,42 @@ class TestFrozenVersionIsReadOnly:
         assert code == 404
 
 
+class TestVersioningGuard:
+    def test_a_frozen_version_is_never_copied_again(self, db_session: Session, versions: _Versions) -> None:
+        # Force skips the "has results" check, so only the frozen guard can return False here.
+        assert version_test_if_needed(db_session, test=versions.frozen, force=True) is False
+
+
 class TestFrozenVersionInAssistantTools:
-    def test_get_test_details_says_not_found(self, db_session: Session, user: User, versions: _Versions) -> None:
+    def test_get_test_details_loads_the_frozen_version_and_names_the_live_test(
+        self, db_session: Session, user: User, versions: _Versions
+    ) -> None:
         output = execute_tool(
             db_session, current_user=user, tool_name="get_test_details", arguments={"test_id": versions.frozen.id}
         ).output
-        assert output == "Error: Test not found"
+        assert f"(ID: `{versions.frozen.id}`)" in output
+        assert "Older version of this test" in output
+        assert f"The live test is `{versions.current.id}`" in output
+        assert f"(qid: `{versions.frozen_question.id}`)" in output
+
+    def test_get_test_details_of_the_live_test_has_no_older_version_line(
+        self, db_session: Session, user: User, versions: _Versions
+    ) -> None:
+        output = execute_tool(
+            db_session, current_user=user, tool_name="get_test_details", arguments={"test_id": versions.current.id}
+        ).output
+        assert "Older version" not in output
+
+    def test_get_test_details_of_a_frozen_version_of_another_user_is_denied(
+        self, db_session: Session, versions: _Versions
+    ) -> None:
+        output = execute_tool(
+            db_session,
+            current_user=new_user(db_session),
+            tool_name="get_test_details",
+            arguments={"test_id": versions.frozen.id},
+        ).output
+        assert output == "Error: Access denied"
 
     def test_edit_test_says_not_found_and_keeps_the_title(
         self, db_session: Session, user: User, versions: _Versions
@@ -179,3 +210,36 @@ class TestResultPageStillLoadsTheFrozenTest:
         assert versions.result.test_id == versions.frozen.id
         read = test_result_service.get_result_test(db_session, result_id=versions.result.id, current_user=user)
         assert read.id == versions.frozen.id
+
+
+class TestRestoreVersionsTheLiveTest:
+    def test_restoring_a_question_freezes_the_test_first_when_it_has_results(
+        self, db_session: Session, user: User
+    ) -> None:
+        live = new_test(db_session, user=user)
+        kept = db_session.scalars(select(Question).where(Question.test_id == live.id)).one()
+        trashed = Question(user_id=user.id, test_id=live.id, prompt="to come", order=1, content={"answers": ["venir"]})
+        db_session.add_all([ResultRow(test_id=live.id, user_id=user.id, total_questions=2, correct_answers=2), trashed])
+        db_session.flush()
+        question_service.bulk_delete_questions(
+            db_session, question_ids=[trashed.id], current_user=user, force_soft_delete=True
+        )
+        # The delete froze the test and moved the first result there: a second result makes it versionable again.
+        db_session.add(ResultRow(test_id=live.id, user_id=user.id, total_questions=1, correct_answers=1))
+        db_session.flush()
+        frozen_before = db_session.scalars(select(ExamTest).where(ExamTest.parent_id == live.id)).all()
+
+        restored = question_service.restore_questions(db_session, question_ids=[trashed.id], current_user=user)
+
+        assert restored == 1
+        frozen = db_session.scalars(
+            select(ExamTest).where(ExamTest.parent_id == live.id).order_by(ExamTest.version)
+        ).all()
+        assert len(frozen) == len(frozen_before) + 1
+        # The newest frozen copy holds the content from before the restore: only the kept question.
+        newest_prompts = db_session.scalars(select(Question.prompt).where(Question.test_id == frozen[-1].id)).all()
+        assert newest_prompts == [kept.prompt]
+        live_prompts = db_session.scalars(
+            select(Question.prompt).where(Question.test_id == live.id, Question.status == int(QuestionStatus.ACTIVE))
+        ).all()
+        assert sorted(live_prompts) == ["to come", "to go"]

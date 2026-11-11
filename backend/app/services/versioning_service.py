@@ -36,6 +36,9 @@ def version_test_if_needed(db: Session, *, test: Test, force: bool = False) -> b
 
     Returns True if a frozen version was created, False otherwise.
     """
+    # A frozen version never changes, so it never needs a copy.
+    if test.parent_id is not None:
+        return False
     has_results = db.execute(select(TestResult.id).where(TestResult.test_id == test.id).limit(1)).first()
     if not has_results and not force:
         return False
