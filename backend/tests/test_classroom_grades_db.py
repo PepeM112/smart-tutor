@@ -1227,6 +1227,72 @@ class TestSpendListsStudentsOnly:
         assert [s.user_id for s in usage.students] == [student.id]
 
 
+class TestSpendSurvivesADeletedCourse:
+    """A usage row of a course used to go with the course (`space_id` SET NULL): the cap and the report lost it."""
+
+    def _spend_total(self, db: Session, room: Room, owner: User) -> int:
+        usage = classroom_ai_service.get_token_usage(db, classroom_id=room.classroom_id, current_user=owner)
+        return sum(s.total_tokens for s in usage.students)
+
+    def _settings_row(self, db: Session, room: Room) -> ClassroomSettings:
+        settings = db.get(ClassroomSettings, room.classroom_id)
+        assert settings is not None
+        return settings
+
+    def _over_cap(self, db: Session, room: Room, student: User) -> bool:
+        return llm_key_service._is_over_cap(
+            db, user_id=student.id, classroom_id=room.classroom_id, settings=self._settings_row(db, room)
+        )
+
+    def test_delete_forever_keeps_the_cap_and_the_report_total(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _set_class_key(db_session, owner, room, monthlyTokenCapPerStudent=100)
+        _book_usage(db_session, student, room.course_id, KeySource.CLASS, 100)
+        assert self._over_cap(db_session, room, student) is True
+        assert self._spend_total(db_session, room, owner) == 100
+
+        space_service.delete_course_forever(
+            db_session, space_id=room.course_id, current_user=owner, confirm_title="Course"
+        )
+
+        assert db_session.get(Space, room.course_id) is None
+        assert self._over_cap(db_session, room, student) is True
+        assert self._spend_total(db_session, room, owner) == 100
+
+    def test_the_orphan_sweep_keeps_the_cap_and_the_report_total(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _set_class_key(db_session, owner, room, monthlyTokenCapPerStudent=100)
+        _book_usage(db_session, student, room.course_id, KeySource.CLASS, 100)
+        detail = space_draft_service.enter_edit_mode(db_session, space_id=room.classroom_id, current_user=owner)
+        course_item = next(i for s in detail.draft_sections for i in s.items if i.child_space_id == room.course_id)
+        space_draft_service.delete_item(
+            db_session, space_id=room.classroom_id, item_id=course_item.id, current_user=owner
+        )
+
+        space_draft_service.publish(
+            db_session, space_id=room.classroom_id, current_user=owner, data=SpacePublishRequest.model_validate({})
+        )
+
+        db_session.expire_all()
+        assert db_session.get(Space, room.course_id) is None
+        assert self._over_cap(db_session, room, student) is True
+        assert self._spend_total(db_session, room, owner) == 100
+
+    def test_the_usage_of_a_deleted_classroom_is_not_moved(self, db_session: Session, owner: User) -> None:
+        room = _room(db_session, owner)
+        student = _student(db_session, room)
+        _book_usage(db_session, student, room.course_id, KeySource.CLASS, 10)
+
+        space_service.delete_course_forever(
+            db_session, space_id=room.classroom_id, current_user=owner, confirm_title="Class"
+        )
+
+        row = db_session.scalars(select(TokenUsage).where(TokenUsage.user_id == student.id)).one()
+        assert row.space_id is None
+
+
 # ── ST-69 Phase C: student name on the teacher result (R15), remove completion (R17) ──────────────
 
 

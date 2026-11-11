@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Integer, Row, case, cast, func, literal, select
+from sqlalchemy import Integer, Row, case, cast, func, literal, select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.types import Date
 
@@ -167,3 +167,9 @@ def spend_by_user_and_source(db: Session, *, space_ids: Sequence[str], month_sta
         .group_by(TokenUsage.user_id, TokenUsage.key_source)
     )
     return list(db.execute(stmt).all())
+
+
+def move_to_space(db: Session, *, from_space_id: str, to_space_id: str) -> None:
+    """Re-book every usage row of `from_space_id` on `to_space_id` (one UPDATE)."""
+    db.execute(update(TokenUsage).where(TokenUsage.space_id == from_space_id).values(space_id=to_space_id))
+    db.flush()

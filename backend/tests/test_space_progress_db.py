@@ -16,6 +16,7 @@ from app.core.enums import AttemptStatus, QuestionType, RevealAnswers, SpaceItem
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_item_completion as space_item_completion_crud
 from app.crud import space_item_test as space_item_test_crud
+from app.crud import test_result as test_result_crud
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.space_attempt import SpaceAttempt
@@ -703,6 +704,22 @@ class TestPublishAndAttempts:
         assert (item.attempts_left, item.next_attempt_at, item.best_score) == (1, None, None)
         # The old attempt does not block: the cooldown and the limit start again.
         assert _start(db_session, space_id, item_id, viewer).attempt_id is not None
+
+    def test_an_attempt_started_before_a_reset_does_not_count_after_it(self, db_session: Session, owner: User) -> None:
+        """The attempt starts before the reset and is submitted after it: the result is newer than the reset,
+        but the attempt is not. Best score and attempt count follow the start time."""
+        space_id, item_id, _ = _course_with_test(db_session, owner, max_attempts=1)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        draft_item_id = _edit_title_of_first_question(db_session, owner, space_id, item_id)
+        _publish(db_session, owner, space_id, reset_item_ids=[draft_item_id])
+        _submit(db_session, space_id, started, viewer, "ir")
+        db_session.expire_all()
+
+        item = space_service.get_course(db_session, space_id=space_id, current_user=viewer).sections[0].items[0]
+
+        assert (item.best_score, item.attempts_used, item.attempts_left) == (None, 0, 1)
+        assert test_result_crud.best_results_by_user_item(db_session, user_ids=[viewer.id], item_ids=[item_id]) == {}
 
     def test_a_publish_without_a_reset_keeps_the_attempts(self, db_session: Session, owner: User) -> None:
         space_id, item_id, _ = _course_with_test(db_session, owner, max_attempts=1)

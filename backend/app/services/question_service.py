@@ -250,12 +250,13 @@ def _lock_owning_space_test(db: Session, *, question: Question) -> None:
     """Lock the course test of `question` (SELECT ... FOR UPDATE), as `update_test` does.
 
     A course publish locks its draft tests first. An edit sent during a publish waits, then gets 404
-    (the twin is gone), instead of a change that publish then deletes. Personal tests need no lock.
+    (the twin is gone), instead of a change that publish then deletes. Personal tests need no lock,
+    but a question of a frozen version also gets 404: a snapshot never changes.
     """
     test = question.owning_test
-    if test is None or test.space_id is None:
+    if test is None or (test.space_id is None and test.parent_id is None):
         return
-    if test_crud.get_by_id_for_update(db, id=test.id) is None:
+    if test_crud.get_current_by_id_for_update(db, id=test.id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
 
 

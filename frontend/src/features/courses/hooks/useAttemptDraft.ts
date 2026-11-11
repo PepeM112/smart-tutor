@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 export type AttemptAnswers = Record<string, string>;
 
+/** A draft older than this is dropped on the next start: its attempt ended long ago. */
+export const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 type AttemptDraft = {
   /** The answers saved for this attempt on this device (read once per attempt). */
   initialAnswers: AttemptAnswers;
@@ -29,9 +32,10 @@ export function useAttemptDraft(userId: string | undefined, attemptId: string | 
     if (key) removeAttemptAnswers(key);
   }, [key]);
 
-  // A start is the moment to drop the drafts of attempts that ended without a clear (F19).
+  // Drafts of attempts that ended without a clear expire by age, not by "not the current attempt":
+  // a second open tab must not wipe the draft of the first one.
   useEffect(() => {
-    if (userId && attemptId) removeOtherAttemptDrafts(userId, attemptId);
+    if (userId && attemptId) removeExpiredAttemptDrafts(userId, attemptId);
   }, [userId, attemptId]);
 
   return { initialAnswers, save, clear };
@@ -51,8 +55,8 @@ export function readAttemptAnswers(key: string): AttemptAnswers {
   try {
     const raw = window.localStorage.getItem(key);
     const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
-    return Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === 'string'));
+    // The old format (a bare answers object) stays readable, so a reload during a deploy keeps the answers.
+    return pickTextAnswers(isTimestampedDraft(parsed) ? parsed.answers : parsed);
   } catch {
     return {};
   }
@@ -60,7 +64,7 @@ export function readAttemptAnswers(key: string): AttemptAnswers {
 
 export function writeAttemptAnswers(key: string, answers: AttemptAnswers): void {
   try {
-    window.localStorage.setItem(key, JSON.stringify(answers));
+    window.localStorage.setItem(key, JSON.stringify({ answers, savedAt: Date.now() }));
   } catch {
     // The answers still live in memory: the draft is a convenience, so a failed write is not an error.
   }
@@ -75,18 +79,45 @@ export function removeAttemptAnswers(key: string): void {
 }
 
 /**
- * Deletes the drafts of this user for every attempt except `keepAttemptId`. An attempt that expired
- * and was never opened again leaves its draft behind: the next start cleans it up (D11).
+ * Deletes the drafts of this user that are older than `DRAFT_MAX_AGE_MS`, except the current attempt.
+ * An attempt that expired and was never opened again leaves its draft behind: the next start cleans
+ * it up (D11). A draft without `savedAt` (the format before timestamps) counts as expired.
  */
-export function removeOtherAttemptDrafts(userId: string, keepAttemptId: string): void {
+export function removeExpiredAttemptDrafts(userId: string, keepAttemptId: string): void {
   try {
     const prefix = attemptDraftPrefix(userId);
     const keep = attemptDraftKey(userId, keepAttemptId);
     const storage = window.localStorage;
+    const now = Date.now();
     Array.from({ length: storage.length }, (_, index) => storage.key(index))
       .filter((name): name is string => name !== null && name.startsWith(prefix) && name !== keep)
+      .filter(name => isExpiredDraft(storage.getItem(name), now))
       .forEach(name => storage.removeItem(name));
   } catch {
     // Nothing to clean up when storage is not available.
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isTimestampedDraft(value: unknown): value is { answers: unknown; savedAt: number } {
+  return isPlainObject(value) && 'answers' in value && typeof value.savedAt === 'number';
+}
+
+function pickTextAnswers(value: unknown): AttemptAnswers {
+  if (!isPlainObject(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+  );
+}
+
+function isExpiredDraft(raw: string | null, now: number): boolean {
+  try {
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    return !isTimestampedDraft(parsed) || now - parsed.savedAt > DRAFT_MAX_AGE_MS;
+  } catch {
+    return true;
   }
 }

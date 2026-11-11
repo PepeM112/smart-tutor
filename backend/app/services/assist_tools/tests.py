@@ -222,7 +222,7 @@ def edit_test_confirm_context(db: Session, *, current_user: User, arguments: dic
     """Before/after data for the confirm card of `edit_test`."""
     context: dict[str, Any] = {}
     test_id = arguments.get("test_id")
-    test = test_crud.get_by_id(db, id=str(test_id)) if test_id else None
+    test = test_crud.get_current_by_id(db, id=str(test_id)) if test_id else None
     if test is None or not can_access_test(db, test=test, current_user=current_user, level=AccessLevel.EDIT):
         return None
     new_title = arguments.get("title")

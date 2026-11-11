@@ -60,9 +60,14 @@ const sections: NavSection[] = [
       { labelKey: 'sidebar.tests', href: Routes.TESTS, icon: BookOpen },
       { labelKey: 'sidebar.files', href: Routes.FILES, icon: Folder },
       { labelKey: 'sidebar.questions', href: Routes.QUESTIONS, icon: Grid3X3 },
+      { labelKey: 'sidebar.trash', href: Routes.TRASH, icon: Trash2 },
+    ],
+  },
+  {
+    labelKey: 'sidebar.spaces',
+    items: [
       { labelKey: 'sidebar.courses', href: Routes.COURSES, icon: GraduationCap },
       { labelKey: 'sidebar.classrooms', href: Routes.CLASSROOMS, icon: School },
-      { labelKey: 'sidebar.trash', href: Routes.TRASH, icon: Trash2 },
     ],
   },
   {

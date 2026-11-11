@@ -140,7 +140,7 @@ def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
     db.commit()
 
     # Re-fetch with eager loading
-    reloaded = test_crud.get_by_id(db, id=test.id)
+    reloaded = test_crud.get_current_by_id(db, id=test.id)
     assert reloaded is not None  # just created — cannot be None
     return reloaded
 
@@ -180,7 +180,7 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
     db.commit()
 
     # Re-fetch with eager loading
-    reloaded = test_crud.get_by_id(db, id=updated.id)
+    reloaded = test_crud.get_current_by_id(db, id=updated.id)
     assert reloaded is not None
     return reloaded
 

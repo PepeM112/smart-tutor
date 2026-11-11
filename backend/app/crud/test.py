@@ -43,6 +43,27 @@ def get_by_id_for_update(db: Session, *, id: str) -> Test | None:
     return db.scalars(stmt).first()
 
 
+def get_current_by_id(db: Session, *, id: str) -> Test | None:
+    """Like `get_by_id`, but a frozen version (`parent_id` set) is missing. For every path that edits a test."""
+    stmt = (
+        select(Test)
+        .options(*active_load_options())
+        .where(Test.id == id, Test.parent_id.is_(None), Test.status == TestStatus.ACTIVE)
+    )
+    return db.scalars(stmt).first()
+
+
+def get_current_by_id_for_update(db: Session, *, id: str) -> Test | None:
+    """Like `get_current_by_id`, but locks the test row until the transaction ends (SELECT … FOR UPDATE)."""
+    stmt = (
+        select(Test)
+        .options(*active_load_options())
+        .where(Test.id == id, Test.parent_id.is_(None), Test.status == TestStatus.ACTIVE)
+        .with_for_update(of=Test)
+    )
+    return db.scalars(stmt).first()
+
+
 def get_snapshot(db: Session, *, parent_id: str, version: int) -> Test | None:
     """The frozen copy of test `parent_id` that holds the content of `version` (see versioning_service)."""
     stmt = (

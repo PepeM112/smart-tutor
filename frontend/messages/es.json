@@ -79,7 +79,8 @@
     "trash": "Papelera",
     "favorites": "Favoritos",
     "courses": "Cursos",
-    "classrooms": "Clases"
+    "classrooms": "Clases",
+    "spaces": "Espacios"
   },
   "auth": {
     "log_in": "Iniciar sesión",
