@@ -101,8 +101,8 @@ def attempt_state(item: SpaceItem, attempts: Sequence[SpaceAttempt], *, at: date
     An OPEN attempt past its deadline + grace counts as EXPIRED (lazy expiry, see space_attempt_service).
     It ended at its deadline, so the cooldown counts from there.
 
-    Attempts started before `item.progress_reset_at` do not count (used, cooldown). An OPEN one is still
-    found, so the start resumes it and never inserts a second open row.
+    Attempts started before `item.progress_reset_at` do not count (used, cooldown). A reset closes the
+    OPEN attempts of the item (`space_draft_service.publish`), so no pre-reset attempt stays open.
     """
     open_attempt: SpaceAttempt | None = None
     last_finished: datetime | None = None

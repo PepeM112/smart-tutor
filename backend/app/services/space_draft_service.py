@@ -384,7 +384,7 @@ def _editable_note_id(db: Session, *, note_id: str, user: User) -> str:
 
 
 def _editable_test_id(db: Session, *, test_id: str, user: User) -> str:
-    published = test_crud.get_by_id(db, id=test_id)
+    published = test_crud.get_current_by_id(db, id=test_id)
     if published is None:
         raise _not_found("Test not found")
     if published.is_draft:
@@ -492,7 +492,7 @@ def remove_variant(db: Session, *, space_id: str, item_id: str, test_id: str, cu
     if len(variants) == 1:
         raise _bad_request("A test item needs at least one test")
     # A new draft variant has no other user: delete it now. A published one stays until publish.
-    removed = test_crud.get_by_id(db, id=test_id)
+    removed = test_crud.get_current_by_id(db, id=test_id)
     space_item_test_crud.replace(db, item_id=item.id, test_ids=[v for v in variants if v != test_id])
     if removed is not None and removed.is_draft and removed.draft_of_id is None:
         space_content_crud.delete_tests_forever(db, test_ids=[removed.id])
@@ -748,6 +748,9 @@ def publish(
     space_item_completion_crud.remove_for_items(db, item_ids=reset_item_ids)
     # Old results and attempts stop counting: without this the next recheck finds the old best score.
     space_item_crud.set_progress_reset(db, item_ids=reset_item_ids, at=at)
+    # An attempt open at the reset can never count (it started before it) and would block a new start
+    # through the one-OPEN index, so the student would have to take the test twice. Close it now.
+    space_attempt_crud.expire_open_for_items(db, item_ids=reset_item_ids, finished_at=at)
     space_progress_service.sync_course_completion(db, space_id=space.id)
     space.published_at = now()
     space.draft_started_at = None

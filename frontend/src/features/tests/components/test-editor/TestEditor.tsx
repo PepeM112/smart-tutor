@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { buildTestMentionCandidates, formatTestDetail } from '@/features/assist/utils/formatPageData';
 import { sdk } from '@/lib/apiClient';
+import { errorStatus } from '@/lib/utils';
 
 import { fromApiToEditorItems } from './converters';
 import { TestEditorForm } from './TestEditorForm';
@@ -21,6 +22,7 @@ export function TestEditor({ testId }: Props) {
     data: existing,
     isLoading,
     isError,
+    error,
   } = useQuery({
     queryKey: ['tests', testId],
     queryFn: () => sdk.testsGet({ path: { test_id: testId! } }),
@@ -40,7 +42,9 @@ export function TestEditor({ testId }: Props) {
   }
 
   if (testId && isError) {
-    return <p className="text-muted-foreground">{t('tests.failed_to_load')}</p>;
+    // A typed or stale URL can point to a test that is gone: say so instead of a generic load error.
+    const messageKey = errorStatus(error) === 404 ? 'tests.test_not_found' : 'tests.failed_to_load';
+    return <p className="text-muted-foreground">{t(messageKey)}</p>;
   }
 
   if (testId && !test) {

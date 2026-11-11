@@ -79,7 +79,8 @@
     "trash": "Trash",
     "favorites": "Favorites",
     "courses": "Courses",
-    "classrooms": "Classrooms"
+    "classrooms": "Classrooms",
+    "spaces": "Spaces"
   },
   "auth": {
     "log_in": "Log in",

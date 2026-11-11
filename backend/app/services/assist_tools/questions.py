@@ -91,7 +91,7 @@ def refine_questions_confirm_context(
     db: Session, *, current_user: User, arguments: dict[str, Any]
 ) -> dict[str, Any] | None:
     test_id = arguments.get("test_id")
-    test = test_crud.get_by_id(db, id=str(test_id)) if test_id else None
+    test = test_crud.get_current_by_id(db, id=str(test_id)) if test_id else None
     owned = test is not None and can_access_test(db, test=test, current_user=current_user, level=AccessLevel.EDIT)
     count = len(string_list(arguments.get("question_ids")))
     return confirm_summary(

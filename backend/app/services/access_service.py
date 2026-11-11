@@ -189,8 +189,15 @@ def get_note_or_404(
 def get_test_or_404(
     db: Session, *, test_id: str, current_user: User, level: AccessLevel, for_update: bool = False
 ) -> Test:
-    """`for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE)."""
-    fetch = test_crud.get_by_id_for_update if for_update else test_crud.get_by_id
+    """`for_update` locks the row until the transaction ends (SELECT ... FOR UPDATE).
+
+    A frozen version is read-only content for result pages and attempts, so only READ finds it.
+    EDIT and AUTHOR see the current version only: the editor and the AI tools would change a snapshot.
+    """
+    if level == AccessLevel.READ:
+        fetch = test_crud.get_by_id_for_update if for_update else test_crud.get_by_id
+    else:
+        fetch = test_crud.get_current_by_id_for_update if for_update else test_crud.get_current_by_id
     test = fetch(db, id=test_id)
     if test is None:
         raise _not_found("Test")

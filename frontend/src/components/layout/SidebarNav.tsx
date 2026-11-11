@@ -60,9 +60,14 @@ const sections: NavSection[] = [
       { labelKey: 'sidebar.tests', href: Routes.TESTS, icon: BookOpen },
       { labelKey: 'sidebar.files', href: Routes.FILES, icon: Folder },
       { labelKey: 'sidebar.questions', href: Routes.QUESTIONS, icon: Grid3X3 },
+      { labelKey: 'sidebar.trash', href: Routes.TRASH, icon: Trash2 },
+    ],
+  },
+  {
+    labelKey: 'sidebar.spaces',
+    items: [
       { labelKey: 'sidebar.courses', href: Routes.COURSES, icon: GraduationCap },
       { labelKey: 'sidebar.classrooms', href: Routes.CLASSROOMS, icon: School },
-      { labelKey: 'sidebar.trash', href: Routes.TRASH, icon: Trash2 },
     ],
   },
   {
@@ -119,8 +124,14 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
           if (visibleItems.length === 0) return null;
 
           return (
-            <div key={section.labelKey}>
-              {!collapsed && <p className="px-3 mb-1 text-xs font-medium text-sidebar-muted">{t(section.labelKey)}</p>}
+            <div key={section.labelKey} role="group" aria-labelledby={`sidebar-section-${section.labelKey}`}>
+              {/* Stays in the DOM when collapsed so screen readers still get the group name. */}
+              <p
+                id={`sidebar-section-${section.labelKey}`}
+                className={collapsed ? 'sr-only' : 'px-3 mb-1 text-xs font-medium text-sidebar-muted'}
+              >
+                {t(section.labelKey)}
+              </p>
               <ul className="space-y-0.5">
                 {visibleItems.map(item => {
                   const Icon = item.icon;

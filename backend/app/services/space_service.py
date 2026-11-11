@@ -31,6 +31,7 @@ from app.crud import space_item_test as space_item_test_crud
 from app.crud import space_member as space_member_crud
 from app.crud import space_section as space_section_crud
 from app.crud import test as test_crud
+from app.crud import token_usage as token_usage_crud
 from app.crud import user as user_crud
 from app.models.note import Note
 from app.models.space import Space
@@ -470,11 +471,16 @@ def delete_spaces_forever(db: Session, *, spaces: Sequence[Space]) -> None:
     Tests go first through `delete_tests_forever`: their child FKs have no `ondelete`, so the
     space cascade alone would fail. Notes, structure, members and child courses then go with the DB cascade.
     Personal tests made from a course note survive (`source_note_id → NULL`).
+
+    The usage rows of a classroom course move to its classroom first: the DB sets `space_id` to NULL when
+    the course goes, and the monthly Class key cap and the spend report only read rows of the classroom family.
     """
     all_ids = [*(s.id for s in spaces), *(c.id for s in spaces for c in space_crud.list_children(db, parent_id=s.id))]
     test_ids = [t for space_id in all_ids for t in space_content_crud.list_test_ids(db, space_id=space_id)]
     space_content_crud.delete_tests_forever(db, test_ids=test_ids)
     for space in spaces:
+        if space.parent_id is not None:
+            token_usage_crud.move_to_space(db, from_space_id=space.id, to_space_id=space.parent_id)
         space_crud.delete(db, space=space)
 
 

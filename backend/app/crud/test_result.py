@@ -9,6 +9,7 @@ from sqlalchemy.orm import InstrumentedAttribute, Session, contains_eager, selec
 from app.crud.helpers import token_search
 from app.models.answer import Answer
 from app.models.space import Space
+from app.models.space_attempt import SpaceAttempt
 from app.models.space_item import SpaceItem
 from app.models.test import Test
 from app.models.test_result import TestResult
@@ -128,18 +129,19 @@ def create(
 def best_scores_by_item(db: Session, *, user_id: str, item_ids: Sequence[str]) -> dict[str, float]:
     """`{space item id: best score (0..100)}` of the user. Results with an answer still being graded are skipped.
 
-    Only results created after the item's `progress_reset_at` count (all results when it is NULL).
+    Only results after the item's `progress_reset_at` count (all results when it is NULL). See `_in_progress_window`.
     """
     if not item_ids:
         return {}
     stmt = (
         select(TestResult.space_item_id, func.max(TestResult.score))
         .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
+        .outerjoin(SpaceAttempt, SpaceAttempt.test_result_id == TestResult.id)
         .where(
             TestResult.user_id == user_id,
             TestResult.space_item_id.in_(item_ids),
             TestResult.pending_answers == 0,
-            sa.or_(SpaceItem.progress_reset_at.is_(None), TestResult.created_at > SpaceItem.progress_reset_at),
+            _in_progress_window(),
         )
         .group_by(TestResult.space_item_id)
     )
@@ -147,8 +149,14 @@ def best_scores_by_item(db: Session, *, user_id: str, item_ids: Sequence[str]) -
 
 
 def _in_progress_window() -> sa.ColumnElement[bool]:
-    """The result is after the `progress_reset_at` of its item (or the item was never reset)."""
-    return sa.or_(SpaceItem.progress_reset_at.is_(None), TestResult.created_at > SpaceItem.progress_reset_at)
+    """The result is after the `progress_reset_at` of its item (or the item was never reset).
+
+    The start of the attempt decides, as for the attempt count: an attempt that started before the reset
+    and was submitted after it must not count. A result with no attempt (not a course attempt) uses its own
+    creation time. The query needs `SpaceAttempt` outer joined on `test_result_id`.
+    """
+    started = sa.func.coalesce(SpaceAttempt.started_at, TestResult.created_at)
+    return sa.or_(SpaceItem.progress_reset_at.is_(None), started > SpaceItem.progress_reset_at)
 
 
 def best_results_by_user_item(
@@ -164,6 +172,7 @@ def best_results_by_user_item(
     stmt = (
         select(TestResult.user_id, TestResult.space_item_id, TestResult.id, TestResult.score)
         .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
+        .outerjoin(SpaceAttempt, SpaceAttempt.test_result_id == TestResult.id)
         .where(
             TestResult.user_id.in_(user_ids),
             TestResult.space_item_id.in_(item_ids),
@@ -185,6 +194,7 @@ def pending_pairs(db: Session, *, user_ids: Sequence[str], item_ids: Sequence[st
     stmt = (
         select(TestResult.user_id, TestResult.space_item_id)
         .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
+        .outerjoin(SpaceAttempt, SpaceAttempt.test_result_id == TestResult.id)
         .where(
             TestResult.user_id.in_(user_ids),
             TestResult.space_item_id.in_(item_ids),
@@ -204,6 +214,7 @@ def overridden_pairs(db: Session, *, user_ids: Sequence[str], item_ids: Sequence
         select(TestResult.user_id, TestResult.space_item_id)
         .join(Answer, Answer.test_result_id == TestResult.id)
         .join(SpaceItem, SpaceItem.id == TestResult.space_item_id)
+        .outerjoin(SpaceAttempt, SpaceAttempt.test_result_id == TestResult.id)
         .where(
             TestResult.user_id.in_(user_ids),
             TestResult.space_item_id.in_(item_ids),

@@ -3,19 +3,34 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { attemptDraftKey, readAttemptAnswers, useAttemptDraft } from './useAttemptDraft';
+import {
+  attemptDraftKey,
+  DRAFT_MAX_AGE_MS,
+  readAttemptAnswers,
+  removeAttemptDrafts,
+  useAttemptDraft,
+} from './useAttemptDraft';
+
+const NOW = Date.parse('2030-01-15T12:00:00Z');
+const storedDraft = (savedAt: number, answers: Record<string, string> = { q1: 'x' }): string =>
+  JSON.stringify({ answers, savedAt });
 
 afterEach(() => {
+  vi.useRealTimers();
   window.localStorage.clear();
   vi.restoreAllMocks();
 });
 
 describe('useAttemptDraft', () => {
-  it('saves the answers under a key of user and attempt, and reads them back', () => {
+  it('saves the answers with a timestamp under a key of user and attempt, and reads them back', () => {
+    vi.useFakeTimers({ now: NOW });
     const first = renderHook(() => useAttemptDraft('u1', 'a1'));
     first.result.current.save({ q1: 'ir' });
 
-    expect(window.localStorage.getItem('st:attempt:u1:a1')).toBe('{"q1":"ir"}');
+    expect(JSON.parse(window.localStorage.getItem('st:attempt:u1:a1') ?? 'null')).toEqual({
+      answers: { q1: 'ir' },
+      savedAt: NOW,
+    });
 
     const resumed = renderHook(() => useAttemptDraft('u1', 'a1'));
     expect(resumed.result.current.initialAnswers).toEqual({ q1: 'ir' });
@@ -33,18 +48,37 @@ describe('useAttemptDraft', () => {
     expect(window.localStorage.getItem(attemptDraftKey('u1', 'a1'))).toBeNull();
   });
 
-  it('deletes the drafts of other attempts of the same user on start (F19)', () => {
-    window.localStorage.setItem('st:attempt:u1:old', '{"q1":"x"}');
-    window.localStorage.setItem('st:attempt:u1:a1', '{"q1":"keep"}');
-    window.localStorage.setItem('st:attempt:u2:old', '{"q1":"other user"}');
+  it('keeps a recent draft of another attempt, so a second tab does not wipe the first', () => {
+    vi.useFakeTimers({ now: NOW });
+    window.localStorage.setItem('st:attempt:u1:other-tab', storedDraft(NOW - 60_000));
+
+    renderHook(() => useAttemptDraft('u1', 'a1'));
+
+    expect(window.localStorage.getItem('st:attempt:u1:other-tab')).not.toBeNull();
+  });
+
+  it('deletes the drafts of this user that are older than the max age, or have no timestamp', () => {
+    vi.useFakeTimers({ now: NOW });
+    window.localStorage.setItem('st:attempt:u1:stale', storedDraft(NOW - DRAFT_MAX_AGE_MS - 1));
+    window.localStorage.setItem('st:attempt:u1:old-format', '{"q1":"x"}');
+    window.localStorage.setItem('st:attempt:u2:stale', storedDraft(NOW - DRAFT_MAX_AGE_MS - 1));
     window.localStorage.setItem('unrelated', 'value');
 
     renderHook(() => useAttemptDraft('u1', 'a1'));
 
-    expect(window.localStorage.getItem('st:attempt:u1:old')).toBeNull();
-    expect(window.localStorage.getItem('st:attempt:u1:a1')).toBe('{"q1":"keep"}');
-    expect(window.localStorage.getItem('st:attempt:u2:old')).not.toBeNull();
+    expect(window.localStorage.getItem('st:attempt:u1:stale')).toBeNull();
+    expect(window.localStorage.getItem('st:attempt:u1:old-format')).toBeNull();
+    expect(window.localStorage.getItem('st:attempt:u2:stale')).not.toBeNull();
     expect(window.localStorage.getItem('unrelated')).toBe('value');
+  });
+
+  it('keeps the draft of the current attempt, even in the old format, and reads its answers', () => {
+    window.localStorage.setItem('st:attempt:u1:a1', '{"q1":"keep"}');
+
+    const { result } = renderHook(() => useAttemptDraft('u1', 'a1'));
+
+    expect(result.current.initialAnswers).toEqual({ q1: 'keep' });
+    expect(window.localStorage.getItem('st:attempt:u1:a1')).toBe('{"q1":"keep"}');
   });
 
   it('does nothing before the attempt is known', () => {
@@ -80,5 +114,33 @@ describe('readAttemptAnswers', () => {
     expect(readAttemptAnswers('k1')).toEqual({});
     expect(readAttemptAnswers('k2')).toEqual({});
     expect(readAttemptAnswers('k3')).toEqual({ a: 'x' });
+  });
+
+  it('reads the answers of the timestamped format', () => {
+    window.localStorage.setItem('k1', storedDraft(NOW, { a: 'x' }));
+    expect(readAttemptAnswers('k1')).toEqual({ a: 'x' });
+  });
+});
+
+describe('removeAttemptDrafts', () => {
+  it('removes every draft of the user and keeps the drafts of another user', () => {
+    window.localStorage.setItem('st:attempt:u1:a1', storedDraft(NOW));
+    window.localStorage.setItem('st:attempt:u1:a2', storedDraft(NOW));
+    window.localStorage.setItem('st:attempt:u2:a1', storedDraft(NOW));
+    window.localStorage.setItem('other', 'keep');
+
+    removeAttemptDrafts('u1');
+
+    expect(window.localStorage.getItem('st:attempt:u1:a1')).toBeNull();
+    expect(window.localStorage.getItem('st:attempt:u1:a2')).toBeNull();
+    expect(window.localStorage.getItem('st:attempt:u2:a1')).not.toBeNull();
+    expect(window.localStorage.getItem('other')).toBe('keep');
+  });
+
+  it('does not throw when storage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'key').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(() => removeAttemptDrafts('u1')).not.toThrow();
   });
 });

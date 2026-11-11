@@ -6,6 +6,8 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
+from fastapi import HTTPException, status
+
 from app.core.enums import QuestionType
 from app.crud import note as note_crud
 from app.crud import question as question_crud
@@ -14,7 +16,7 @@ from app.schemas.question import QuestionCreate
 from app.schemas.test import TestCreate, TestUpdate
 from app.schemas.test_generation import TestGenerationRequest
 from app.services import question_service, test_generation_service, test_service
-from app.services.access_service import AccessLevel, can_access_note, can_access_test, get_test_or_404
+from app.services.access_service import AccessLevel, can_access_note, can_access_test
 from app.services.assist_tools._helpers import LIST_LIMIT, confirm_summary, note_label
 from app.services.assist_tools.types import TestCreatedMetadata, TestEditMetadata, ToolResult, ToolSpec
 
@@ -56,9 +58,20 @@ def list_tests(db: Session, *, current_user: User, arguments: dict[str, object])
 
 def get_test_details(db: Session, *, current_user: User, arguments: dict[str, object]) -> ToolResult:
     test_id = str(arguments.get("test_id", ""))
+    # Broad lookup on purpose: a read tool also loads a frozen version (the Assistant gets its id on a
+    # result page). The write tools keep the current-only lookup, so a snapshot is never edited.
+    test = test_crud.get_by_id(db, id=test_id)
+    if test is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
     # AUTHOR: the question ids lead to the answer-key reads, so a course member (VIEWER) must not get them.
-    test = get_test_or_404(db, test_id=test_id, current_user=current_user, level=AccessLevel.AUTHOR)
+    if not can_access_test(db, test=test, current_user=current_user, level=AccessLevel.AUTHOR):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     lines = [f"**{test.title}** (ID: `{test.id}`)"]
+    if test.parent_id is not None:
+        lines.append(
+            "Older version of this test, frozen when it was edited after an exam. "
+            f"The live test is `{test.parent_id}`; its questions may differ. Do not edit this version."
+        )
     if test.description:
         lines.append(test.description)
     lines.append("")
@@ -222,7 +235,7 @@ def edit_test_confirm_context(db: Session, *, current_user: User, arguments: dic
     """Before/after data for the confirm card of `edit_test`."""
     context: dict[str, Any] = {}
     test_id = arguments.get("test_id")
-    test = test_crud.get_by_id(db, id=str(test_id)) if test_id else None
+    test = test_crud.get_current_by_id(db, id=str(test_id)) if test_id else None
     if test is None or not can_access_test(db, test=test, current_user=current_user, level=AccessLevel.EDIT):
         return None
     new_title = arguments.get("title")

@@ -16,6 +16,7 @@ from app.core.enums import AttemptStatus, QuestionType, RevealAnswers, SpaceItem
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_item_completion as space_item_completion_crud
 from app.crud import space_item_test as space_item_test_crud
+from app.crud import test_result as test_result_crud
 from app.models.answer import Answer
 from app.models.question import Question
 from app.models.space_attempt import SpaceAttempt
@@ -703,6 +704,38 @@ class TestPublishAndAttempts:
         assert (item.attempts_left, item.next_attempt_at, item.best_score) == (1, None, None)
         # The old attempt does not block: the cooldown and the limit start again.
         assert _start(db_session, space_id, item_id, viewer).attempt_id is not None
+
+    def test_a_reset_closes_the_open_attempt_so_a_late_submit_is_refused(
+        self, db_session: Session, owner: User
+    ) -> None:
+        """An attempt started before the reset can never count, so the reset closes it: no result is stored."""
+        space_id, item_id, _ = _course_with_test(db_session, owner, max_attempts=1)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        draft_item_id = _edit_title_of_first_question(db_session, owner, space_id, item_id)
+        _publish(db_session, owner, space_id, reset_item_ids=[draft_item_id])
+        db_session.expire_all()
+
+        assert _status_code(_submit, db_session, space_id=space_id, start=started, user=viewer) == 409
+        item = space_service.get_course(db_session, space_id=space_id, current_user=viewer).sections[0].items[0]
+        assert (item.best_score, item.attempts_used, item.attempts_left) == (None, 0, 1)
+        assert test_result_crud.best_results_by_user_item(db_session, user_ids=[viewer.id], item_ids=[item_id]) == {}
+
+    def test_a_new_attempt_after_a_reset_is_fresh_and_not_reduced_by_the_closed_one(
+        self, db_session: Session, owner: User
+    ) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, max_attempts=1)
+        viewer = _viewer(db_session, space_id)
+        old = _start(db_session, space_id, item_id, viewer)
+        draft_item_id = _edit_title_of_first_question(db_session, owner, space_id, item_id)
+        _publish(db_session, owner, space_id, reset_item_ids=[draft_item_id])
+        db_session.expire_all()
+
+        fresh = _start(db_session, space_id, item_id, viewer)
+
+        assert fresh.resumed is False
+        assert fresh.attempt_id != old.attempt_id
+        assert _submit(db_session, space_id, fresh, viewer) is not None
 
     def test_a_publish_without_a_reset_keeps_the_attempts(self, db_session: Session, owner: User) -> None:
         space_id, item_id, _ = _course_with_test(db_session, owner, max_attempts=1)

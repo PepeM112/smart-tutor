@@ -555,7 +555,7 @@ This means CRUD functions are reusable across services without importing HTTP co
 
 **Decision:** Answers of an open attempt are kept in `localStorage` (key = user id + attempt id) and deleted on submit. A leave guard asks before a reload or an in-app link.
 
-**Why:** No DB cost for data that lives minutes. A device change loses the answers; a debounced server-side save is in `IDEAS.md`.
+**Why:** No DB cost for data that lives minutes. A device change loses the answers; a debounced server-side save is in `IDEAS.md`. A draft expires after 7 days, so an open attempt with no end date can lose its draft. Opening another attempt does not delete the other drafts.
 
 ---
 
