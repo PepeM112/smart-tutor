@@ -8,7 +8,7 @@ stable against future edits.
 This module bypasses the CRUD layer intentionally: versioning is a cross-cutting
 operation spanning Test, Question, TestQuestionGroup, TestResult, and Answer.
 Routing through 5 separate CRUDs would fragment a cohesive transaction with no
-readability benefit.  See PATTERNS.md for this exception.
+readability benefit.  See `.claude/rules/backend.md` for this exception.
 """
 
 import copy

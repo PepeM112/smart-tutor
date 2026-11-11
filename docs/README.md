@@ -1,6 +1,6 @@
 # SmartTutor Documentation
 
-This folder documents **how features work and why they were built this way**. For project overview and getting started, see the [root README](../README.md). For code-level conventions, see `.claude/PATTERNS.md`.
+This folder documents **how features work and why they were built this way**. For project overview and getting started, see the [root README](../README.md). For code-level conventions, see `.claude/rules/`.
 
 ## Docs Index
 
