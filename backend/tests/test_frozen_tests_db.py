@@ -3,9 +3,11 @@
 Each test runs in one outer transaction that is rolled back (see `db_session` in `conftest.py`).
 """
 
+from collections.abc import Callable
+
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.question import Question
@@ -47,9 +49,9 @@ def versions(db_session: Session, user: User) -> _Versions:
     return _Versions(db_session, user)
 
 
-def _status_code(db: Session, call: object, **kwargs: object) -> int:
+def _status_code(db: Session, call: Callable[..., object], **kwargs: object) -> int:
     with pytest.raises(HTTPException) as exc_info:
-        call(db, **kwargs)  # type: ignore[operator]
+        call(db, **kwargs)
     return exc_info.value.status_code
 
 
@@ -124,7 +126,9 @@ class TestFrozenVersionInAssistantTools:
             arguments={"test_id": versions.frozen.id, "title": "Changed"},
         ).output
         assert output == "Error: Test not found"
-        assert db_session.get(ExamTest, versions.frozen.id).title == "Test"  # type: ignore[union-attr]
+        frozen = db_session.get(ExamTest, versions.frozen.id)
+        assert frozen is not None
+        assert frozen.title == "Test"
 
     def test_refine_questions_says_not_found(self, db_session: Session, user: User, versions: _Versions) -> None:
         output = execute_tool(
@@ -138,6 +142,22 @@ class TestFrozenVersionInAssistantTools:
             },
         ).output
         assert output == "Error: Test not found"
+
+
+class TestBulkActionsSkipFrozenQuestions:
+    def test_bulk_delete_skips_the_frozen_question_and_creates_no_version(
+        self, db_session: Session, user: User, versions: _Versions
+    ) -> None:
+        tests_before = db_session.scalar(select(func.count()).select_from(ExamTest))
+        frozen_question_id = versions.frozen_question.id
+
+        deleted = question_service.bulk_delete_questions(
+            db_session, question_ids=[frozen_question_id], current_user=user
+        )
+
+        assert deleted == []
+        assert db_session.get(Question, frozen_question_id) is not None
+        assert db_session.scalar(select(func.count()).select_from(ExamTest)) == tests_before
 
 
 class TestCurrentVersionStaysEditable:

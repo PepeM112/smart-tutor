@@ -74,7 +74,9 @@ When a test that has exam results is edited, the system clones the current state
 
 **Query rules:**
 - Test list filters `parent_id IS NULL` — frozen versions are hidden from the user
-- `get_by_id` does NOT filter by `parent_id` — frozen tests must be fetchable for result detail pages
+- READ lookups do NOT filter by `parent_id` (`get_by_id`, `get_test_or_404` at READ level). Result pages load frozen tests through them (`GET /results/{id}/test`).
+- Edit paths use the current-only lookup (`get_current_by_id`, `get_current_by_id_for_update`). A frozen id gives 404 (EDIT and AUTHOR levels). This covers the test and question endpoints (`GET /tests/{id}` too), the AI tools (`get_test_details`, `edit_test`, `refine_questions`) and the course draft services. A snapshot never changes.
+- Bulk question actions (delete, restore, assign) skip questions of a frozen test. The skipped count includes them. Without this, a bulk delete would version the frozen test again.
 - SRS queries filter `parent_id IS NULL` — frozen test questions are excluded from review
 - Exam submission rejects frozen tests (`parent_id IS NOT NULL` → 400)
 

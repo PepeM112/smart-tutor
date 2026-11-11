@@ -73,8 +73,18 @@ def _get_personal_question(db: Session, *, question_id: str, current_user: User)
 
 
 def _owned_personal(questions: Sequence[Question], *, current_user: User) -> list[Question]:
-    """The questions a bulk action may touch. Others (another user's, course or classroom) are skipped."""
-    return [q for q in questions if q.user_id == current_user.id and question_space_id(q) is None]
+    """The questions a bulk action may touch.
+
+    Others are skipped: another user's, course or classroom questions, and questions of a frozen test
+    version (a snapshot never changes; a delete would also run `version_test_if_needed` on it).
+    """
+    return [
+        q
+        for q in questions
+        if q.user_id == current_user.id
+        and question_space_id(q) is None
+        and not (q.owning_test is not None and q.owning_test.parent_id is not None)
+    ]
 
 
 def list_questions(
@@ -246,15 +256,19 @@ def _to_question_list_read(question: Question) -> QuestionListRead:
     return QuestionListRead.model_validate(data)
 
 
-def _lock_owning_space_test(db: Session, *, question: Question) -> None:
-    """Lock the course test of `question` (SELECT ... FOR UPDATE), as `update_test` does.
+def _lock_editable_owning_test(db: Session, *, question: Question) -> None:
+    """Reject a frozen version, and lock the course test of `question` (SELECT ... FOR UPDATE).
 
-    A course publish locks its draft tests first. An edit sent during a publish waits, then gets 404
-    (the twin is gone), instead of a change that publish then deletes. Personal tests need no lock,
-    but a question of a frozen version also gets 404: a snapshot never changes.
+    A question of a frozen version gets 404: a snapshot never changes. A course publish locks its
+    draft tests first. An edit sent during a publish waits, then gets 404 (the twin is gone),
+    instead of a change that publish then deletes. A live personal test needs no lock.
     """
     test = question.owning_test
-    if test is None or (test.space_id is None and test.parent_id is None):
+    if test is None:
+        return
+    if test.parent_id is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
+    if test.space_id is None:
         return
     if test_crud.get_current_by_id_for_update(db, id=test.id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
@@ -262,7 +276,7 @@ def _lock_owning_space_test(db: Session, *, question: Question) -> None:
 
 def update_question(db: Session, *, question_id: str, current_user: User, data: QuestionUpdate) -> Question:
     question = get_question(db, question_id=question_id, current_user=current_user, level=AccessLevel.EDIT)
-    _lock_owning_space_test(db, question=question)
+    _lock_editable_owning_test(db, question=question)
     test = question.owning_test
     if test:
         version_test_if_needed(db, test=test)
@@ -278,7 +292,7 @@ def update_question(db: Session, *, question_id: str, current_user: User, data: 
 
 def delete_question(db: Session, *, question_id: str, current_user: User) -> None:
     question = get_question(db, question_id=question_id, current_user=current_user, level=AccessLevel.EDIT)
-    _lock_owning_space_test(db, question=question)
+    _lock_editable_owning_test(db, question=question)
     _delete_one_question(db, question=question)
     db.commit()
 

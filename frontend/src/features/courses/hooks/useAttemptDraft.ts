@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 export type AttemptAnswers = Record<string, string>;
 
-/** A draft older than this is dropped on the next start: its attempt ended long ago. */
+/**
+ * A draft older than this is dropped on the next start. Trade-off: an attempt with no time limit and no
+ * `closes_at` never ends, so its draft can be older and is lost. Server-side drafts are the planned fix.
+ */
 export const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 type AttemptDraft = {
@@ -62,7 +65,7 @@ export function readAttemptAnswers(key: string): AttemptAnswers {
   }
 }
 
-export function writeAttemptAnswers(key: string, answers: AttemptAnswers): void {
+function writeAttemptAnswers(key: string, answers: AttemptAnswers): void {
   try {
     window.localStorage.setItem(key, JSON.stringify({ answers, savedAt: Date.now() }));
   } catch {
@@ -70,7 +73,7 @@ export function writeAttemptAnswers(key: string, answers: AttemptAnswers): void 
   }
 }
 
-export function removeAttemptAnswers(key: string): void {
+function removeAttemptAnswers(key: string): void {
   try {
     window.localStorage.removeItem(key);
   } catch {
@@ -83,7 +86,7 @@ export function removeAttemptAnswers(key: string): void {
  * An attempt that expired and was never opened again leaves its draft behind: the next start cleans
  * it up (D11). A draft without `savedAt` (the format before timestamps) counts as expired.
  */
-export function removeExpiredAttemptDrafts(userId: string, keepAttemptId: string): void {
+function removeExpiredAttemptDrafts(userId: string, keepAttemptId: string): void {
   try {
     const prefix = attemptDraftPrefix(userId);
     const keep = attemptDraftKey(userId, keepAttemptId);
