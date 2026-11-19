@@ -1,6 +1,7 @@
 'use client';
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
@@ -12,8 +13,14 @@ import { AI_FEATURE_LABEL_KEYS } from '@/lib/aiFeature';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
-import { TokenUsageChart } from './TokenUsageChart';
 import { TokenUsageStats } from './TokenUsageStats';
+
+// recharts is large and only this card needs it: load it after the page, in its own chunk.
+// The skeleton has the chart height (`TokenUsageChart`), so the card does not jump.
+const TokenUsageChart = dynamic(() => import('./TokenUsageChart').then(m => m.TokenUsageChart), {
+  ssr: false,
+  loading: () => <div aria-hidden className="h-60 animate-pulse rounded-lg bg-muted md:h-87.5" />,
+});
 
 const DEFAULT_RANGE = 30;
 

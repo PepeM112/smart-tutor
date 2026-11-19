@@ -1,12 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { type NoteRead } from '@/client';
 import { FilePageShell } from '@/features/files/components/FilePageShell';
 import { NoteWidthToggle } from '@/features/notes/components/NoteWidthToggle';
-import { RichNoteEditor } from '@/features/notes/editor/RichNoteEditor';
+import { NoteEditorSkeleton } from '@/features/notes/editor/NoteEditorSkeleton';
 import { noteColumnClass, useNoteColumn } from '@/features/notes/hooks/useNoteColumn';
 import { displayTitle } from '@/lib/displayTitle';
 import { pageBleed } from '@/lib/pageBleed';
@@ -20,6 +21,12 @@ import { canTrackProgress, findNoteItem } from '../lib/progress';
 import { CopyToLibraryButton } from './CopyToLibraryButton';
 import { CourseNoteBreadcrumb } from './CourseNoteBreadcrumb';
 import { NoteDoneButton } from './CourseProgress';
+
+// The editor (Tiptap and its extensions) is large. It loads when a note is shown, not with the page bundle.
+const RichNoteEditor = dynamic(() => import('@/features/notes/editor/RichNoteEditor').then(m => m.RichNoteEditor), {
+  ssr: false,
+  loading: () => <NoteEditorSkeleton />,
+});
 
 /**
  * A published course note. It is read-only for every member: authors change it through

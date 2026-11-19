@@ -1,18 +1,25 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { type ReactNode } from 'react';
 
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
 import { QueryState } from '@/components/shared/QueryState';
 import { FavoriteButton } from '@/features/notes/components/FavoriteButton';
-import { RichNoteEditor } from '@/features/notes/editor/RichNoteEditor';
+import { NoteEditorSkeleton } from '@/features/notes/editor/NoteEditorSkeleton';
 import { sdk } from '@/lib/apiClient';
 import { displayTitle } from '@/lib/displayTitle';
 import { noteHref } from '@/lib/routes';
 
 import { fileQueryKeys } from '../lib/queryKeys';
+
+// The editor (Tiptap and its extensions) is large. It loads when a note is shown, not with the page bundle.
+const RichNoteEditor = dynamic(() => import('@/features/notes/editor/RichNoteEditor').then(m => m.RichNoteEditor), {
+  ssr: false,
+  loading: () => <NoteEditorSkeleton />,
+});
 
 type Props = {
   noteId: string;

@@ -1,8 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 
-import { RichNoteEditor } from '@/features/notes/editor/RichNoteEditor';
+import { NoteEditorSkeleton } from '@/features/notes/editor/NoteEditorSkeleton';
+
+// The editor (Tiptap and its extensions) is large. It loads when a note is shown, not with the page bundle.
+const RichNoteEditor = dynamic(() => import('@/features/notes/editor/RichNoteEditor').then(m => m.RichNoteEditor), {
+  ssr: false,
+  loading: () => <NoteEditorSkeleton />,
+});
 
 type DiffNoteContentProps = {
   oldContent: string;

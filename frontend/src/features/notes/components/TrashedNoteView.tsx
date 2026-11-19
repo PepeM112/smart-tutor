@@ -1,6 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -16,10 +17,16 @@ import { pageBleed } from '@/lib/pageBleed';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-import { RichNoteEditor } from '../editor/RichNoteEditor';
+import { NoteEditorSkeleton } from '../editor/NoteEditorSkeleton';
 import { noteColumnClass, useNoteColumn } from '../hooks/useNoteColumn';
 
 import { NoteWidthToggle } from './NoteWidthToggle';
+
+// The editor (Tiptap and its extensions) is large. It loads when a note is shown, not with the page bundle.
+const RichNoteEditor = dynamic(() => import('../editor/RichNoteEditor').then(m => m.RichNoteEditor), {
+  ssr: false,
+  loading: () => <NoteEditorSkeleton />,
+});
 
 /**
  * Rendered instead of NoteForm when note.deletedAt is set.

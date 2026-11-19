@@ -1,6 +1,7 @@
 'use client';
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -8,11 +9,16 @@ import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group'
 import { sdk } from '@/lib/apiClient';
 import type { FilterValue, Primitive } from '@/lib/filters';
 
-import { UsageChart } from './UsageChart';
 import { UsageFilters } from './UsageFilters';
 import { UsageTotals } from './UsageTotals';
 
 import type { UsageGroupBy as GroupBy } from '../types';
+
+// recharts is large: load it after the page, in its own chunk. The skeleton has the chart height.
+const UsageChart = dynamic(() => import('./UsageChart').then(m => m.UsageChart), {
+  ssr: false,
+  loading: () => <div aria-hidden className="h-70 animate-pulse rounded-lg bg-muted md:h-100" />,
+});
 
 export function UsageStatsPage() {
   const t = useTranslations();
