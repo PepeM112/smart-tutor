@@ -1,140 +1,38 @@
-export type ThemeId =
-  | 'ocean-blue'
-  | 'sky'
-  | 'slate-minimal'
-  | 'sunset'
-  | 'coral'
-  | 'forest'
-  | 'mint'
-  | 'sage'
-  | 'midnight'
-  | 'carbon'
-  | 'neon'
-  | 'noir';
+import type { UserRead } from '@/client';
 
-export interface ThemePreview {
-  id: ThemeId;
-  name: string;
-  sidebar: string;
-  primary: string;
-  background: string;
-  foreground: string;
-  accent: string;
-}
+// Aliased to the generated type so a backend change to the allowed values fails type-check here.
+export type ThemeMode = NonNullable<UserRead['theme']>;
+/** What the page shows: `system` resolves to one of these from the OS setting. */
+export type ResolvedTheme = 'light' | 'dark';
 
-export const DEFAULT_THEME_ID: ThemeId = 'ocean-blue';
+export const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'system'];
+export const DEFAULT_THEME_MODE: ThemeMode = 'system';
 export const THEME_STORAGE_KEY = 'smarttutor-theme';
 export const THEME_COOKIE = 'smarttutor-theme';
+export const DARK_QUERY = '(prefers-color-scheme: dark)';
 
-export const themes: ThemePreview[] = [
-  // ── Light themes ──
-  {
-    id: 'ocean-blue',
-    name: 'Ocean Blue',
-    sidebar: '#1e3a5f',
-    primary: '#2d5f9e',
-    background: '#ffffff',
-    foreground: '#1e293b',
-    accent: '#dbeafe',
-  },
-  {
-    id: 'sky',
-    name: 'Sky',
-    sidebar: '#edf3fa',
-    primary: '#4a90d9',
-    background: '#f7faff',
-    foreground: '#1a2c40',
-    accent: '#c8ddf0',
-  },
-  {
-    id: 'slate-minimal',
-    name: 'Slate Minimal',
-    sidebar: '#f1f5f9',
-    primary: '#475569',
-    background: '#ffffff',
-    foreground: '#1e293b',
-    accent: '#e2e8f0',
-  },
-  {
-    id: 'sunset',
-    name: 'Sunset',
-    sidebar: '#7c2d12',
-    primary: '#ea580c',
-    background: '#ffffff',
-    foreground: '#1e293b',
-    accent: '#fed7aa',
-  },
-  {
-    id: 'coral',
-    name: 'Coral',
-    sidebar: '#fdf2ed',
-    primary: '#d97756',
-    background: '#fffaf8',
-    foreground: '#3d2420',
-    accent: '#f5d5c8',
-  },
-  {
-    id: 'forest',
-    name: 'Forest',
-    sidebar: '#064e3b',
-    primary: '#059669',
-    background: '#ffffff',
-    foreground: '#1e293b',
-    accent: '#d1fae5',
-  },
-  {
-    id: 'mint',
-    name: 'Mint',
-    sidebar: '#ebf8f6',
-    primary: '#0ea5a0',
-    background: '#f5fdfb',
-    foreground: '#1a2d2a',
-    accent: '#b2e4de',
-  },
-  {
-    id: 'sage',
-    name: 'Sage',
-    sidebar: '#eff4f0',
-    primary: '#5a8567',
-    background: '#f8faf8',
-    foreground: '#1e2d24',
-    accent: '#d0e0d5',
-  },
-  // ── Dark themes ──
-  {
-    id: 'midnight',
-    name: 'Midnight',
-    sidebar: '#101a23',
-    primary: '#4a9ece',
-    background: '#15202b',
-    foreground: '#ffffff',
-    accent: '#1e2732',
-  },
-  {
-    id: 'carbon',
-    name: 'Carbon',
-    sidebar: '#0a0a0a',
-    primary: '#a0a0a0',
-    background: '#121212',
-    foreground: '#e0e0e0',
-    accent: '#333333',
-  },
-  {
-    id: 'neon',
-    name: 'Neon',
-    sidebar: '#000000',
-    primary: '#facc15',
-    background: '#0a0a0a',
-    foreground: '#f5f5f5',
-    accent: '#2a2500',
-  },
-  {
-    id: 'noir',
-    name: 'Noir',
-    sidebar: '#000000',
-    primary: '#f0f0f0',
-    background: '#0a0a0a',
-    foreground: '#e5e5e5',
-    accent: '#2a2a2a',
-  },
-];
+// The old multi-theme system stored one of these ids (user.theme, cookie, localStorage).
+// Same mapping as the backend migration: light palettes -> light, dark palettes -> dark.
+const LEGACY_LIGHT_IDS = ['ocean-blue', 'sky', 'slate-minimal', 'sunset', 'coral', 'forest', 'mint', 'sage'];
+const LEGACY_DARK_IDS = ['midnight', 'carbon', 'neon', 'noir'];
+
+/** Maps any stored value (new mode, old palette id, junk, nothing) to a valid mode. */
+export function parseTheme(value: string | null | undefined): ThemeMode {
+  if (value === 'light' || value === 'dark' || value === 'system') return value;
+  if (value && LEGACY_LIGHT_IDS.includes(value)) return 'light';
+  if (value && LEGACY_DARK_IDS.includes(value)) return 'dark';
+  return DEFAULT_THEME_MODE;
+}
+
+export function resolveTheme(mode: ThemeMode, prefersDark: boolean): ResolvedTheme {
+  if (mode === 'system') return prefersDark ? 'dark' : 'light';
+  return mode;
+}
+
+/**
+ * Runs in <head> before hydration, so a dark user never sees a light first paint when the server did
+ * not know the theme (no cookie, or `system`). It repeats parseTheme + resolveTheme in plain ES5,
+ * built from the same id lists; themes.test.ts runs it against both functions to catch drift. Storage has its own `try`:
+ * a blocked storage must still fall through to the OS setting.
+ */
+export const THEME_INIT_SCRIPT = `(function(){var s=null;try{s=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})}catch(e){}try{var d=${JSON.stringify(LEGACY_DARK_IDS)};var l=${JSON.stringify(LEGACY_LIGHT_IDS)};var dark=s==="dark"||d.indexOf(s)>-1||(s!=="light"&&l.indexOf(s)<0&&window.matchMedia(${JSON.stringify(DARK_QUERY)}).matches);document.documentElement.setAttribute("data-theme",dark?"dark":"light")}catch(e){}})()`;

@@ -24,7 +24,7 @@ pgvector = ">=0.3.0"
 tiktoken = ">=0.7.0"
 
 [tool.poetry.group.dev.dependencies]
-pyright = "*"
+pyright = {extras = ["nodejs"], version = "*"}
 ruff = "*"
 pytest = "*"
 

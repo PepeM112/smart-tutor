@@ -595,7 +595,7 @@
   --note-pink-bg: #faf1f5;
   --note-red-bg: #fdebec;
 
-  /* Table tokens, light themes. Mixed from the theme colors, so each light theme gets its own tint. */
+  /* Table tokens, light palette. Mixed from the palette colors, so the tint follows the theme. */
   --note-table-border: var(--border);
   --note-table-header-bg: color-mix(in oklab, var(--foreground) 5%, var(--background));
   --note-table-hover-bg: color-mix(in oklab, var(--foreground) 3%, var(--background));
@@ -603,7 +603,7 @@
   --note-table-resize-handle: var(--primary);
 }
 
-:is([data-theme='midnight'], [data-theme='carbon'], [data-theme='neon'], [data-theme='noir']) {
+[data-theme='dark'] {
   --note-gray: #9b9b9b;
   --note-brown: #ba856f;
   --note-orange: #c77d48;
@@ -623,10 +623,8 @@
   --note-pink-bg: #4e2c3c;
   --note-red-bg: #522e2a;
 
-  /* Table tokens, dark themes. Mixed from the theme colors, like the light themes, so each dark theme
-     gets its own tint. A new dark theme must be added to the selector of this block (see app/globals.css).
-     The header and hover mix the accent (not the text color) into the page, so each theme keeps its
-     own hue (blue for midnight, yellow for neon). */
+  /* Table tokens, dark palette. The header and hover mix the accent (not the text color) into the page,
+     so the table keeps the warm hue of the palette. */
   --note-table-border: color-mix(in oklab, var(--primary) 10%, var(--border));
   --note-table-header-bg: color-mix(in oklab, var(--primary) 8%, var(--background));
   --note-table-hover-bg: color-mix(in oklab, var(--primary) 4%, var(--background));

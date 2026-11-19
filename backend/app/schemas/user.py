@@ -6,23 +6,9 @@ from app.core.enums import AIProvider, UserRole, UserStatus
 from app.schemas.base import BaseSchema
 
 ToolKind = Literal["read", "write"]
+ThemeMode = Literal["light", "dark", "system"]
 
 VALID_LOCALES = {"en", "es"}
-VALID_THEMES = {
-    "ocean-blue",
-    "sky",
-    "slate-minimal",
-    "sunset",
-    "coral",
-    "forest",
-    "mint",
-    "sage",
-    "midnight",
-    "carbon",
-    "neon",
-    "noir",
-    "system",
-}
 
 
 class UserBase(BaseSchema):
@@ -37,25 +23,26 @@ class UserCreate(UserBase):
 class UserUpdate(BaseSchema):
     display_name: str | None = None
     locale: str | None = None
-    theme: str | None = None
+    theme: ThemeMode | None = None
     ai_provider: AIProvider | None = None
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None
     daily_review_limit: int | None = None
     initial_ease_factor: float | None = None
 
-    @field_validator("locale")
+    @field_validator("locale", "theme")
     @classmethod
-    def _validate_locale(cls, v: str | None) -> str | None:
-        if v is not None and v not in VALID_LOCALES:
-            raise ValueError(f"locale must be one of {sorted(VALID_LOCALES)}")
+    def _reject_null(cls, v: str | None) -> str | None:
+        # Both columns are NOT NULL: an explicit null would reach the DB and give a 500, so refuse it here.
+        if v is None:
+            raise ValueError("value cannot be null")
         return v
 
-    @field_validator("theme")
+    @field_validator("locale")
     @classmethod
-    def _validate_theme(cls, v: str | None) -> str | None:
-        if v is not None and v not in VALID_THEMES:
-            raise ValueError(f"theme must be one of {sorted(VALID_THEMES)}")
+    def _validate_locale(cls, v: str) -> str:
+        if v not in VALID_LOCALES:
+            raise ValueError(f"locale must be one of {sorted(VALID_LOCALES)}")
         return v
 
     @field_validator("initial_ease_factor")
@@ -83,7 +70,7 @@ class UserRead(UserBase):
     role: UserRole
     display_name: str | None = None
     locale: str = "en"
-    theme: str = "system"
+    theme: ThemeMode = "system"
     ai_provider: AIProvider | None = None
     has_anthropic_key: bool = False
     has_openai_key: bool = False

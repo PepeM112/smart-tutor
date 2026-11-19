@@ -6845,6 +6845,11 @@ export const UserReadSchema = {
         },
         theme: {
             type: 'string',
+            enum: [
+                'light',
+                'dark',
+                'system'
+            ],
             title: 'Theme',
             default: 'system'
         },
@@ -6951,7 +6956,12 @@ export const UserUpdateSchema = {
         theme: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'string',
+                    enum: [
+                        'light',
+                        'dark',
+                        'system'
+                    ]
                 },
                 {
                     type: 'null'

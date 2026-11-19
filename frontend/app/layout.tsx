@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono, Newsreader, Source_Sans_3 } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
@@ -8,13 +8,21 @@ import { Providers } from '@/components/Providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FONT_SIZE_COOKIE, getFontSizeValue } from '@/lib/fontSize';
 import type { FontSizeId } from '@/lib/fontSize';
-import { THEME_COOKIE, THEME_STORAGE_KEY } from '@/lib/themes';
+import { parseTheme, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/themes';
 
 import type { Metadata } from 'next';
 import './globals.css';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+// Titles. Variable font: one file per style covers every weight.
+const newsreader = Newsreader({
+  variable: '--font-newsreader',
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+});
+
+// UI and body text.
+const sourceSans = Source_Sans_3({
+  variable: '--font-source-sans',
   subsets: ['latin'],
 });
 
@@ -43,7 +51,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const theme = cookieStore.get(THEME_COOKIE)?.value;
+  // parseTheme maps a cookie from the old palette system (for example "midnight") to light or dark.
+  const theme = parseTheme(cookieStore.get(THEME_COOKIE)?.value);
   // SAFETY: cookie value is set by useFontSizeProvider which only writes valid FontSizeId values
   const fontSize = cookieStore.get(FONT_SIZE_COOKIE)?.value as FontSizeId | undefined;
   const fontSizeStyle = fontSize ? { fontSize: getFontSizeValue(fontSize) } : undefined;
@@ -53,20 +62,14 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      {...(theme && { 'data-theme': theme })}
+      {...(theme !== 'system' && { 'data-theme': theme })}
       style={fontSizeStyle}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${newsreader.variable} ${sourceSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
-        {/* Runs before hydration to prevent dark-mode flash — mirrors next-themes' localStorage check */}
-        {!theme && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `(function(){try{var s=localStorage.getItem("${THEME_STORAGE_KEY}");if(!s&&window.matchMedia("(prefers-color-scheme:dark)").matches){document.documentElement.setAttribute("data-theme","midnight")}}catch(e){}})()`,
-            }}
-          />
-        )}
+        {/* light and dark are in the cookie, so the server sets data-theme. `system` needs the OS setting, which only the browser knows: this runs before hydration to prevent a flash. */}
+        {theme === 'system' && <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />}
       </head>
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>

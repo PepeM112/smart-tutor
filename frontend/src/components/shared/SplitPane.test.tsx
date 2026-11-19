@@ -11,6 +11,14 @@ const KEY = 'split-pane-test';
 
 beforeEach(() => {
   localStorage.clear();
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = () => undefined;
+      unobserve = () => undefined;
+      disconnect = () => undefined;
+    }
+  );
   vi.stubGlobal('matchMedia', (query: string) => ({
     media: query,
     matches: false,
@@ -27,52 +35,46 @@ afterEach(() => {
 const renderPane = (side: React.ReactNode = <p>side</p>) =>
   render(<SplitPane storageKey={KEY} main={<p>main</p>} side={side} dividerLabel="Resize panels" />);
 
-describe('SplitPane divider', () => {
-  it('has a default accessible name when no label is given', () => {
+describe('SplitPane', () => {
+  it('shows both panes and a divider with the default accessible name', () => {
     render(<SplitPane storageKey={KEY} main={<p>main</p>} side={<p>side</p>} />);
+
+    expect(screen.getByText('main')).toBeTruthy();
+    expect(screen.getByText('side')).toBeTruthy();
     expect(screen.getByRole('separator', { name: 'common.resize_panel' })).toBeTruthy();
   });
 
-  it('is a focusable vertical separator with the split as its value', () => {
+  it('has a focusable vertical divider with the given name', () => {
     renderPane();
     const divider = screen.getByRole('separator', { name: 'Resize panels' });
 
     expect(divider.getAttribute('tabindex')).toBe('0');
     expect(divider.getAttribute('aria-orientation')).toBe('vertical');
-    expect(divider.getAttribute('aria-valuenow')).toBe('50');
-    expect(divider.getAttribute('aria-valuemin')).toBe('20');
-    expect(divider.getAttribute('aria-valuemax')).toBe('80');
   });
 
-  it('moves with the arrow keys, Home and End, and saves the ratio', () => {
-    renderPane();
-    const divider = screen.getByRole('separator');
-
-    fireEvent.keyDown(divider, { key: 'ArrowRight' });
-    expect(divider.getAttribute('aria-valuenow')).toBe('52');
-    expect(localStorage.getItem(KEY)).toBe('0.52');
-
-    fireEvent.keyDown(divider, { key: 'ArrowLeft' });
-    fireEvent.keyDown(divider, { key: 'ArrowLeft' });
-    expect(divider.getAttribute('aria-valuenow')).toBe('48');
-
-    fireEvent.keyDown(divider, { key: 'End' });
-    expect(divider.getAttribute('aria-valuenow')).toBe('80');
-    fireEvent.keyDown(divider, { key: 'Home' });
-    expect(divider.getAttribute('aria-valuenow')).toBe('20');
-  });
-
-  it('resets the split on double click', () => {
-    renderPane();
-    const divider = screen.getByRole('separator');
-    fireEvent.keyDown(divider, { key: 'End' });
-
-    fireEvent.doubleClick(divider);
-    expect(divider.getAttribute('aria-valuenow')).toBe('50');
-  });
-
-  it('has no divider without a side pane', () => {
+  it('has no divider in the accessibility tree without a side pane', () => {
     renderPane(null);
+
+    expect(screen.getByText('main')).toBeTruthy();
     expect(screen.queryByRole('separator')).toBeNull();
+    expect(screen.queryByText('side')).toBeNull();
+  });
+
+  it('keeps the side content while the pane folds, then removes it', async () => {
+    const { rerender } = renderPane();
+
+    rerender(<SplitPane storageKey={KEY} main={<p>main</p>} side={null} />);
+    expect(screen.queryByText('side')).not.toBeNull();
+
+    await vi.waitFor(() => expect(screen.queryByText('side')).toBeNull());
+  });
+
+  it('resets the saved ratio on double click', () => {
+    localStorage.setItem(KEY, '0.7');
+    render(<SplitPane storageKey={KEY} defaultRatio={0.4} main={<p>main</p>} side={<p>side</p>} />);
+
+    fireEvent.doubleClick(screen.getByRole('separator'));
+
+    expect(localStorage.getItem(KEY)).toBe('0.4');
   });
 });

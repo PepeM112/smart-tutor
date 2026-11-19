@@ -1,41 +1,48 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type PanelMode = 'floating' | 'docked';
+export const DEFAULT_ASSIST_WIDTH = 340;
+export const MIN_ASSIST_WIDTH = 300;
+
+/**
+ * The width is kept per kind of page, not per URL: the second path segment is an id on most routes
+ * (`/notes/<slug>-<id>`), so a key per URL would give every note its own width and grow the store without limit.
+ */
+export const assistPageKey = (pathname: string): string => `/${pathname.split('/')[1] ?? ''}`;
 
 type AssistPanelState = {
-  mode: PanelMode;
   isOpen: boolean;
-  dockedWidth: number;
-  setMode: (mode: PanelMode) => void;
+  /** Width in px by `assistPageKey`. A page with no entry uses `DEFAULT_ASSIST_WIDTH`. */
+  widths: Record<string, number>;
   setOpen: (open: boolean) => void;
-  setDockedWidth: (width: number) => void;
-  toggleMode: () => void;
+  toggle: () => void;
+  setWidth: (pageKey: string, width: number) => void;
+  resetWidth: (pageKey: string) => void;
 };
 
-const DEFAULT_DOCKED_WIDTH = 380;
-const MIN_DOCKED_WIDTH = 300;
-const MAX_DOCKED_WIDTH = 600;
-
-export { MIN_DOCKED_WIDTH, MAX_DOCKED_WIDTH };
+export const selectAssistWidth =
+  (pageKey: string) =>
+  (state: Pick<AssistPanelState, 'widths'>): number =>
+    state.widths[pageKey] ?? DEFAULT_ASSIST_WIDTH;
 
 export const useAssistPanelStore = create<AssistPanelState>()(
   persist(
     set => ({
-      mode: 'floating',
       isOpen: false,
-      dockedWidth: DEFAULT_DOCKED_WIDTH,
-      setMode: mode => set({ mode }),
+      widths: {},
       setOpen: open => set({ isOpen: open }),
-      setDockedWidth: width => set({ dockedWidth: Math.max(MIN_DOCKED_WIDTH, Math.min(MAX_DOCKED_WIDTH, width)) }),
-      toggleMode: () =>
-        set(state => ({
-          mode: state.mode === 'floating' ? 'docked' : 'floating',
-        })),
+      toggle: () => set(state => ({ isOpen: !state.isOpen })),
+      setWidth: (pageKey, width) =>
+        set(state => ({ widths: { ...state.widths, [pageKey]: Math.max(MIN_ASSIST_WIDTH, Math.round(width)) } })),
+      resetWidth: pageKey =>
+        set(state => ({ widths: Object.fromEntries(Object.entries(state.widths).filter(([key]) => key !== pageKey)) })),
     }),
     {
       name: 'assist-panel',
-      partialize: state => ({ mode: state.mode, dockedWidth: state.dockedWidth }),
+      // Version 0 saved `mode` and `dockedWidth` for the floating / docked panel. Neither exists now.
+      version: 1,
+      migrate: () => ({ widths: {} }),
+      partialize: state => ({ widths: state.widths }),
     }
   )
 );

@@ -1,9 +1,9 @@
 /**
  * Full-height pages (note, files) scroll an inner element, not the page. The app layout pads the page
- * (`px-4 pb-4 lg:px-8 lg:pb-8`), so the scrollbar of that element would sit inside the padding.
+ * inside the main sheet (`px-4 pb-4 lg:px-8 lg:pb-8`), so the scrollbar of that element would sit inside the padding.
  *
  * A "bleeding" element uses a negative margin to cancel the layout padding on the right and at the
- * bottom, and gets the same amount back as padding. Its scrollbar is at the page edge, but its content
+ * bottom, and gets the same amount back as padding. Its scrollbar is at the sheet edge, but its content
  * box is where it was, so the content looks the same. The top and left sides are not touched: the
  * header and the toolbar keep their alignment with the content.
  *

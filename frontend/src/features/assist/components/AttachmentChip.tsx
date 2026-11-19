@@ -58,7 +58,7 @@ export function AttachmentChip({ attachment }: Props) {
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            className="fixed z-50 w-60 overflow-hidden rounded-lg bg-card shadow-md ring-1 ring-foreground/10"
+            className="fixed z-50 w-60 overflow-hidden rounded-lg bg-popover ring-1 ring-foreground/10"
             style={{
               left: preview.x,
               top: preview.top,

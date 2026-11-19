@@ -62,7 +62,7 @@ test('the Assistant is hidden and refused during an attempt', async ({ pageAs })
   expect(keySaved.ok()).toBe(true);
 
   await openCourse(viewer, COURSE);
-  const launcher = viewer.getByRole('button', { name: 'Open AI Assistant' });
+  const launcher = viewer.getByRole('button', { name: 'Ask AI' });
   await expect(launcher).toBeVisible();
 
   await viewer.getByRole('link', { name: 'Start', exact: true }).click();

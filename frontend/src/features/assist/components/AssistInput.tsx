@@ -500,7 +500,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
     <div className="relative mt-auto shrink-0 p-2">
       {/* Slash command popover */}
       {commandMenuOpen && (
-        <div className="absolute inset-x-1.5 bottom-full mb-1 rounded-lg border border-border bg-background p-1 shadow-md">
+        <div className="absolute inset-x-1.5 bottom-full mb-1 rounded-lg bg-popover p-1 ring-1 ring-foreground/10">
           {filteredCommands.map((cmd, i) => (
             <button
               key={cmd.name}
@@ -515,7 +515,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
               <span className="text-[11px] text-muted-foreground">{t(`commands.${cmd.descriptionKey}`)}</span>
             </button>
           ))}
-          <div className="mt-0.5 border-t border-border px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
+          <div className="mt-1 rounded-md bg-muted/50 px-2 py-1 text-[10px] text-muted-foreground">
             {t('filter_hint')}
           </div>
         </div>
@@ -523,7 +523,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
 
       {/* Mention popover */}
       {mentionMenuOpen && (
-        <div className="absolute inset-x-1.5 bottom-full mb-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-background p-1 shadow-md">
+        <div className="absolute inset-x-1.5 bottom-full mb-1 max-h-48 overflow-y-auto rounded-lg bg-popover p-1 ring-1 ring-foreground/10">
           {filteredMentions.map((candidate, i) => (
             <button
               key={candidate.id}

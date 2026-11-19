@@ -16,17 +16,14 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'relative flex flex-col h-full bg-sidebar border-r border-sidebar-border shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out',
-        collapsed ? 'w-15' : 'w-64'
+        'relative flex flex-col h-full bg-sidebar shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out',
+        collapsed ? 'w-15' : 'w-55'
       )}
     >
-      <div
-        className={cn(
-          'flex items-center border-b border-sidebar-border px-3 py-3.5',
-          collapsed ? 'flex-col gap-2' : 'justify-between'
+      <div className={cn('flex items-center px-3 py-3.5', collapsed ? 'flex-col gap-2' : 'justify-between')}>
+        {!collapsed && (
+          <span className="truncate font-serif text-[22px] font-medium text-sidebar-foreground">{t('app.title')}</span>
         )}
-      >
-        {!collapsed && <span className="text-sm font-semibold text-sidebar-foreground truncate">{t('app.title')}</span>}
         <div className={cn('flex items-center gap-1', collapsed && 'flex-col')}>
           <NotificationBell side="right" />
           <button
