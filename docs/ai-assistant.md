@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Assistant is a floating/dockable chat panel available on every authenticated page. It can answer questions about the user's own content (including semantic search via RAG), navigate the app on the user's behalf, create or edit notes and tests, and organise Files (create folders, move items) and the Trash (list, restore). Whether a tool pauses for approval depends on its `kind` and the user's permission overrides (see [Tool Permissions](#tool-permissions)). By default read tools run at once and every write tool pauses with an Allow / Always allow / Cancel card.
+The Assistant (Ask AI) is a chat sheet available on every authenticated page, opened from the sparkle button in the page header. It can answer questions about the user's own content (including semantic search via RAG), navigate the app on the user's behalf, create or edit notes and tests, and organise Files (create folders, move items) and the Trash (list, restore). Whether a tool pauses for approval depends on its `kind` and the user's permission overrides (see [Tool Permissions](#tool-permissions)). By default read tools run at once and every write tool pauses with an Allow / Always allow / Cancel card.
 
 It is AI feature #7 (`AIFeature.ASSIST`), and shares the same per-user provider/API-key infrastructure as the other six features described in [AI Features](ai-features.md) (Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini, per-user encrypted keys, `get_user_llm_client`). What makes it different is the interaction shape: the other six features call `LLMClient.complete()` once and get a single structured response back. The Assistant calls `LLMClient.stream_with_tools()` — a streaming, multi-round, agentic tool-use loop — because a chat turn can involve the model reading data, calling tools, and replying incrementally rather than in one shot.
 
@@ -144,18 +144,18 @@ The backend alone decides whether a tool call pauses (`ai_permission_service.nee
 
 **The backend is stateless.** There is no conversation/session table — `AssistRequest.messages` carries the entire history on every call, and `assist_service.py` builds its provider-native message list from that request payload alone. The only thing persisted server-side is token usage (see [Token Usage Tracking](#token-usage-tracking)); the conversation content itself is never stored.
 
-On the frontend, `AssistProvider` is mounted once (in the app layout) and owns a single `useAssist()` instance, so the conversation survives client-side navigation between pages but is lost on a full reload — it isn't written to `localStorage`. Both the floating card and the docked column render the same underlying conversation; they're two chrome layouts around one state, not two separate assistants.
+On the frontend, `AssistProvider` is mounted once (in the app layout) and owns a single `useAssist()` instance, so the conversation survives client-side navigation between pages but is lost on a full reload — it isn't written to `localStorage`. The right sheet (desktop) and the full-screen dialog (below `lg`) render the same conversation.
 
 ## Frontend Architecture
 
-### Panel UI Modes
+### Ask AI Sheet
 
-The panel has two layouts, tracked in a small persisted Zustand store (`store/use-assist-panel-store.ts`, localStorage key `assist-panel`):
+The sparkle button in the page header (`AssistToggle`, `aria-pressed`) is the only entry point. It is absent while a page hides the Assistant (a timed attempt). State is in `store/useAssistPanelStore.ts` (localStorage key `assist-panel`).
 
-- **Floating** — a draggable, resizable card. On a phone (< `md`) it is a bottom drawer (vaul, 85dvh, one snap point); drag down or tap the backdrop to close. "View changes" closes the drawer first, so the diff drawer is not under it. Dragging is handled by `hooks/use-draggable.ts`, resizing by `hooks/use-resizable.ts`.
-- **Docked** — a fixed-width column next to the sidebar, resizable by dragging its left edge, only available at `xl` and above.
+- **`lg` and wider** — a second sheet right of the main sheet, a `react-resizable-panels` panel (`AssistLayout.tsx`). It mounts only when open. Default 340px, minimum 300px, maximum 50%. A drag saves the width for the current page (`widths`, key = first path segment, for example `/notes`, so a note id never makes a key). Another page has its own width. Double-click on the handle resets it. Open and close take 200ms (`lib/panelMotion.ts`, 0ms with reduced motion); a drag is not animated.
+- **Below `lg`** — a full-screen dialog (`AssistFullScreen.tsx`). Esc or the close button closes it. "View changes" closes it first, so the diff drawer is not under it.
 
-Only `mode` and `dockedWidth` are persisted; `isOpen` is not, so the panel always starts closed on page load regardless of how it was left. A header button (`toggleMode`) switches between the two.
+Only `widths` is persisted; `isOpen` is not, so the panel always starts closed on page load. The old `mode` and `dockedWidth` fields are dropped by a store migration (version 1).
 
 ### Turn / Segment Data Model
 

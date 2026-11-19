@@ -1,75 +1,95 @@
 'use client';
 
-import { createContext, useCallback, useContext, useSyncExternalStore } from 'react';
+import { createContext, useCallback, useContext, useEffect, useSyncExternalStore } from 'react';
 
-import { DEFAULT_THEME_ID, THEME_COOKIE, THEME_STORAGE_KEY, themes, type ThemeId } from '@/lib/themes';
+import {
+  DARK_QUERY,
+  DEFAULT_THEME_MODE,
+  parseTheme,
+  resolveTheme,
+  THEME_COOKIE,
+  THEME_MODES,
+  THEME_STORAGE_KEY,
+  type ThemeMode,
+} from '@/lib/themes';
 
 interface ThemeContextValue {
-  themeId: ThemeId;
-  setTheme: (id: ThemeId) => void;
+  theme: ThemeMode;
+  setTheme: (mode: ThemeMode) => void;
 }
 
 export const ThemeContext = createContext<ThemeContextValue>({
-  themeId: DEFAULT_THEME_ID,
+  theme: DEFAULT_THEME_MODE,
   setTheme: () => {},
 });
 
-const DARK_DEFAULT: ThemeId = 'midnight';
-
-function readStoredTheme(): ThemeId {
-  // SAFETY: setTheme only writes valid ThemeId values; the .some() check below handles stale/tampered values
-  const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId | null;
-  if (stored && themes.some(t => t.id === stored)) return stored;
-  // Must match the inline dark-mode check in app/layout.tsx — keep both in sync
-  const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  return prefersDark ? DARK_DEFAULT : DEFAULT_THEME_ID;
+function readStoredTheme(): ThemeMode {
+  try {
+    // parseTheme also maps an old palette id, so a user from before the light/dark change keeps their look.
+    return parseTheme(localStorage.getItem(THEME_STORAGE_KEY));
+  } catch {
+    return DEFAULT_THEME_MODE;
+  }
 }
 
 const subscribers = new Set<() => void>();
-let currentTheme: ThemeId | undefined;
+let currentTheme: ThemeMode | undefined;
 
 function subscribe(cb: () => void): () => void {
   subscribers.add(cb);
   return () => subscribers.delete(cb);
 }
 
-function getSnapshot(): ThemeId {
+function getSnapshot(): ThemeMode {
   currentTheme ??= readStoredTheme();
   return currentTheme;
 }
 
-function getServerSnapshot(): ThemeId {
-  return DEFAULT_THEME_ID;
+function getServerSnapshot(): ThemeMode {
+  return DEFAULT_THEME_MODE;
 }
 
-function setThemeCookie(id: ThemeId): void {
+function setThemeCookie(mode: ThemeMode): void {
   const maxAge = 365 * 24 * 60 * 60;
-  const value = id === DEFAULT_THEME_ID ? '' : id;
+  const value = mode === DEFAULT_THEME_MODE ? '' : mode;
   document.cookie = `${THEME_COOKIE}=${value};path=/;max-age=${value ? maxAge : 0};SameSite=Lax`;
 }
 
+// The DOM is written only here and by the OS listener, never by an effect that runs after hydration:
+// that first pass has the server value, and it would flash the wrong theme for a dark user.
+function applyTheme(mode: ThemeMode): void {
+  document.documentElement.dataset.theme = resolveTheme(mode, window.matchMedia(DARK_QUERY).matches);
+}
+
 export function useThemeProvider(): ThemeContextValue {
-  const themeId = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  const setTheme = useCallback((id: ThemeId) => {
-    if (!themes.some(t => t.id === id)) return;
+  const setTheme = useCallback((mode: ThemeMode) => {
+    if (!THEME_MODES.includes(mode)) return;
 
-    currentTheme = id;
-    localStorage.setItem(THEME_STORAGE_KEY, id);
-    // Cookie lets layout.tsx set the theme server-side before hydration, preventing a flash
-    setThemeCookie(id);
-
-    const root = document.documentElement;
-    if (id === DEFAULT_THEME_ID) {
-      root.removeAttribute('data-theme');
-    } else {
-      root.dataset.theme = id;
+    currentTheme = mode;
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, mode);
+    } catch {
+      // Storage can be blocked (private window). The cookie and the page still change.
     }
+    // Cookie lets layout.tsx set the theme server-side before hydration, preventing a flash
+    setThemeCookie(mode);
+    applyTheme(mode);
 
     subscribers.forEach(cb => cb());
   }, []);
 
-  return { themeId, setTheme };
+  // In `system` mode the page follows the OS. An explicit mode ignores it.
+  useEffect(() => {
+    if (theme !== 'system') return;
+    const query = window.matchMedia(DARK_QUERY);
+    const onChange = (): void => applyTheme('system');
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, [theme]);
+
+  return { theme, setTheme };
 }
 
 export function useTheme(): ThemeContextValue {

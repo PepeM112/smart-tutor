@@ -244,14 +244,14 @@ function RefineQuestionsResult({ testId }: { testId: string }) {
 }
 
 /**
- * On a phone the Assistant is a modal drawer, and the diff opens in a second drawer.
+ * Below `lg` the Assistant is a full-screen dialog, and the diff opens in a drawer.
  * Close the Assistant first, so the diff is not stacked under it.
  */
 function useCloseAssistOnMobile(): () => void {
-  const { isMobile } = useBreakpoint();
+  const { isDesktop } = useBreakpoint();
   const setOpen = useAssistPanelStore(s => s.setOpen);
   return () => {
-    if (isMobile) setOpen(false);
+    if (!isDesktop) setOpen(false);
   };
 }
 

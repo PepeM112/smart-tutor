@@ -7,7 +7,13 @@ import { defineConfig } from 'vitest/config';
 // component/hook (renderHook, render) opts into jsdom per-file via a
 // `// @vitest-environment jsdom` docblock instead of paying the jsdom cost
 // project-wide.
+// Node 25 ships an experimental `localStorage` that shadows the jsdom one. The flag turns it off, but
+// Node 20 (the frontend container) rejects an unknown flag, so pass it only where it exists.
+const WEBSTORAGE_FLAG = '--no-experimental-webstorage';
+const execArgv = process.allowedNodeEnvironmentFlags.has(WEBSTORAGE_FLAG) ? [WEBSTORAGE_FLAG] : [];
+
 export default defineConfig({
+  test: { execArgv },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'src'),

@@ -175,14 +175,40 @@ describe('SettingsPage', () => {
   describe('AI permissions', () => {
     const switches = () => screen.getAllByRole('switch');
     const groupCheckbox = () => screen.getByRole('checkbox');
+    const toggleButton = () => screen.getByRole('button', { name: /^ai_permissions_group_(show|hide)$/ });
+    /** The tool switches sit in a group that is closed by default. */
+    const openGroup = () => fireEvent.click(toggleButton());
 
     beforeEach(() => {
       serverPermissions.current = [permission('list_tests', true), permission('get_test_details', false)];
     });
 
+    it('keeps the tool switches hidden until the group is opened, and closes it again', () => {
+      mount('ai');
+      expect(toggleButton().getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryAllByRole('switch')).toHaveLength(0);
+
+      openGroup();
+      expect(toggleButton().getAttribute('aria-expanded')).toBe('true');
+      expect(switches()).toHaveLength(2);
+
+      openGroup();
+      expect(toggleButton().getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryAllByRole('switch')).toHaveLength(0);
+    });
+
+    it('lets the group checkbox change the tools while the group is closed', () => {
+      mount('ai');
+      fireEvent.click(groupCheckbox());
+      expect(groupCheckbox().getAttribute('aria-checked')).toBe('true');
+      openGroup();
+      expect(switches().map(s => s.getAttribute('aria-checked'))).toEqual(['true', 'true']);
+    });
+
     // The group checkbox is the only control with a native mixed state.
     it('shows the mixed state, then allows all tools, then turns all tools off', () => {
       mount('ai');
+      openGroup();
       expect(groupCheckbox().getAttribute('aria-checked')).toBe('mixed');
 
       fireEvent.click(groupCheckbox());
@@ -196,6 +222,7 @@ describe('SettingsPage', () => {
 
     it('enables Save for a changed tool, and disables it again when the change is undone', () => {
       mount('ai');
+      openGroup();
       expect(isDisabled(saveButton())).toBe(true);
 
       fireEvent.click(switches()[1]);
@@ -222,6 +249,7 @@ describe('SettingsPage', () => {
     it('shows an error toast and keeps the change when the save fails', async () => {
       vi.mocked(sdk.usersUpdateAiToolPermissions).mockRejectedValue(new Error('network'));
       mount('ai');
+      openGroup();
 
       fireEvent.click(switches()[1]);
       fireEvent.click(saveButton());

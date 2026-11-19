@@ -8,21 +8,7 @@ from app.schemas.base import BaseSchema
 ToolKind = Literal["read", "write"]
 
 VALID_LOCALES = {"en", "es"}
-VALID_THEMES = {
-    "ocean-blue",
-    "sky",
-    "slate-minimal",
-    "sunset",
-    "coral",
-    "forest",
-    "mint",
-    "sage",
-    "midnight",
-    "carbon",
-    "neon",
-    "noir",
-    "system",
-}
+VALID_THEMES = {"light", "dark", "system"}
 
 
 class UserBase(BaseSchema):

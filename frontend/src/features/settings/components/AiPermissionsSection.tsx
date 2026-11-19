@@ -1,10 +1,15 @@
 'use client';
 
+import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useId, useState } from 'react';
 
 import type { AiToolPermissionRead } from '@/client';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 import { SettingsSection } from './SettingsSection';
 
@@ -12,17 +17,9 @@ import type { PermissionDraft } from '../utils';
 
 type ToolKind = AiToolPermissionRead['kind'];
 
-const GROUPS: { kind: ToolKind; titleKey: string; descriptionKey: string }[] = [
-  {
-    kind: 'read',
-    titleKey: 'settings.ai_permissions_read',
-    descriptionKey: 'settings.ai_permissions_read_description',
-  },
-  {
-    kind: 'write',
-    titleKey: 'settings.ai_permissions_write',
-    descriptionKey: 'settings.ai_permissions_write_description',
-  },
+const GROUPS: { kind: ToolKind; titleKey: string }[] = [
+  { kind: 'read', titleKey: 'settings.ai_permissions_read' },
+  { kind: 'write', titleKey: 'settings.ai_permissions_write' },
 ];
 
 type AiPermissionsSectionProps = {
@@ -49,12 +46,11 @@ export function AiPermissionsSection({
       {isLoading && <p className="text-sm text-muted-foreground">{t('common.loading')}</p>}
       {isError && <p className="text-sm text-destructive">{t('settings.ai_permissions_load_failed')}</p>}
       {permissions && (
-        <div className="space-y-6">
+        <div className="divide-y divide-hairline border-y border-hairline">
           {GROUPS.map(group => (
             <PermissionGroup
               key={group.kind}
               title={t(group.titleKey)}
-              description={t(group.descriptionKey)}
               tools={permissions.filter(p => p.kind === group.kind)}
               disabled={disabled}
               onChange={onChange}
@@ -68,14 +64,16 @@ export function AiPermissionsSection({
 
 type PermissionGroupProps = {
   title: string;
-  description: string;
   tools: AiToolPermissionRead[];
   disabled: boolean;
   onChange: (changes: PermissionDraft) => void;
 };
 
-function PermissionGroup({ title, description, tools, disabled, onChange }: PermissionGroupProps) {
+function PermissionGroup({ title, tools, disabled, onChange }: PermissionGroupProps) {
   const t = useTranslations('settings');
+  const [isOpen, setIsOpen] = useState(false);
+  const checkboxId = useId();
+  const listId = useId();
   if (tools.length === 0) return null;
 
   const autoCount = tools.filter(tool => tool.autoApprove).length;
@@ -90,21 +88,38 @@ function PermissionGroup({ title, description, tools, disabled, onChange }: Perm
   };
 
   return (
-    <div className="divide-y divide-border">
-      <div className="flex items-start gap-3 py-3">
-        <Checkbox
-          className="mt-0.5"
-          checked={masterState}
-          disabled={disabled}
-          onCheckedChange={toggleGroup}
-          aria-label={t('ai_permissions_group_toggle', { group: title })}
-        />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">{title}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
+    <div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
+        <p className="flex items-baseline gap-2">
+          <span className="text-sm font-medium text-foreground">{title}</span>
+          <span className="text-sm text-muted-foreground">
+            {t('ai_permissions_tool_count', { count: tools.length })}
+          </span>
+        </p>
+        <div className="ml-auto flex items-center gap-2">
+          <Checkbox
+            id={checkboxId}
+            checked={masterState}
+            disabled={disabled}
+            onCheckedChange={toggleGroup}
+            aria-label={t('ai_permissions_group_toggle', { group: title })}
+          />
+          <Label htmlFor={checkboxId} className="font-normal">
+            {t('ai_permissions_run_without_asking')}
+          </Label>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-expanded={isOpen}
+            aria-controls={listId}
+            aria-label={t(isOpen ? 'ai_permissions_group_hide' : 'ai_permissions_group_show', { group: title })}
+            onClick={() => setIsOpen(open => !open)}
+          >
+            <ChevronDown className={cn('transition-transform', isOpen && 'rotate-180')} />
+          </Button>
         </div>
       </div>
-      <ul className="divide-y divide-border">
+      <ul id={listId} hidden={!isOpen} className="divide-y divide-hairline border-t border-hairline">
         {tools.map(tool => (
           <PermissionRow
             key={tool.name}

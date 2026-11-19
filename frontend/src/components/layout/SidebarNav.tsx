@@ -3,7 +3,6 @@
 import {
   BarChart2,
   BookOpen,
-  FlaskConical,
   Folder,
   GraduationCap,
   Grid3X3,
@@ -20,9 +19,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
-import { UserRole } from '@/client';
 import { LogoutButton } from '@/features/auth/components/LogoutButton';
-import { useAuthStore } from '@/features/auth/store/authStore';
 import { useFileTree } from '@/features/files/hooks/useFileTree';
 import { displayTitle } from '@/lib/displayTitle';
 import { noteHref, parseSlugId, Routes } from '@/lib/routes';
@@ -38,7 +35,6 @@ type NavItem = {
   href: string | null;
   icon: React.ElementType;
   disabled?: boolean;
-  requiredRole?: UserRole;
 };
 
 type NavSection = {
@@ -77,10 +73,6 @@ const sections: NavSection[] = [
       { labelKey: 'sidebar.progress_stats', href: Routes.STATS, icon: BarChart2, disabled: true },
     ],
   },
-  {
-    labelKey: 'sidebar.dev',
-    items: [{ labelKey: 'sidebar.sandbox', href: Routes.SANDBOX, icon: FlaskConical, requiredRole: UserRole.ADMIN }],
-  },
 ];
 
 type SidebarNavProps = {
@@ -91,10 +83,9 @@ type SidebarNavProps = {
 export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const t = useTranslations();
   const pathname = usePathname();
-  const userRole = useAuthStore(s => s.user?.role);
   const { notes } = useFileTree();
 
-  // Favorites sit between Analytics and Dev. The section is left out when there are none.
+  // Favorites sit after Analytics. The section is left out when there are none.
   const allSections = useMemo<NavSection[]>(() => {
     const openNoteId = activeNoteId(pathname);
     const favorites: NavItem[] = notes
@@ -108,32 +99,24 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
         isActive: note.id === openNoteId,
       }));
     if (favorites.length === 0) return sections;
-    const devIndex = sections.findIndex(section => section.labelKey === 'sidebar.dev');
-    return [
-      ...sections.slice(0, devIndex),
-      { labelKey: 'sidebar.favorites', items: favorites },
-      ...sections.slice(devIndex),
-    ];
+    return [...sections, { labelKey: 'sidebar.favorites', items: favorites }];
   }, [notes, pathname, t]);
 
   return (
     <>
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
         {allSections.map(section => {
-          const visibleItems = section.items.filter(item => !item.requiredRole || item.requiredRole === userRole);
-          if (visibleItems.length === 0) return null;
-
           return (
             <div key={section.labelKey} role="group" aria-labelledby={`sidebar-section-${section.labelKey}`}>
               {/* Stays in the DOM when collapsed so screen readers still get the group name. */}
               <p
                 id={`sidebar-section-${section.labelKey}`}
-                className={collapsed ? 'sr-only' : 'px-3 mb-1 text-xs font-medium text-sidebar-muted'}
+                className={collapsed ? 'sr-only' : 'px-3 mb-1 text-[13px] font-medium text-sidebar-muted'}
               >
                 {t(section.labelKey)}
               </p>
               <ul className="space-y-0.5">
-                {visibleItems.map(item => {
+                {section.items.map(item => {
                   const Icon = item.icon;
                   const isActive =
                     item.isActive ??
@@ -171,13 +154,13 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
                         onClick={onNavigate}
                         title={collapsed ? label : undefined}
                         className={cn(
-                          'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
-                          'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                          isActive && 'bg-sidebar-accent text-sidebar-foreground',
+                          'flex h-8 items-center gap-2.5 rounded-lg text-[15px] transition-colors',
+                          'text-sidebar-foreground hover:bg-sidebar-accent',
+                          isActive && 'bg-sidebar-accent font-medium',
                           collapsed ? 'justify-center px-0' : 'px-3'
                         )}
                       >
-                        <Icon size={17} className="shrink-0" />
+                        <Icon size={16} className={cn('shrink-0', isActive ? 'text-primary' : 'text-sidebar-muted')} />
                         {!collapsed && <span className="truncate">{label}</span>}
                       </Link>
                     </li>
@@ -189,19 +172,22 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border px-2 py-3 space-y-0.5">
+      <div className="px-2 py-3 space-y-0.5">
         <Link
           href={Routes.SETTINGS}
           onClick={onNavigate}
           title={collapsed ? t('sidebar.profile_and_settings') : undefined}
           className={cn(
-            'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2',
-            'text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground',
-            pathname === Routes.SETTINGS && 'bg-sidebar-accent text-sidebar-foreground',
+            'flex h-8 items-center gap-2.5 rounded-lg text-[15px] transition-colors',
+            'text-sidebar-foreground hover:bg-sidebar-accent',
+            pathname === Routes.SETTINGS && 'bg-sidebar-accent font-medium',
             collapsed ? 'justify-center px-0' : 'px-3'
           )}
         >
-          <Settings size={17} className="shrink-0" />
+          <Settings
+            size={16}
+            className={cn('shrink-0', pathname === Routes.SETTINGS ? 'text-primary' : 'text-sidebar-muted')}
+          />
           {!collapsed && <span>{t('sidebar.profile_and_settings')}</span>}
         </Link>
         <LogoutButton collapsed={collapsed} />

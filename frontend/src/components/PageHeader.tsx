@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
+import { AssistToggle } from '@/features/assist/components/AssistToggle';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { type BreadcrumbItem, useBreadcrumbStore } from '@/store/useBreadcrumbStore';
 
@@ -14,10 +15,8 @@ export function PageHeader() {
   const actions = useBreadcrumbStore(s => s.actions);
   const router = useRouter();
 
-  if (!title) return null;
-
   return (
-    <div className="flex items-center gap-3 p-4 lg:p-8">
+    <div className="flex h-14 shrink-0 items-center gap-3 border-b border-hairline px-4 lg:px-5">
       {back && (
         <Button variant="ghost" size="icon" onClick={() => router.push(back)}>
           <ArrowLeft className="size-5" />
@@ -36,14 +35,13 @@ export function PageHeader() {
             <ChevronRight className="size-3" />
           </span>
         ))}
-        <h1 className="text-xl lg:text-2xl font-semibold text-foreground truncate text-balance">{title}</h1>
+        {title && <h1 className="truncate font-serif text-[19px] font-medium text-foreground">{title}</h1>}
       </div>
-      {actions && (
-        <>
-          <div className="flex-1" />
-          <div className="shrink-0 flex items-center gap-2">{actions}</div>
-        </>
-      )}
+      <div className="flex-1" />
+      <div className="flex shrink-0 items-center gap-2">
+        {actions}
+        <AssistToggle />
+      </div>
     </div>
   );
 }

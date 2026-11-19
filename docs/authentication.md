@@ -70,7 +70,7 @@ Auth state is also mirrored in a Zustand store so components can read it synchro
 
 The `User` model has a `role` field: `ADMIN` or `USER` (the default).
 
-The `ADMIN` role enum value and a frontend `RoleGuard` component exist, but neither is wired to any route yet. The Sandbox page is accessible to all authenticated users. Role-based restrictions can be added when a feature requires them.
+The `ADMIN` role enum value exists, but no route uses it yet. Role-based restrictions can be added when a feature requires them.
 
 ## Why HTTP-only Cookies (Not localStorage)
 
