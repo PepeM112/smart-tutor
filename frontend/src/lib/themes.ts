@@ -1,4 +1,7 @@
-export type ThemeMode = 'light' | 'dark' | 'system';
+import type { UserRead } from '@/client';
+
+// Aliased to the generated type so a backend change to the allowed values fails type-check here.
+export type ThemeMode = NonNullable<UserRead['theme']>;
 /** What the page shows: `system` resolves to one of these from the OS setting. */
 export type ResolvedTheme = 'light' | 'dark';
 
@@ -29,6 +32,7 @@ export function resolveTheme(mode: ThemeMode, prefersDark: boolean): ResolvedThe
 /**
  * Runs in <head> before hydration, so a dark user never sees a light first paint when the server did
  * not know the theme (no cookie, or `system`). It repeats parseTheme + resolveTheme in plain ES5,
- * built from the same id lists; themes.test.ts runs it against both functions to catch drift.
+ * built from the same id lists; themes.test.ts runs it against both functions to catch drift. Storage has its own `try`:
+ * a blocked storage must still fall through to the OS setting.
  */
-export const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});var d=${JSON.stringify(LEGACY_DARK_IDS)};var l=${JSON.stringify(LEGACY_LIGHT_IDS)};var dark=s==="dark"||d.indexOf(s)>-1||(s!=="light"&&l.indexOf(s)<0&&window.matchMedia(${JSON.stringify(DARK_QUERY)}).matches);document.documentElement.setAttribute("data-theme",dark?"dark":"light")}catch(e){}})()`;
+export const THEME_INIT_SCRIPT = `(function(){var s=null;try{s=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})}catch(e){}try{var d=${JSON.stringify(LEGACY_DARK_IDS)};var l=${JSON.stringify(LEGACY_LIGHT_IDS)};var dark=s==="dark"||d.indexOf(s)>-1||(s!=="light"&&l.indexOf(s)<0&&window.matchMedia(${JSON.stringify(DARK_QUERY)}).matches);document.documentElement.setAttribute("data-theme",dark?"dark":"light")}catch(e){}})()`;

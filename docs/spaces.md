@@ -580,7 +580,7 @@ A teacher, a completed item, a hidden item and an item with no `due_at` get noth
 
 - **R14: invitations are split by kind.** The invitations list (`GET /spaces/invitations`) already has `kind`, so the backend did not change. `courses/lib/invitations.ts` (`splitInvitations`) splits the list. The `InvitationsButton` popover shows a Courses section and a Classrooms section (an empty section is hidden). The badge counts both. The join toast and the error text follow the kind.
 - **R15: `studentName` is for teachers only.** `TestResultRead.student_name` (display name, else username) is set only by `test_result_service.teacher_read`, when a teacher opens a result of another user. The override endpoints return the same helper, so the cached result keeps the name. A student, and a teacher who opens their own result, get `null`, so no data of another user leaks. `ScoreBanner` shows the name.
-- **R16: separate split-pane keys.** The classroom page uses `classroom-preview-split-ratio`. The course page keeps `course-preview-split-ratio`. `useResizableSplit` and `SplitPane` take an optional `legacyStorageKey`. The classroom page passes the course key: it is read only when the new key has no value, and it is never written. A saved width keeps working until the first resize.
+- **R16: separate split-pane keys.** The classroom page uses `classroom-preview-split-ratio`. The course page keeps `course-preview-split-ratio`. `SplitPane` (built on `react-resizable-panels`) takes an optional `legacyStorageKey`. The classroom page passes the course key: it is read only when the new key has no value, and it is never written. A saved width keeps working until the first resize.
 - **R17: Remove completion.** See [Remove completion](#remove-completion-r17-st-69).
 
 ---

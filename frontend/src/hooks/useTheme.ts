@@ -55,8 +55,8 @@ function setThemeCookie(mode: ThemeMode): void {
   document.cookie = `${THEME_COOKIE}=${value};path=/;max-age=${value ? maxAge : 0};SameSite=Lax`;
 }
 
-// The DOM is written only here and by the OS listener, never by an effect that runs after hydration:
-// that first pass has the server value, and it would flash the wrong theme for a dark user.
+// Only `setTheme` and the OS listener write the DOM. No effect writes it on hydration, because that first
+// pass has the server value and would flash the wrong theme. `ThemeProvider` calls `setTheme` when `user.theme` changes.
 function applyTheme(mode: ThemeMode): void {
   document.documentElement.dataset.theme = resolveTheme(mode, window.matchMedia(DARK_QUERY).matches);
 }

@@ -79,14 +79,15 @@ function SheetGroup({ isSheetWanted, children }: SheetGroupProps) {
   const [isSettled, setIsSettled] = useState(false);
 
   const pageKeyRef = useRef(pageKey);
-  pageKeyRef.current = pageKey;
+  useEffect(() => {
+    pageKeyRef.current = pageKey;
+  });
+
+  // Mounts the panel in the same render that asks for it, so the open effect below starts with it in place.
+  if (isSheetWanted && !isMounted) setIsMounted(true);
 
   useEffect(() => {
-    if (!isSheetWanted) return;
-    if (!isMounted) {
-      setIsMounted(true);
-      return;
-    }
+    if (!isSheetWanted || !isMounted) return;
     let settleTimer: number | undefined;
     // The panel registers after its effects: the first size change waits one frame.
     const frame = window.requestAnimationFrame(() => {

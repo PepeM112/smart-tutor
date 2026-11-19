@@ -79,7 +79,7 @@ describe('persistence', () => {
     setOpen(true);
     setWidth('/notes', 450);
 
-    const saved = JSON.parse(localStorage.getItem('assist-panel') ?? '{}');
+    const saved = JSON.parse(localStorage.getItem('assist-panel') ?? '{}') as { state?: unknown };
     expect(saved.state).toEqual({ widths: { '/notes': 450 } });
   });
 

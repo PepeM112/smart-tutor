@@ -63,7 +63,7 @@ const TEXT_PAIRS: [string, string][] = [
 ];
 
 describe.each([
-  ['light', ':root'],
+  ['light', "[data-theme='light']"],
   ['dark', "[data-theme='dark']"],
 ])('%s palette text contrast', (_name, selector) => {
   const palette = readPalette(selector);

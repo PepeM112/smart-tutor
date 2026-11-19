@@ -36,9 +36,13 @@ describe('THEME_INIT_SCRIPT', () => {
   const stored = [null, 'light', 'dark', 'system', 'junk', ...LEGACY_LIGHT_IDS, ...LEGACY_DARK_IDS];
 
   /** Runs the script like the browser does and returns the data-theme it sets. */
-  function runScript(storedValue: string | null, prefersDark: boolean): string | undefined {
+  function runScript(
+    storedValue: string | null,
+    prefersDark: boolean,
+    getItem: (key: string) => string | null = key => (key === THEME_STORAGE_KEY ? storedValue : null)
+  ): string | undefined {
     let applied: string | undefined;
-    const localStorage = { getItem: (key: string) => (key === THEME_STORAGE_KEY ? storedValue : null) };
+    const localStorage = { getItem };
     const window = { matchMedia: () => ({ matches: prefersDark }) };
     const document = { documentElement: { setAttribute: (_name: string, value: string) => (applied = value) } };
     // The script is plain text in production, so the test has to compile it the same way.
@@ -53,4 +57,11 @@ describe('THEME_INIT_SCRIPT', () => {
       expect(runScript(value, prefersDark)).toBe(resolveTheme(parseTheme(value), prefersDark));
     }
   );
+
+  it.each([true, false])('still follows the OS when storage throws (OS dark: %s)', prefersDark => {
+    const blocked = (): string | null => {
+      throw new Error('blocked');
+    };
+    expect(runScript(null, prefersDark, blocked)).toBe(prefersDark ? 'dark' : 'light');
+  });
 });

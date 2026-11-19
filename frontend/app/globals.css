@@ -115,7 +115,8 @@
    Every text pair is checked by src/lib/themeContrast.test.ts, so keep the values in hex.
    ═══════════════════════════════════════════════════════════════ */
 @layer base {
-  :root {
+  :root,
+  [data-theme='light'] {
     color-scheme: light;
 
     --background: #f6f2ea;

@@ -3,36 +3,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useTheme } from '@/hooks/useTheme';
 import { sdk } from '@/lib/apiClient';
-import { THEME_MODES, type ThemeMode } from '@/lib/themes';
+import { parseTheme, THEME_MODES, type ThemeMode } from '@/lib/themes';
 import { cn } from '@/lib/utils';
-
-// The preview shows both palettes at once, so it cannot use the live tokens. Values: DESIGN-PAPER2.md.
-const PREVIEW_PALETTES = {
-  light: {
-    ground: '#f6f2ea',
-    nav: '#d9d1c3',
-    sheet: '#fffdf8',
-    border: '#e3dccf',
-    ink: '#2a2622',
-    accent: '#a64b24',
-  },
-  dark: {
-    ground: '#1c1a17',
-    nav: '#443e36',
-    sheet: '#24211d',
-    border: '#3a352e',
-    ink: '#ece6da',
-    accent: '#d27a4e',
-  },
-} as const;
-
-type PreviewPalette = (typeof PREVIEW_PALETTES)[keyof typeof PREVIEW_PALETTES];
 
 export function ThemePicker() {
   const t = useTranslations();
@@ -41,21 +19,30 @@ export function ThemePicker() {
   const { theme, setTheme } = useTheme();
   const labelId = useId();
 
-  // The page changes at once. If the save fails, the previous theme comes back.
+  // The last theme the backend confirmed, and the last one the user clicked.
+  const savedMode = useRef<ThemeMode>(theme);
+  const requestedMode = useRef<ThemeMode>(theme);
+
+  // The page changes at once. Saves run one at a time (same `scope`), so the last click is the last write
+  // on the backend. A failed save reverts the page only if no later click replaced it.
   const { mutate: saveTheme } = useMutation({
+    scope: { id: 'user-theme' },
     mutationFn: async (mode: ThemeMode) => (await sdk.usersUpdateMe({ body: { theme: mode } })).data!,
     onMutate: (mode: ThemeMode) => {
-      const previous = theme;
+      requestedMode.current = mode;
       setTheme(mode);
-      return { previous };
     },
     onSuccess: updatedUser => {
+      savedMode.current = parseTheme(updatedUser.theme);
       setUser(updatedUser);
       void queryClient.invalidateQueries({ queryKey: ['me'] });
       toast.success(t('settings.settings_saved'));
     },
-    onError: (_error, _mode, context) => {
-      if (context) setTheme(context.previous);
+    onError: (_error, mode) => {
+      if (requestedMode.current === mode) {
+        requestedMode.current = savedMode.current;
+        setTheme(savedMode.current);
+      }
       toast.error(t('settings.failed_to_save'));
     },
   });
@@ -81,12 +68,12 @@ export function ThemePicker() {
   );
 }
 
-type ThemeOptionProps = {
+interface ThemeOptionProps {
   mode: ThemeMode;
   label: string;
   isActive: boolean;
   onSelect: () => void;
-};
+}
 
 function ThemeOption({ mode, label, isActive, onSelect }: ThemeOptionProps) {
   return (
@@ -113,14 +100,16 @@ function ThemePreview({ mode }: { mode: ThemeMode }) {
   return (
     <span aria-hidden="true" className="block h-[64px] w-[104px] overflow-hidden rounded-md outline outline-border">
       <svg viewBox="0 0 104 64" width="104" height="64" className="block">
-        <PreviewScene palette={PREVIEW_PALETTES[mode === 'dark' ? 'dark' : 'light']} />
+        <g data-theme={mode === 'dark' ? 'dark' : 'light'}>
+          <PreviewScene />
+        </g>
         {mode === 'system' && (
           <>
             <clipPath id={clipId}>
               <rect x="52" y="0" width="52" height="64" />
             </clipPath>
-            <g clipPath={`url(#${clipId})`}>
-              <PreviewScene palette={PREVIEW_PALETTES.dark} />
+            <g clipPath={`url(#${clipId})`} data-theme="dark">
+              <PreviewScene />
             </g>
           </>
         )}
@@ -129,18 +118,20 @@ function ThemePreview({ mode }: { mode: ThemeMode }) {
   );
 }
 
-function PreviewScene({ palette }: { palette: PreviewPalette }) {
+// Colors are the live tokens. The wrapping `data-theme` picks which palette they resolve to, so the
+// preview can show both palettes at once and still follows globals.css.
+function PreviewScene() {
   return (
     <>
-      <rect width="104" height="64" fill={palette.ground} />
+      <rect width="104" height="64" fill="var(--background)" />
       {[10, 17, 24].map(y => (
-        <rect key={y} x="6" y={y} width="14" height="3" rx="1.5" fill={palette.nav} />
+        <rect key={y} x="6" y={y} width="14" height="3" rx="1.5" fill="var(--rule)" />
       ))}
-      <rect x="26.5" y="6.5" width="71" height="51" rx="4" fill={palette.sheet} stroke={palette.border} />
-      <rect x="34" y="15" width="30" height="4" rx="2" fill={palette.ink} />
-      <rect x="34" y="25" width="52" height="3" rx="1.5" fill={palette.border} />
-      <rect x="34" y="32" width="44" height="3" rx="1.5" fill={palette.border} />
-      <rect x="34" y="43" width="18" height="7" rx="2" fill={palette.accent} />
+      <rect x="26.5" y="6.5" width="71" height="51" rx="4" fill="var(--card)" stroke="var(--border)" />
+      <rect x="34" y="15" width="30" height="4" rx="2" fill="var(--foreground)" />
+      <rect x="34" y="25" width="52" height="3" rx="1.5" fill="var(--border)" />
+      <rect x="34" y="32" width="44" height="3" rx="1.5" fill="var(--border)" />
+      <rect x="34" y="43" width="18" height="7" rx="2" fill="var(--primary)" />
     </>
   );
 }

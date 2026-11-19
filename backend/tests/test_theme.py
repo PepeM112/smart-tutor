@@ -48,14 +48,14 @@ def test_user_update_allows_missing_theme() -> None:
     assert UserUpdate().theme is None
 
 
-@pytest.mark.parametrize(
-    ("old", "new"),
-    [(old, "light") for old in OLD_LIGHT_IDS]
-    + [(old, "dark") for old in OLD_DARK_IDS]
-    + [("system", "system"), ("light", "light"), ("dark", "dark"), ("unknown-id", "system")],
-)
-def test_map_theme(old: str, new: str) -> None:
-    assert _load_migration().map_theme(old) == new
+def test_user_update_rejects_explicit_null_theme() -> None:
+    with pytest.raises(ValidationError):
+        UserUpdate(theme=None)
+
+
+def test_user_update_rejects_explicit_null_locale() -> None:
+    with pytest.raises(ValidationError):
+        UserUpdate(locale=None)
 
 
 def test_upgrade_maps_every_stored_value() -> None:
@@ -71,4 +71,4 @@ def test_upgrade_maps_every_stored_value() -> None:
         with Operations.context(MigrationContext.configure(connection)):
             migration.upgrade()
         rows = connection.execute(sa.text('SELECT theme FROM "user" ORDER BY id')).scalars().all()
-    assert rows == [migration.map_theme(theme) for theme in stored]
+    assert rows == ["light"] * 8 + ["dark"] * 4 + ["system", "light", "dark", "system"]

@@ -3987,7 +3987,7 @@ export type UserRead = {
     /**
      * Theme
      */
-    theme?: string;
+    theme?: 'light' | 'dark' | 'system';
     aiProvider?: AiProvider | null;
     /**
      * Hasanthropickey
@@ -4054,7 +4054,7 @@ export type UserUpdate = {
     /**
      * Theme
      */
-    theme?: string | null;
+    theme?: 'light' | 'dark' | 'system' | null;
     aiProvider?: AiProvider | null;
     /**
      * Anthropicapikey

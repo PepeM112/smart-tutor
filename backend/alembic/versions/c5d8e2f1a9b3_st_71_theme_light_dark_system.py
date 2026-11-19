@@ -5,32 +5,23 @@ Revises: ab32ee8727de
 Create Date: 2026-11-19 10:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'c5d8e2f1a9b3'
-down_revision: Union[str, Sequence[str], None] = 'ab32ee8727de'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "c5d8e2f1a9b3"
+down_revision: str | Sequence[str] | None = "ab32ee8727de"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 # Old palette ids that had a light look and a dark look. Any other old value becomes "system".
 LIGHT_IDS = ("ocean-blue", "sky", "slate-minimal", "sunset", "coral", "forest", "mint", "sage")
 DARK_IDS = ("midnight", "carbon", "neon", "noir")
 NEW_VALUES = ("light", "dark", "system")
-
-
-def map_theme(old: str) -> str:
-    if old in NEW_VALUES:
-        return old
-    if old in LIGHT_IDS:
-        return "light"
-    if old in DARK_IDS:
-        return "dark"
-    return "system"
 
 
 def upgrade() -> None:
