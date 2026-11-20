@@ -28,8 +28,8 @@ export function CreateClassroomDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="lg" icon={Plus}>
-          {t('classrooms.create_classroom')}
+        <Button icon={Plus} aria-label={t('classrooms.create_classroom')}>
+          <span className="hidden sm:inline">{t('classrooms.create_classroom')}</span>
         </Button>
       </DialogTrigger>
       {open && <CreateClassroomForm onClose={() => setOpen(false)} />}

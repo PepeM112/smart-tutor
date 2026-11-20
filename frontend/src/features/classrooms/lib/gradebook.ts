@@ -1,6 +1,7 @@
+import { Check, CircleDashed, Clock, Contrast, X, type LucideIcon } from 'lucide-react';
+
 import {
   GradeCellStatus,
-  type GradebookCell,
   type GradebookColumn,
   type GradebookCourse,
   type GradebookCourseProgress,
@@ -49,39 +50,34 @@ export function formatAttempts(attemptsUsed: number, maxAttempts: number | null)
   return maxAttempts === null ? `${attemptsUsed}` : `${attemptsUsed}/${maxAttempts}`;
 }
 
-/** i18n key (under `classrooms.`) and semantic text color of a cell status. */
-export const CELL_STATUS_STYLES: Record<GradeCellStatus, { labelKey: string; textClass: string; bgClass: string }> = {
+/** i18n key (under `classrooms.`), semantic text color and mark of a cell status. The mark and the word never rest on color alone. */
+export const CELL_STATUS_STYLES: Record<GradeCellStatus, { labelKey: string; textClass: string; icon: LucideIcon }> = {
   [GradeCellStatus.NOT_STARTED]: {
     labelKey: 'grade_status_not_started',
     textClass: 'text-muted-foreground',
-    bgClass: 'bg-transparent',
+    icon: CircleDashed,
   },
   [GradeCellStatus.IN_PROGRESS]: {
     labelKey: 'grade_status_in_progress',
     textClass: 'text-muted-foreground',
-    bgClass: 'bg-muted',
+    icon: Contrast,
   },
   [GradeCellStatus.PENDING]: {
     labelKey: 'grade_status_pending',
     textClass: 'text-feedback-partial',
-    bgClass: 'bg-feedback-partial-bg',
+    icon: Clock,
   },
   [GradeCellStatus.PASSED]: {
     labelKey: 'grade_status_passed',
     textClass: 'text-feedback-correct',
-    bgClass: 'bg-feedback-correct-bg',
+    icon: Check,
   },
   [GradeCellStatus.FAILED]: {
     labelKey: 'grade_status_failed',
     textClass: 'text-destructive',
-    bgClass: 'bg-feedback-wrong-bg',
+    icon: X,
   },
 };
-
-/** A teacher can open the result of a cell only when the cell has a best result. */
-export function canOpenCell(cell: GradebookCell): boolean {
-  return cell.bestResultId !== null;
-}
 
 /** The name of a student row: the display name, else the username. */
 export function studentName(row: { displayName: string | null; username: string }): string {

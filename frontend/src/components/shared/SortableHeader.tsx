@@ -42,7 +42,7 @@ export function SortableHeader({ label, column, sort, onSort, compact = false }:
       variant="ghost"
       size="sm"
       // Compact: equal side margins cancel the button padding, so the label lines up with the cells in any alignment.
-      className={cn('gap-1 font-medium', compact ? '-mx-2 h-6 px-2 text-xs' : '-ml-3 h-8')}
+      className={cn('gap-1', compact ? '-mx-2 h-6 px-2 text-xs font-semibold' : '-ml-3 h-8 font-medium')}
       onClick={handleClick}
     >
       {label}

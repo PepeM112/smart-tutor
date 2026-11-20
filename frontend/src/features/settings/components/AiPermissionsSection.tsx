@@ -119,7 +119,7 @@ function PermissionGroup({ title, tools, disabled, onChange }: PermissionGroupPr
           </Button>
         </div>
       </div>
-      <ul id={listId} hidden={!isOpen} className="divide-y divide-hairline border-t border-hairline">
+      <ul id={listId} hidden={!isOpen} className="divide-y divide-hairline">
         {tools.map(tool => (
           <PermissionRow
             key={tool.name}

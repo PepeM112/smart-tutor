@@ -26,7 +26,7 @@ export function QuickTestDialog({ compact = false }: { compact?: boolean }) {
     <ConfirmDialog
       trigger={
         <Button
-          size={compact ? 'icon-lg' : 'lg'}
+          size={compact ? 'icon' : 'default'}
           variant="outline"
           icon={Zap}
           tooltip={compact ? t('tests.quick_test') : undefined}

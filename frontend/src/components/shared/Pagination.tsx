@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export function Pagination({ page, perPage, total, onPageChange, disabled }: Props) {
+  const t = useTranslations();
   const totalPages = Math.ceil(total / perPage);
   if (totalPages <= 1) return null;
 
@@ -20,31 +22,30 @@ export function Pagination({ page, perPage, total, onPageChange, disabled }: Pro
   const to = Math.min(page * perPage, total);
 
   return (
-    <div className="flex items-center justify-between pt-2">
-      <p className="text-xs text-muted-foreground tabular-nums">
-        {from}–{to} / {total}
-      </p>
+    <nav aria-label={t('common.pagination')} className="flex min-h-12 items-center justify-end gap-3 text-sm">
+      <p className="text-muted-foreground tabular-nums">{t('common.page_range', { from, to, total })}</p>
       <div className="flex items-center gap-1">
         <Button
-          variant="outline"
-          size="icon-lg"
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground"
+          aria-label={t('common.previous_page')}
           disabled={disabled || page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
           <ChevronLeft className="size-4" />
         </Button>
-        <span className="px-2 text-sm tabular-nums text-muted-foreground">
-          {page} / {totalPages}
-        </span>
         <Button
-          variant="outline"
-          size="icon-lg"
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground"
+          aria-label={t('common.next_page')}
           disabled={disabled || page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
           <ChevronRight className="size-4" />
         </Button>
       </div>
-    </div>
+    </nav>
   );
 }

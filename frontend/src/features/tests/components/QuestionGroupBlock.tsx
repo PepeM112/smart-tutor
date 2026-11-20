@@ -101,9 +101,9 @@ export function QuestionGroupBlock({ data, onChange, onRemove, index, selected, 
         <div className="px-6 pb-4 sm:px-8">
           {isVocab ? (
             <table className="w-full text-[0.8rem]">
-              <tbody>
+              <tbody className="divide-y divide-border/50">
                 {data.rows.map((row, i) => (
-                  <tr key={i} className="border-b border-border/50 last:border-0">
+                  <tr key={i}>
                     <td className="py-1.5 pr-4 font-medium">
                       {row.prompt || <span className="text-muted-foreground italic">—</span>}
                     </td>
@@ -172,9 +172,9 @@ export function QuestionGroupBlock({ data, onChange, onRemove, index, selected, 
 
       {isVocab ? (
         <table className="w-full">
-          <tbody>
+          <tbody className="divide-y divide-border/50">
             {data.rows.map((row, i) => (
-              <tr key={i} className="border-b border-border/50 last:border-0">
+              <tr key={i}>
                 <td className="py-1.5 pr-2 w-1/2">
                   <Input
                     placeholder={t('test_editor.prompt')}

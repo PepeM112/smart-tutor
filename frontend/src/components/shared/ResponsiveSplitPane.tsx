@@ -4,7 +4,6 @@ import { type ReactNode, useState } from 'react';
 
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { pageBleed } from '@/lib/pageBleed';
 import { cn } from '@/lib/utils';
 
 import { SplitPane, type SplitPaneProps } from './SplitPane';
@@ -31,10 +30,8 @@ const DRAWER_HEIGHT_CLASS = 'max-h-[75dvh]';
  * `side` is the right pane on desktop and the drawer content on mobile;
  * `null` hides both. The parent must give a definite height, as for `SplitPane`.
  *
- * Known trade-off: `main` is at a different place in the tree on desktop and on mobile, so React
- * mounts it again when the window crosses `lg` (its local state is lost). A single tree would need
- * `SplitPane` to render a drawer layout too. That is a large change for a rare event (resize across
- * `lg`, rotate a tablet), so state that must survive it belongs in the parent, a store or the URL.
+ * `main` keeps one place in the tree: below `lg` the same `SplitPane` renders with no side pane (the drawer
+ * shows `side` instead), so the local state of `main` survives a resize across `lg`.
  */
 export function ResponsiveSplitPane({
   onSideClose,
@@ -44,29 +41,25 @@ export function ResponsiveSplitPane({
   ...splitPaneProps
 }: ResponsiveSplitPaneProps) {
   const { isDesktop } = useBreakpoint();
-  const { main, side } = splitPaneProps;
+  const { side, mainClassName } = splitPaneProps;
   // The parent sets `side` to null when the drawer closes. The drawer needs the content during the exit animation.
   const drawerSide = useLastSide(side);
 
-  if (isDesktop) return <SplitPane {...splitPaneProps} />;
-
   return (
     <>
-      <div
-        className={cn(
-          'min-h-0 flex-1 overflow-y-auto',
-          // No side pane on mobile (it is a drawer), so the right space is always padding.
-          splitPaneProps.bleed && pageBleed.all,
-          mobileMainClassName
-        )}
-      >
-        {main}
-      </div>
-      <Drawer open={!!side} onOpenChange={open => !open && onSideClose()}>
-        <DrawerContent className={DRAWER_HEIGHT_CLASS} title={drawerTitle}>
-          {insetDrawerBody ? <DrawerBody>{drawerSide}</DrawerBody> : drawerSide}
-        </DrawerContent>
-      </Drawer>
+      <SplitPane
+        {...splitPaneProps}
+        side={isDesktop ? side : null}
+        // No side pane on mobile (it is a drawer), so the right space is always padding.
+        mainClassName={cn(mainClassName, !isDesktop && mobileMainClassName)}
+      />
+      {!isDesktop && (
+        <Drawer open={!!side} onOpenChange={open => !open && onSideClose()}>
+          <DrawerContent className={DRAWER_HEIGHT_CLASS} title={drawerTitle}>
+            {insetDrawerBody ? <DrawerBody>{drawerSide}</DrawerBody> : drawerSide}
+          </DrawerContent>
+        </Drawer>
+      )}
     </>
   );
 }

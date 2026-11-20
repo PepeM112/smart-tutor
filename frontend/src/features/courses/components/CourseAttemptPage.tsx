@@ -178,6 +178,7 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
       isLoading={isWaiting && !attempt}
       isError={isError && !startRefused}
       errorMessage={t('tests.failed_to_load')}
+      className="h-full"
     >
       {!attempt && <AttemptStartCard item={item} isStarting={isStarting} onStart={() => setIsStartRequested(true)} />}
       {attempt && (

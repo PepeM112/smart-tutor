@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-import { expectToast, openClassroom, reseedCourses, test } from './helpers';
+import { classroomTab, expectToast, openClassroom, reseedCourses, test } from './helpers';
 import { authFile } from './users';
 
 const CLASSROOM = 'Biology 101';
@@ -15,7 +15,7 @@ let resultUrl = '';
 
 async function openGrades(page: Page): Promise<void> {
   await openClassroom(page, CLASSROOM);
-  await page.getByRole('tab', { name: 'Grades' }).click();
+  await classroomTab(page, 'Grades').click();
   await expect(page.getByTestId('gradebook')).toBeVisible();
 }
 
@@ -30,7 +30,10 @@ test('C10: the gradebook shows the best score and opens the result', async ({ pa
   // No override yet: no marker.
   await expect(row.getByLabel('Graded by a teacher')).toHaveCount(0);
 
-  await row.getByRole('link', { name: /50%/ }).click();
+  // The cell is a real link: it can open in a new tab.
+  const resultLink = row.getByRole('link', { name: /50%/ });
+  await expect(resultLink).toHaveAttribute('href', /^\/history\/[^?]+\?from=/);
+  await resultLink.click();
   await expect(page).toHaveURL(/\/history\/.+/);
   resultUrl = page.url();
   // R15: the teacher sees whose result it is.
@@ -76,7 +79,8 @@ test('C11: the student sees "Graded by your teacher" and cannot override', async
   await expect(student.getByRole('button', { name: 'Override grade' })).toHaveCount(0);
   await expect(student.getByRole('button', { name: 'Edit grade' })).toHaveCount(0);
   // R15: the student gets no name line on a result.
-  await expect(student.getByRole('heading', { level: 1 }).first()).toBeVisible();
+  // The header owns the only h1: the score banner title is an h2.
+  await expect(student.getByRole('heading', { level: 1 })).toHaveCount(1);
   await expect(student.getByTestId('result-student')).toHaveCount(0);
 });
 
@@ -87,7 +91,10 @@ test('R17: a passed cell has no Remove completion button', async ({ page }) => {
     .getByRole('row')
     .filter({ hasText: /viewer/i });
   await expect(row).toContainText('Passed');
-  await expect(row.getByRole('button', { name: 'Remove completion' })).toHaveCount(0);
+  const cell = row.getByRole('cell').filter({ has: page.getByRole('link', { name: /100%/ }) });
+  await expect(cell.getByRole('link')).toHaveAttribute('href', /^\/history\//);
+  // No completion to remove: the cell has no menu at all.
+  await expect(cell.getByRole('button', { name: 'More actions' })).toHaveCount(0);
 });
 
 test('R17: a lower grade keeps the completion, and the teacher removes it after a confirm', async ({ page }) => {
@@ -106,12 +113,16 @@ test('R17: a lower grade keeps the completion, and the teacher removes it after 
   // The score is 50% again, but the pass stays (progress is sticky): the cell still says Passed.
   await expect(row).toContainText('50%');
   await expect(row).toContainText('Passed');
-  const remove = row.getByRole('button', { name: 'Remove completion' });
+  const cell = row.getByRole('cell').filter({ has: page.getByRole('link', { name: /50%/ }) });
+  const cellMenu = cell.getByRole('button', { name: 'More actions' });
+  const remove = page.getByRole('menuitem', { name: 'Remove completion' });
+  await cellMenu.click();
   await expect(remove).toBeVisible();
 
-  // Cancel keeps the button.
+  // Cancel keeps the completion: the menu still offers it.
   await remove.click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
+  await cellMenu.click();
   await expect(remove).toBeVisible();
 
   const removed = page.waitForResponse(
@@ -122,6 +133,8 @@ test('R17: a lower grade keeps the completion, and the teacher removes it after 
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove completion' }).click();
   expect((await removed).status()).toBe(204);
   await expectToast(page, 'Completion removed');
-  await expect(row.getByRole('button', { name: 'Remove completion' })).toHaveCount(0);
   await expect(row).toContainText('Failed');
+  // The cell has no completion left to remove: it keeps the result link and loses its menu.
+  await expect(cell.getByRole('link')).toHaveAttribute('href', /^\/history\//);
+  await expect(cellMenu).toHaveCount(0);
 });

@@ -21,8 +21,8 @@ export function JoinByCodeDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="lg" variant="outline" icon={KeyRound}>
-          {t('courses.join_with_code')}
+        <Button variant="outline" icon={KeyRound} aria-label={t('courses.join_with_code')}>
+          <span className="hidden sm:inline">{t('courses.join_with_code')}</span>
         </Button>
       </DialogTrigger>
       {open && <JoinByCodeForm onClose={() => setOpen(false)} />}

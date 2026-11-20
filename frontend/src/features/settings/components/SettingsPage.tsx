@@ -142,7 +142,7 @@ export function SettingsPage() {
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end border-t border-border mt-8 pt-6">
+      <div className="mt-8 flex justify-end rounded-xl bg-muted/50 p-4">
         <Button onClick={() => saveSettings()} disabled={!dirty || isSaving} size="lg">
           {isSaving ? t('common.saving') : t('common.save')}
         </Button>

@@ -83,7 +83,7 @@ export function GenerateNoteDialog({ compact = false, folderId }: GenerateNoteDi
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          size={compact ? 'icon-lg' : 'lg'}
+          size={compact ? 'icon' : 'default'}
           icon={Sparkles}
           disabled={!aiAvailable}
           tooltip={

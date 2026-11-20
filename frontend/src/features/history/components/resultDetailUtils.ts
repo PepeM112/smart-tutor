@@ -10,6 +10,7 @@ import {
   type TestRead,
   type TestReadStripped,
 } from '@/client';
+import { questionPoints } from '@/features/tests/utils/points';
 import { isMCContent, isSimpleContent, parseMcAnswer } from '@/features/tests/utils/questionContent';
 
 /**
@@ -61,7 +62,7 @@ export function effectiveStatus(answer?: AnswerRead): AnswerStatus | null {
 /** The score that counts for the answer: the teacher score if there is one, else the AI score. */
 export function computeQuestionScore(answer?: AnswerRead, question?: ResultQuestion): QuestionScore | null {
   if (answer?.overrideScore != null) {
-    const maxPoints = question?.points ?? 1;
+    const maxPoints = questionPoints(question);
     const pct = maxPoints > 0 ? (answer.overrideScore / maxPoints) * 100 : 0;
     return { label: `${answer.overrideScore.toFixed(2)}/${maxPoints.toFixed(2)}`, pct };
   }
@@ -72,7 +73,7 @@ export function computeQuestionScore(answer?: AnswerRead, question?: ResultQuest
 export function computeAiScore(answer?: AnswerRead, question?: ResultQuestion): QuestionScore | null {
   if (!answer || answer.status === AnswerStatus.PENDING) return null;
 
-  const maxPoints = question?.points ?? 1;
+  const maxPoints = questionPoints(question);
 
   if (answer.status === AnswerStatus.FAILED) {
     // -1 sentinel — callers branch on answer.status === FAILED before reading pct

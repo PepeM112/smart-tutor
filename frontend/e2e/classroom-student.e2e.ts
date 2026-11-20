@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-import { openClassroom, reseedCourses, test } from './helpers';
+import { openClassroom, openCourseItem, reseedCourses, test } from './helpers';
 import { authFile } from './users';
 
 const CLASSROOM = 'Biology 101';
@@ -49,7 +49,7 @@ test('C4: marking a note of the classroom course done shows progress on the COUR
   await expect(courseRow.getByTestId('course-progress')).toContainText('0%');
 
   await courseRow.getByRole('link', { name: /Cell Lab/ }).click();
-  await page.getByRole('button', { name: /Lab safety/ }).click();
+  await openCourseItem(page, /Lab safety/);
   await page.getByRole('button', { name: 'Mark complete' }).click();
   await expect(page.getByRole('button', { name: 'Mark as not done' })).toBeVisible();
 

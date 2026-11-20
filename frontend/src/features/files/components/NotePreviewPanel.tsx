@@ -7,7 +7,7 @@ import { type ReactNode } from 'react';
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
 import { QueryState } from '@/components/shared/QueryState';
 import { FavoriteButton } from '@/features/notes/components/FavoriteButton';
-import { RichNoteEditor } from '@/features/notes/editor/RichNoteEditor';
+import { LazyRichNoteEditor } from '@/features/notes/editor/LazyRichNoteEditor';
 import { sdk } from '@/lib/apiClient';
 import { displayTitle } from '@/lib/displayTitle';
 import { noteHref } from '@/lib/routes';
@@ -56,7 +56,7 @@ export function NotePreviewPanel({ noteId, onClose, extraActions }: Props) {
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
         {/* Key remounts the editor when a different note or version is shown. */}
         {note && (
-          <RichNoteEditor
+          <LazyRichNoteEditor
             key={`${note.id}-${String(note.updatedAt)}`}
             editable={false}
             initialContent={note.content ?? ''}

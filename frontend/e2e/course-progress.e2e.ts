@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { openCourse, reseedCourses } from './helpers';
+import { openCourse, openCourseItem, reseedCourses } from './helpers';
 import { authFile } from './users';
 
 const COURSE = 'Progress Course';
@@ -14,9 +14,7 @@ test.use({ storageState: authFile('viewer') });
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(reseedCourses);
 
-function noteRow(page: Page) {
-  return page.getByRole('button', { name: /Intro note/ }).first();
-}
+const QUIZ = /Unit quiz/;
 
 function attemptInfo(page: Page) {
   return page.getByTestId('test-attempt-info');
@@ -28,20 +26,21 @@ function attemptInfo(page: Page) {
  */
 async function openAttempt(page: Page, label: 'Start' | 'Resume'): Promise<void> {
   await openCourse(page, COURSE);
+  await openCourseItem(page, QUIZ);
   await page.getByRole('link', { name: label, exact: true }).click();
   if (label === 'Start') await page.getByRole('button', { name: 'Start test' }).click();
-  await expect(page.getByTestId('exam-countdown')).toBeVisible();
+  await expect(page.getByTestId('exam-countdown').filter({ visible: true })).toBeVisible();
 }
 
 /** The variant prompt that the attempt shows: "alpha" or "beta". */
 async function variantOf(page: Page): Promise<Variant> {
-  const isAlpha = await page.getByText('Variant A: type alpha').isVisible();
+  const isAlpha = await page.getByRole('heading', { name: 'Variant A: type alpha' }).isVisible();
   return isAlpha ? 'alpha' : 'beta';
 }
 
 async function submitExam(page: Page, answer: string): Promise<void> {
   await page.getByPlaceholder('Type your answer').first().fill(answer);
-  await page.getByRole('button', { name: 'Submit Exam' }).click();
+  await page.getByRole('button', { name: 'Submit exam' }).filter({ visible: true }).first().click();
   await expect(page).toHaveURL(/\/history\/.+/);
 }
 
@@ -50,11 +49,13 @@ test('the course starts at 0 % and the viewer marks a note complete and not done
   await expect(page.getByTestId('course-progress').first()).toContainText('0%');
   await expect(page.getByTestId('item-progress').first()).toHaveAttribute('data-done', 'false');
 
-  await noteRow(page).click();
+  // The "Long note" is taller than the screen, so reading it does not mark it done by itself. The short
+  // "Intro note" fits the screen: its end counts as reached as soon as the editor is ready (see the F2 test).
+  await openCourseItem(page, /Long note/);
   await page.getByRole('button', { name: 'Mark complete' }).click();
   await expect(page.getByRole('button', { name: 'Mark as not done' })).toBeVisible();
   await expect(page.getByTestId('course-progress').first()).toContainText('33%');
-  await expect(page.getByTestId('item-progress').first()).toHaveAttribute('data-done', 'true');
+  await expect(page.getByTestId('item-progress').nth(1)).toHaveAttribute('data-done', 'true');
 
   await page.getByRole('button', { name: 'Mark as not done' }).click();
   await expect(page.getByRole('button', { name: 'Mark complete' })).toBeVisible();
@@ -69,6 +70,7 @@ test('the test row shows the policy before the first attempt', async ({ page }) 
 
 test('opening the attempt page starts nothing until the student presses Start test', async ({ page }) => {
   await openCourse(page, COURSE);
+  await openCourseItem(page, QUIZ);
   await page.getByRole('link', { name: 'Start', exact: true }).click();
 
   const card = page.getByTestId('attempt-start-card');
@@ -94,7 +96,7 @@ test('an attempt keeps its answers after a reload, then submit opens the result'
   await input.fill('draft answer');
 
   await page.reload();
-  await expect(page.getByTestId('exam-countdown')).toBeVisible();
+  await expect(page.getByTestId('exam-countdown').filter({ visible: true })).toBeVisible();
   await expect(page.getByPlaceholder('Type your answer').first()).toHaveValue('draft answer');
   expect(await variantOf(page)).toBe(first);
 
@@ -107,15 +109,17 @@ test('attempts left goes down and the second attempt gets the other variant', as
   await expect(attemptInfo(page)).toContainText('1 of 2 attempts left');
   await expect(attemptInfo(page)).toContainText('Best: 100%');
 
+  await openCourseItem(page, QUIZ);
   await page.getByRole('link', { name: 'Start', exact: true }).click();
   await page.getByRole('button', { name: 'Start test' }).click();
-  await expect(page.getByTestId('exam-countdown')).toBeVisible();
+  await expect(page.getByTestId('exam-countdown').filter({ visible: true })).toBeVisible();
   const second = await variantOf(page);
   expect(second).not.toBe(firstVariant);
   await submitExam(page, second);
 
   await openCourse(page, COURSE);
   await expect(attemptInfo(page)).toContainText('0 of 2 attempts left');
+  await openCourseItem(page, QUIZ);
   await expect(page.getByRole('button', { name: 'No attempts left' })).toBeDisabled();
   await expect(page.getByRole('link', { name: 'Start', exact: true })).toHaveCount(0);
 });
@@ -127,16 +131,16 @@ test('Continue skips a test that is done and opens the first item that is not do
 
   await page.getByRole('button', { name: 'Continue' }).click();
 
-  // No attempt page, no new attempt: the note opens in the preview.
+  // No attempt page, no new attempt: the first note that is not done opens. The short note can show as done
+  // at once (its end is in view), so the check is the note itself, not its button.
   await expect(page).not.toHaveURL(/\/tests\//);
-  await expect(page.getByRole('button', { name: 'Mark complete' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Intro note', level: 2 })).toBeVisible();
 });
 
 // The seed has a "Long note" (about 40 parts) in "Progress Course", taller than the screen.
 test('the full note page does not mark the note done before the student scrolls (F2)', async ({ page }) => {
   await openCourse(page, COURSE);
-  await page.getByRole('button', { name: /Long note/ }).click();
-  await page.getByRole('link', { name: 'Open' }).click();
+  await openCourseItem(page, /Long note/);
 
   const marker = page.getByRole('button', { name: 'Mark complete' });
   await expect(marker).toBeVisible();

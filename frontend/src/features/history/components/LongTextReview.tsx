@@ -1,40 +1,74 @@
 'use client';
 
-import { Check, Loader2, RotateCcw, Scale, Send, ShieldCheck, Undo2, X } from 'lucide-react';
+import { Check, Clock, Loader2, RotateCcw, Scale, Send, ShieldCheck, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { AnswerStatus, type AnswerRead, type RubricResultItem } from '@/client';
+import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Tooltip } from '@/components/ui/tooltip';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { cn } from '@/lib/utils';
 
 import { useResultReview } from '../context/resultReviewContext';
 import { useChallengeMode } from '../hooks/useChallengeMode';
 
-import { effectiveMet, isOverridden } from './resultDetailUtils';
+import { computeAiScore, effectiveMet, isOverridden, type ResultQuestion } from './resultDetailUtils';
 
-export function LongTextReview({ answer }: { answer?: AnswerRead }) {
+interface LongTextReviewProps {
+  question: ResultQuestion;
+  answer?: AnswerRead;
+}
+
+export function LongTextReview({ question, answer }: LongTextReviewProps) {
   const t = useTranslations();
+  const { canOverride } = useResultReview();
 
   if (!answer) return null;
 
+  const hasTeacherGrade = isOverridden(answer);
+  // With a teacher grade (or for a teacher) the grade panel already shows the AI grade. A failed grading has none.
+  const aiScore =
+    canOverride || hasTeacherGrade || answer.status === AnswerStatus.FAILED ? null : computeAiScore(answer, question);
+
   return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-sm text-muted-foreground mb-1">{t('challenge.your_answer')}</p>
-        <p className="text-sm whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.userAnswer}</p>
+    <div className="space-y-6">
+      <div className="space-y-1.5">
+        <p className="text-sm text-muted-foreground">{t('challenge.your_answer')}</p>
+        <p className="whitespace-pre-wrap rounded-lg bg-muted p-3 text-sm">{answer.userAnswer}</p>
       </div>
-      {answer.status === AnswerStatus.FAILED && !isOverridden(answer) ? (
-        <p className="text-sm text-destructive">{t('challenge.grading_failed')}</p>
-      ) : (
-        answer.rubricResult &&
-        answer.rubricResult.length > 0 && (
-          <RubricBreakdown items={answer.rubricResult} answerId={answer.id} isOverridden={isOverridden(answer)} />
-        )
+      {aiScore && (
+        <p className="flex items-baseline justify-between gap-2 text-sm">
+          <span className="font-medium">{t('history.ai_grade')}</span>
+          <span className="text-muted-foreground tabular-nums">{aiScore.label}</span>
+        </p>
       )}
+      <GradingBody answer={answer} hasTeacherGrade={hasTeacherGrade} />
     </div>
   );
+}
+
+interface GradingBodyProps {
+  answer: AnswerRead;
+  hasTeacherGrade: boolean;
+}
+
+/** A teacher grade replaces the AI state, so a failed or pending AI grading shows only without one. */
+function GradingBody({ answer, hasTeacherGrade }: GradingBodyProps) {
+  const t = useTranslations();
+
+  if (!hasTeacherGrade && answer.status === AnswerStatus.FAILED) {
+    return <p className="text-sm text-destructive">{t('challenge.grading_failed')}</p>;
+  }
+  if (!hasTeacherGrade && answer.status === AnswerStatus.PENDING) {
+    return (
+      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Clock aria-hidden className="size-4 shrink-0" />
+        {t('history.pending_detail')}
+      </p>
+    );
+  }
+  if (!answer.rubricResult?.length) return null;
+  return <RubricBreakdown items={answer.rubricResult} answerId={answer.id} isOverridden={hasTeacherGrade} />;
 }
 
 function RubricBreakdown({
@@ -68,77 +102,14 @@ function RubricBreakdown({
   // A teacher graded the answer: it cannot be challenged. A teacher looking at it does not challenge.
   const canStartChallenge = canChallenge && !hasTeacherGrade;
   const effectiveMetCount = items.filter(effectiveMet).length;
-  const iconBtnClass = 'inline-flex items-center justify-center size-7 rounded-md transition-colors';
+  const challengeHint = getChallengeHint({ aiAvailable, hasTeacherGrade, canChallenge, t });
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-muted-foreground">
-          {t('challenge.rubric', { met: `${effectiveMetCount}/${items.length}` })}
-        </p>
-        <div className="flex items-center gap-1">
-          {isChallengeMode && (
-            <div className="flex items-center gap-1 animate-in fade-in-0 slide-in-from-right-3 duration-200">
-              <Tooltip content={t('common.cancel')}>
-                <button
-                  className={cn(iconBtnClass, 'text-muted-foreground hover:bg-muted')}
-                  onClick={exitChallengeMode}
-                >
-                  <Undo2 className="size-4" />
-                </button>
-              </Tooltip>
-              <Tooltip
-                content={
-                  canSubmit
-                    ? `${t('challenge.submit_challenge')} (${selectedCriteria.size})`
-                    : t('challenge.select_criteria_first')
-                }
-              >
-                <button
-                  className={cn(
-                    iconBtnClass,
-                    'bg-feedback-partial/15 text-feedback-partial hover:bg-feedback-partial/25',
-                    (!canSubmit || isSubmitting) && 'opacity-40 pointer-events-none'
-                  )}
-                  onClick={() => submitChallenge()}
-                  disabled={!canSubmit || isSubmitting}
-                >
-                  {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                </button>
-              </Tooltip>
-            </div>
-          )}
-          {!canOverride && !isChallengeMode && !hasPendingChallenge && (
-            <div className="animate-in fade-in-0 slide-in-from-left-3 duration-200">
-              <Tooltip
-                content={
-                  !aiAvailable
-                    ? t('settings.ai_not_configured')
-                    : hasTeacherGrade
-                      ? t('challenge.graded_by_teacher')
-                      : canChallenge
-                        ? t('challenge.challenge_grade')
-                        : t('challenge.all_criteria_reviewed')
-                }
-              >
-                <button
-                  className={cn(
-                    iconBtnClass,
-                    canStartChallenge && aiAvailable
-                      ? 'bg-feedback-partial/15 text-feedback-partial hover:bg-feedback-partial/25'
-                      : 'text-muted-foreground/40 cursor-not-allowed'
-                  )}
-                  onClick={canStartChallenge && aiAvailable ? enterChallengeMode : undefined}
-                  disabled={!canStartChallenge || !aiAvailable}
-                >
-                  <Scale className="size-4" />
-                </button>
-              </Tooltip>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="space-y-1.5">
+    <div className="space-y-3">
+      <p className="text-sm font-medium text-muted-foreground">
+        {t('challenge.rubric', { met: `${effectiveMetCount}/${items.length}` })}
+      </p>
+      <ul className="divide-y divide-hairline overflow-hidden rounded-lg border border-border">
         {items.map((item, idx) => (
           <CriterionCard
             key={idx}
@@ -150,10 +121,60 @@ function RubricBreakdown({
             onArgumentChange={value => updateArgument(idx, value)}
           />
         ))}
-      </div>
+      </ul>
+      {isChallengeMode ? (
+        <div className="flex items-center gap-2 animate-in fade-in-0 duration-200">
+          <Button type="button" variant="ghost" onClick={exitChallengeMode}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            icon={Send}
+            loading={isSubmitting}
+            disabled={!canSubmit}
+            tooltip={canSubmit ? undefined : t('challenge.select_criteria_first')}
+            onClick={() => submitChallenge()}
+          >
+            {t('challenge.submit_challenge', { count: selectedCriteria.size })}
+          </Button>
+        </div>
+      ) : (
+        // A teacher looking at the answer does not challenge it. A pending challenge is already in progress.
+        !canOverride &&
+        !hasPendingChallenge && (
+          <Button
+            type="button"
+            variant="outline"
+            icon={Scale}
+            disabled={!canStartChallenge || !aiAvailable}
+            tooltip={challengeHint}
+            onClick={enterChallengeMode}
+          >
+            {t('challenge.challenge_grade')}
+          </Button>
+        )
+      )}
     </div>
   );
 }
+
+interface ChallengeHintInput {
+  aiAvailable: boolean;
+  hasTeacherGrade: boolean;
+  canChallenge: boolean;
+  t: ReturnType<typeof useTranslations>;
+}
+
+/** Why the challenge button is disabled. `undefined` means it is not. */
+function getChallengeHint({ aiAvailable, hasTeacherGrade, canChallenge, t }: ChallengeHintInput): string | undefined {
+  if (!aiAvailable) return t('settings.ai_not_configured');
+  if (hasTeacherGrade) return t('challenge.graded_by_teacher');
+  if (!canChallenge) return t('challenge.all_criteria_reviewed');
+  return undefined;
+}
+
+const CRITERION_ROW_CLASS = 'flex w-full items-start gap-3 px-3 py-2.5 text-left';
 
 function CriterionCard({
   item,
@@ -182,49 +203,70 @@ function CriterionCard({
   const isChallengeable = isChallengeMode && !item.met && !isChallenged;
   const isDimmed = isChallengeMode && (item.met || isChallenged);
 
-  return (
-    <div
-      className={cn(
-        'rounded-md border-l-[3px] px-3 py-2 transition-colors',
-        isMet ? 'border-l-feedback-correct bg-feedback-correct-bg' : 'border-l-destructive bg-feedback-wrong-bg',
-        isSelected && 'border-l-feedback-partial bg-feedback-partial-bg',
-        isPending && 'border-l-feedback-partial animate-pulse',
-        isDimmed && 'opacity-40',
-        isChallengeable && 'cursor-pointer hover:ring-1 hover:ring-feedback-partial/60'
-      )}
-      onClick={isChallengeable ? onToggle : undefined}
-    >
-      <div className="flex items-start gap-2">
-        <CriterionIcon
-          isMet={isMet}
-          isPending={isPending}
-          isSelected={isSelected}
-          isChallengeMode={isChallengeMode}
-          isChallengeable={isChallengeable}
-        />
-        <div className="space-y-0.5 min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm">
-              {item.point}
-              <span className="text-muted-foreground ml-1.5 tabular-nums">({item.weight.toFixed(2)})</span>
-            </p>
-            {isOverturned && <ChallengeVerdict variant="overturned" />}
-            {isPending && <ChallengeVerdict variant="pending" />}
-          </div>
-          {item.reason && <p className="text-xs text-muted-foreground italic">{item.reason}</p>}
-          {(isOverturned || isUpheld) && cr?.reason && (
-            <>
-              <div className="border-t border-border/60 my-1" />
-              <div className="flex items-start gap-1.5">
-                <Scale className="size-3 text-feedback-partial shrink-0 mt-0.5" />
-                <p className="text-xs text-feedback-partial italic">{cr.reason}</p>
-              </div>
-            </>
+  const rowContent = (
+    <>
+      <span className="block min-w-0 flex-1 space-y-0.5">
+        <span className="block text-sm">
+          {item.point}
+          <span className="ml-1.5 text-muted-foreground tabular-nums">({item.weight.toFixed(2)})</span>
+        </span>
+        {item.reason && <span className="block text-xs text-muted-foreground italic">{item.reason}</span>}
+        {(isOverturned || isUpheld) && cr?.reason && (
+          <span className="mt-1 flex items-start gap-1.5 text-xs text-feedback-partial italic">
+            <Scale className="mt-0.5 size-3 shrink-0" aria-hidden />
+            {cr.reason}
+          </span>
+        )}
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-1">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 text-xs font-medium',
+            isMet ? 'text-feedback-correct' : 'text-destructive'
           )}
-        </div>
-      </div>
+        >
+          <CriterionIcon
+            isMet={isMet}
+            isPending={isPending}
+            isSelected={isSelected}
+            isChallengeMode={isChallengeMode}
+            isChallengeable={isChallengeable}
+          />
+          {isMet ? t('challenge.criterion_met') : t('challenge.criterion_not_met')}
+        </span>
+        {isOverturned && <ChallengeVerdict variant="overturned" />}
+        {isPending && <ChallengeVerdict variant="pending" />}
+      </span>
+    </>
+  );
+
+  return (
+    <li
+      className={cn(
+        'transition-colors',
+        isSelected && 'bg-feedback-partial-bg ring-1 ring-inset ring-feedback-partial',
+        isPending && 'animate-pulse',
+        isDimmed && 'opacity-40'
+      )}
+    >
+      {/* A button, so the row works with the keyboard and a screen reader. Its content is phrasing only. */}
+      {isChallengeable ? (
+        <button
+          type="button"
+          aria-pressed={isSelected}
+          onClick={onToggle}
+          className={cn(
+            CRITERION_ROW_CLASS,
+            'cursor-pointer outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50'
+          )}
+        >
+          {rowContent}
+        </button>
+      ) : (
+        <div className={CRITERION_ROW_CLASS}>{rowContent}</div>
+      )}
       {isSelected && (
-        <div className="mt-4 ml-6" onClick={e => e.stopPropagation()}>
+        <div className="px-3 pb-2.5">
           <Textarea
             placeholder={t('challenge.explain_criterion')}
             value={argument}
@@ -232,14 +274,14 @@ function CriterionCard({
             rows={2}
             maxLength={500}
             autoFocus
-            className="text-sm bg-background"
+            className="bg-background text-sm"
           />
-          <p className="text-[0.65rem] text-muted-foreground/60 text-right mt-0.5 tabular-nums">
+          <p className="mt-0.5 text-right text-[0.65rem] text-muted-foreground/60 tabular-nums">
             {argument.length}/500
           </p>
         </div>
       )}
-    </div>
+    </li>
   );
 }
 
@@ -257,18 +299,18 @@ function CriterionIcon({
   isChallengeable: boolean;
 }) {
   if (isPending) {
-    return <Loader2 className="size-4 text-feedback-partial shrink-0 mt-0.5 animate-spin" />;
+    return <Loader2 aria-hidden className="size-3.5 shrink-0 animate-spin text-feedback-partial" />;
   }
   if (isSelected) {
-    return <RotateCcw className="size-4 text-feedback-partial shrink-0 mt-0.5" />;
+    return <RotateCcw aria-hidden className="size-3.5 shrink-0 text-feedback-partial" />;
   }
   if (isChallengeMode && isChallengeable) {
-    return <Scale className="size-4 text-feedback-partial shrink-0 mt-0.5" />;
+    return <Scale aria-hidden className="size-3.5 shrink-0 text-feedback-partial" />;
   }
   if (isMet) {
-    return <Check className="size-4 text-feedback-correct shrink-0 mt-0.5" />;
+    return <Check aria-hidden className="size-3.5 shrink-0" />;
   }
-  return <X className="size-4 text-destructive shrink-0 mt-0.5" />;
+  return <X aria-hidden className="size-3.5 shrink-0" />;
 }
 
 function ChallengeVerdict({ variant }: { variant: 'overturned' | 'pending' }) {

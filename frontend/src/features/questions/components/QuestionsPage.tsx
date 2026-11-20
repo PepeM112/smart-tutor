@@ -8,11 +8,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { QuestionType } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/FilterPopover';
-import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { BulkBar } from '@/components/shared/BulkBar';
+import { ListToolbar } from '@/components/shared/ListToolbar';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
-import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
@@ -20,14 +19,13 @@ import { formatQuestionsList } from '@/features/assist/utils/formatPageData';
 import { useAllTests } from '@/features/tests/hooks/useAllTests';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
-import { useRowPreview } from '@/hooks/useRowPreview';
+import { usePageActions } from '@/hooks/usePageActions';
 import { useUrlSort } from '@/hooks/useUrlSort';
 import { sdk } from '@/lib/apiClient';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
 import { AssignDialog } from './AssignDialog';
-import { QuestionPreviewPanel } from './QuestionPreviewPanel';
 import { QuestionsTable } from './QuestionsTable';
 
 const PER_PAGE = 25;
@@ -47,6 +45,17 @@ export function QuestionsPage() {
   const t = useTranslations();
   const queryClient = useQueryClient();
   useBreadcrumb(t('questions.title'));
+  const headerActions = useMemo(
+    () => (
+      <Button icon={Plus} asChild>
+        <Link href={Routes.QUESTION_NEW} aria-label={t('questions.new_question')}>
+          <span className="hidden sm:inline">{t('questions.new_question')}</span>
+        </Link>
+      </Button>
+    ),
+    [t]
+  );
+  usePageActions(headerActions);
 
   const [page, setPage] = useState(1);
   const resetPage = useCallback(() => setPage(1), []);
@@ -140,17 +149,11 @@ export function QuestionsPage() {
           sort_order: sortOrder,
         },
       }),
+    placeholderData: previous => previous,
   });
 
   const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
-  // The pane closes when the view changes (page, sort, filters) or its question leaves the page.
-  const {
-    previewItem: previewQuestion,
-    previewId,
-    openPreview,
-    closePreview,
-  } = useRowPreview(items, JSON.stringify(listParams));
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
@@ -170,52 +173,40 @@ export function QuestionsPage() {
   });
 
   return (
-    <div className="flex h-full flex-col gap-6">
-      <ListPageHeader
-        filters={
-          <FilterPopover
-            filterConfig={filterConfig}
-            filters={filters}
-            onFilterChange={setFilter}
-            onClear={clearFilters}
-          />
-        }
-        actions={
-          <Button size="lg" icon={Plus} asChild>
-            <Link href={Routes.QUESTION_NEW}>{t('questions.new_question')}</Link>
+    <div className="flex flex-col">
+      {selectedIds.size > 0 ? (
+        <BulkBar
+          count={selectedIds.size}
+          countLabel={t('questions.selected_count', { count: selectedIds.size })}
+          onClear={() => setSelectedIds(new Set())}
+        >
+          <Button variant="outline" icon={Send} onClick={() => setBulkAssignOpen(true)}>
+            {t('questions.bulk_assign')}
           </Button>
-        }
-      />
-
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg bg-muted px-4 py-2">
-          <span className="text-sm font-medium">{t('questions.selected_count', { count: selectedIds.size })}</span>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" icon={Send} onClick={() => setBulkAssignOpen(true)}>
-              {t('questions.bulk_assign')}
-            </Button>
-            <ConfirmDialog
-              trigger={
-                <Button variant="destructive" size="sm" icon={Trash2} disabled={isBulkDeleting}>
-                  {t('questions.bulk_delete')}
-                </Button>
-              }
-              title={t('questions.bulk_delete')}
-              description={t('questions.bulk_delete_confirm', { count: selectedIds.size })}
-              confirmLabel={t('common.delete')}
-              confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onConfirm={() => bulkDelete([...selectedIds])}
-            />
-          </div>
-        </div>
+          <ConfirmDialog
+            trigger={
+              <Button variant="destructive" icon={Trash2} disabled={isBulkDeleting}>
+                {t('questions.bulk_delete')}
+              </Button>
+            }
+            title={t('questions.bulk_delete')}
+            description={t('questions.bulk_delete_confirm', { count: selectedIds.size })}
+            confirmLabel={t('common.delete')}
+            confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onConfirm={() => bulkDelete([...selectedIds])}
+          />
+        </BulkBar>
+      ) : (
+        <ListToolbar
+          searchPlaceholder={t('questions.search_placeholder')}
+          filterConfig={filterConfig}
+          filters={filters}
+          onFilterChange={setFilter}
+          onClear={clearFilters}
+        />
       )}
 
-      <QueryState
-        className="flex min-h-0 flex-1 flex-col"
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={t('questions.failed_to_load')}
-      >
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('questions.failed_to_load')}>
         {isFilteredEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-muted-foreground">{t('questions.no_results')}</p>
@@ -224,28 +215,16 @@ export function QuestionsPage() {
             </Button>
           </div>
         ) : (
-          <ResponsiveSplitPane
-            storageKey="questions-preview-split-ratio"
-            defaultRatio={0.6}
-            bleed
-            main={
-              <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-                <QuestionsTable
-                  data={items}
-                  sort={sort}
-                  onSort={handleSort}
-                  selectedIds={selectedIds}
-                  onSelectionChange={setSelectedIds}
-                  onPreview={openPreview}
-                  previewId={previewId}
-                />
-                <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-              </div>
-            }
-            side={previewQuestion ? <QuestionPreviewPanel question={previewQuestion} onClose={closePreview} /> : null}
-            onSideClose={closePreview}
-            insetDrawerBody={false}
-          />
+          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+            <QuestionsTable
+              data={items}
+              sort={sort}
+              onSort={handleSort}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+            />
+            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+          </div>
         )}
       </QueryState>
 

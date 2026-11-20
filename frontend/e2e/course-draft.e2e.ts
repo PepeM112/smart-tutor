@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-import { expectToast, openCourse, reseedCourses, test } from './helpers';
+import { expectToast, openCourse, openCourseItem, reseedCourses, test } from './helpers';
 
 const COURSE = 'Spanish Basics';
 
@@ -21,7 +21,7 @@ test('a member sees the published version, not the draft', async ({ pageAs }) =>
 test('a member opens a note in the preview panel', async ({ pageAs }) => {
   const viewer = await pageAs('viewer');
   await openCourse(viewer, COURSE);
-  await viewer.getByRole('button', { name: 'Pronouns' }).click();
+  await openCourseItem(viewer, 'Pronouns');
   await expect(viewer.getByText('nosotros, vosotros')).toBeVisible();
   await expect(viewer.getByText('DRAFT CHANGE')).toHaveCount(0);
 });
@@ -29,7 +29,7 @@ test('a member opens a note in the preview panel', async ({ pageAs }) => {
 test('a member copies the previewed note to the library', async ({ pageAs }) => {
   const viewer = await pageAs('viewer');
   await openCourse(viewer, COURSE);
-  await viewer.getByRole('button', { name: 'Pronouns' }).click();
+  await openCourseItem(viewer, 'Pronouns');
   await viewer.getByRole('button', { name: 'Copy to my library' }).click();
   await expectToast(viewer, 'Copied to your library');
 });
@@ -69,7 +69,8 @@ test('Publish is off until a change, autosave shows Saved, publish reaches membe
   await owner.getByRole('button', { name: 'Add section' }).click();
   expect((await sectionWritten).ok()).toBe(true);
   await expect(owner.getByRole('heading', { name: 'E2E section' })).toBeVisible();
-  await expect(owner.getByText('Saved', { exact: true })).toBeVisible();
+  // The page header and the phone header both show the save state: one is hidden.
+  await expect(owner.getByText('Saved', { exact: true }).filter({ visible: true })).toBeVisible();
   await expect(publish).toBeEnabled();
 
   await publish.click();

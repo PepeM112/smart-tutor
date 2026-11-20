@@ -10,7 +10,7 @@ import { FONT_SIZE_COOKIE, getFontSizeValue } from '@/lib/fontSize';
 import type { FontSizeId } from '@/lib/fontSize';
 import { parseTheme, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/themes';
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 // Titles. Variable font: one file per style covers every weight.
@@ -43,6 +43,11 @@ export const metadata: Metadata = {
     'apple-mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'default',
   },
+};
+
+// `cover` lets the page draw under the notch, so `env(safe-area-inset-*)` returns real values.
+export const viewport: Viewport = {
+  viewportFit: 'cover',
 };
 
 export default async function RootLayout({

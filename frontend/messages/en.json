@@ -51,7 +51,15 @@
     "min": "Min",
     "max": "Max",
     "points_abbr": "{count, plural, =1 {1pt} other {#pts}}",
-    "undo": "Undo"
+    "undo": "Undo",
+    "previous_page": "Previous page",
+    "next_page": "Next page",
+    "pagination": "Pagination",
+    "page_range": "{from}–{to} of {total}",
+    "show_details_for": "Show details for {title}",
+    "hide_details_for": "Hide details for {title}",
+    "bulk_actions": "Bulk actions",
+    "clear_selection": "Clear selection"
   },
   "app": {
     "title": "SmartTutor",
@@ -61,7 +69,6 @@
   "sidebar": {
     "expand": "Expand sidebar",
     "collapse": "Collapse sidebar",
-    "open_menu": "Open menu",
     "learning": "Learning",
     "dashboard": "Dashboard",
     "review_now": "Review Now",
@@ -79,6 +86,19 @@
     "courses": "Courses",
     "classrooms": "Classrooms",
     "spaces": "Spaces"
+  },
+  "outline": {
+    "resize": "Resize outline",
+    "show": "Show outline",
+    "hide": "Hide outline",
+    "contents": "Contents"
+  },
+  "mobile_nav": {
+    "label": "Main navigation",
+    "review": "Review",
+    "more": "More",
+    "account": "Account",
+    "trash_hint": "30 days"
   },
   "auth": {
     "log_in": "Log in",
@@ -206,7 +226,10 @@
     "filter_type": "Type",
     "filter_date": "Date",
     "no_results": "No tests match your filters.",
-    "clear_filters": "Clear filters"
+    "clear_filters": "Clear filters",
+    "first_questions": "First questions",
+    "more_questions": "{count} more",
+    "search_placeholder": "Search tests"
   },
   "questions": {
     "title": "Questions",
@@ -265,11 +288,13 @@
     "explanation_label": "Explanation",
     "explanation_placeholder": "Optional explanation shown after answering",
     "options_label": "Options",
+    "correct_option": "Correct option",
     "accepted_answers": "Accepted answers",
-    "rubric_label": "Rubric"
+    "rubric_label": "Rubric",
+    "search_placeholder": "Search questions"
   },
   "exam": {
-    "submit_exam": "Submit Exam",
+    "submit_exam": "Submit exam",
     "submitting": "Submitting…",
     "score": "Score: {score}%",
     "points": "{earned} / {total} pts",
@@ -282,7 +307,15 @@
     "column_answer": "Answer",
     "column_result": "Result",
     "hint": "Hint: {hint}",
-    "time_left": "Time left"
+    "time_left": "Time left",
+    "under_minute": "Under 1 minute",
+    "submit_short": "Submit",
+    "answered_count": "{answered} of {total} answered",
+    "points_total": "{points} pts",
+    "answered": "Answered",
+    "not_answered": "Not answered",
+    "question_meta": "Question {number} · {type} · {points} pts",
+    "group_label": "Group"
   },
   "notes": {
     "note": "Note",
@@ -531,7 +564,7 @@
   },
   "history": {
     "title": "Test History",
-    "subtitle": "A chronological log of your past sessions.",
+    "search_placeholder": "Search results",
     "test_result": "Test Result",
     "failed_to_load": "Failed to load results. Please try again.",
     "failed_to_load_result": "Failed to load test result. Please try again.",
@@ -582,11 +615,25 @@
     "override_error_range": "The score must be between 0 and {points}.",
     "override_error_challenge_refused": "A teacher graded this answer. It cannot be challenged.",
     "result_student": "Student: {name}",
-    "has_teacher_grades": "Your teacher changed the grade of some answers."
+    "has_teacher_grades": "Your teacher changed the grade of some answers.",
+    "mark_correct": "Correct",
+    "mark_partial": "Partial",
+    "mark_wrong": "Wrong",
+    "mark_pending": "Pending",
+    "mark_failed": "Failed",
+    "summary_correct": "{count} correct",
+    "summary_partial": "{count} partial",
+    "summary_wrong": "{count} wrong",
+    "summary_pending": "{count} pending AI review",
+    "pending_detail": "Waiting for the AI review.",
+    "question_meta": "Question {number} · {type}",
+    "question_navigation": "Question navigation",
+    "previous_question": "Previous",
+    "next_question": "Next"
   },
   "challenge": {
     "challenge_grade": "Challenge grade",
-    "submit_challenge": "Submit challenge",
+    "submit_challenge": "Submit challenge ({count})",
     "select_criteria_first": "Select criteria first",
     "all_criteria_reviewed": "All criteria reviewed",
     "rubric": "Rubric ({met} criteria met)",
@@ -599,7 +646,9 @@
     "challenge_overturned": "Challenge resolved — {count, plural, one {# criterion} other {# criteria}} overturned",
     "challenge_upheld": "Challenge resolved — original grading upheld",
     "grading_failed": "Grading failed. Try submitting the answer again.",
-    "graded_by_teacher": "A teacher graded this answer. It cannot be challenged."
+    "graded_by_teacher": "A teacher graded this answer. It cannot be challenged.",
+    "criterion_met": "Met",
+    "criterion_not_met": "Not met"
   },
   "stats": {
     "title": "AI Usage Stats",
@@ -745,7 +794,12 @@
     "found_in_content": "Found in content",
     "searching_content": "Searching content…",
     "search_content_failed": "Could not search note contents.",
-    "failed_to_export": "Failed to export note"
+    "failed_to_export": "Failed to export note",
+    "show_preview_for": "Show preview of {title}",
+    "hide_preview_for": "Hide preview of {title}",
+    "open_note": "Open note",
+    "indexed_for_ai": "Indexed for Ask AI",
+    "not_indexed_for_ai": "Not indexed yet"
   },
   "trash": {
     "title": "Trash",
@@ -935,6 +989,7 @@
     "progress_percent": "{percent}% complete",
     "progress_items": "{done} of {total} items",
     "continue": "Continue",
+    "next_item": "Next: {title}",
     "item_done": "Done",
     "item_not_done": "Not done",
     "mark_complete": "Mark complete",
@@ -1073,6 +1128,11 @@
     "grades_hidden": "Hidden from students",
     "grades_overridden": "Graded by a teacher",
     "grades_attempts": "Attempts: {attempts}",
+    "outline_label": "Classroom",
+    "join_code": "Code {code}",
+    "grades_search": "Search students",
+    "grades_no_match": "No student matches your search.",
+    "grade_open_result": "Open result",
     "grade_status_not_started": "Not started",
     "grade_status_in_progress": "In progress",
     "grade_status_pending": "Grading",

@@ -196,7 +196,7 @@ export function SlashMenuPopup({ ref, ...props }: SlashMenuPopupProps) {
           <span className="font-medium">{t(item.labelKey)}</span>
         </button>
       ))}
-      <div className="mt-0.5 border-t border-foreground/10 px-2 pt-1 pb-0.5 text-[10px] text-muted-foreground">
+      <div className="mt-1 rounded-md bg-muted/50 px-2 py-1 text-[10px] text-muted-foreground">
         {t('slash_menu_hint')}
       </div>
     </div>

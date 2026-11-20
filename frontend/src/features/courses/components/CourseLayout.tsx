@@ -6,6 +6,8 @@ import { useEffect, useRef, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { type ItemRowAction } from '../lib/itemAction';
+
 /**
  * The course content layout (ST-66 style 5): no cards, a muted header bar per section, plain rows below.
  * The outline (members) and the draft editor (authors) both use these frames, so both look the same.
@@ -48,9 +50,6 @@ export function CourseSectionFrame({ title, itemCount, titleSlot, actions, foote
     </section>
   );
 }
-
-/** A row opens a page (`href`) or runs `onClick` (for example the note preview). */
-export type ItemRowAction = { href: string } | { onClick: () => void };
 
 type ItemRowProps = {
   icon: ReactNode;

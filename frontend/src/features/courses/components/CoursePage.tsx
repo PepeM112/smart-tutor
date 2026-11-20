@@ -5,11 +5,12 @@ import { Archive, Check, GraduationCap, Loader2, LogOut, Pencil, Play, Settings,
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { MemberStatus, SpaceItemKind, SpaceKind, SpaceStatus, SpaceVisibility, type SpaceDetail } from '@/client';
 import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { OutlineColumn } from '@/components/shared/OutlineColumn';
 import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -17,56 +18,54 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AiKeyNotice } from '@/features/classrooms/components/AiKeyNotice';
 import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { usePageActions } from '@/hooks/usePageActions';
 import { useUrlTab } from '@/hooks/useUrlTab';
-import { COURSE_ITEM_PARAM, courseAttemptHref, courseSettingsHref } from '@/lib/routes';
+import { COURSE_ITEM_PARAM, courseItemHref, courseAttemptHref, courseSettingsHref } from '@/lib/routes';
 import { cn, errorStatus } from '@/lib/utils';
 
 import { useCourse } from '../hooks/useCourse';
 import { courseWriteKey, useCourseActions } from '../hooks/useCourseActions';
-import { useVisitItem } from '../hooks/useCourseProgress';
+import { AUTHOR_TABS } from '../lib/authorTabs';
 import { roleLabelKey, VISIBILITY_LABELS } from '../lib/labels';
 import { COURSE_COLUMN_CLASS } from '../lib/layout';
 import { courseAccess } from '../lib/membership';
-import { canTrackProgress, continueItem, findItem, findNoteItem, isCourseViewer } from '../lib/progress';
+import { canTrackProgress, continueItem, findItem } from '../lib/progress';
 import { courseBackHref, courseCrumbs } from '../lib/spaceCrumbs';
 
 import { CopyToLibraryButton } from './CopyToLibraryButton';
 import { CourseDraftEditor } from './CourseDraftEditor';
+import { CourseItemView } from './CourseItemView';
 import { CourseMembers } from './CourseMembers';
 import { CourseOutline } from './CourseOutline';
-import { CourseProgressBar, NoteDoneButton } from './CourseProgress';
+import { CourseOutlineNav } from './CourseOutlineNav';
 import { CourseUnavailable } from './CourseUnavailable';
 import { PublishDialog } from './PublishDialog';
 
 type Actions = ReturnType<typeof useCourseActions>;
 
-/** The note in the preview pane, and the mode it was opened in. */
-type PreviewNote = { noteId: string; isEditing: boolean };
+interface CourseViewProps {
+  course: SpaceDetail;
+  actions: Actions;
+}
 
-const AUTHOR_TABS = ['content', 'members'] as const;
-
-/** `/courses/[slug-id]`: header, membership and author actions, and the Content / Members tabs (settings is a sub-page). */
+/**
+ * `/courses/[slug-id]`. A member reads the course in an outline column and the page: the overview, a note or a
+ * test, chosen by `?item=`. An author in edit mode, and an empty course, have no outline: the draft editor is
+ * its own outline. The actions (join, leave, edit, publish) are in the page header (`usePageActions`).
+ */
 export function CoursePage({ courseId }: { courseId: string }) {
   const t = useTranslations();
-  const router = useRouter();
   const { data: course, isLoading, error } = useCourse(courseId);
   const actions = useCourseActions(courseId);
-  const [tab, changeTab] = useUrlTab(AUTHOR_TABS, 'content');
-  const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
-  // `?item=<id>`: a link or the Assistant selects one item. A test is only marked (it starts nothing); a note opens.
-  const selectedItemId = useSearchParams().get(COURSE_ITEM_PARAM);
-  // Set when the student closes the preview that `?item=` opened, so it does not open again.
-  const [dismissedItemId, setDismissedItemId] = useState<string | null>(null);
 
   useBreadcrumb(
     course?.title ?? '',
     courseCrumbs(course, { courses: t('courses.title'), classrooms: t('classrooms.title') }),
     courseBackHref(course)
   );
-
-  // A viewer who opens a note in the preview sets "Continue" to that note.
-  const previewItem = course && previewNote ? findNoteItem(course.sections, previewNote.noteId) : undefined;
-  useVisitItem(courseId, previewItem?.id, course !== undefined && isCourseViewer(course));
+  // The header renders this node twice (desktop and phone). It reads the course itself, so the node stays stable.
+  const headerActions = useMemo(() => <CourseHeaderActions courseId={courseId} />, [courseId]);
+  usePageActions(headerActions);
 
   const status = errorStatus(error);
 
@@ -74,44 +73,74 @@ export function CoursePage({ courseId }: { courseId: string }) {
   // A failed refetch keeps the old `data`: after a leave or a delete, Back must not show the old view.
   if (!course || status === 403 || status === 404) return <CourseUnavailable status={status} actions={actions} />;
 
+  if (isDraftView(course) || course.sections.length === 0) return <CourseDraftView course={course} actions={actions} />;
+  return <CourseOutlineView course={course} actions={actions} />;
+}
+
+// `isEditing` alone is not enough: the backend sets it for a viewer too (the course has a draft).
+function isDraftView(course: SpaceDetail): boolean {
+  return courseAccess(course).isAuthor && course.isEditing && course.draftSections !== null;
+}
+
+function CourseOutlineView({ course, actions }: CourseViewProps) {
+  const t = useTranslations();
+  const [tab, changeTab] = useUrlTab(AUTHOR_TABS, 'content');
+  const selectedItemId = useSearchParams().get(COURSE_ITEM_PARAM);
   const { isMember, isAuthor } = courseAccess(course);
+  // A course of a classroom has no members of its own: only the content.
+  const hasMembersTab = isAuthor && !course.parentId;
+  const selectedItem = isMember && selectedItemId ? findItem(course.sections, selectedItemId) : undefined;
+
+  return (
+    <OutlineColumn
+      storageKey="course-outline-width"
+      label={t('outline.contents')}
+      outline={
+        <CourseOutlineNav
+          course={course}
+          linkItems={isMember}
+          selectedItemId={selectedItemId}
+          authorTab={hasMembersTab ? tab : undefined}
+          onAuthorTabChange={changeTab}
+        />
+      }
+    >
+      <div className={COURSE_COLUMN_CLASS}>
+        <CourseNotices course={course} />
+        {hasMembersTab && tab === 'members' ? (
+          <CourseMembers course={course} actions={actions} />
+        ) : selectedItem ? (
+          <CourseItemView key={selectedItem.id} course={course} item={selectedItem} />
+        ) : (
+          <CourseOverview course={course} />
+        )}
+      </div>
+    </OutlineColumn>
+  );
+}
+
+/** The note in the preview pane, and the mode it was opened in. */
+type PreviewNote = { noteId: string; isEditing: boolean };
+
+/** The draft editor (authors in edit mode) or an empty course. A note opens in a preview pane. */
+function CourseDraftView({ course, actions }: CourseViewProps) {
+  const t = useTranslations();
+  const [tab, changeTab] = useUrlTab(AUTHOR_TABS, 'content');
+  const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
+  const selectedItemId = useSearchParams().get(COURSE_ITEM_PARAM);
+  const { isMember, isAuthor } = courseAccess(course);
+
   // Enter edit, publish and discard change the note ids (a draft twin is made or deleted): the preview closes.
-  const openedNoteId = previewNote?.isEditing === course.isEditing ? previewNote.noteId : null;
-  // `?item=` on a note opens its preview (derived, not an effect), until the student closes it or opens another note.
-  const selectedItem = selectedItemId ? findItem(course.sections, selectedItemId) : undefined;
-  const selectedNoteId =
-    !course.isEditing && selectedItem?.kind === SpaceItemKind.NOTE && selectedItemId !== dismissedItemId
-      ? selectedItem.noteId
-      : null;
-  const previewNoteId = previewNote ? openedNoteId : selectedNoteId;
+  const previewNoteId = previewNote?.isEditing === course.isEditing ? previewNote.noteId : null;
   const openNote = (noteId: string) => setPreviewNote({ noteId, isEditing: course.isEditing });
-  const closePreview = () => {
-    setPreviewNote(null);
-    setDismissedItemId(selectedItemId);
-  };
-  const openContinue = (): void => {
-    const next = continueItem(course.sections, course.progress?.lastItemId);
-    if (!next) return;
-    if (next.kind === SpaceItemKind.NOTE && next.noteId) openNote(next.noteId);
-    else router.push(courseAttemptHref(course, next.id));
-  };
-  const previewDoneItem = previewNoteId ? findNoteItem(course.sections, previewNoteId) : undefined;
+  const closePreview = () => setPreviewNote(null);
 
   const main = (
     <div className={COURSE_COLUMN_CLASS}>
-      <CourseHeader course={course} actions={actions} onContinue={openContinue} />
-
-      {course.status === SpaceStatus.ARCHIVED && (
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-          <Archive className="size-4 shrink-0" />
-          {t('courses.archived_banner')}
-        </div>
-      )}
-
-      {course.parentId && <AiKeyNotice classroomId={course.parentId} myRole={course.myRole} />}
+      <CourseSummary course={course} />
+      <CourseNotices course={course} />
 
       {isAuthor && course.parentId ? (
-        // A course of a classroom has no members of its own: only the content.
         <AuthorContent course={course} actions={actions} onOpenNote={openNote} selectedItemId={selectedItemId} />
       ) : isAuthor ? (
         <Tabs value={tab} onValueChange={changeTab}>
@@ -131,7 +160,6 @@ export function CoursePage({ courseId }: { courseId: string }) {
           sections={course.sections}
           course={course}
           linkItems={isMember}
-          onOpenNote={openNote}
           selectedItemId={selectedItemId}
         />
       )}
@@ -151,12 +179,7 @@ export function CoursePage({ courseId }: { courseId: string }) {
             <NotePreviewPanel
               noteId={previewNoteId}
               onClose={closePreview}
-              extraActions={
-                <>
-                  <CopyToLibraryButton noteId={previewNoteId} />
-                  {previewDoneItem && <NoteDoneButton course={course} item={previewDoneItem} />}
-                </>
-              }
+              extraActions={<CopyToLibraryButton noteId={previewNoteId} />}
             />
           ) : null
         }
@@ -168,41 +191,58 @@ export function CoursePage({ courseId }: { courseId: string }) {
   );
 }
 
-function CourseHeader({
-  course,
-  actions,
-  onContinue,
-}: {
-  course: SpaceDetail;
-  actions: Actions;
-  onContinue: () => void;
-}) {
+/** The archived banner and the notice of a classroom without an AI key. */
+function CourseNotices({ course }: { course: SpaceDetail }) {
   const t = useTranslations();
-  const hasContinue = canTrackProgress(course) && continueItem(course.sections, course.progress?.lastItemId) !== null;
 
   return (
-    <header className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-2xl font-semibold text-foreground">{course.title}</h2>
-          <p className="text-sm text-muted-foreground">{t('courses.by_owner', { name: course.ownerName })}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <MembershipActions course={course} actions={actions} />
-          <AuthorActions course={course} actions={actions} />
-        </div>
-      </div>
-      {course.description && <p className="text-sm whitespace-pre-line text-foreground">{course.description}</p>}
-      {isCourseViewer(course) && course.progress && (
-        <div className="flex flex-wrap items-center gap-3">
-          <CourseProgressBar progress={course.progress} className="min-w-48 flex-1" />
-          {hasContinue && (
-            <Button size="sm" icon={Play} onClick={onContinue}>
-              {t('courses.continue')}
-            </Button>
-          )}
+    <>
+      {course.status === SpaceStatus.ARCHIVED && (
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <Archive className="size-4 shrink-0" />
+          {t('courses.archived_banner')}
         </div>
       )}
+      {course.parentId && <AiKeyNotice classroomId={course.parentId} myRole={course.myRole} />}
+    </>
+  );
+}
+
+/** The page when no item is selected: the course description and the way in (Continue). */
+function CourseOverview({ course }: { course: SpaceDetail }) {
+  const t = useTranslations();
+  const router = useRouter();
+  const next = canTrackProgress(course) ? continueItem(course.sections, course.progress?.lastItemId) : null;
+
+  // A test goes on only with an open attempt (`continueItem`): it resumes on its attempt page.
+  const openContinue = (): void => {
+    if (!next) return;
+    router.push(
+      next.kind === SpaceItemKind.TEST ? courseAttemptHref(course, next.id) : courseItemHref(course, next.id)
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <CourseSummary course={course} />
+      {next && (
+        <div className="flex">
+          <Button icon={Play} onClick={openContinue}>
+            {t('courses.continue')}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The description and the badges (visibility, role, state, tags). */
+function CourseSummary({ course }: { course: SpaceDetail }) {
+  const t = useTranslations();
+
+  return (
+    <div className="flex flex-col gap-3">
+      {course.description && <p className="text-sm whitespace-pre-line text-foreground">{course.description}</p>}
       <div className="flex flex-wrap gap-2 text-xs">
         {/* A course of a classroom has no visibility of its own. */}
         {!course.parentId && <Badge>{t(VISIBILITY_LABELS[course.visibility])}</Badge>}
@@ -212,8 +252,64 @@ function CourseHeader({
           <Badge key={tag}>#{tag}</Badge>
         ))}
       </div>
-    </header>
+    </div>
   );
+}
+
+/**
+ * The actions in the page header. A note that `?item=` selected can be copied. A member has a menu (Review, Leave),
+ * the others join or answer an invitation. Authors have the settings link, Edit course, or in edit mode the
+ * save state, Discard and Publish (the one filled button of the page).
+ */
+function CourseHeaderActions({ courseId }: { courseId: string }) {
+  const { data: course } = useCourse(courseId);
+  const actions = useCourseActions(courseId);
+  const selectedItemId = useSearchParams().get(COURSE_ITEM_PARAM);
+
+  if (!course) return null;
+
+  const selectedItem = selectedItemId ? findItem(course.sections, selectedItemId) : undefined;
+  const copyNoteId = !isDraftView(course) && selectedItem?.kind === SpaceItemKind.NOTE ? selectedItem.noteId : null;
+  const isActiveMember = !course.isOwner && course.myStatus === MemberStatus.ACTIVE;
+
+  return (
+    <div className="flex items-center gap-2">
+      {copyNoteId && <CopyToLibraryButton noteId={copyNoteId} />}
+      {isActiveMember ? (
+        <MemberMenu course={course} actions={actions} />
+      ) : (
+        <MembershipActions course={course} actions={actions} />
+      )}
+      <AuthorActions course={course} actions={actions} />
+    </div>
+  );
+}
+
+/** One "…" menu for an active member: Review (editors too), and Leave with a confirmation. */
+function MemberMenu({ course, actions }: CourseViewProps) {
+  const t = useTranslations();
+  const isClassroom = course.kind === SpaceKind.CLASSROOM;
+  const reviewAction: MobileAction = {
+    label: t(course.includeInSrs ? 'courses.remove_from_review' : 'courses.include_in_review'),
+    icon: GraduationCap,
+    onClick: () => actions.setIncludeInSrs.mutate(!course.includeInSrs),
+    disabled: actions.setIncludeInSrs.isPending,
+  };
+  const leaveAction: MobileAction = {
+    label: t('courses.leave'),
+    icon: LogOut,
+    variant: 'destructive',
+    onClick: () => actions.leave.mutate(),
+    disabled: actions.leave.isPending,
+    confirm: {
+      title: t('courses.leave'),
+      description: t(isClassroom ? 'classrooms.leave_description' : 'courses.leave_description'),
+    },
+  };
+  // A course of a classroom has no leave: the classroom row decides.
+  const menuActions = course.parentId ? [reviewAction] : [reviewAction, leaveAction];
+
+  return <ActionsMenu actions={menuActions} />;
 }
 
 export function Badge({ children }: { children: React.ReactNode }) {

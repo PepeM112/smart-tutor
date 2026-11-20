@@ -1,6 +1,6 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
-import { expectToast, openClassroom, openCourse, reseedCourses, test } from './helpers';
+import { classroomTab, expectToast, openClassroom, openCourse, reseedCourses, test } from './helpers';
 import { authFile } from './users';
 
 // R14: the invitation popover has one section for courses and one for classrooms.
@@ -9,8 +9,9 @@ test.use({ storageState: authFile('owner') });
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(reseedCourses);
 
-async function inviteOutsider(page: Page): Promise<void> {
-  await page.getByRole('tab', { name: 'Members' }).click();
+// A course shows Members as a tab in its outline; a classroom shows it as an outline link.
+async function inviteOutsider(page: Page, membersTab: Locator): Promise<void> {
+  await membersTab.click();
   await page.getByRole('button', { name: 'Invite' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('textbox').first().fill('outsider');
@@ -20,10 +21,10 @@ async function inviteOutsider(page: Page): Promise<void> {
 
 test('R14: the owner invites the outsider to a course and to a classroom', async ({ page }) => {
   await openCourse(page, 'Spanish Basics');
-  await inviteOutsider(page);
+  await inviteOutsider(page, page.getByRole('tab', { name: 'Members' }));
 
   await openClassroom(page, 'Biology 101');
-  await inviteOutsider(page);
+  await inviteOutsider(page, classroomTab(page, 'Members'));
 });
 
 test('R14: the invitations show in a Courses and a Classrooms section, and Accept joins the classroom', async ({

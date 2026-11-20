@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
+import { expandToggleColumn } from '@/components/shared/expandToggleColumn';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
@@ -17,15 +18,15 @@ import { sdk } from '@/lib/apiClient';
 import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
+import { TestExpandedRow } from './TestExpandedRow';
+
 type Props = {
   data: TestRead[];
   sort?: SortState;
   onSort?: (column: string | null, order: SortDirection) => void;
-  onPreview: (id: string) => void;
-  previewId: string | null;
 };
 
-export function TestsTable({ data, sort, onSort, onPreview, previewId }: Props) {
+export function TestsTable({ data, sort, onSort }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -114,9 +115,8 @@ export function TestsTable({ data, sort, onSort, onPreview, previewId }: Props) 
       onRowClick={row => router.push(Routes.TEST_EDIT(row.id))}
       renderPreview={renderPreview}
       renderActions={renderActions}
+      renderExpanded={test => <TestExpandedRow test={test} />}
       getRowId={test => test.id}
-      onPreview={test => onPreview(test.id)}
-      previewId={previewId}
       renderDescription={test =>
         test.description ? { label: t('tests.column_description'), value: test.description } : undefined
       }
@@ -135,7 +135,7 @@ function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number 
   return (
     <span
       title={`${count} ${t(labelKey)}`}
-      className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+      className="inline-flex items-center gap-1 rounded-md border border-hairline bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground"
     >
       <Icon className="size-3.5" />
       {count}
@@ -147,6 +147,7 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
   const t = useTranslations();
 
   return [
+    expandToggleColumn<TestRead>(test => test.title),
     {
       accessorKey: 'title',
       header: t('tests.column_title'),

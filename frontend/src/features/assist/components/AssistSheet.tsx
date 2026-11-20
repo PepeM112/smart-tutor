@@ -1,15 +1,22 @@
 'use client';
 
 import { RotateCw, X } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 
-import { useAssistContext } from '../context/AssistContext';
+import { useAssistActions } from '../context/AssistContext';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
 
-import { AssistChatBody } from './AssistChatBody';
-import { AssistInput } from './AssistInput';
+import { loadAssistSheetBody } from './loadAssistSheetBody';
+
+// Loads on the first open (or earlier, when the toggle is hovered), not with the page. The skeleton
+// fills the sheet under the header, so the sheet opens at once and its layout does not jump.
+const AssistSheetBody = dynamic(() => loadAssistSheetBody().then(m => m.AssistSheetBody), {
+  ssr: false,
+  loading: () => <AssistSheetSkeleton />,
+});
 
 interface AssistSheetProps {
   /** `DrawerTitle` on a phone, so the drawer is named by the visible heading. */
@@ -20,7 +27,7 @@ interface AssistSheetProps {
 export function AssistSheet({ heading: Heading = 'h2' }: AssistSheetProps) {
   const t = useTranslations('assist.panel');
   const setOpen = useAssistPanelStore(s => s.setOpen);
-  const { turns, isStreaming, send, stop, confirm, clear } = useAssistContext();
+  const { clear } = useAssistActions();
 
   return (
     <>
@@ -43,21 +50,16 @@ export function AssistSheet({ heading: Heading = 'h2' }: AssistSheetProps) {
           tooltip={t('close')}
         />
       </header>
-      <AssistChatBody
-        turns={turns}
-        onConfirm={confirm}
-        isStreaming={isStreaming}
-        footer={
-          <AssistInput
-            onSend={send}
-            onStop={stop}
-            onCommand={cmd => {
-              if (cmd === '/clear') clear();
-            }}
-            isStreaming={isStreaming}
-          />
-        }
-      />
+      <AssistSheetBody />
+    </>
+  );
+}
+
+function AssistSheetSkeleton() {
+  return (
+    <>
+      <div className="min-h-0 flex-1" />
+      <div aria-hidden className="m-3 h-24 shrink-0 animate-pulse rounded-xl bg-muted" />
     </>
   );
 }

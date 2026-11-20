@@ -11,12 +11,18 @@ import { useAssistAttachmentsStore } from '@/features/assist/store/useAssistAtta
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
 import { useAssistPanelStore } from '@/features/assist/store/useAssistPanelStore';
 import { CourseNoteBreadcrumb } from '@/features/courses/components/CourseNoteBreadcrumb';
+import { useCourse } from '@/features/courses/hooks/useCourse';
+import { spaceHref } from '@/features/courses/lib/spaceHref';
 import { FileBreadcrumb } from '@/features/files/components/FileBreadcrumb';
-import { FilePageShell } from '@/features/files/components/FilePageShell';
 import { MoveDialog } from '@/features/files/components/MoveDialog';
 import { useFileMutations } from '@/features/files/hooks/useFileMutations';
 import { useFolderPath } from '@/features/files/hooks/useFolderPath';
+import { folderPathHref } from '@/features/files/lib/folderPathHref';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { usePageActions, usePageLead } from '@/hooks/usePageActions';
+import { displayTitle } from '@/lib/displayTitle';
+import { Routes } from '@/lib/routes';
 
 import { type RichNoteEditorRef } from '../editor/RichNoteEditor';
 import { useChunkAiEdit } from '../editor/useChunkAiEdit';
@@ -110,9 +116,11 @@ export function NoteForm({ note }: { note: NoteRead }) {
 
   // Accept AI refinement — update editor in place, no remount.
   function acceptRefinement() {
-    if (!pendingNoteDiff) return;
+    const editor = editorRef.current;
+    // Keep the diff while the editor is not mounted: clearing it now would drop the change unseen.
+    if (!pendingNoteDiff || !editor) return;
     // setMarkdown emits the editor onChange, so the draft and autosave get the new content.
-    editorRef.current?.setMarkdown(pendingNoteDiff.newContent);
+    editor.setMarkdown(pendingNoteDiff.newContent);
     clearPendingNoteDiff();
   }
 
@@ -142,33 +150,44 @@ export function NoteForm({ note }: { note: NoteRead }) {
   // A draft course note: the title is edited in the body, and folders and favorites do not apply.
   const courseId = note.spaceId ?? null;
 
+  // The phone header has the title and a Back; the desktop header has the path (`lead`) with the rename control.
+  const { data: course } = useCourse(courseId ?? '', courseId !== null);
+  useBreadcrumb(
+    displayTitle(title, t),
+    undefined,
+    courseId ? (course ? spaceHref(course) : Routes.COURSES) : folderPathHref(folderPath)
+  );
+
+  // Not memoized: the draft handlers (rename, retry) close over the latest draft state and autosave version.
+  usePageLead(
+    courseId ? (
+      <CourseNoteBreadcrumb courseId={courseId} noteTitle={title} />
+    ) : (
+      <FileBreadcrumb
+        path={folderPath}
+        current={{ kind: 'note', id: note.id, name: title, parentId: note.folderId }}
+        onRename={handleRename}
+      />
+    ),
+    // The file breadcrumb ends with the note title as the h1. The course note lead has no heading.
+    courseId === null
+  );
+  usePageActions(
+    <NoteHeaderActions
+      noteId={note.id}
+      isFavorite={note.isFavorite}
+      status={status}
+      onRetry={() => void flush()}
+      onMove={() => setMoveOpen(true)}
+      showFileActions={courseId === null}
+      showWidthToggle={isDesktop}
+      isFullWidth={isFullWidth}
+      onToggleWidth={toggleWidth}
+    />
+  );
+
   return (
-    <FilePageShell
-      breadcrumb={
-        courseId ? (
-          <CourseNoteBreadcrumb courseId={courseId} noteTitle={title} />
-        ) : (
-          <FileBreadcrumb
-            path={folderPath}
-            current={{ kind: 'note', id: note.id, name: title, parentId: note.folderId }}
-            onRename={handleRename}
-          />
-        )
-      }
-      actions={
-        <NoteHeaderActions
-          noteId={note.id}
-          isFavorite={note.isFavorite}
-          status={status}
-          onRetry={() => void flush()}
-          onMove={() => setMoveOpen(true)}
-          showFileActions={courseId === null}
-          showWidthToggle={isDesktop}
-          isFullWidth={isFullWidth}
-          onToggleWidth={toggleWidth}
-        />
-      }
-    >
+    <div className="flex h-full flex-col">
       <MoveDialog
         open={moveOpen}
         onOpenChange={setMoveOpen}
@@ -217,6 +236,6 @@ export function NoteForm({ note }: { note: NoteRead }) {
           onClosed={() => editorRef.current?.editor?.commands.focus()}
         />
       )}
-    </FilePageShell>
+    </div>
   );
 }

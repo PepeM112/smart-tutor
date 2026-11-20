@@ -15,6 +15,7 @@ type Props = {
   expanded?: boolean;
   /** Note rows only: whether the note is in the preview pane. */
   selected?: boolean;
+  className?: string;
   children: ReactNode;
 };
 
@@ -32,7 +33,7 @@ const NO_DND: TreeRowDnd = {
  * The row box shared by folder and note rows: indent, drag props, highlights and tree ARIA.
  * The cells inside come from the row that uses it.
  */
-export function TreeRowShell({ depth, dnd, onClick, expanded, selected, children }: Props) {
+export function TreeRowShell({ depth, dnd, onClick, expanded, selected, className, children }: Props) {
   const { setRef, attributes, listeners, isDragging, isOver, isValidTarget } = dnd ?? NO_DND;
 
   return (
@@ -50,7 +51,8 @@ export function TreeRowShell({ depth, dnd, onClick, expanded, selected, children
         'group flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors',
         onClick && 'cursor-pointer',
         isDragging ? 'opacity-50' : selected ? 'bg-muted' : 'hover:bg-accent/30',
-        isOver && isValidTarget && 'bg-primary/10 ring-1 ring-primary/40'
+        isOver && isValidTarget && 'bg-primary/10 ring-1 ring-primary/40',
+        className
       )}
       style={{ paddingLeft: `${depth * TREE_INDENT_STEP_PX + TREE_ROW_BASE_PADDING_PX}px` }}
       onClick={onClick}

@@ -27,6 +27,8 @@ export type MobileCardProps<T> = {
   cells: CellData[];
   /** A paragraph-length field (e.g. a description) shown as its own wrapping block, distinct from the short key/value grid. */
   description?: DescriptionField;
+  /** Free content after the fields in the expanded card (a row's inline detail). A function, so a collapsed card renders none. */
+  renderExpandedContent?: () => ReactNode;
 };
 
 export function MobileCard<T>({
@@ -37,6 +39,7 @@ export function MobileCard<T>({
   onRowClick,
   cells,
   description,
+  renderExpandedContent,
 }: MobileCardProps<T>) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasActions = actions && actions.length > 0;
@@ -65,7 +68,7 @@ export function MobileCard<T>({
       </div>
 
       {expandable && isExpanded && (
-        <div className="border-t border-border px-4 py-3 space-y-3">
+        <div className="space-y-3 bg-muted/40 px-4 py-3">
           {description && (
             <div>
               <dt className="text-xs text-muted-foreground mb-1">{description.label}</dt>
@@ -80,6 +83,7 @@ export function MobileCard<T>({
               </div>
             ))}
           </dl>
+          {renderExpandedContent?.()}
         </div>
       )}
     </div>

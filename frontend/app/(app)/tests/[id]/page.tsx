@@ -66,7 +66,7 @@ export default function TakeTestPage({ params }: Props) {
   const isEmpty = (test?.questions?.length ?? 0) === 0 && (test?.questionGroups?.length ?? 0) === 0;
 
   return (
-    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
+    <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')} className="h-full">
       {!test ? (
         <p className="text-muted-foreground">{t('tests.test_not_found')}</p>
       ) : isEmpty ? (

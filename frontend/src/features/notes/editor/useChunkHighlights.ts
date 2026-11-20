@@ -1,19 +1,12 @@
 'use client';
 
 // React side of the chunk highlight (the plugin is in chunkHighlight.ts).
+// It reaches the plugin helpers through `editor.storage`, with no runtime import of tiptap.
 //
 // Owns the parts that need React: it reads the editor from the ref, registers the
 // click handler, and keeps the open chunk in the active color.
 
 import { useCallback, useEffect, useMemo } from 'react';
-
-import {
-  addChunkHighlight,
-  getChunkRange,
-  removeChunkHighlight,
-  setChunkHighlightClickHandler,
-  setChunkHighlightState,
-} from './chunkHighlight';
 
 import type { RichNoteEditorRef } from './RichNoteEditor';
 
@@ -39,9 +32,9 @@ export function useChunkHighlights({ editorRef, activeId, onClick }: UseChunkHig
   const add = useCallback(
     (id: string, from: number, to: number): boolean => {
       const ed = editorRef.current?.editor;
-      if (!ed || !addChunkHighlight(ed, id, from, to)) return false;
+      if (!ed || !ed.storage.chunkHighlight.api.add(ed, id, from, to)) return false;
       // Set here, not in an effect: the editor is created after the first render.
-      setChunkHighlightClickHandler(ed, onClick);
+      ed.storage.chunkHighlight.api.setClickHandler(ed, onClick);
       return true;
     },
     [editorRef, onClick]
@@ -50,7 +43,7 @@ export function useChunkHighlights({ editorRef, activeId, onClick }: UseChunkHig
   const markReady = useCallback(
     (id: string) => {
       const ed = editorRef.current?.editor;
-      if (ed) setChunkHighlightState(ed, id, 'ready');
+      if (ed) ed.storage.chunkHighlight.api.setState(ed, id, 'ready');
     },
     [editorRef]
   );
@@ -58,7 +51,7 @@ export function useChunkHighlights({ editorRef, activeId, onClick }: UseChunkHig
   const remove = useCallback(
     (id: string) => {
       const ed = editorRef.current?.editor;
-      if (ed) removeChunkHighlight(ed, id);
+      if (ed) ed.storage.chunkHighlight.api.remove(ed, id);
     },
     [editorRef]
   );
@@ -66,7 +59,7 @@ export function useChunkHighlights({ editorRef, activeId, onClick }: UseChunkHig
   const getRange = useCallback(
     (id: string) => {
       const ed = editorRef.current?.editor;
-      return ed ? getChunkRange(ed, id) : null;
+      return ed ? ed.storage.chunkHighlight.api.getRange(ed, id) : null;
     },
     [editorRef]
   );
@@ -75,9 +68,9 @@ export function useChunkHighlights({ editorRef, activeId, onClick }: UseChunkHig
   useEffect(() => {
     const ed = editorRef.current?.editor;
     if (!ed || !activeId) return undefined;
-    setChunkHighlightState(ed, activeId, 'active');
+    ed.storage.chunkHighlight.api.setState(ed, activeId, 'active');
     // No-op when the highlight was removed (accept / reject).
-    return () => setChunkHighlightState(ed, activeId, 'ready');
+    return () => ed.storage.chunkHighlight.api.setState(ed, activeId, 'ready');
   }, [activeId, editorRef]);
 
   // Memoized: callers put the object in useCallback dependencies.

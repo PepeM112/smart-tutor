@@ -6,7 +6,7 @@ import { type Ref } from 'react';
 import { NAME_LIMITS } from '@/lib/limits';
 import { cn } from '@/lib/utils';
 
-import { RichNoteEditor, type RichNoteEditorRef } from '../editor/RichNoteEditor';
+import { LazyRichNoteEditor } from '../editor/LazyRichNoteEditor';
 import { type AutosaveStatus } from '../editor/useAutosave';
 import { noteColumnClass } from '../hooks/useNoteColumn';
 
@@ -14,6 +14,7 @@ import { ConflictBanner } from './ConflictBanner';
 import { TagInput } from './TagInput';
 
 import type { SelectionContext } from '../editor/NoteBubbleMenu';
+import type { RichNoteEditorRef } from '../editor/RichNoteEditor';
 
 type Props = {
   noteId: string;
@@ -70,7 +71,7 @@ export function NoteEditorBody({
 
       {status === 'conflict' && <ConflictBanner onReload={onReload} onKeepMine={onKeepMine} />}
 
-      <RichNoteEditor
+      <LazyRichNoteEditor
         editorRef={editorRef}
         noteId={noteId}
         initialContent={initialContent}

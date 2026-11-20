@@ -23,7 +23,7 @@ export function ScoreBanner({ result, testTitle, isOlderVersion }: Props) {
     <div className="flex items-center justify-between">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold">{testTitle}</h1>
+          <h2 className="text-xl font-semibold">{testTitle}</h2>
           {isOlderVersion && (
             <Tooltip content={t('history.older_version_notice')}>
               <Info className="size-4 text-muted-foreground shrink-0" />

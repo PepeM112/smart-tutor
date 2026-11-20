@@ -17,31 +17,23 @@ import {
   type ResultQuestion,
 } from './resultDetailUtils';
 
-export function QuestionDetailPanel({
-  question,
-  answer,
-  number,
-}: {
+interface QuestionDetailPanelProps {
   question: ResultQuestion;
   answer?: AnswerRead;
-  number: number;
-}) {
+}
+
+/** What the student answered and how it was graded. The prompt is drawn by the caller. */
+export function QuestionDetailPanel({ question, answer }: QuestionDetailPanelProps) {
   const isLongText = question.questionType === QuestionType.LONG_TEXT;
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
 
   return (
-    <div className="space-y-4">
-      <p className="font-medium">
-        <span className="text-muted-foreground mr-1.5">{number}.</span>
-        {question.prompt}
-      </p>
+    <div className="space-y-6">
       {isLongText ? (
         <>
           <QuestionHint hint={question.hint} />
-          <LongTextReview answer={answer} />
-          {question.explanation && (
-            <p className="text-xs text-muted-foreground border-t border-border pt-2">{question.explanation}</p>
-          )}
+          <LongTextReview question={question} answer={answer} />
+          {question.explanation && <p className="text-sm text-muted-foreground">{question.explanation}</p>}
         </>
       ) : isMC ? (
         <MCQuestionDetail question={question} answer={answer} />
@@ -65,7 +57,7 @@ function SimpleQuestionDetail({ question, answer }: { question: ResultQuestion; 
       <div className="space-y-2 text-sm">
         <div>
           <p className="text-muted-foreground mb-0.5">{t('history.your_answer')}</p>
-          <p className={cn('rounded-md bg-muted/50 p-3', isWrong && 'line-through text-muted-foreground')}>
+          <p className={cn('rounded-lg bg-muted p-3', isWrong && 'line-through text-muted-foreground')}>
             {(answer && getUserAnswerDisplay(question, answer.userAnswer)) ?? t('history.no_answer')}
           </p>
         </div>
@@ -75,7 +67,7 @@ function SimpleQuestionDetail({ question, answer }: { question: ResultQuestion; 
               <p className="text-muted-foreground">{t('history.correct_answer')}</p>
               {question.explanation && <Tooltip content={question.explanation} />}
             </div>
-            <p className="rounded-md bg-muted/50 p-3 text-feedback-correct font-medium">{correctAnswer}</p>
+            <p className="rounded-lg bg-muted p-3 text-feedback-correct font-medium">{correctAnswer}</p>
           </div>
         )}
       </div>
@@ -91,7 +83,7 @@ function MCQuestionDetail({ question, answer }: { question: ResultQuestion; answ
       <QuestionHint hint={question.hint} />
       <MultipleChoiceReview question={question} userAnswer={answer?.userAnswer ?? ''} />
       {question.explanation && (
-        <div className="flex items-center gap-1.5 border-t border-border pt-2">
+        <div className="flex items-center gap-1.5">
           <Tooltip content={question.explanation} />
           <p className="text-xs text-muted-foreground">{t('history.explanation')}</p>
         </div>
@@ -103,5 +95,5 @@ function MCQuestionDetail({ question, answer }: { question: ResultQuestion; answ
 function QuestionHint({ hint }: { hint?: string | null }) {
   const t = useTranslations();
   if (!hint) return null;
-  return <p className="-mt-2 text-sm text-muted-foreground italic">{t('review.hint', { hint })}</p>;
+  return <p className="text-sm text-muted-foreground italic">{t('review.hint', { hint })}</p>;
 }

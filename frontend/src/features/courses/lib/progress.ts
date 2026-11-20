@@ -45,6 +45,17 @@ export function continueItem(
   return items.find(item => !item.completed) ?? null;
 }
 
+/** The item after `itemId` in the outline, skipping items hidden by `visibleFrom`. */
+export function nextItem(
+  sections: SpaceSectionRead[],
+  itemId: string,
+  now: Date = new Date()
+): SpaceItemRead | undefined {
+  const items = flattenItems(sections).filter(item => item.id === itemId || !isHiddenByVisibleFrom(item, now));
+  const index = items.findIndex(item => item.id === itemId);
+  return index === -1 ? undefined : items[index + 1];
+}
+
 function canContinueAt(item: SpaceItemRead): boolean {
   return item.kind !== SpaceItemKind.TEST || Boolean(item.openAttemptId);
 }

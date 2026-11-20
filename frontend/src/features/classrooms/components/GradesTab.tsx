@@ -1,13 +1,15 @@
 'use client';
 
-import { EyeOff, PencilLine } from 'lucide-react';
+import { EllipsisVertical, EyeOff, PencilLine, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 
 import { type GradebookCell, type GradebookRead, type GradebookRow, type SpaceDetail } from '@/client';
+import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { QueryState } from '@/components/shared/QueryState';
+import { SearchInput } from '@/components/shared/SearchInput';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Tooltip } from '@/components/ui/tooltip';
 import { classroomHref } from '@/lib/routes';
 import { cn } from '@/lib/utils';
@@ -15,7 +17,6 @@ import { cn } from '@/lib/utils';
 import { useGradebook, useRemoveCompletion } from '../hooks/useClassrooms';
 import {
   CELL_STATUS_STYLES,
-  canOpenCell,
   findCourseProgress,
   formatAttempts,
   formatBestScore,
@@ -25,9 +26,18 @@ import {
   type GradebookGroup,
 } from '../lib/gradebook';
 
-// Sticky first column: the name stays in view while the matrix scrolls sideways.
-const STICKY_CELL = 'sticky left-0 z-10 bg-card';
+type RemoveCompletion = (target: { itemId: string; userId: string }) => void;
+
+// Sticky first column: the name stays in view while the matrix scrolls sideways. It needs an opaque ground.
+const STICKY_CELL = 'sticky left-0 z-10';
 const HEAD_CELL = 'px-3 py-2 text-left text-xs font-medium text-muted-foreground align-bottom';
+// The groups alternate in tint: the change of ground marks where a group starts, so no cell needs a one-sided border.
+const groupHeadTint = (groupIndex: number): string => (groupIndex % 2 === 0 ? 'bg-muted' : 'bg-muted/60');
+const groupBodyTint = (groupIndex: number): string => (groupIndex % 2 === 0 ? '' : 'bg-muted/30');
+// A cell target (link or button) grows its hover ground by 6 px each side and keeps the text aligned with the column.
+const CELL_TARGET =
+  '-mx-1.5 block rounded-md px-1.5 py-1 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
+const groupKey = (group: GradebookGroup): string => group.course?.courseId ?? 'loose';
 
 /** Teachers: students × tests (loose tests first, then one group per course with its % column). */
 export function GradesTab({ classroom }: { classroom: SpaceDetail }) {
@@ -43,6 +53,8 @@ export function GradesTab({ classroom }: { classroom: SpaceDetail }) {
 
 function GradebookMatrix({ gradebook, classroom }: { gradebook: GradebookRead; classroom: SpaceDetail }) {
   const t = useTranslations();
+  const [search, setSearch] = useState('');
+  const { mutate: removeCompletion, isPending: isRemovingCompletion } = useRemoveCompletion(classroom.id);
   const groups = groupColumns(gradebook);
   const hasTests = gradebook.columns.length > 0;
 
@@ -54,37 +66,67 @@ function GradebookMatrix({ gradebook, classroom }: { gradebook: GradebookRead; c
     );
   }
 
+  const query = search.trim().toLowerCase();
+  const rows = gradebook.rows.filter(
+    row => query === '' || `${studentName(row)} ${row.username}`.toLowerCase().includes(query)
+  );
+
   return (
-    // The card scrolls sideways, not the page.
-    <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card" data-testid="gradebook">
-      <table className="w-max min-w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border">
-            <th className={cn(HEAD_CELL, STICKY_CELL, 'min-w-44')} rowSpan={2}>
-              {t('classrooms.grades_student')}
-            </th>
-            {groups.map(group => (
-              <th
-                key={group.course?.courseId ?? 'loose'}
-                className={cn(HEAD_CELL, 'border-l border-border text-foreground')}
-                colSpan={group.columns.length + (group.course ? 1 : 0)}
-              >
-                <GroupTitle group={group} />
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder={t('classrooms.grades_search')}
+          className="max-w-64"
+        />
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <PencilLine aria-hidden className="size-3.5 text-feedback-partial" />
+          {t('classrooms.grades_overridden')}
+        </span>
+      </div>
+
+      {/* The card scrolls sideways, not the page. */}
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card" data-testid="gradebook">
+        <table className="w-max min-w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className={cn(HEAD_CELL, STICKY_CELL, 'min-w-44 bg-muted')} rowSpan={2}>
+                {t('classrooms.grades_student')}
               </th>
+              {groups.map((group, groupIndex) => (
+                <th
+                  key={groupKey(group)}
+                  className={cn(HEAD_CELL, 'text-foreground', groupHeadTint(groupIndex))}
+                  colSpan={group.columns.length + (group.course ? 1 : 0)}
+                >
+                  <GroupTitle group={group} />
+                </th>
+              ))}
+            </tr>
+            <tr>
+              {groups.map((group, groupIndex) => (
+                <GroupColumnHeads key={groupKey(group)} group={group} tint={groupHeadTint(groupIndex)} />
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-hairline">
+            {rows.map(row => (
+              <StudentRow
+                key={row.userId}
+                row={row}
+                groups={groups}
+                classroom={classroom}
+                onRemoveCompletion={removeCompletion}
+                isRemovingCompletion={isRemovingCompletion}
+              />
             ))}
-          </tr>
-          <tr className="border-b border-border">
-            {groups.map(group => (
-              <GroupColumnHeads key={group.course?.courseId ?? 'loose'} group={group} />
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {gradebook.rows.map(row => (
-            <StudentRow key={row.userId} row={row} groups={groups} classroom={classroom} />
-          ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+        {rows.length === 0 && (
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('classrooms.grades_no_match')}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -109,12 +151,13 @@ function HiddenMark() {
   );
 }
 
-function GroupColumnHeads({ group }: { group: GradebookGroup }) {
+function GroupColumnHeads({ group, tint }: { group: GradebookGroup; tint: string }) {
   const t = useTranslations();
   return (
     <>
-      {group.columns.map(({ column }, position) => (
-        <th key={column.itemId} className={cn(HEAD_CELL, 'min-w-36', position === 0 && 'border-l border-border')}>
+      {group.course && <th className={cn(HEAD_CELL, 'min-w-32', tint)}>{t('classrooms.grades_course_percent')}</th>}
+      {group.columns.map(({ column }) => (
+        <th key={column.itemId} className={cn(HEAD_CELL, 'min-w-36', tint)}>
           <span className="inline-flex items-center gap-1.5">
             <span className="max-w-40 truncate" title={column.title}>
               {column.title}
@@ -123,165 +166,209 @@ function GroupColumnHeads({ group }: { group: GradebookGroup }) {
           </span>
         </th>
       ))}
-      {group.course && (
-        <th className={cn(HEAD_CELL, 'min-w-24', group.columns.length === 0 && 'border-l border-border')}>
-          {t('classrooms.grades_course_percent')}
-        </th>
-      )}
     </>
   );
 }
 
-function StudentRow({
-  row,
-  groups,
-  classroom,
-}: {
+interface StudentRowProps {
   row: GradebookRow;
   groups: GradebookGroup[];
   classroom: SpaceDetail;
-}) {
+  onRemoveCompletion: RemoveCompletion;
+  isRemovingCompletion: boolean;
+}
+
+function StudentRow({ row, groups, classroom, onRemoveCompletion, isRemovingCompletion }: StudentRowProps) {
   const backHref = classroomHref(classroom);
 
   return (
-    <tr className="border-b border-border last:border-0">
-      <th scope="row" className={cn(STICKY_CELL, 'px-3 py-2 text-left font-medium text-foreground')}>
+    <tr>
+      <th scope="row" className={cn(STICKY_CELL, 'bg-card px-3 py-2 text-left font-medium text-foreground')}>
         <span className="block max-w-56 truncate" title={row.username}>
           {studentName(row)}
         </span>
       </th>
-      {groups.map(group => (
+      {groups.map((group, groupIndex) => (
         <GroupCells
-          key={group.course?.courseId ?? 'loose'}
+          key={groupKey(group)}
           group={group}
           row={row}
           backHref={backHref}
-          classroomId={classroom.id}
+          tint={groupBodyTint(groupIndex)}
+          onRemoveCompletion={onRemoveCompletion}
+          isRemovingCompletion={isRemovingCompletion}
         />
       ))}
     </tr>
   );
 }
 
-function GroupCells({
-  group,
-  row,
-  backHref,
-  classroomId,
-}: {
+interface GroupCellsProps {
   group: GradebookGroup;
   row: GradebookRow;
   backHref: string;
-  classroomId: string;
-}) {
+  tint: string;
+  onRemoveCompletion: RemoveCompletion;
+  isRemovingCompletion: boolean;
+}
+
+function GroupCells({ group, row, backHref, tint, onRemoveCompletion, isRemovingCompletion }: GroupCellsProps) {
   const progress = group.course ? findCourseProgress(row.courses, group.course.courseId) : undefined;
 
   return (
     <>
-      {group.columns.map(({ column, index }, position) => (
-        <td key={column.itemId} className={cn('px-3 py-2 align-middle', position === 0 && 'border-l border-border')}>
-          <GradeCell
-            cell={row.cells[index]}
-            maxAttempts={column.maxAttempts}
-            backHref={backHref}
-            undo={{ classroomId, itemId: column.itemId, userId: row.userId, studentLabel: studentName(row) }}
-          />
-        </td>
-      ))}
       {group.course && (
-        <td
-          className={cn('px-3 py-2 align-middle tabular-nums', group.columns.length === 0 && 'border-l border-border')}
-        >
+        <td className={cn('px-3 py-2 align-middle', tint)}>
           {progress ? (
-            <span title={`${progress.completedItems}/${group.course.totalItems}`}>{progress.percent}%</span>
+            <CourseProgressCell
+              percent={progress.percent}
+              done={progress.completedItems}
+              total={group.course.totalItems}
+            />
           ) : (
             <span className="text-muted-foreground">-</span>
           )}
         </td>
       )}
+      {group.columns.map(({ column, index }) => (
+        <td key={column.itemId} className={cn('px-3 py-2 align-middle', tint)}>
+          <GradeCell
+            cell={row.cells[index]}
+            maxAttempts={column.maxAttempts}
+            backHref={backHref}
+            studentLabel={studentName(row)}
+            onRemoveCompletion={() => onRemoveCompletion({ itemId: column.itemId, userId: row.userId })}
+            isRemovingCompletion={isRemovingCompletion}
+          />
+        </td>
+      ))}
     </>
   );
 }
 
-type UndoTarget = { classroomId: string; itemId: string; userId: string; studentLabel: string };
+function CourseProgressCell({ percent, done, total }: { percent: number; done: number; total: number }) {
+  const t = useTranslations();
 
+  return (
+    <div className="flex w-24 flex-col gap-1" title={`${done}/${total}`}>
+      <span className="text-xs font-medium text-foreground tabular-nums">{percent}%</span>
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-label={t('classrooms.grades_course_percent')}
+        className="h-1.5 overflow-hidden rounded-full bg-track"
+      >
+        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+interface GradeCellProps {
+  cell: GradebookCell | undefined;
+  maxAttempts: number | null;
+  backHref: string;
+  studentLabel: string;
+  onRemoveCompletion: () => void;
+  isRemovingCompletion: boolean;
+}
+
+/**
+ * The state of a test for one student: mark, word, then score and attempts.
+ * With a best result the cell is a link to the result page (the grade is set per answer there), so it opens in a
+ * new tab too. Remove completion stays in a menu beside it.
+ */
 function GradeCell({
   cell,
   maxAttempts,
   backHref,
-  undo,
-}: {
-  cell: GradebookCell | undefined;
-  maxAttempts: number | null;
-  backHref: string;
-  undo: UndoTarget;
-}) {
+  studentLabel,
+  onRemoveCompletion,
+  isRemovingCompletion,
+}: GradeCellProps) {
   const t = useTranslations();
   if (!cell) return <span className="text-muted-foreground">-</span>;
 
   const style = CELL_STATUS_STYLES[cell.status];
+  const StatusIcon = style.icon;
   const score = formatBestScore(cell.bestScore);
   const attempts = formatAttempts(cell.attemptsUsed, maxAttempts);
+  const detail = [score, attempts && t('classrooms.grades_attempts', { attempts })].filter(Boolean).join(' · ');
 
   const content = (
     <span className="flex flex-col gap-0.5">
-      <span className="flex items-center gap-1.5">
-        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', style.bgClass, style.textClass)}>
-          {t(`classrooms.${style.labelKey}`)}
-        </span>
-        {score && <span className="font-medium tabular-nums text-foreground">{score}</span>}
+      <span className={cn('inline-flex items-center gap-1 text-xs font-medium', style.textClass)}>
+        <StatusIcon aria-hidden className="size-3.5 shrink-0" />
+        {t(`classrooms.${style.labelKey}`)}
         {cell.overridden && (
           <Tooltip content={t('classrooms.grades_overridden')}>
             <PencilLine className="size-3.5 text-feedback-partial" aria-label={t('classrooms.grades_overridden')} />
           </Tooltip>
         )}
       </span>
-      {attempts && (
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {t('classrooms.grades_attempts', { attempts })}
-        </span>
-      )}
+      {detail && <span className="text-xs text-muted-foreground tabular-nums">{detail}</span>}
     </span>
   );
 
-  const body =
-    !canOpenCell(cell) || cell.bestResultId === null ? (
-      content
-    ) : (
-      <Link
-        href={resultHrefFromGrades(cell.bestResultId, backHref)}
-        className="-mx-1.5 block rounded-md px-1.5 py-1 transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        {content}
-      </Link>
+  const removeActions: MobileAction[][] = cell.canUndoPass
+    ? [
+        [
+          {
+            label: t('classrooms.completion_remove'),
+            icon: Undo2,
+            onClick: onRemoveCompletion,
+            disabled: isRemovingCompletion,
+            confirm: {
+              title: t('classrooms.completion_remove_title'),
+              description: t('classrooms.completion_remove_description', { student: studentLabel }),
+            },
+          },
+        ],
+      ]
+    : [];
+
+  if (cell.bestResultId === null) {
+    if (removeActions.length === 0) return content;
+    return (
+      <ActionsMenu
+        actions={removeActions}
+        trigger={
+          <button type="button" className={cn(CELL_TARGET, 'text-left')}>
+            {content}
+          </button>
+        }
+      />
     );
+  }
 
-  if (!cell.canUndoPass) return body;
-  // The button sits outside the link: a click on it must not open the result.
-  return (
-    <div className="flex flex-col items-start gap-1">
-      {body}
-      <RemoveCompletionButton target={undo} />
-    </div>
+  const link = (
+    <Link
+      href={resultHrefFromGrades(cell.bestResultId, backHref)}
+      title={t('classrooms.grade_open_result')}
+      className={CELL_TARGET}
+    >
+      {content}
+    </Link>
   );
-}
-
-/** Only for a completion that a lower grade left behind (`canUndoPass`). It asks first. */
-function RemoveCompletionButton({ target }: { target: UndoTarget }) {
-  const t = useTranslations();
-  const { mutate: removeCompletion, isPending: isRemoving } = useRemoveCompletion(target.classroomId);
+  if (removeActions.length === 0) return link;
 
   return (
-    <ConfirmDialog
-      trigger={
-        <Button type="button" variant="outline" size="xs" disabled={isRemoving}>
-          {t('classrooms.completion_remove')}
-        </Button>
-      }
-      title={t('classrooms.completion_remove_title')}
-      description={t('classrooms.completion_remove_description', { student: target.studentLabel })}
-      confirmLabel={t('classrooms.completion_remove')}
-      onConfirm={() => removeCompletion({ itemId: target.itemId, userId: target.userId })}
-    />
+    <div className="flex items-center gap-1">
+      {link}
+      <ActionsMenu
+        actions={removeActions}
+        trigger={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            icon={EllipsisVertical}
+            aria-label={t('common.more_actions')}
+            className="text-muted-foreground"
+          />
+        }
+      />
+    </div>
   );
 }

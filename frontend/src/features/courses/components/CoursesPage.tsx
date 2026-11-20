@@ -5,8 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import { type SpaceSummary } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/FilterPopover';
-import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { ListToolbar } from '@/components/shared/ListToolbar';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
 import { SearchInput } from '@/components/shared/SearchInput';
@@ -15,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFilters } from '@/hooks/useFilters';
+import { usePageActions } from '@/hooks/usePageActions';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { sdk } from '@/lib/apiClient';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
@@ -42,20 +42,23 @@ const STATUS_OPTIONS = [
 const VISIBILITY_FILTER_OPTIONS = VISIBILITY_OPTIONS.map(value => ({ label: VISIBILITY_LABELS[value], value }));
 const ROLE_FILTER_OPTIONS = ROLE_OPTIONS.map(value => ({ label: ROLE_LABELS[value], value }));
 
+const HEADER_ACTIONS = (
+  <>
+    <InvitationsButton />
+    <JoinByCodeDialog />
+    <CreateCourseDialog />
+  </>
+);
+
 /** `/courses`: My courses and the public Catalog. Invitations, Join with code and Create in the header. */
 export function CoursesPage() {
   const t = useTranslations();
   useBreadcrumb(t('courses.title'));
+  usePageActions(HEADER_ACTIONS);
   const [tab, changeTab] = useUrlTab(COURSES_TABS, 'mine');
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <InvitationsButton />
-        <JoinByCodeDialog />
-        <CreateCourseDialog />
-      </div>
-
+    <div className="flex flex-col gap-4">
       <Tabs value={tab} onValueChange={changeTab}>
         <TabsList>
           <TabsTrigger value="mine">{t('courses.tab_mine')}</TabsTrigger>
@@ -139,16 +142,7 @@ function MyCoursesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <ListPageHeader
-        filters={
-          <FilterPopover
-            filterConfig={filterConfig}
-            filters={filters}
-            onFilterChange={setFilter}
-            onClear={clearFilters}
-          />
-        }
-      />
+      <ListToolbar filterConfig={filterConfig} filters={filters} onFilterChange={setFilter} onClear={clearFilters} />
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('courses.failed_to_load')}>
         {courses.length === 0 ? (
           <EmptyText>{t(hasActiveFilters ? 'courses.no_courses_filtered' : 'courses.no_courses')}</EmptyText>

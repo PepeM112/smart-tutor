@@ -27,7 +27,7 @@ export function SearchInput({ value, onChange, placeholder, className }: Props) 
         value={value}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-9 pr-8 pl-8"
+        className="h-8 pr-8 pl-8"
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => {
           // Escape clears the text. An empty input leaves the key to the page (a dialog, a pane).

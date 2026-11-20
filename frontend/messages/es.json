@@ -51,7 +51,15 @@
     "min": "Mín",
     "max": "Máx",
     "points_abbr": "{count, plural, =1 {1pt} other {#pts}}",
-    "undo": "Deshacer"
+    "undo": "Deshacer",
+    "previous_page": "Página anterior",
+    "next_page": "Página siguiente",
+    "pagination": "Paginación",
+    "page_range": "{from}–{to} de {total}",
+    "show_details_for": "Mostrar detalles de {title}",
+    "hide_details_for": "Ocultar detalles de {title}",
+    "bulk_actions": "Acciones en bloque",
+    "clear_selection": "Borrar selección"
   },
   "app": {
     "title": "SmartTutor",
@@ -61,7 +69,6 @@
   "sidebar": {
     "expand": "Expandir barra lateral",
     "collapse": "Colapsar barra lateral",
-    "open_menu": "Abrir menú",
     "learning": "Aprendizaje",
     "dashboard": "Panel",
     "review_now": "Repasar Ahora",
@@ -79,6 +86,19 @@
     "courses": "Cursos",
     "classrooms": "Clases",
     "spaces": "Espacios"
+  },
+  "outline": {
+    "resize": "Cambiar el tamaño del índice",
+    "show": "Mostrar índice",
+    "hide": "Ocultar índice",
+    "contents": "Contenido"
+  },
+  "mobile_nav": {
+    "label": "Navegación principal",
+    "review": "Repaso",
+    "more": "Más",
+    "account": "Cuenta",
+    "trash_hint": "30 días"
   },
   "auth": {
     "log_in": "Iniciar sesión",
@@ -206,7 +226,10 @@
     "filter_type": "Tipo",
     "filter_date": "Fecha",
     "no_results": "Ningún test coincide con tus filtros.",
-    "clear_filters": "Limpiar filtros"
+    "clear_filters": "Limpiar filtros",
+    "first_questions": "Primeras preguntas",
+    "more_questions": "{count} más",
+    "search_placeholder": "Buscar tests"
   },
   "questions": {
     "title": "Preguntas",
@@ -265,11 +288,13 @@
     "explanation_label": "Explicación",
     "explanation_placeholder": "Explicación opcional mostrada después de responder",
     "options_label": "Opciones",
+    "correct_option": "Opción correcta",
     "accepted_answers": "Respuestas aceptadas",
-    "rubric_label": "Rúbrica"
+    "rubric_label": "Rúbrica",
+    "search_placeholder": "Buscar preguntas"
   },
   "exam": {
-    "submit_exam": "Enviar Examen",
+    "submit_exam": "Enviar examen",
     "submitting": "Enviando…",
     "score": "Nota: {score}%",
     "points": "{earned} / {total} pts",
@@ -282,7 +307,15 @@
     "column_answer": "Respuesta",
     "column_result": "Resultado",
     "hint": "Pista: {hint}",
-    "time_left": "Tiempo restante"
+    "time_left": "Tiempo restante",
+    "under_minute": "Menos de 1 minuto",
+    "submit_short": "Enviar",
+    "answered_count": "{answered} de {total} respondidas",
+    "points_total": "{points} pts",
+    "answered": "Respondida",
+    "not_answered": "Sin responder",
+    "question_meta": "Pregunta {number} · {type} · {points} pts",
+    "group_label": "Grupo"
   },
   "notes": {
     "note": "Nota",
@@ -531,7 +564,7 @@
   },
   "history": {
     "title": "Historial de Tests",
-    "subtitle": "Un registro cronológico de tus sesiones pasadas.",
+    "search_placeholder": "Buscar resultados",
     "test_result": "Resultado del Test",
     "failed_to_load": "Error al cargar los resultados. Inténtalo de nuevo.",
     "failed_to_load_result": "Error al cargar el resultado del test. Inténtalo de nuevo.",
@@ -582,11 +615,25 @@
     "override_error_range": "La puntuación debe estar entre 0 y {points}.",
     "override_error_challenge_refused": "Un profesor calificó esta respuesta. No se puede impugnar.",
     "result_student": "Alumno: {name}",
-    "has_teacher_grades": "Tu profesor cambió la nota de algunas respuestas."
+    "has_teacher_grades": "Tu profesor cambió la nota de algunas respuestas.",
+    "mark_correct": "Correcta",
+    "mark_partial": "Parcial",
+    "mark_wrong": "Incorrecta",
+    "mark_pending": "Pendiente",
+    "mark_failed": "Fallida",
+    "summary_correct": "{count} correctas",
+    "summary_partial": "{count} parciales",
+    "summary_wrong": "{count} incorrectas",
+    "summary_pending": "{count} pendientes de revisión IA",
+    "pending_detail": "Esperando la revisión IA.",
+    "question_meta": "Pregunta {number} · {type}",
+    "question_navigation": "Navegación de preguntas",
+    "previous_question": "Anterior",
+    "next_question": "Siguiente"
   },
   "challenge": {
     "challenge_grade": "Impugnar nota",
-    "submit_challenge": "Enviar impugnación",
+    "submit_challenge": "Enviar impugnación ({count})",
     "select_criteria_first": "Selecciona criterios primero",
     "all_criteria_reviewed": "Todos los criterios revisados",
     "rubric": "Rúbrica ({met} criterios cumplidos)",
@@ -599,7 +646,9 @@
     "challenge_overturned": "Impugnación resuelta — {count, plural, one {# criterio revocado} other {# criterios revocados}}",
     "challenge_upheld": "Impugnación resuelta — calificación original confirmada",
     "grading_failed": "La corrección falló. Intenta enviar la respuesta de nuevo.",
-    "graded_by_teacher": "Un profesor calificó esta respuesta. No se puede impugnar."
+    "graded_by_teacher": "Un profesor calificó esta respuesta. No se puede impugnar.",
+    "criterion_met": "Cumplido",
+    "criterion_not_met": "No cumplido"
   },
   "stats": {
     "title": "Uso de IA",
@@ -745,7 +794,12 @@
     "found_in_content": "Encontrado en el contenido",
     "searching_content": "Buscando en el contenido…",
     "search_content_failed": "No se pudo buscar en el contenido de las notas.",
-    "failed_to_export": "Error al exportar la nota"
+    "failed_to_export": "Error al exportar la nota",
+    "show_preview_for": "Mostrar vista previa de {title}",
+    "hide_preview_for": "Ocultar vista previa de {title}",
+    "open_note": "Abrir nota",
+    "indexed_for_ai": "Indexada para Ask AI",
+    "not_indexed_for_ai": "Aún sin indexar"
   },
   "trash": {
     "title": "Papelera",
@@ -935,6 +989,7 @@
     "progress_percent": "{percent}% completado",
     "progress_items": "{done} de {total} elementos",
     "continue": "Continuar",
+    "next_item": "Siguiente: {title}",
     "item_done": "Hecho",
     "item_not_done": "Pendiente",
     "mark_complete": "Marcar como completado",
@@ -1073,6 +1128,11 @@
     "grades_hidden": "Oculto para los alumnos",
     "grades_overridden": "Calificado por un profesor",
     "grades_attempts": "Intentos: {attempts}",
+    "outline_label": "Clase",
+    "join_code": "Código {code}",
+    "grades_search": "Buscar alumnos",
+    "grades_no_match": "Ningún alumno coincide con la búsqueda.",
+    "grade_open_result": "Abrir resultado",
     "grade_status_not_started": "Sin empezar",
     "grade_status_in_progress": "En curso",
     "grade_status_pending": "Calificando",

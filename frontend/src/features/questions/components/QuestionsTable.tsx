@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 
 import { type QuestionType, type QuestionListRead } from '@/client';
 import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
+import { expandToggleColumn } from '@/components/shared/expandToggleColumn';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -19,6 +20,7 @@ import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
 import { AssignDialog } from './AssignDialog';
+import { QuestionExpandedRow } from './QuestionExpandedRow';
 
 type Props = {
   data: QuestionListRead[];
@@ -26,11 +28,9 @@ type Props = {
   onSort: (column: string | null, order: SortDirection) => void;
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
-  onPreview: (id: string) => void;
-  previewId: string | null;
 };
 
-export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionChange, onPreview, previewId }: Props) {
+export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionChange }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -155,8 +155,13 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
         sort={sort}
         onSort={onSort}
         getRowId={question => question.id}
-        onPreview={question => onPreview(question.id)}
-        previewId={previewId}
+        renderExpanded={question => (
+          <QuestionExpandedRow
+            question={question}
+            onDuplicate={() => duplicateQuestion(question.id)}
+            isDuplicating={isDuplicating}
+          />
+        )}
       />
       {assignQuestionId && (
         <AssignDialog
@@ -175,7 +180,7 @@ function QuestionTypeBadge({ type }: { type: QuestionType }) {
   const t = useTranslations();
   const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+    <span className="inline-flex items-center gap-1 rounded-md border border-hairline bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
       <Icon className="size-3.5" />
       {t(labelKey)}
     </span>
@@ -253,6 +258,7 @@ function useQuestionsColumns({
         />
       ),
     },
+    expandToggleColumn<QuestionListRead>(question => question.prompt),
     {
       accessorKey: 'prompt',
       meta: { label: t('questions.column_prompt'), sortKey: 'prompt', grow: true },

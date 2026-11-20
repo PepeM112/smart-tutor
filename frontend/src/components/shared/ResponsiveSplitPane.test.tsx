@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResponsiveSplitPane } from './ResponsiveSplitPane';
 
-vi.mock('@/hooks/useBreakpoint', () => ({ useBreakpoint: () => ({ isDesktop: false }) }));
+const breakpoint = vi.hoisted(() => ({ isDesktop: false }));
+vi.mock('@/hooks/useBreakpoint', () => ({ useBreakpoint: () => breakpoint }));
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 
 // A drawer that keeps its content mounted, like Vaul does during the close animation.
 vi.mock('@/components/ui/drawer', () => ({
@@ -17,7 +19,29 @@ vi.mock('@/components/ui/drawer', () => ({
   DrawerContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-afterEach(cleanup);
+beforeEach(() => {
+  breakpoint.isDesktop = false;
+  localStorage.clear();
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = () => undefined;
+      unobserve = () => undefined;
+      disconnect = () => undefined;
+    }
+  );
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    media: query,
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const renderPane = (side: React.ReactNode) => (
   <ResponsiveSplitPane storageKey="k" main={<p>main</p>} side={side} onSideClose={() => undefined} />
@@ -41,5 +65,33 @@ describe('ResponsiveSplitPane drawer', () => {
 
     expect(screen.queryByText('second')).not.toBeNull();
     expect(screen.queryByText('first')).toBeNull();
+  });
+});
+
+describe('ResponsiveSplitPane across the lg breakpoint', () => {
+  const renderWithInput = () => (
+    <ResponsiveSplitPane storageKey="k" main={<input aria-label="note" />} side={null} onSideClose={() => undefined} />
+  );
+
+  it('keeps the typed value of main when the window crosses lg', () => {
+    breakpoint.isDesktop = true;
+    const { rerender } = render(renderWithInput());
+    fireEvent.change(screen.getByLabelText('note'), { target: { value: 'half a sentence' } });
+
+    breakpoint.isDesktop = false;
+    rerender(renderWithInput());
+
+    expect(screen.getByLabelText<HTMLInputElement>('note').value).toBe('half a sentence');
+  });
+
+  it('keeps the same input element, not a copy', () => {
+    breakpoint.isDesktop = true;
+    const { rerender } = render(renderWithInput());
+    const input = screen.getByLabelText('note');
+
+    breakpoint.isDesktop = false;
+    rerender(renderWithInput());
+
+    expect(screen.getByLabelText('note')).toBe(input);
   });
 });

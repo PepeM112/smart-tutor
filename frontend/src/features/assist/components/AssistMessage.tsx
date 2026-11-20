@@ -15,6 +15,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -36,19 +37,25 @@ import type { ReactNode } from 'react';
 // User bubble
 // ---------------------------------------------------------------------------
 
-export function UserBubble({ content }: { content: string }) {
+export const UserBubble = memo(function UserBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-end pl-14">
       <div className="rounded-xl bg-muted px-3 py-1.5 text-[13px] leading-[1.4] text-foreground">{content}</div>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Assistant text segment
 // ---------------------------------------------------------------------------
 
-export function AssistantBubble({ content, streaming }: { content: string; streaming: boolean }) {
+export const AssistantBubble = memo(function AssistantBubble({
+  content,
+  streaming,
+}: {
+  content: string;
+  streaming: boolean;
+}) {
   const t = useTranslations('assist');
   // `content` already holds the queue's currently-revealed slice — the
   // reveal/pacing loop lives centrally in useStreamQueue.ts now, so this
@@ -74,7 +81,7 @@ export function AssistantBubble({ content, streaming }: { content: string; strea
       </AssistMarkdown>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Shared markdown renderer
@@ -119,7 +126,7 @@ function AssistMarkdown({ children, className, trailing }: AssistMarkdownProps) 
 // Tool indicator (spinner / check / error)
 // ---------------------------------------------------------------------------
 
-export function ToolIndicatorRow({ name, status }: { name: string; status: string }) {
+export const ToolIndicatorRow = memo(function ToolIndicatorRow({ name, status }: { name: string; status: string }) {
   const label = useToolLabel(name);
 
   return (
@@ -136,13 +143,13 @@ export function ToolIndicatorRow({ name, status }: { name: string; status: strin
       <span className="text-[12px] text-muted-foreground">{label}</span>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Tool result
 // ---------------------------------------------------------------------------
 
-export function ToolResultRow({
+export const ToolResultRow = memo(function ToolResultRow({
   name,
   output,
   metadata,
@@ -188,7 +195,7 @@ export function ToolResultRow({
       )}
     </div>
   );
-}
+});
 
 function RefineNoteResult({ noteId }: { noteId: string }) {
   const t = useTranslations('assist');
@@ -267,7 +274,7 @@ function ToolIconBadge({ icon: Icon }: { icon: LucideIcon }) {
   );
 }
 
-export function ActionCard({
+export const ActionCard = memo(function ActionCard({
   id,
   name,
   arguments: args,
@@ -408,22 +415,22 @@ export function ActionCard({
       )}
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Error
 // ---------------------------------------------------------------------------
 
-export function ErrorRow({ message }: { message: string }) {
+export const ErrorRow = memo(function ErrorRow({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2.5">
       <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
       <p className="text-[12px] text-destructive">{message}</p>
     </div>
   );
-}
+});
 
-export function StoppedRow() {
+export const StoppedRow = memo(function StoppedRow() {
   const t = useTranslations('assist');
   return (
     <div className="flex items-center gap-1.5 py-1">
@@ -431,7 +438,7 @@ export function StoppedRow() {
       <span className="text-xs text-muted-foreground">{t('stopped')}</span>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Helpers

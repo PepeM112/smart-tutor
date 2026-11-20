@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { questionPoints } from '@/features/tests/utils/points';
 
 import { useResultReview } from '../context/resultReviewContext';
 import { useAnswerOverride } from '../hooks/useAnswerOverride';
@@ -69,7 +70,7 @@ function TeacherGrade({ answer, question }: Props) {
   const format = useFormatter();
   const { resultId } = useResultReview();
   const { setOverride, isSettingOverride, clearOverride, isClearingOverride } = useAnswerOverride(resultId);
-  const maxPoints = question.points ?? 1;
+  const maxPoints = questionPoints(question);
   const overridden = isOverridden(answer);
   const aiScore = computeAiScore(answer, question);
   const [isEditing, setIsEditing] = useState(false);

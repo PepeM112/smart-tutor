@@ -7,7 +7,13 @@ import { type TestReadStripped } from '@/client';
 
 import { ExamView } from './ExamView';
 
+import type { ReactNode } from 'react';
+
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+// The outline column needs `matchMedia` and a layout engine, which jsdom lacks. The submit guard does not.
+vi.mock('@/components/shared/OutlineColumn', () => ({
+  OutlineColumn: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
 
 const NOW = new Date('2026-01-01T10:00:00Z');
 

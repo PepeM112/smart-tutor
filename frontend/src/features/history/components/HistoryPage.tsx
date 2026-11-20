@@ -4,8 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
-import { FilterPopover } from '@/components/shared/filters/FilterPopover';
-import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { ListToolbar } from '@/components/shared/ListToolbar';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
 import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
@@ -106,17 +105,13 @@ export function HistoryPage() {
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
   return (
-    <div className="flex h-full flex-col gap-6">
-      <ListPageHeader
-        filters={
-          <FilterPopover
-            filterConfig={filterConfig}
-            filters={filters}
-            onFilterChange={setFilter}
-            onClear={clearFilters}
-          />
-        }
-        actions={<p className="truncate text-sm text-muted-foreground">{t('history.subtitle')}</p>}
+    <div className="flex h-full flex-col">
+      <ListToolbar
+        searchPlaceholder={t('history.search_placeholder')}
+        filterConfig={filterConfig}
+        filters={filters}
+        onFilterChange={setFilter}
+        onClear={clearFilters}
       />
 
       <QueryState

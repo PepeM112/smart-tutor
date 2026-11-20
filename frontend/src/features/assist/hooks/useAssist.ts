@@ -67,10 +67,12 @@ function updateSegment(
   segmentId: string,
   updater: (seg: TurnSegment) => TurnSegment
 ): AssistTurn[] {
-  return turns.map(t => ({
-    ...t,
-    segments: t.segments.map(s => (s.id === segmentId ? updater(s) : s)),
-  }));
+  // Turns without the segment keep their identity: `AssistTurnRow` is memoized on it.
+  return turns.map(t =>
+    t.segments.some(s => s.id === segmentId)
+      ? { ...t, segments: t.segments.map(s => (s.id === segmentId ? updater(s) : s)) }
+      : t
+  );
 }
 
 // ---------------------------------------------------------------------------

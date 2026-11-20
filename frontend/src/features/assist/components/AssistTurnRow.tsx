@@ -1,5 +1,7 @@
 'use client';
 
+import { memo } from 'react';
+
 import {
   ActionCard,
   AssistantBubble,
@@ -18,7 +20,8 @@ type AssistTurnRowProps = {
   isStreaming: boolean;
 };
 
-export function AssistTurnRow({ turn, onConfirm, isStreaming }: AssistTurnRowProps) {
+// Memoized so finished turns skip the render while the last turn streams (`turn` keeps its identity).
+export const AssistTurnRow = memo(function AssistTurnRow({ turn, onConfirm, isStreaming }: AssistTurnRowProps) {
   if (turn.role === 'user') {
     const seg = turn.segments[0];
     if (seg?.type === 'text') {
@@ -41,7 +44,7 @@ export function AssistTurnRow({ turn, onConfirm, isStreaming }: AssistTurnRowPro
       ))}
     </div>
   );
-}
+});
 
 function SegmentView({
   segment,

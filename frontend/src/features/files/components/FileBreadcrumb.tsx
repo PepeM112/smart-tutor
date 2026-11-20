@@ -87,9 +87,6 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
         <ArrowLeft className="size-4" />
       </button>
 
-      {/* Mobile: the full path does not fit, so show only the current name. */}
-      <span className="min-w-0 truncate px-1.5 text-sm text-foreground lg:hidden">{displayTitle(current.name, t)}</span>
-
       {/* Breadcrumb items — hidden on mobile */}
       <div className="hidden lg:flex items-center gap-0.5">
         {!collapsed ? (
@@ -144,7 +141,7 @@ export function FileBreadcrumb({ path, current, onRename, renameDisabled, fallba
 }
 
 // ─── CurrentCrumb ─────────────────────────────────────────────────────────────
-// The last (current) item — clickable for rename, with a sibling HoverCard.
+// The last (current) item and the page h1 — clickable for rename, with a sibling HoverCard.
 
 function CurrentCrumb({
   current,
@@ -180,28 +177,36 @@ function CurrentCrumb({
         !renameDisabled && onRename && 'hover:bg-muted cursor-pointer',
         (renameDisabled || !onRename) && 'cursor-default'
       )}
-      aria-label={!renameDisabled && onRename ? `${t('files.rename')}: ${displayName}` : undefined}
+      // Not an aria-label: the button is inside the h1, and its name must stay the page title.
+      title={!renameDisabled && onRename ? t('files.rename') : undefined}
     >
       <span className="block max-w-[200px] truncate">{displayName}</span>
     </button>
   );
 
-  if (editing) {
-    return (
-      <InlineRename
-        initialValue={current.name}
-        maxLength={NAME_LIMITS[current.kind]}
-        onSave={handleSave}
-        onCancel={() => setEditing(false)}
-      />
-    );
-  }
+  const siblings =
+    current.kind === 'folder'
+      ? folderSiblings(childrenIndex, current.parentId, current.id)
+      : noteSiblings(childrenIndex, current.parentId, current.id);
 
-  if (current.kind === 'folder') {
-    return <SiblingCard siblings={folderSiblings(childrenIndex, current.parentId, current.id)}>{label}</SiblingCard>;
-  }
-
-  return <SiblingCard siblings={noteSiblings(childrenIndex, current.parentId, current.id)}>{label}</SiblingCard>;
+  // The current page is the page h1 (`PageHeader` skips its hidden one when the lead has a heading).
+  return (
+    <h1 className="min-w-0">
+      {editing ? (
+        <>
+          <span className="sr-only">{displayName}</span>
+          <InlineRename
+            initialValue={current.name}
+            maxLength={NAME_LIMITS[current.kind]}
+            onSave={handleSave}
+            onCancel={() => setEditing(false)}
+          />
+        </>
+      ) : (
+        <SiblingCard siblings={siblings}>{label}</SiblingCard>
+      )}
+    </h1>
+  );
 }
 
 // ─── PathCrumb ────────────────────────────────────────────────────────────────

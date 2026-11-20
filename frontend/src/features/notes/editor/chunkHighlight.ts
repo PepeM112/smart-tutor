@@ -26,6 +26,19 @@ type ChunkHighlightMeta =
 export type ChunkHighlightStorage = {
   /** Set by the owner of the diffs. In storage, not options: the extension list is memoized. */
   onClick: ((id: string) => void) | null;
+  /**
+   * The helpers below, reachable from the editor. Code outside the editor chunk (the note page hook)
+   * calls them through here, so it does not import tiptap and the note page first load stays small.
+   */
+  api: ChunkHighlightApi;
+};
+
+export type ChunkHighlightApi = {
+  add: typeof addChunkHighlight;
+  setClickHandler: typeof setChunkHighlightClickHandler;
+  remove: typeof removeChunkHighlight;
+  setState: typeof setChunkHighlightState;
+  getRange: typeof getChunkRange;
 };
 
 declare module '@tiptap/core' {
@@ -40,7 +53,16 @@ export const ChunkHighlight = Extension.create<object, ChunkHighlightStorage>({
   name: 'chunkHighlight',
 
   addStorage() {
-    return { onClick: null };
+    return {
+      onClick: null,
+      api: {
+        add: addChunkHighlight,
+        setClickHandler: setChunkHighlightClickHandler,
+        remove: removeChunkHighlight,
+        setState: setChunkHighlightState,
+        getRange: getChunkRange,
+      },
+    };
   },
 
   addProseMirrorPlugins() {
