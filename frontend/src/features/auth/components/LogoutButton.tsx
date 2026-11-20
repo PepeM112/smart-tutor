@@ -1,43 +1,21 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
 import { LogOut } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { useAuthStore } from '@/features/auth/store/authStore';
-import { removeAttemptDrafts } from '@/features/courses/hooks/useAttemptDraft';
-import { sdk } from '@/lib/apiClient';
-import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
+
+import { useLogout } from '../hooks/useLogout';
 
 type LogoutButtonProps = {
   collapsed?: boolean;
 };
 
 export function LogoutButton({ collapsed = false }: LogoutButtonProps) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const t = useTranslations();
-  const logout = useAuthStore(state => state.logout);
-  const userId = useAuthStore(state => state.user?.id);
-
-  const handleLogout = async () => {
-    try {
-      await sdk.usersLogout();
-    } catch {
-      // Best-effort — clear client state regardless
-    }
-    // Only here, not in the 401/403 path: an expired session must keep the draft.
-    if (userId) removeAttemptDrafts(userId);
-    logout();
-    // Drop every cached answer: the next user of this browser must not see this user's data.
-    queryClient.clear();
-    router.push(Routes.LOGIN);
-    router.refresh();
-  };
+  const handleLogout = useLogout();
 
   return (
     <ConfirmDialog

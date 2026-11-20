@@ -4,11 +4,11 @@ import { BookOpen, FileText, GraduationCap } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { SpaceItemKind, type SpaceDetail, type SpaceItemRead, type SpaceSectionRead } from '@/client';
-import { courseHref, noteHref, Routes } from '@/lib/routes';
 
+import { itemAction } from '../lib/itemAction';
 import { isCourseViewer } from '../lib/progress';
 
-import { CourseContentFrame, CourseItemRow, CourseSectionFrame, type ItemRowAction } from './CourseLayout';
+import { CourseContentFrame, CourseItemRow, CourseSectionFrame } from './CourseLayout';
 import { CourseProgressBar, ItemProgressCircle, TestAttemptButton, TestAttemptInfo } from './CourseProgress';
 import { ScheduleBadges } from './ScheduleBadges';
 
@@ -73,32 +73,6 @@ export function CourseOutline({ sections, course, linkItems, onOpenNote, selecte
       ))}
     </CourseContentFrame>
   );
-}
-
-/**
- * A note opens the preview (the preview has a link to the full page). A test links to its page.
- * A viewer takes a test through the Start / Resume button, so a viewer's test row has no link.
- */
-function itemAction(
-  item: SpaceItemRead,
-  onOpenNote: Props['onOpenNote'],
-  isViewer: boolean
-): ItemRowAction | undefined {
-  const { noteId } = item;
-  if (item.kind === SpaceItemKind.NOTE && noteId && onOpenNote) return { onClick: () => onOpenNote(noteId) };
-  if (item.kind === SpaceItemKind.TEST && isViewer) return undefined;
-  if (item.kind === SpaceItemKind.COURSE && item.childSpaceId) {
-    return { href: courseHref({ id: item.childSpaceId, title: item.title }) };
-  }
-  const href = itemHref(item);
-  return href ? { href } : undefined;
-}
-
-/** The link to the content of a published item: the note page, or the exam of a test. */
-function itemHref(item: SpaceItemRead): string | null {
-  if (item.kind === SpaceItemKind.NOTE && item.noteId) return noteHref({ id: item.noteId, title: item.title });
-  if (item.kind === SpaceItemKind.TEST && item.testId) return Routes.TEST_DETAIL(item.testId);
-  return null;
 }
 
 export function ItemIcon({ item }: { item: SpaceItemRead }) {

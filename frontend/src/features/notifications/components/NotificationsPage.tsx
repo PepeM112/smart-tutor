@@ -3,12 +3,12 @@
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
-import { FilterPopover } from '@/components/shared/filters/FilterPopover';
-import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { ListToolbar } from '@/components/shared/ListToolbar';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
+import { usePageActions } from '@/hooks/usePageActions';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
 
 import { useMarkAllRead, useNotificationPages, useUnreadCount } from '../hooks/useNotifications';
@@ -44,28 +44,24 @@ export function NotificationsPage() {
   const { mutate: markAllRead, isPending: isMarkingAll } = useMarkAllRead();
   const items = data?.pages.flatMap(page => page.items) ?? [];
 
+  const headerActions = useMemo(
+    () => (
+      <Button
+        type="button"
+        variant="outline"
+        disabled={unreadCount === 0 || isMarkingAll}
+        onClick={() => markAllRead()}
+      >
+        {t('mark_all_read')}
+      </Button>
+    ),
+    [t, unreadCount, isMarkingAll, markAllRead]
+  );
+  usePageActions(headerActions);
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <ListPageHeader
-        filters={
-          <FilterPopover
-            filterConfig={filterConfig}
-            filters={filters}
-            onFilterChange={setFilter}
-            onClear={clearFilters}
-          />
-        }
-        actions={
-          <Button
-            type="button"
-            variant="outline"
-            disabled={unreadCount === 0 || isMarkingAll}
-            onClick={() => markAllRead()}
-          >
-            {t('mark_all_read')}
-          </Button>
-        }
-      />
+      <ListToolbar filterConfig={filterConfig} filters={filters} onFilterChange={setFilter} onClear={clearFilters} />
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('failed_to_load')} className="flex flex-col">
         {items.length === 0 ? (
           <p className="py-16 text-center text-sm text-muted-foreground">{t(unreadOnly ? 'empty_unread' : 'empty')}</p>

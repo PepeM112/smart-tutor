@@ -65,7 +65,7 @@ export function ImportNoteButton({ compact = false, folderId }: ImportNoteButton
       />
       <Button
         variant="outline"
-        size={compact ? 'icon-lg' : 'lg'}
+        size={compact ? 'icon' : 'default'}
         icon={Upload}
         onClick={() => fileRef.current?.click()}
         disabled={isImporting}

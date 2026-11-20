@@ -1,6 +1,6 @@
 'use client';
 
-import { Folder, NotepadText } from 'lucide-react';
+import { ChevronRight, Folder, NotepadText } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -14,12 +14,16 @@ import { displayTitle } from '@/lib/displayTitle';
 import { formatShortDate } from '@/lib/format';
 import { NAME_LIMITS } from '@/lib/limits';
 import { folderHref, noteHref } from '@/lib/routes';
+import { cn } from '@/lib/utils';
 
 import { useFilesTree } from '../context/FilesTreeContext';
 import { useTreeRowDnd } from '../hooks/useTreeRowDnd';
 import { hasChildItems } from '../lib/fileTree';
 
 import { FileRowActions } from './FileRowActions';
+import { NoteInlinePreview } from './NoteInlinePreview';
+
+const ROW_CLASS = 'min-h-13';
 
 // How long (ms) the pointer must hover a collapsed folder during a drag before it auto-expands.
 const HOVER_TO_OPEN_MS = 600;
@@ -75,6 +79,7 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
         depth={depth}
         dnd={dnd}
         expanded={hasChildren ? isExpanded : undefined}
+        className={ROW_CLASS}
         onClick={() => {
           if (!renaming && hasChildren) onToggleExpand(folder.id);
         }}
@@ -142,7 +147,7 @@ type NoteTreeRowProps = {
 export function NoteTreeRow({ note, depth }: NoteTreeRowProps) {
   const t = useTranslations();
   const router = useRouter();
-  const { previewId, mutations } = useFilesTree();
+  const { previewId, onTogglePreview, mutations } = useFilesTree();
   const [renaming, setRenaming] = useState(false);
   const isPreviewed = previewId === note.id;
   const title = displayTitle(note.title, t);
@@ -154,50 +159,65 @@ export function NoteTreeRow({ note, depth }: NoteTreeRowProps) {
   );
 
   return (
-    <TreeRowShell
-      depth={depth}
-      dnd={dnd}
-      selected={isPreviewed}
-      onClick={() => {
-        if (!renaming) router.push(href);
-      }}
-    >
-      {/* Spacer matching chevron width (notes have no expand control) */}
-      <span className="size-5 shrink-0" />
+    <>
+      <TreeRowShell
+        depth={depth}
+        dnd={dnd}
+        selected={isPreviewed}
+        // The open row and its preview read as one block: no divider between them.
+        className={cn(ROW_CLASS, isPreviewed && 'border-b-0')}
+        onClick={() => {
+          if (!renaming) router.push(href);
+        }}
+      >
+        <button
+          type="button"
+          aria-label={t(isPreviewed ? 'files.hide_preview_for' : 'files.show_preview_for', { title })}
+          aria-expanded={isPreviewed}
+          onClick={e => {
+            e.stopPropagation();
+            onTogglePreview(note.id);
+          }}
+          className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronRight className={cn('size-3.5 transition-transform duration-150', isPreviewed && 'rotate-90')} />
+        </button>
 
-      {/* Note icon */}
-      <NotepadText className="size-4 shrink-0 text-muted-foreground" />
+        {/* Note icon */}
+        <NotepadText className="size-4 shrink-0 text-muted-foreground" />
 
-      {/* Name cell */}
-      <div className="flex min-w-0 flex-1 items-center">
-        {renaming ? (
-          <InlineRename
-            initialValue={note.title}
-            maxLength={NAME_LIMITS.note}
-            onSave={name => {
-              setRenaming(false);
-              // version is fetched inside the mutation to avoid needing NoteRead here.
-              mutations.renameNote({ id: note.id, name });
-            }}
-            onCancel={() => setRenaming(false)}
-          />
-        ) : (
-          <Link
-            href={href}
-            className="truncate font-medium text-foreground hover:underline"
-            onClick={e => e.stopPropagation()}
-          >
-            {title}
-          </Link>
-        )}
-      </div>
+        {/* Name cell */}
+        <div className="flex min-w-0 flex-1 items-center">
+          {renaming ? (
+            <InlineRename
+              initialValue={note.title}
+              maxLength={NAME_LIMITS.note}
+              onSave={name => {
+                setRenaming(false);
+                // version is fetched inside the mutation to avoid needing NoteRead here.
+                mutations.renameNote({ id: note.id, name });
+              }}
+              onCancel={() => setRenaming(false)}
+            />
+          ) : (
+            <Link
+              href={href}
+              className="truncate font-medium text-foreground hover:underline"
+              onClick={e => e.stopPropagation()}
+            >
+              {title}
+            </Link>
+          )}
+        </div>
 
-      {/* Updated column */}
-      <span className="hidden shrink-0 text-xs text-muted-foreground sm:block w-24 text-right">
-        {formatShortDate(note.updatedAt)}
-      </span>
+        {/* Updated column */}
+        <span className="hidden shrink-0 text-xs text-muted-foreground sm:block w-24 text-right">
+          {formatShortDate(note.updatedAt)}
+        </span>
 
-      <FileRowActions item={{ kind: 'note', note }} onStartRename={() => setRenaming(true)} />
-    </TreeRowShell>
+        <FileRowActions item={{ kind: 'note', note }} onStartRename={() => setRenaming(true)} />
+      </TreeRowShell>
+      {isPreviewed && <NoteInlinePreview note={note} depth={depth} />}
+    </>
   );
 }

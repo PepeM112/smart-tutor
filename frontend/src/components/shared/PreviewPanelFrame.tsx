@@ -32,7 +32,7 @@ export function PreviewPanelFrame({ title, openHref, headerActions, onClose, con
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header — stays put when the item changes; only the body crossfades. */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
+      <div className="flex shrink-0 items-center gap-2 bg-muted/40 px-4 py-2">
         <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{title}</p>
         {headerActions}
         {/* A real link gives prefetch, middle-click and open in a new tab. */}

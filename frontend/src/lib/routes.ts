@@ -94,6 +94,13 @@ export function classroomItemHref(classroom: { id: string; title: string }, item
 
 const COURSE_ATTEMPT_ROUTE_RE = /^\/courses\/([^/?#]+)\/tests\/([^/?#]+)\/?(?:[?#].*)?$/;
 
+const EXAM_ROUTE_RE = /^\/tests\/(?!new(?:\/|$))[^/]+\/?$/;
+
+/** True on a page that takes an exam: a test (`/tests/{id}`) or the attempt of a course test. */
+export function isExamRoute(pathname: string): boolean {
+  return EXAM_ROUTE_RE.test(pathname) || COURSE_ATTEMPT_ROUTE_RE.test(pathname);
+}
+
 /**
  * If `route` is the attempt page of a course test (`/courses/{id}/tests/{itemId}`), the course page
  * with that item selected. Else null. The Assistant uses it, so it never opens an attempt page itself.

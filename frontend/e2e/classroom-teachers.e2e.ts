@@ -1,6 +1,14 @@
 import { expect, type Page } from '@playwright/test';
 
-import { expectToast, openClassroom, reseedCourses, spaceIdFromUrl, test } from './helpers';
+import {
+  classroomTab,
+  classroomTabs,
+  expectToast,
+  openClassroom,
+  reseedCourses,
+  spaceIdFromUrl,
+  test,
+} from './helpers';
 import { authFile } from './users';
 
 const CLASSROOM = 'Biology 101';
@@ -22,7 +30,7 @@ async function openRowMenu(page: Page, username: string): Promise<void> {
 
 test('C5: the co-teacher sees four tabs and no Settings tab', async ({ page }) => {
   await openClassroom(page, CLASSROOM);
-  await expect(page.getByRole('tab')).toHaveText(['Stream', 'Classwork', 'Members', 'Grades']);
+  await expect(classroomTabs(page)).toHaveText(['Stream', 'Classwork', 'Members', 'Grades']);
   await expect(page.getByText('Co-teacher', { exact: true })).toBeVisible();
 });
 
@@ -55,7 +63,7 @@ test('C5: the co-teacher edits and publishes the classroom', async ({ page, page
 
 test('C5: the co-teacher invites a user and cancels the invitation', async ({ page }) => {
   await openClassroom(page, CLASSROOM);
-  await page.getByRole('tab', { name: 'Members' }).click();
+  await classroomTab(page, 'Members').click();
   await page.getByRole('button', { name: 'Invite' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('textbox').first().fill('outsider');
@@ -72,7 +80,7 @@ test('C5: the co-teacher invites a user and cancels the invitation', async ({ pa
 test('C5: the co-teacher cannot change a role (menu and API), but can remove a student', async ({ page }) => {
   await openClassroom(page, CLASSROOM);
   const classroomId = spaceIdFromUrl(page);
-  await page.getByRole('tab', { name: 'Members' }).click();
+  await classroomTab(page, 'Members').click();
   await expect(memberRow(page, 'viewer')).toContainText('Student');
 
   await openRowMenu(page, 'viewer');

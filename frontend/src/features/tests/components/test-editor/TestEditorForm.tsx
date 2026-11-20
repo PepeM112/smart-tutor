@@ -29,8 +29,7 @@ import {
 import { useAssistCoversPage } from '@/features/assist/hooks/useAssistCoversPage';
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
 import { markCourseDetailStale } from '@/features/courses/lib/queryKeys';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { useMobileBreadcrumbActions } from '@/hooks/useMobileBreadcrumbActions';
+import { usePageActions } from '@/hooks/usePageActions';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
@@ -64,7 +63,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const t = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isDesktop } = useBreakpoint();
   const isEdit = !!testId;
 
   const [title, setTitle] = useState(initialTitle);
@@ -175,18 +173,21 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 
   const canSave = !!title.trim() && (isDirty || !isEdit);
 
-  useMobileBreadcrumbActions(
-    <TestEditorActions
-      size="sm"
-      testId={testId}
-      isEdit={isEdit}
-      isEditing={isEditing}
-      isSaving={isSaving}
-      canSave={canSave}
-      onToggleEditing={setIsEditing}
-      onSave={saveTest}
-    />
+  const headerActions = useMemo(
+    () => (
+      <TestEditorActions
+        testId={testId}
+        isEdit={isEdit}
+        isEditing={isEditing}
+        isSaving={isSaving}
+        canSave={canSave}
+        onToggleEditing={setIsEditing}
+        onSave={saveTest}
+      />
+    ),
+    [testId, isEdit, isEditing, isSaving, canSave, saveTest]
   );
+  usePageActions(headerActions);
 
   const diffSide =
     showTestDiff && pendingTestDiff ? (
@@ -206,45 +207,31 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
         storageKey={ASSIST_TEST_DIFF_SPLIT_KEY}
         main={
           <div className="min-w-0">
-            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-              <div className="space-y-3 flex-1">
-                {isEditing ? (
-                  <>
-                    <Input
-                      className="w-full lg:w-1/2"
-                      placeholder={t('tests.test_name')}
-                      value={title}
-                      onChange={e => {
-                        setTitle(e.target.value);
-                      }}
-                    />
-                    <AutoTextarea
-                      rows={2}
-                      placeholder={t('tests.description_optional')}
-                      value={description}
-                      onChange={e => {
-                        setDescription(e.target.value);
-                      }}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <h1 className="text-xl font-semibold">{title || t('tests.test_name')}</h1>
-                    {description && <p className="text-sm text-muted-foreground">{description}</p>}
-                  </>
-                )}
-              </div>
-              {isDesktop && (
-                <TestEditorActions
-                  size="lg"
-                  testId={testId}
-                  isEdit={isEdit}
-                  isEditing={isEditing}
-                  isSaving={isSaving}
-                  canSave={canSave}
-                  onToggleEditing={setIsEditing}
-                  onSave={saveTest}
-                />
+            <div className="mb-6 space-y-3">
+              {isEditing ? (
+                <>
+                  <Input
+                    className="w-full lg:w-1/2"
+                    placeholder={t('tests.test_name')}
+                    value={title}
+                    onChange={e => {
+                      setTitle(e.target.value);
+                    }}
+                  />
+                  <AutoTextarea
+                    rows={2}
+                    placeholder={t('tests.description_optional')}
+                    value={description}
+                    onChange={e => {
+                      setDescription(e.target.value);
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  <h2 className="text-xl font-semibold">{title || t('tests.test_name')}</h2>
+                  {description && <p className="text-sm text-muted-foreground">{description}</p>}
+                </>
               )}
             </div>
 
@@ -299,7 +286,6 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
 }
 
 type EditorActionsProps = {
-  size: 'sm' | 'lg';
   testId?: string;
   isEdit: boolean;
   isEditing: boolean;
@@ -310,7 +296,6 @@ type EditorActionsProps = {
 };
 
 function TestEditorActions({
-  size,
   testId,
   isEdit,
   isEditing,
@@ -322,25 +307,37 @@ function TestEditorActions({
   const t = useTranslations();
 
   return (
-    <div className="flex items-center gap-2">
+    <>
       {isEdit && testId && (
-        <Button variant="outline" size={size} icon={Dumbbell} className="text-feedback-partial" asChild>
-          <Link href={Routes.TEST_DETAIL(testId)}>{t('tests.take_test_action')}</Link>
+        <Button variant="outline" icon={Dumbbell} className="text-feedback-partial" asChild>
+          <Link href={Routes.TEST_DETAIL(testId)} aria-label={t('tests.take_test_action')}>
+            <span className="hidden sm:inline">{t('tests.take_test_action')}</span>
+          </Link>
         </Button>
       )}
       {isEditing ? (
-        <Button variant="outline" size={size} icon={SquareCheck} onClick={() => onToggleEditing(false)}>
-          {t('test_editor.done_editing')}
+        <Button
+          variant="outline"
+          icon={SquareCheck}
+          aria-label={t('test_editor.done_editing')}
+          onClick={() => onToggleEditing(false)}
+        >
+          <span className="hidden sm:inline">{t('test_editor.done_editing')}</span>
         </Button>
       ) : (
-        <Button variant="outline" size={size} icon={Pencil} onClick={() => onToggleEditing(true)}>
-          {t('test_editor.edit_questions')}
+        <Button
+          variant="outline"
+          icon={Pencil}
+          aria-label={t('test_editor.edit_questions')}
+          onClick={() => onToggleEditing(true)}
+        >
+          <span className="hidden sm:inline">{t('test_editor.edit_questions')}</span>
         </Button>
       )}
-      <Button size={size} loading={isSaving} disabled={!canSave} onClick={onSave}>
+      <Button loading={isSaving} disabled={!canSave} onClick={onSave}>
         {t('tests.save_test')}
       </Button>
-    </div>
+    </>
   );
 }
 

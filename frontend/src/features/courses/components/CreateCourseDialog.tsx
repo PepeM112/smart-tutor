@@ -29,8 +29,8 @@ export function CreateCourseDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="lg" icon={Plus}>
-          {t('courses.create_course')}
+        <Button icon={Plus} aria-label={t('courses.create_course')}>
+          <span className="hidden sm:inline">{t('courses.create_course')}</span>
         </Button>
       </DialogTrigger>
       {open && <CreateCourseForm onClose={() => setOpen(false)} />}

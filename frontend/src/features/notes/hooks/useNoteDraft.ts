@@ -124,12 +124,15 @@ export function useNoteDraft({ note, editorRef }: UseNoteDraftArgs): UseNoteDraf
   // so the change event that `setMarkdown` emits does not schedule a save.
   const applyServerNote = useCallback(
     (fresh: NoteRead) => {
+      const editor = editorRef.current;
+      // Without an editor the new content has nowhere to go: marking the version as known would hide it.
+      if (!editor) return;
       setTitleState(fresh.title);
       titleRef.current = fresh.title;
       setTagsState(fresh.tags ?? []);
       tagsRef.current = fresh.tags ?? [];
       contentRef.current = fresh.content ?? '';
-      editorRef.current?.setMarkdown(fresh.content ?? '');
+      editor.setMarkdown(fresh.content ?? '');
       reset(fresh.version);
       knownVersion.current = fresh.version;
     },

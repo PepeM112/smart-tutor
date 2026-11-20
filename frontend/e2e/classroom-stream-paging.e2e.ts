@@ -1,6 +1,6 @@
 import { expect, request as pwRequest } from '@playwright/test';
 
-import { expectToast, openClassroom, reseedCourses, test } from './helpers';
+import { classroomTab, expectToast, openClassroom, reseedCourses, test } from './helpers';
 import { authFile } from './users';
 
 // The Stream pages with a cursor. After a new post or a deleted post the list restarts from its first page, so
@@ -26,7 +26,7 @@ test('a new post after "Load more" repeats no post and hides none', async ({ pag
   await owner.dispose();
 
   await openClassroom(page, CLASSROOM);
-  await page.getByRole('tab', { name: 'Stream' }).click();
+  await classroomTab(page, 'Stream').click();
   const posts = page.getByTestId('feed-post');
   await expect(posts).toHaveCount(20);
   await page.getByRole('button', { name: 'Load more' }).click();
@@ -56,7 +56,7 @@ test('a new post after "Load more" repeats no post and hides none', async ({ pag
 
 test('a comment on a post of page 2 keeps the loaded pages and the post stays visible', async ({ page }) => {
   await openClassroom(page, CLASSROOM);
-  await page.getByRole('tab', { name: 'Stream' }).click();
+  await classroomTab(page, 'Stream').click();
   const posts = page.getByTestId('feed-post');
   await expect(posts).toHaveCount(20);
   await page.getByRole('button', { name: 'Load more' }).click();

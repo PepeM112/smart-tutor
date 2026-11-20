@@ -34,6 +34,7 @@
   /* Paper 2 lines and fills */
   --color-hairline: var(--hairline);
   --color-rule: var(--rule);
+  --color-outline: var(--outline);
   --color-track: var(--track);
 
   /* Brand hover (derived from primary) */
@@ -141,6 +142,7 @@
     --brand-hover: #8a3e1c;
     --hairline: #ece5d8;
     --rule: #d9d1c3;
+    --outline: #fbf8f2;
     --track: #e8e1d4;
     --feedback-correct: #44703f;
     --feedback-correct-bg: #eef3ea;
@@ -218,6 +220,7 @@
     --brand-hover: #de8d63;
     --hairline: #2f2b25;
     --rule: #443e36;
+    --outline: #201e1a;
     --track: #3a352e;
     --feedback-correct: #8dba82;
     --feedback-correct-bg: #25301f;

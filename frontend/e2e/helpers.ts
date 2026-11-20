@@ -38,6 +38,11 @@ export async function openCourse(page: Page, title: string): Promise<void> {
   await expect(pageHeading(page, title)).toBeVisible();
 }
 
+/** Select an item of the course in the outline column (a link). The page then shows the note or the test. */
+export async function openCourseItem(page: Page, title: string | RegExp): Promise<void> {
+  await page.getByTestId('outline-nav').getByRole('link', { name: title }).click();
+}
+
 /** Open a classroom from the "Classrooms" grid by its title. */
 export async function openClassroom(page: Page, title: string): Promise<void> {
   await page.goto('/classrooms');
@@ -45,7 +50,23 @@ export async function openClassroom(page: Page, title: string): Promise<void> {
     .getByRole('link', { name: new RegExp(`^${title}`) })
     .first()
     .click();
-  await expect(pageHeading(page, title)).toBeVisible();
+  // The page title is the tab, so the open page is known by its outline: the default tab is selected.
+  await expect(classroomTab(page, 'Classwork')).toHaveAttribute('aria-current', 'page');
+}
+
+/** A tab of the classroom: a link in the outline column (the Contents drawer below `lg`). */
+export function classroomTab(page: Page, name: string) {
+  return page.getByTestId('outline-nav').getByRole('link', { name, exact: true });
+}
+
+/** All the tabs of the classroom that the user sees. */
+export function classroomTabs(page: Page) {
+  return page.getByTestId('outline-nav').getByRole('link');
+}
+
+/** The classroom in the breadcrumb of the page header (the title there is the tab). */
+export function classroomCrumb(page: Page, title: string) {
+  return page.getByRole('link', { name: title, exact: true }).filter({ visible: true });
 }
 
 /** The id of the space in the URL (`/classrooms/<slug>-<id>`): the last 26 characters of the path. */

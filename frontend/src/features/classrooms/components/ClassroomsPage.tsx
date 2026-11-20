@@ -4,8 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { SpaceRole } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/FilterPopover';
-import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { ListToolbar } from '@/components/shared/ListToolbar';
 import { QueryState } from '@/components/shared/QueryState';
 import { CourseCard } from '@/features/courses/components/CourseCard';
 import { InvitationsButton } from '@/features/courses/components/InvitationsButton';
@@ -13,6 +12,7 @@ import { JoinByCodeDialog } from '@/features/courses/components/JoinByCodeDialog
 import { CLASSROOM_ROLE_LABELS } from '@/features/courses/lib/labels';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
+import { usePageActions } from '@/hooks/usePageActions';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
 
 import { useMyClassrooms } from '../hooks/useClassrooms';
@@ -28,10 +28,19 @@ const STATUS_OPTIONS = [
 const ROLE_OPTIONS = [SpaceRole.OWNER, SpaceRole.EDITOR, SpaceRole.VIEWER] as const;
 const ROLE_FILTER_OPTIONS = ROLE_OPTIONS.map(value => ({ label: CLASSROOM_ROLE_LABELS[value], value }));
 
+const HEADER_ACTIONS = (
+  <>
+    <InvitationsButton />
+    <JoinByCodeDialog />
+    <CreateClassroomDialog />
+  </>
+);
+
 /** `/classrooms`: the classrooms of the user. Invitations, Join with code and Create in the header. */
 export function ClassroomsPage() {
   const t = useTranslations();
   useBreadcrumb(t('classrooms.title'));
+  usePageActions(HEADER_ACTIONS);
 
   const filterConfig: FilterItem[] = useMemo(
     () => [
@@ -63,38 +72,21 @@ export function ClassroomsPage() {
   const hasActiveFilters = Object.keys(filters).length > 0;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <InvitationsButton />
-        <JoinByCodeDialog />
-        <CreateClassroomDialog />
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <ListPageHeader
-          filters={
-            <FilterPopover
-              filterConfig={filterConfig}
-              filters={filters}
-              onFilterChange={setFilter}
-              onClear={clearFilters}
-            />
-          }
-        />
-        <QueryState isLoading={isLoading} isError={isError} errorMessage={t('classrooms.failed_to_load')}>
-          {classrooms.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">
-              {t(hasActiveFilters ? 'classrooms.no_classrooms_filtered' : 'classrooms.no_classrooms')}
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {classrooms.map(classroom => (
-                <CourseCard key={classroom.id} course={classroom} />
-              ))}
-            </div>
-          )}
-        </QueryState>
-      </div>
+    <div className="flex flex-col">
+      <ListToolbar filterConfig={filterConfig} filters={filters} onFilterChange={setFilter} onClear={clearFilters} />
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('classrooms.failed_to_load')}>
+        {classrooms.length === 0 ? (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            {t(hasActiveFilters ? 'classrooms.no_classrooms_filtered' : 'classrooms.no_classrooms')}
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {classrooms.map(classroom => (
+              <CourseCard key={classroom.id} course={classroom} />
+            ))}
+          </div>
+        )}
+      </QueryState>
     </div>
   );
 }

@@ -10,6 +10,11 @@ import { cn } from '@/lib/utils';
 import { useIsAssistHidden } from '../store/useAssistHiddenStore';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
 
+import { loadAssistSheetBody } from './loadAssistSheetBody';
+
+// A failed chunk load is not an error here: the sheet loads again, with its own loading state, when it opens.
+const preloadSheetBody = (): void => void loadAssistSheetBody().catch(() => undefined);
+
 /** Page header button that opens and closes the Ask AI sheet. It is the only entry point. */
 export function AssistToggle() {
   const t = useTranslations('assist.panel');
@@ -27,6 +32,9 @@ export function AssistToggle() {
       size="icon"
       icon={Sparkles}
       onClick={toggle}
+      onPointerEnter={preloadSheetBody}
+      onPointerDown={preloadSheetBody}
+      onFocus={preloadSheetBody}
       aria-pressed={isOpen}
       aria-label={t('title')}
       tooltip={t('title')}

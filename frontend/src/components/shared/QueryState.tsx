@@ -21,7 +21,7 @@ type QueryStateProps = {
   /** Success content, rendered once loading has finished and no error occurred. */
   children: ReactNode;
   /**
-   * Classes for the wrapper div. A full-height page (FilePageShell) needs `h-full`:
+   * Classes for the wrapper div. A full-height page (the note page) needs `h-full`:
    * without it the wrapper has no definite height, and `h-full` below it collapses.
    */
   className?: string;

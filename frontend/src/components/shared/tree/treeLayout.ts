@@ -12,7 +12,7 @@ export const TREE_NAME_OFFSET_PX = 28;
 
 /**
  * Width of an actions cell with one button (`icon-sm`, 28px): the `⋮` menu. `w-7` = 28px.
- * Trash rows and list rows with no Eye button use it.
+ * Files rows, Trash rows and list rows with no Eye button use it.
  */
 export const ACTIONS_CELL_ONE_BUTTON_CLASS = 'w-7';
 

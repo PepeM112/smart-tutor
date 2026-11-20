@@ -2,6 +2,8 @@ import { FileText, Layers, ListChecks } from 'lucide-react';
 
 import { QuestionType } from '@/client';
 
+import { QUESTION_TYPE_LABEL_KEYS } from '../constants';
+
 import type { LucideIcon } from 'lucide-react';
 
 type QuestionTypeInfo = {
@@ -9,12 +11,14 @@ type QuestionTypeInfo = {
   labelKey: string;
 };
 
-const QUESTION_TYPE_MAP: Record<number, QuestionTypeInfo> = {
-  [QuestionType.SIMPLE]: { icon: Layers, labelKey: 'test_editor.simple' },
-  [QuestionType.MULTIPLE_CHOICE]: { icon: ListChecks, labelKey: 'test_editor.multiple_choice' },
-  [QuestionType.LONG_TEXT]: { icon: FileText, labelKey: 'test_editor.long_text' },
+const QUESTION_TYPE_ICONS: Record<number, LucideIcon> = {
+  [QuestionType.SIMPLE]: Layers,
+  [QuestionType.MULTIPLE_CHOICE]: ListChecks,
+  [QuestionType.LONG_TEXT]: FileText,
 };
 
 export function getQuestionTypeInfo(type: QuestionType): QuestionTypeInfo {
-  return QUESTION_TYPE_MAP[type] ?? { icon: FileText, labelKey: 'test_editor.unknown' };
+  const icon = QUESTION_TYPE_ICONS[type];
+  if (!icon) return { icon: FileText, labelKey: 'test_editor.unknown' };
+  return { icon, labelKey: QUESTION_TYPE_LABEL_KEYS[type] };
 }

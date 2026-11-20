@@ -7,24 +7,21 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
 import { QuestionType } from '@/client';
-import { FilterPopover } from '@/components/shared/filters/FilterPopover';
-import { ListPageHeader } from '@/components/shared/ListPageHeader';
+import { ListToolbar } from '@/components/shared/ListToolbar';
 import { Pagination } from '@/components/shared/Pagination';
 import { QueryState } from '@/components/shared/QueryState';
-import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { Button } from '@/components/ui/button';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { formatTestsList } from '@/features/assist/utils/formatPageData';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useFilters } from '@/hooks/useFilters';
-import { useRowPreview } from '@/hooks/useRowPreview';
+import { usePageActions } from '@/hooks/usePageActions';
 import { useUrlSort } from '@/hooks/useUrlSort';
 import { sdk } from '@/lib/apiClient';
 import { FilterType, type DateFilterValue, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
 import { QuickTestDialog } from './QuickTestDialog';
-import { TestPreviewPanel } from './TestPreviewPanel';
 import { TestsTable } from './TestsTable';
 
 const PER_PAGE = 20;
@@ -38,6 +35,20 @@ const QUESTION_TYPE_OPTIONS = [
 export function TestsPage() {
   const t = useTranslations();
   useBreadcrumb(t('tests.title'));
+  const headerActions = useMemo(
+    () => (
+      <>
+        <QuickTestDialog compact />
+        <Button icon={Plus} asChild>
+          <Link href={Routes.TEST_NEW} aria-label={t('tests.create_test')}>
+            <span className="hidden sm:inline">{t('tests.create_test')}</span>
+          </Link>
+        </Button>
+      </>
+    ),
+    [t]
+  );
+  usePageActions(headerActions);
 
   const [page, setPage] = useState(1);
   const resetPage = useCallback(() => setPage(1), []);
@@ -109,49 +120,27 @@ export function TestsPage() {
           sort_order: sortOrder,
         },
       }),
+    placeholderData: previous => previous,
   });
 
   const items = useMemo(() => response?.data?.items ?? [], [response]);
   const total = response?.data?.total ?? 0;
-  // The pane closes when the view changes (page, sort, filters) or its test leaves the page.
-  const {
-    previewItem: previewTest,
-    previewId,
-    openPreview,
-    closePreview,
-  } = useRowPreview(items, JSON.stringify(listParams));
   const hasActiveFilters = Object.keys(filters).length > 0;
   const isFilteredEmpty = hasActiveFilters && items.length === 0 && !isLoading;
 
   useProvidePageData(useMemo(() => (items.length > 0 ? formatTestsList(items) : null), [items]));
 
   return (
-    <div className="flex h-full flex-col gap-6">
-      <ListPageHeader
-        filters={
-          <FilterPopover
-            filterConfig={filterConfig}
-            filters={filters}
-            onFilterChange={setFilter}
-            onClear={clearFilters}
-          />
-        }
-        actions={
-          <>
-            <QuickTestDialog compact />
-            <Button size="lg" icon={Plus} asChild>
-              <Link href={Routes.TEST_NEW}>{t('tests.create_test')}</Link>
-            </Button>
-          </>
-        }
+    <div className="flex flex-col">
+      <ListToolbar
+        searchPlaceholder={t('tests.search_placeholder')}
+        filterConfig={filterConfig}
+        filters={filters}
+        onFilterChange={setFilter}
+        onClear={clearFilters}
       />
 
-      <QueryState
-        className="flex min-h-0 flex-1 flex-col"
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={t('tests.failed_to_load')}
-      >
+      <QueryState isLoading={isLoading} isError={isError} errorMessage={t('tests.failed_to_load')}>
         {isFilteredEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-muted-foreground">{t('tests.no_results')}</p>
@@ -160,26 +149,10 @@ export function TestsPage() {
             </Button>
           </div>
         ) : (
-          <ResponsiveSplitPane
-            storageKey="tests-preview-split-ratio"
-            defaultRatio={0.6}
-            bleed
-            main={
-              <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
-                <TestsTable
-                  data={items}
-                  sort={sort}
-                  onSort={handleSort}
-                  onPreview={openPreview}
-                  previewId={previewId}
-                />
-                <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
-              </div>
-            }
-            side={previewTest ? <TestPreviewPanel test={previewTest} onClose={closePreview} /> : null}
-            onSideClose={closePreview}
-            insetDrawerBody={false}
-          />
+          <div className={isFetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+            <TestsTable data={items} sort={sort} onSort={handleSort} />
+            <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} disabled={isFetching} />
+          </div>
         )}
       </QueryState>
     </div>

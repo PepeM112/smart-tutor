@@ -20,7 +20,8 @@ export type FilesTreeContextValue = {
   childrenIndex: ChildrenIndex;
   /** Flat folder list, used by `canDrop` to check for cycles. */
   folders: FileTreeFolder[];
-  onPreview: (noteId: string) => void;
+  /** Opens the inline preview of a note, or closes it when it is the open one. */
+  onTogglePreview: (noteId: string) => void;
   previewId: string | null;
   mutations: ReturnType<typeof useFileMutations>;
   /** DnD is off on non-desktop viewports. */

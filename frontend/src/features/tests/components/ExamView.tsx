@@ -1,8 +1,7 @@
 'use client';
 
-import { Loader2, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   LongTextLength,
@@ -14,23 +13,28 @@ import {
   type TestQuestionGroupReadStripped,
   type TestReadStripped,
 } from '@/client';
+import { OutlineColumn } from '@/components/shared/OutlineColumn';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { usePageActions } from '@/hooks/usePageActions';
+import { usePageSubtitle } from '@/hooks/usePageSubtitle';
+import { cn } from '@/lib/utils';
 
-import { LONG_TEXT_LENGTH_TIERS } from '../constants';
+import { LONG_TEXT_LENGTH_TIERS, QUESTION_TYPE_LABEL_KEYS } from '../constants';
+import { useCountdown } from '../hooks/useCountdown';
+import { useScrollspy } from '../hooks/useScrollspy';
+import { buildExamEntries, buildExamItems, examAnchorId, isEntryAnswered, type ExamItem } from '../utils/examProgress';
+import { groupMaxPoints, questionPoints } from '../utils/points';
 import { parseMcAnswer, toggleMcOption } from '../utils/questionContent';
 
-import { Countdown } from './Countdown';
+import { CountdownPill } from './CountdownPill';
+import { ExamOutline } from './ExamOutline';
 
-type ExamItem =
-  | { kind: 'question'; question: QuestionReadStripped; order: number }
-  | { kind: 'group'; group: TestQuestionGroupReadStripped; order: number };
-
-type Props = {
+interface ExamViewProps {
   test: TestReadStripped;
   onSubmit: (answers: Record<string, string>) => void;
   isSubmitting: boolean;
@@ -40,16 +44,20 @@ type Props = {
   onAnswersChange?: (answers: Record<string, string>) => void;
   /** With a deadline: a countdown shows, and the exam submits itself at 0. */
   deadlineAt?: Date | null;
+}
+
+type AnswerHandlers = {
+  onTextChange: (id: string, value: string) => void;
+  onCheckboxToggle: (id: string, index: number) => void;
 };
 
-export function ExamView({ test, onSubmit, isSubmitting, initialAnswers, onAnswersChange, deadlineAt }: Props) {
+export function ExamView({ test, onSubmit, isSubmitting, initialAnswers, onAnswersChange, deadlineAt }: ExamViewProps) {
   const t = useTranslations();
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers ?? {});
-  const items = buildExamItems(test);
-
-  const allQuestions = items.flatMap(item =>
-    item.kind === 'question' ? [item.question] : (item.group.questions ?? [])
-  );
+  const items = useMemo(() => buildExamItems(test), [test]);
+  const entries = useMemo(() => buildExamEntries(items, answers, t('exam.question_group')), [items, answers, t]);
+  const anchorIds = useMemo(() => items.map(examAnchorId), [items]);
+  const hasQuestions = entries.some(entry => entry.totalCount > 0);
 
   // The latest values for the timer, which must not restart on each keystroke.
   const latest = useRef({ answers, onSubmit, onAnswersChange });
@@ -83,114 +91,208 @@ export function ExamView({ test, onSubmit, isSubmitting, initialAnswers, onAnswe
     if (!isSubmitting) hasSubmitted.current = false;
   }, [isSubmitting]);
 
-  const submitOnce = () => {
+  const submitOnce = useCallback(() => {
     if (hasSubmitted.current) return;
     hasSubmitted.current = true;
     latest.current.onSubmit(latest.current.answers);
+  }, []);
+
+  const remainingSeconds = useCountdown(deadlineAt, submitOnce);
+  const isSubmitDisabled = isSubmitting || !hasQuestions;
+
+  // The header shows the timer and the one filled button. It renders them twice (desktop and phone).
+  const headerActions = useMemo(
+    () => (
+      <>
+        {remainingSeconds !== null && <CountdownPill remainingSeconds={remainingSeconds} />}
+        <SubmitButton isHeader isSubmitting={isSubmitting} isDisabled={isSubmitDisabled} onSubmit={submitOnce} />
+      </>
+    ),
+    [remainingSeconds, isSubmitting, isSubmitDisabled, submitOnce]
+  );
+  usePageActions(headerActions);
+
+  const answeredCount = entries.filter(isEntryAnswered).length;
+  usePageSubtitle(t('exam.answered_count', { answered: answeredCount, total: entries.length }));
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const activeAnchorId = useScrollspy(rootRef, anchorIds);
+
+  const handleJump = (anchorId: string) => {
+    document.getElementById(anchorId)?.scrollIntoView({ block: 'start' });
   };
 
-  let itemNumber = 0;
-
   return (
-    <div className="space-y-6">
-      {deadlineAt && <Countdown deadlineAt={deadlineAt} onTimeout={submitOnce} />}
+    <OutlineColumn
+      storageKey="exam-outline-width"
+      label={t('outline.contents')}
+      outline={<ExamOutline entries={entries} activeAnchorId={activeAnchorId} onJump={handleJump} />}
+    >
+      <div ref={rootRef} className="mx-auto w-full max-w-3xl divide-y divide-hairline">
+        {test.description && <p className="pb-8 text-muted-foreground">{test.description}</p>}
 
-      {/* Test title */}
-      <h2 className="text-2xl font-bold text-balance">{test.title}</h2>
-      {test.description && <p className="text-sm text-muted-foreground -mt-4">{test.description}</p>}
+        {items.map((item, index) => (
+          <ExamSection
+            key={examAnchorId(item, index)}
+            item={item}
+            anchorId={examAnchorId(item, index)}
+            number={index + 1}
+            answers={answers}
+            onTextChange={handleTextChange}
+            onCheckboxToggle={handleCheckboxToggle}
+          />
+        ))}
 
-      {items.map((item, idx) => {
-        if (item.kind === 'question') {
-          itemNumber++;
-          return (
-            <QuestionCard
-              key={item.question.id}
-              question={item.question}
-              number={itemNumber}
-              pointsLabel={
-                item.question.points != null && item.question.points !== 1 ? item.question.points : undefined
-              }
-              answer={answers[item.question.id] ?? ''}
-              onTextChange={handleTextChange}
-              onCheckboxToggle={handleCheckboxToggle}
-            />
-          );
-        }
-
-        const group = item.group;
-        const questions = group.questions ?? [];
-        const isVocabulary = group.type === QuestionGroupType.VOCABULARY;
-        itemNumber++;
-        const groupNumber = itemNumber;
-
-        return (
-          <div key={group.id ?? `group-${idx}`} className="rounded-lg border border-border p-6 space-y-4">
-            <p className="font-medium">
-              <span className="text-muted-foreground mr-1.5">{groupNumber}.</span>
-              {group.points != null && group.points !== 1 && (
-                <span className="text-xs text-muted-foreground mr-1.5">[{group.points} pts]</span>
-              )}
-              {group.title ?? t('exam.question_group')}
-            </p>
-
-            {isVocabulary ? (
-              <VocabularyTable questions={questions} answers={answers} onTextChange={handleTextChange} />
-            ) : (
-              <div className="space-y-3">
-                {questions.map(q => (
-                  <QuestionCard
-                    key={q.id}
-                    question={q}
-                    answer={answers[q.id] ?? ''}
-                    onTextChange={handleTextChange}
-                    onCheckboxToggle={handleCheckboxToggle}
-                    nested
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {/* Submit button */}
-      <div className="flex justify-end pt-2">
-        <Button
-          size="lg"
-          icon={isSubmitting ? Loader2 : Send}
-          onClick={submitOnce}
-          disabled={isSubmitting || allQuestions.length === 0}
-        >
-          {isSubmitting ? t('exam.submitting') : t('exam.submit_exam')}
-        </Button>
+        <div className="flex justify-end pt-8">
+          <SubmitButton isSubmitting={isSubmitting} isDisabled={isSubmitDisabled} onSubmit={submitOnce} />
+        </div>
       </div>
-    </div>
+    </OutlineColumn>
   );
 }
 
-function buildExamItems(test: TestReadStripped): ExamItem[] {
-  const items: ExamItem[] = [];
+interface SubmitButtonProps {
+  isSubmitting: boolean;
+  isDisabled: boolean;
+  onSubmit: () => void;
+  /** The filled button of the header. The copy at the end of the page is quiet. */
+  isHeader?: boolean;
+}
 
-  for (const q of test.questions ?? []) {
-    items.push({ kind: 'question', question: q, order: q.order ?? 0 });
+function SubmitButton({ isSubmitting, isDisabled, onSubmit, isHeader = false }: SubmitButtonProps) {
+  const t = useTranslations();
+  const label = isSubmitting ? t('exam.submitting') : t('exam.submit_exam');
+
+  return (
+    <Button
+      variant={isHeader ? 'default' : 'outline'}
+      loading={isSubmitting}
+      disabled={isDisabled}
+      onClick={onSubmit}
+      aria-label={isHeader ? label : undefined}
+    >
+      {isHeader ? (
+        <>
+          <span className="max-sm:hidden">{label}</span>
+          <span className="sm:hidden" aria-hidden>
+            {isSubmitting ? t('exam.submitting') : t('exam.submit_short')}
+          </span>
+        </>
+      ) : (
+        label
+      )}
+    </Button>
+  );
+}
+
+interface ExamSectionProps extends AnswerHandlers {
+  item: ExamItem;
+  anchorId: string;
+  number: number;
+  answers: Record<string, string>;
+}
+
+/** One question or group: the meta line, the prompt as a title, then the inputs. */
+function ExamSection({ item, anchorId, number, answers, onTextChange, onCheckboxToggle }: ExamSectionProps) {
+  const t = useTranslations();
+  const titleId = `${anchorId}-title`;
+
+  if (item.kind === 'question') {
+    const { question } = item;
+    const meta = t('exam.question_meta', {
+      number,
+      type: t(QUESTION_TYPE_LABEL_KEYS[question.questionType]),
+      points: questionPoints(question),
+    });
+    return (
+      <SectionFrame anchorId={anchorId} titleId={titleId} meta={meta} title={question.prompt}>
+        <QuestionBody
+          question={question}
+          answer={answers[question.id] ?? ''}
+          onTextChange={onTextChange}
+          onCheckboxToggle={onCheckboxToggle}
+        />
+      </SectionFrame>
+    );
   }
 
-  for (const g of test.questionGroups ?? []) {
-    items.push({ kind: 'group', group: g, order: g.order ?? 0 });
+  const meta = t('exam.question_meta', {
+    number,
+    type: t('exam.group_label'),
+    points: groupMaxPoints(item.group),
+  });
+  return (
+    <SectionFrame
+      anchorId={anchorId}
+      titleId={titleId}
+      meta={meta}
+      title={item.group.title ?? t('exam.question_group')}
+    >
+      <GroupBody group={item.group} answers={answers} onTextChange={onTextChange} onCheckboxToggle={onCheckboxToggle} />
+    </SectionFrame>
+  );
+}
+
+interface SectionFrameProps {
+  anchorId: string;
+  titleId: string;
+  meta: string;
+  title: string;
+  children: ReactNode;
+}
+
+function SectionFrame({ anchorId, titleId, meta, title, children }: SectionFrameProps) {
+  return (
+    <section id={anchorId} aria-labelledby={titleId} className="scroll-mt-4 space-y-4 py-8 first:pt-0">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">{meta}</p>
+        <h2 id={titleId} className="font-serif text-xl font-medium text-balance">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+interface GroupBodyProps extends AnswerHandlers {
+  group: TestQuestionGroupReadStripped;
+  answers: Record<string, string>;
+}
+
+function GroupBody({ group, answers, onTextChange, onCheckboxToggle }: GroupBodyProps) {
+  const questions = group.questions ?? [];
+
+  if (group.type === QuestionGroupType.VOCABULARY) {
+    return <VocabularyTable questions={questions} answers={answers} onTextChange={onTextChange} />;
   }
 
-  return items.sort((a, b) => a.order - b.order);
+  return (
+    <div className="space-y-4">
+      {questions.map(question => (
+        <div key={question.id} className="space-y-3 rounded-lg bg-muted/40 p-4">
+          <p className="font-medium">{question.prompt}</p>
+          <QuestionBody
+            question={question}
+            answer={answers[question.id] ?? ''}
+            onTextChange={onTextChange}
+            onCheckboxToggle={onCheckboxToggle}
+          />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Vocabulary table — renders simple questions in a school-exam table layout
 // ---------------------------------------------------------------------------
 
-type VocabularyTableProps = {
+interface VocabularyTableProps {
   questions: QuestionReadStripped[];
   answers: Record<string, string>;
   onTextChange: (id: string, value: string) => void;
-};
+}
 
 function VocabularyTable({ questions, answers, onTextChange }: VocabularyTableProps) {
   const t = useTranslations();
@@ -228,28 +330,15 @@ function VocabularyTable({ questions, answers, onTextChange }: VocabularyTablePr
 }
 
 // ---------------------------------------------------------------------------
-// Question card (used for standalone MC questions and non-vocabulary groups)
+// Question body: the hint and the input of one question (standalone, or inside a group)
 // ---------------------------------------------------------------------------
 
-type QuestionCardProps = {
+interface QuestionBodyProps extends AnswerHandlers {
   question: QuestionReadStripped;
-  number?: number;
-  pointsLabel?: number;
   answer: string;
-  onTextChange: (id: string, value: string) => void;
-  onCheckboxToggle: (id: string, index: number) => void;
-  nested?: boolean;
-};
+}
 
-function QuestionCard({
-  question,
-  number,
-  pointsLabel,
-  answer,
-  onTextChange,
-  onCheckboxToggle,
-  nested,
-}: QuestionCardProps) {
+function QuestionBody({ question, answer, onTextChange, onCheckboxToggle }: QuestionBodyProps) {
   const t = useTranslations();
   const content = question.content;
   const isSimple = question.questionType === QuestionType.SIMPLE;
@@ -263,23 +352,10 @@ function QuestionCard({
       ) ?? LONG_TEXT_LENGTH_TIERS[1])
     : null;
 
-  const wrapper = (children: React.ReactNode) =>
-    nested ? (
-      <div className="rounded-lg border border-border p-4 space-y-3">{children}</div>
-    ) : (
-      <div className="rounded-lg border border-border p-6 space-y-4">{children}</div>
-    );
-
-  return wrapper(
+  return (
     <>
-      <p className="font-medium">
-        {number != null && <span className="text-muted-foreground mr-1.5">{number}.</span>}
-        {pointsLabel != null && <span className="text-xs text-muted-foreground mr-1.5">[{pointsLabel} pts]</span>}
-        {question.prompt}
-      </p>
-
       {question.hint && (
-        <p className="text-xs text-muted-foreground italic">{t('exam.hint', { hint: question.hint })}</p>
+        <p className="text-sm text-muted-foreground italic">{t('exam.hint', { hint: question.hint })}</p>
       )}
 
       {/* Simple text input */}
@@ -298,16 +374,21 @@ function QuestionCard({
           {((content as MultipleChoiceContentStripped).options ?? []).map((option, idx) => {
             const checked = parseMcAnswer(answer).includes(idx);
             return (
-              <div key={idx} className="flex items-center gap-3">
+              <Label
+                key={idx}
+                htmlFor={`${question.id}-opt-${idx}`}
+                className={cn(
+                  'flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm font-normal transition-colors hover:bg-muted/60',
+                  checked && 'bg-muted'
+                )}
+              >
                 <Checkbox
                   id={`${question.id}-opt-${idx}`}
                   checked={checked}
                   onCheckedChange={() => onCheckboxToggle(question.id, idx)}
                 />
-                <Label htmlFor={`${question.id}-opt-${idx}`} className="text-sm cursor-pointer">
-                  {option}
-                </Label>
-              </div>
+                {option}
+              </Label>
             );
           })}
         </div>

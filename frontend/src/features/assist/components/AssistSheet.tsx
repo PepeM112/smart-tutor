@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button';
 import { useAssistActions } from '../context/AssistContext';
 import { useAssistPanelStore } from '../store/useAssistPanelStore';
 
-// Loads on the first open, not with the page. The skeleton fills the sheet under the header, so the
-// sheet opens at once and its layout does not jump when the chat arrives.
-const AssistSheetBody = dynamic(() => import('./AssistSheetBody').then(m => m.AssistSheetBody), {
+import { loadAssistSheetBody } from './loadAssistSheetBody';
+
+// Loads on the first open (or earlier, when the toggle is hovered), not with the page. The skeleton
+// fills the sheet under the header, so the sheet opens at once and its layout does not jump.
+const AssistSheetBody = dynamic(() => loadAssistSheetBody().then(m => m.AssistSheetBody), {
   ssr: false,
   loading: () => <AssistSheetSkeleton />,
 });

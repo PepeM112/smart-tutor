@@ -71,7 +71,7 @@ export function InvitationsButton() {
     <FloatingCard>
       <HoverHint label={t('courses.invitations')}>
         <FloatingCardTrigger>
-          <Button variant="outline" size="icon-lg" aria-label={label} className="relative">
+          <Button variant="outline" size="icon" aria-label={label} className="relative">
             <Mail />
             {count > 0 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-4.5 rounded-full bg-primary px-1 text-center text-[11px] leading-4.5 font-medium text-primary-foreground tabular-nums">

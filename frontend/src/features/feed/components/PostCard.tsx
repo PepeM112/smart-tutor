@@ -71,7 +71,7 @@ export function PostCard({ classroomId, post, canComment }: PostCardProps) {
       )}
 
       {(comments.length > 0 || canComment) && (
-        <div className="flex flex-col gap-3 border-t border-border pt-3">
+        <div className="flex flex-col gap-3 rounded-lg bg-muted/40 p-3">
           {comments.length > 0 && (
             <ul className="flex flex-col gap-3" aria-label={t('comments')}>
               {comments.map(comment => (

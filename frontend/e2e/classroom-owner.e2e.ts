@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-import { expectToast, openClassroom, reseedCourses, spaceIdFromUrl, test } from './helpers';
+import { classroomTab, expectToast, openClassroom, reseedCourses, spaceIdFromUrl, test } from './helpers';
 import { authFile } from './users';
 
 const CLASSROOM = 'Biology 101';
@@ -34,7 +34,7 @@ test('C9: the owner duplicates a standalone course into the classroom and publis
 test('C13: the owner sets the Class key, priority, scope and cap', async ({ page }) => {
   await openClassroom(page, CLASSROOM);
   const classroomId = spaceIdFromUrl(page);
-  await page.getByRole('tab', { name: 'Settings' }).click();
+  await classroomTab(page, 'Settings').click();
 
   await page.getByRole('button', { name: /Anthropic/ }).click();
   // The key is only stored (encrypted). No call is made with it.
@@ -53,7 +53,7 @@ test('C13: the owner sets the Class key, priority, scope and cap', async ({ page
 
   // The values are still there after a reload, and the key is never shown again.
   await page.reload();
-  await page.getByRole('tab', { name: 'Settings' }).click();
+  await classroomTab(page, 'Settings').click();
   await expect(page.getByText('Key saved')).toBeVisible();
   await expect(page.locator('#token-cap')).toHaveValue('5000');
   await expect(page.locator('#class-key')).toHaveValue('');

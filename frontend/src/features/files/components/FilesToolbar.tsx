@@ -21,7 +21,7 @@ type Props = {
   onNewFolder: () => void;
 };
 
-/** New folder, import, generate and new note buttons of a files page. */
+/** New folder, import, generate and new note buttons of a files page. They go in the page header. */
 export function FilesToolbar({ folderId, onNewFolder }: Props) {
   const t = useTranslations();
   const router = useRouter();
@@ -37,15 +37,15 @@ export function FilesToolbar({ folderId, onNewFolder }: Props) {
   });
 
   return (
-    <div className="flex flex-row flex-wrap items-center justify-end gap-2">
-      <Button variant="outline" size="lg" icon={FolderPlus} onClick={onNewFolder}>
-        {t('files.new_folder')}
+    <>
+      <Button variant="outline" icon={FolderPlus} aria-label={t('files.new_folder')} onClick={onNewFolder}>
+        <span className="hidden lg:inline">{t('files.new_folder')}</span>
       </Button>
       <ImportNoteButton compact folderId={folderId} />
       <GenerateNoteDialog compact folderId={folderId} />
-      <Button size="lg" icon={Plus} onClick={() => createNote()} disabled={isCreating}>
-        {t('files.new_note')}
+      <Button icon={Plus} aria-label={t('files.new_note')} onClick={() => createNote()} disabled={isCreating}>
+        <span className="hidden lg:inline">{t('files.new_note')}</span>
       </Button>
-    </div>
+    </>
   );
 }

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { type SpaceItemRead } from '@/client';
 import { Button } from '@/components/ui/button';
 
+import { attemptPolicyLines } from '../lib/attemptLines';
 import { attemptAction } from '../lib/progress';
 import { windowState } from '../lib/schedule';
 
@@ -40,30 +41,14 @@ export function AttemptStartCard({ item, isStarting, onStart }: Props) {
         : action === 'cooldown'
           ? 'courses.cooldown_wait'
           : 'courses.no_attempts_left';
-  const dateFormat = { dateStyle: 'short', timeStyle: 'short' } as const;
-
-  const lines = [
-    item?.timeLimitMinutes
-      ? t('courses.attempt_time_limit', { minutes: item.timeLimitMinutes })
-      : t('courses.attempt_no_time_limit'),
-    item?.maxAttempts === null || item?.maxAttempts === undefined
-      ? t('courses.attempt_unlimited')
-      : t('courses.attempts_left', { left: item.attemptsLeft ?? 0, max: item.maxAttempts }),
-    item?.opensAt ? t('courses.schedule_label_opens', { date: format.dateTime(item.opensAt, dateFormat) }) : null,
-    item?.closesAt ? t('courses.schedule_label_closes', { date: format.dateTime(item.closesAt, dateFormat) }) : null,
-    action === 'cooldown' && item?.nextAttemptAt
-      ? t('courses.next_attempt', {
-          date: format.dateTime(item.nextAttemptAt, { dateStyle: 'short', timeStyle: 'short' }),
-        })
-      : null,
-  ].filter((line): line is string => line !== null);
+  const lines = attemptPolicyLines(item, now, t, format);
 
   return (
     <div
       className="mx-auto mt-8 flex max-w-lg flex-col gap-4 rounded-xl border border-border bg-card p-6 shadow-card"
       data-testid="attempt-start-card"
     >
-      <h2 className="text-xl font-semibold text-foreground">{item?.title ?? t('tests.take_test')}</h2>
+      <h2 className="font-serif text-2xl font-medium text-foreground">{item?.title ?? t('tests.take_test')}</h2>
       <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
         {lines.map(line => (
           <li key={line}>{line}</li>

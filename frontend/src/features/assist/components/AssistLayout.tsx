@@ -10,6 +10,7 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { PANEL_ANIMATING_CLASS, readPanelDurationMs, usePanelAnimation } from '@/lib/panelMotion';
 import { cn } from '@/lib/utils';
 
+import { useOutlineAutoCollapse } from '../hooks/useOutlineAutoCollapse';
 import { useIsAssistHidden } from '../store/useAssistHiddenStore';
 import {
   assistPageKey,
@@ -45,7 +46,7 @@ export function AssistLayout({ children }: AssistLayoutProps) {
 
   return (
     <>
-      <div className="flex min-h-0 min-w-0 flex-1 px-3 pb-3 lg:p-3 lg:pl-0">
+      <div className="flex min-h-0 min-w-0 flex-1 lg:p-3 lg:pl-0">
         <SheetGroup isSheetWanted={isSheetWanted && isDesktop}>{children}</SheetGroup>
       </div>
       {isSheetWanted && !isDesktop && <AssistFullScreen />}
@@ -70,6 +71,7 @@ function SheetGroup({ isSheetWanted, children }: SheetGroupProps) {
   const groupRef = useGroupRef();
   const panelRef = usePanelRef();
   const { animate } = usePanelAnimation();
+  useOutlineAutoCollapse(isSheetWanted, groupElementRef, pageKey);
   const setWidth = useAssistPanelStore(s => s.setWidth);
   const resetWidth = useAssistPanelStore(s => s.resetWidth);
 

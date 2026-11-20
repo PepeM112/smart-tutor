@@ -2,42 +2,33 @@
 
 import { type AnswerRead, QuestionGroupType } from '@/client';
 
-import { NumberedScoreRow } from './NumberedScoreRow';
 import { QuestionDetailPanel } from './QuestionDetailPanel';
-import { countCorrectInGroup, type ResultQuestion } from './resultDetailUtils';
+import { type ResultQuestion } from './resultDetailUtils';
 import { VocabularyReviewTable } from './VocabularyReviewTable';
 
-export function GroupDetailPanel({
-  title,
-  type,
-  questions,
-  answerMap,
-  number,
-}: {
-  title: string;
+interface GroupDetailPanelProps {
   type?: QuestionGroupType;
   questions: ResultQuestion[];
   answerMap: Map<string, AnswerRead>;
-  number: number;
-}) {
-  const correctCount = countCorrectInGroup(questions, answerMap);
-  const totalCount = questions.length;
+}
+
+/** The questions of a group. The title and the score are drawn by the caller. */
+export function GroupDetailPanel({ type, questions, answerMap }: GroupDetailPanelProps) {
+  if (type === QuestionGroupType.VOCABULARY) {
+    return <VocabularyReviewTable questions={questions} answerMap={answerMap} />;
+  }
 
   return (
     <div className="space-y-4">
-      <NumberedScoreRow number={number} title={title} correctCount={correctCount} totalCount={totalCount} />
-
-      {type === QuestionGroupType.VOCABULARY ? (
-        <VocabularyReviewTable questions={questions} answerMap={answerMap} />
-      ) : (
-        <div className="divide-y divide-border">
-          {questions.map((q, idx) => (
-            <div key={q.id} className={idx > 0 ? 'pt-4' : ''}>
-              <QuestionDetailPanel question={q} answer={answerMap.get(q.id)} number={idx + 1} />
-            </div>
-          ))}
+      {questions.map((q, idx) => (
+        <div key={q.id} className="space-y-4 rounded-lg border border-border p-4">
+          <p className="font-medium">
+            <span className="mr-1.5 text-muted-foreground">{idx + 1}.</span>
+            {q.prompt}
+          </p>
+          <QuestionDetailPanel question={q} answer={answerMap.get(q.id)} />
         </div>
-      )}
+      ))}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   type Header as TanStackHeader,
   flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import { EllipsisVertical, Eye } from 'lucide-react';
@@ -40,6 +41,11 @@ type Props<T> = {
   onSort?: (column: string | null, order: SortDirection) => void;
   /** Adds an Eye button to each row (and a Preview entry in the mobile card menu). */
   onPreview?: (row: T) => void;
+  /**
+   * The content that opens under a row (inline detail). Put `expandToggleColumn` in `columns` where the toggle goes.
+   * Below the desktop breakpoint it is shown in the expanded card.
+   */
+  renderExpanded?: (row: T) => ReactNode;
   /** Stable id of a row. It is the row key and it is matched with `previewId`. */
   getRowId?: (row: T) => string;
   /** The row that is in the preview pane: it gets the highlight. */
@@ -64,6 +70,7 @@ export function DataTableV2<T>({
   sort,
   onSort,
   onPreview,
+  renderExpanded,
   getRowId,
   previewId,
 }: Props<T>) {
@@ -76,6 +83,8 @@ export function DataTableV2<T>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getRowCanExpand: () => !!renderExpanded,
     getRowId: getRowId ? row => getRowId(row) : undefined,
   });
 
@@ -118,6 +127,7 @@ export function DataTableV2<T>({
               actions={[...previewGroup, ...groups]}
               onRowClick={onRowClick}
               description={renderDescription?.(row.original) ?? undefined}
+              renderExpandedContent={renderExpanded && (() => renderExpanded(row.original))}
               cells={row
                 .getVisibleCells()
                 .filter(cell => !cell.column.columnDef.meta?.hideOnMobile)
@@ -136,16 +146,25 @@ export function DataTableV2<T>({
   }
 
   const hasActionsCell = !!renderActions || !!onPreview;
+  const visibleColumns = table.getVisibleLeafColumns();
+  const leadingColumns = visibleColumns.slice(
+    0,
+    Math.max(
+      0,
+      visibleColumns.findIndex(c => c.columnDef.meta?.grow)
+    )
+  );
   const actionsWidthClass = renderActions && onPreview ? ACTIONS_CELL_TWO_BUTTONS_CLASS : ACTIONS_CELL_ONE_BUTTON_CLASS;
 
   return (
-    <div data-slot="data-table" role="table" className="w-full">
+    // The hairlines are `divide-*` and not one-sided borders: the header, then each row, is separated from the next.
+    <div data-slot="data-table" role="table" className="w-full divide-y divide-hairline">
       <div role="rowgroup">
         {table.getHeaderGroups().map(hg => (
           <div
             key={hg.id}
             role="row"
-            className="flex items-center gap-2 border-b border-border py-1 pl-2 pr-2 text-xs font-medium text-muted-foreground"
+            className="flex min-h-9 items-center gap-2 px-3 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase"
           >
             {hg.headers.map(header => (
               <div key={header.id} role="columnheader" className={cellClass(header.column.columnDef.meta)}>
@@ -156,18 +175,21 @@ export function DataTableV2<T>({
           </div>
         ))}
       </div>
-      <div role="rowgroup" className="py-1">
-        {rows.map(row => {
+      <div role="rowgroup" className="divide-y divide-hairline">
+        {rows.flatMap(row => {
           const isPreviewed = previewId != null && getRowId?.(row.original) === previewId;
-          return (
+          const isOpen = row.getIsExpanded();
+          const rowNode = (
             <div
               key={row.id}
               role="row"
               aria-selected={isPreviewed}
               className={cn(
-                'group flex items-center gap-2 rounded-md py-1.5 pl-2 pr-2 text-sm transition-colors',
+                'group flex min-h-[52px] items-center gap-2 px-3 py-2 text-sm transition-colors',
                 onRowClick && 'cursor-pointer',
-                isPreviewed ? 'bg-muted' : 'hover:bg-accent/30'
+                // The detail under an open row shares its tint and has no line between.
+                isOpen && 'border-b-0',
+                isPreviewed || isOpen ? 'bg-muted' : 'hover:bg-muted/60'
               )}
               onClick={onRowClick ? () => void onRowClick(row.original) : undefined}
             >
@@ -185,6 +207,19 @@ export function DataTableV2<T>({
               )}
             </div>
           );
+          if (!isOpen || !renderExpanded) return [rowNode];
+          return [
+            rowNode,
+            <div key={`${row.id}-detail`} role="row" className="flex gap-2 bg-muted px-3">
+              {/* Empty cells with the width of the columns before the title, so the detail lines up with it. */}
+              {leadingColumns.map(column => (
+                <div key={column.id} aria-hidden className={cellClass(column.columnDef.meta)} />
+              ))}
+              <div role="cell" className="min-w-0 flex-1 pt-1 pb-5">
+                {renderExpanded(row.original)}
+              </div>
+            </div>,
+          ];
         })}
       </div>
     </div>

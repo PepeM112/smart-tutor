@@ -86,7 +86,7 @@ export function ResultPreviewPanel({ resultId, onClose }: Props) {
                     number={index + 1}
                     isSelected={false}
                   />
-                  <div className="ml-4 space-y-3 border-l border-border pl-3">
+                  <div className="ml-4 space-y-3 rounded-lg bg-muted/40 p-3">
                     {(item.group.questions ?? []).map(question => (
                       <div key={question.id} className="space-y-1">
                         <p className="text-sm font-medium">{question.prompt}</p>

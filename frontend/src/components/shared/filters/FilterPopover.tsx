@@ -23,7 +23,7 @@ export function FilterPopover({ filterConfig, filters, onFilterChange, onClear }
   return (
     <FloatingCard>
       <FloatingCardTrigger asChild>
-        <Button variant="outline" size="lg" icon={Filter} className={activeCount > 0 ? 'pr-3' : ''}>
+        <Button variant="outline" icon={Filter} className={activeCount > 0 ? 'pr-3' : ''}>
           {t('common.filters')}
           {activeCount > 0 && (
             <span className="ml-0.5 rounded-full bg-foreground text-background px-1.5 py-0.5 text-[10px] font-semibold leading-none">

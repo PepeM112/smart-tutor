@@ -1,106 +1,33 @@
 'use client';
 
-import {
-  BarChart2,
-  BookOpen,
-  Folder,
-  GraduationCap,
-  Grid3X3,
-  History,
-  LayoutDashboard,
-  School,
-  RefreshCw,
-  Settings,
-  Star,
-  Trash2,
-} from 'lucide-react';
+import { Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { LogoutButton } from '@/features/auth/components/LogoutButton';
-import { useFileTree } from '@/features/files/hooks/useFileTree';
-import { displayTitle } from '@/lib/displayTitle';
-import { noteHref, parseSlugId, Routes } from '@/lib/routes';
+import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-type NavItem = {
-  /** Translation key. For a dynamic item (a favorite note) it is only a unique React key. */
-  labelKey: string;
-  /** Text shown instead of `t(labelKey)`. */
-  label?: string;
-  /** Replaces the pathname match, for items whose href alone does not tell if they are active. */
-  isActive?: boolean;
-  href: string | null;
-  icon: React.ElementType;
-  disabled?: boolean;
-};
-
-type NavSection = {
-  labelKey: string;
-  items: NavItem[];
-};
-
-const sections: NavSection[] = [
-  {
-    labelKey: 'sidebar.learning',
-    items: [
-      { labelKey: 'sidebar.dashboard', href: Routes.DASHBOARD, icon: LayoutDashboard },
-      { labelKey: 'sidebar.review_now', href: Routes.REVIEW, icon: RefreshCw },
-    ],
-  },
-  {
-    labelKey: 'sidebar.library',
-    items: [
-      { labelKey: 'sidebar.tests', href: Routes.TESTS, icon: BookOpen },
-      { labelKey: 'sidebar.files', href: Routes.FILES, icon: Folder },
-      { labelKey: 'sidebar.questions', href: Routes.QUESTIONS, icon: Grid3X3 },
-      { labelKey: 'sidebar.trash', href: Routes.TRASH, icon: Trash2 },
-    ],
-  },
-  {
-    labelKey: 'sidebar.spaces',
-    items: [
-      { labelKey: 'sidebar.courses', href: Routes.COURSES, icon: GraduationCap },
-      { labelKey: 'sidebar.classrooms', href: Routes.CLASSROOMS, icon: School },
-    ],
-  },
-  {
-    labelKey: 'sidebar.analytics',
-    items: [
-      { labelKey: 'sidebar.test_history', href: Routes.HISTORY, icon: History },
-      { labelKey: 'sidebar.progress_stats', href: Routes.STATS, icon: BarChart2, disabled: true },
-    ],
-  },
-];
+import { isNavItemActive, NAV_SECTIONS, type NavSection } from './navItems';
+import { useFavoriteNavItems } from './useFavoriteNavItems';
 
 type SidebarNavProps = {
   collapsed?: boolean;
-  onNavigate?: () => void;
 };
 
-export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
+export function SidebarNav({ collapsed = false }: SidebarNavProps) {
   const t = useTranslations();
   const pathname = usePathname();
-  const { notes } = useFileTree();
+  const favorites = useFavoriteNavItems();
 
   // Favorites sit after Analytics. The section is left out when there are none.
-  const allSections = useMemo<NavSection[]>(() => {
-    const openNoteId = activeNoteId(pathname);
-    const favorites: NavItem[] = notes
-      .filter(note => note.isFavorite)
-      .sort((a, b) => (b.favoritedAt?.getTime() ?? 0) - (a.favoritedAt?.getTime() ?? 0))
-      .map(note => ({
-        labelKey: `favorite-${note.id}`,
-        label: displayTitle(note.title, t),
-        href: noteHref(note),
-        icon: Star,
-        isActive: note.id === openNoteId,
-      }));
-    if (favorites.length === 0) return sections;
-    return [...sections, { labelKey: 'sidebar.favorites', items: favorites }];
-  }, [notes, pathname, t]);
+  const allSections = useMemo<NavSection[]>(
+    () =>
+      favorites.length === 0 ? NAV_SECTIONS : [...NAV_SECTIONS, { labelKey: 'sidebar.favorites', items: favorites }],
+    [favorites]
+  );
 
   return (
     <>
@@ -118,9 +45,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
               <ul className="space-y-0.5">
                 {section.items.map(item => {
                   const Icon = item.icon;
-                  const isActive =
-                    item.isActive ??
-                    (item.href !== null && (pathname === item.href || pathname.startsWith(item.href + '/')));
+                  const isActive = isNavItemActive(item, pathname);
                   const label = item.label ?? t(item.labelKey);
 
                   if (item.disabled || item.href === null) {
@@ -151,7 +76,6 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
                     <li key={item.labelKey}>
                       <Link
                         href={item.href}
-                        onClick={onNavigate}
                         title={collapsed ? label : undefined}
                         className={cn(
                           'flex h-8 items-center gap-2.5 rounded-lg text-[15px] transition-colors',
@@ -175,7 +99,6 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
       <div className="px-2 py-3 space-y-0.5">
         <Link
           href={Routes.SETTINGS}
-          onClick={onNavigate}
           title={collapsed ? t('sidebar.profile_and_settings') : undefined}
           className={cn(
             'flex h-8 items-center gap-2.5 rounded-lg text-[15px] transition-colors',
@@ -194,11 +117,4 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
       </div>
     </>
   );
-}
-
-/** The note id of a `/notes/<slug>-<id>` path, or null on any other path. */
-function activeNoteId(pathname: string): string | null {
-  if (!pathname.startsWith('/notes/')) return null;
-  const segment = pathname.split('/')[2];
-  return segment ? parseSlugId(segment) : null;
 }

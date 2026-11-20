@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-import { expectToast, openClassroom, reseedCourses, spaceIdFromUrl, test } from './helpers';
+import { classroomTab, expectToast, openClassroom, reseedCourses, spaceIdFromUrl, test } from './helpers';
 import { authFile } from './users';
 
 const CLASSROOM = 'Biology 101';
@@ -17,7 +17,7 @@ let classroomPath = '';
 
 async function openStream(page: Page): Promise<void> {
   await openClassroom(page, CLASSROOM);
-  await page.getByRole('tab', { name: 'Stream' }).click();
+  await classroomTab(page, 'Stream').click();
   await expect(page.getByTestId('feed-post').first()).toBeVisible();
 }
 
@@ -28,7 +28,7 @@ function postCard(page: Page, text: string) {
 /** The owner changes who can post in the Stream (Settings tab, owner only). */
 async function setFeedPermission(page: Page, label: string): Promise<void> {
   await openClassroom(page, CLASSROOM);
-  await page.getByRole('tab', { name: 'Settings' }).click();
+  await classroomTab(page, 'Settings').click();
   await page.locator('#feed-permission').selectOption({ label });
   await expectToast(page, 'Settings saved');
 }

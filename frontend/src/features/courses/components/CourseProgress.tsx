@@ -125,7 +125,15 @@ export function TestAttemptInfo({ item }: { item: SpaceItemRead }) {
 }
 
 /** Start / Resume for a viewer. With no attempt left, or in a cooldown, the button is off. */
-export function TestAttemptButton({ course, item }: { course: SpaceDetail; item: SpaceItemRead }) {
+export function TestAttemptButton({
+  course,
+  item,
+  size = 'sm',
+}: {
+  course: SpaceDetail;
+  item: SpaceItemRead;
+  size?: 'sm' | 'default';
+}) {
   const t = useTranslations();
   const [now] = useState(() => new Date());
 
@@ -136,14 +144,14 @@ export function TestAttemptButton({ course, item }: { course: SpaceDetail; item:
   const window = action === 'resume' ? 'open' : windowState(item, now);
   if (window !== 'open') {
     return (
-      <Button size="sm" variant="outline" disabled>
+      <Button size={size} variant="outline" disabled>
         {t(window === 'not_open' ? 'courses.test_not_open' : 'courses.test_closed')}
       </Button>
     );
   }
   if (action === 'no_attempts_left' || action === 'cooldown') {
     return (
-      <Button size="sm" variant="outline" disabled>
+      <Button size={size} variant="outline" disabled>
         {t(action === 'cooldown' ? 'courses.cooldown_wait' : 'courses.no_attempts_left')}
       </Button>
     );
@@ -151,7 +159,7 @@ export function TestAttemptButton({ course, item }: { course: SpaceDetail; item:
 
   const isResume = action === 'resume';
   return (
-    <Button asChild size="sm" variant={isResume ? 'outline' : 'default'}>
+    <Button asChild size={size} variant={isResume ? 'outline' : 'default'}>
       <Link href={courseAttemptHref(course, item.id)}>
         {isResume ? <RotateCcw /> : <Play />}
         {t(isResume ? 'courses.resume_attempt' : 'courses.start_attempt')}

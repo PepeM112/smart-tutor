@@ -1,25 +1,18 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { type ReactNode } from 'react';
 
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
 import { QueryState } from '@/components/shared/QueryState';
 import { FavoriteButton } from '@/features/notes/components/FavoriteButton';
-import { NoteEditorSkeleton } from '@/features/notes/editor/NoteEditorSkeleton';
+import { LazyRichNoteEditor } from '@/features/notes/editor/LazyRichNoteEditor';
 import { sdk } from '@/lib/apiClient';
 import { displayTitle } from '@/lib/displayTitle';
 import { noteHref } from '@/lib/routes';
 
 import { fileQueryKeys } from '../lib/queryKeys';
-
-// The editor (Tiptap and its extensions) is large. It loads when a note is shown, not with the page bundle.
-const RichNoteEditor = dynamic(() => import('@/features/notes/editor/RichNoteEditor').then(m => m.RichNoteEditor), {
-  ssr: false,
-  loading: () => <NoteEditorSkeleton />,
-});
 
 type Props = {
   noteId: string;
@@ -63,7 +56,7 @@ export function NotePreviewPanel({ noteId, onClose, extraActions }: Props) {
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('notes.failed_to_load_note')}>
         {/* Key remounts the editor when a different note or version is shown. */}
         {note && (
-          <RichNoteEditor
+          <LazyRichNoteEditor
             key={`${note.id}-${String(note.updatedAt)}`}
             editable={false}
             initialContent={note.content ?? ''}

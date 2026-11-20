@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-import { expectToast, openCourse, reseedCourses, test } from './helpers';
+import { expectToast, openCourse, openCourseItem, reseedCourses, test } from './helpers';
 
 const COURSE = 'Progress Course';
 let courseId = '';
@@ -30,13 +30,14 @@ function attemptInfo(page: Page) {
 
 async function startFromCourse(page: Page): Promise<void> {
   await openCourse(page, COURSE);
+  await openCourseItem(page, /Unit quiz/);
   await page.getByRole('link', { name: 'Start', exact: true }).click();
   await page.getByRole('button', { name: 'Start test' }).click();
-  await expect(page.getByTestId('exam-countdown')).toBeVisible();
+  await expect(page.getByTestId('exam-countdown').filter({ visible: true })).toBeVisible();
 }
 
 async function variantAnswer(page: Page): Promise<string> {
-  return (await page.getByText('Variant A: type alpha').isVisible()) ? 'alpha' : 'beta';
+  return (await page.getByRole('heading', { name: 'Variant A: type alpha' }).isVisible()) ? 'alpha' : 'beta';
 }
 
 test('Include in Review adds nothing from an AFTER_PASS_OR_LAST test before a pass', async ({ pageAs }) => {
@@ -65,9 +66,10 @@ test('the Assistant is hidden and refused during an attempt', async ({ pageAs })
   const launcher = viewer.getByRole('button', { name: 'Ask AI' });
   await expect(launcher).toBeVisible();
 
+  await openCourseItem(viewer, /Unit quiz/);
   await viewer.getByRole('link', { name: 'Start', exact: true }).click();
   await viewer.getByRole('button', { name: 'Start test' }).click();
-  await expect(viewer.getByTestId('exam-countdown')).toBeVisible();
+  await expect(viewer.getByTestId('exam-countdown').filter({ visible: true })).toBeVisible();
   await expect(launcher).toHaveCount(0);
 
   const refused = await viewer.request.post('/api/v1/assist', {
@@ -84,8 +86,9 @@ test('the countdown uses the server clock and auto-submits at the deadline', asy
   // The client clock is 10 minutes slow. Without the server offset the timer would show about 40 min.
   await viewer.clock.install({ time: Date.now() - 10 * 60_000 });
   await openCourse(viewer, COURSE);
+  await openCourseItem(viewer, /Unit quiz/);
   await viewer.getByRole('link', { name: 'Resume', exact: true }).click();
-  const countdown = viewer.getByTestId('exam-countdown');
+  const countdown = viewer.getByTestId('exam-countdown').filter({ visible: true });
   await expect(countdown).toBeVisible();
   await expect(countdown).toContainText(/2\d:\d\d/);
 
@@ -99,6 +102,7 @@ test('a refused start shows the Spanish text', async ({ pageAs, browser }) => {
   await context.addCookies([{ name: 'locale', value: 'es', url: 'http://localhost:3000' }]);
   const spanish = await context.newPage();
   await spanish.goto(`/courses/${courseSlug}`);
+  await openCourseItem(spanish, /Unit quiz/);
   await spanish.getByRole('link', { name: 'Empezar', exact: true }).click();
   await expect(spanish.getByTestId('attempt-start-card')).toBeVisible();
 
@@ -108,7 +112,7 @@ test('a refused start shows the Spanish text', async ({ pageAs, browser }) => {
     .getByPlaceholder('Type your answer')
     .first()
     .fill(await variantAnswer(viewer));
-  await viewer.getByRole('button', { name: 'Submit Exam' }).click();
+  await viewer.getByRole('button', { name: 'Submit exam' }).filter({ visible: true }).first().click();
   await expect(viewer).toHaveURL(/\/history\/.+/);
 
   await spanish.getByRole('button', { name: 'Empezar test' }).click();
@@ -166,10 +170,7 @@ test('a copied note shows in the Files tree at once', async ({ pageAs }) => {
   const before = await copies.count();
 
   await openCourse(viewer, COURSE);
-  await viewer
-    .getByRole('button', { name: /Intro note/ })
-    .first()
-    .click();
+  await openCourseItem(viewer, /Intro note/);
   const copied = viewer.waitForResponse(response => response.url().includes('/copy-to-library') && response.ok());
   await viewer.getByRole('button', { name: 'Copy to my library' }).click();
   const copy = (await (await copied).json()) as { id: string };

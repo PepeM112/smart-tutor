@@ -1,6 +1,5 @@
 'use client';
 
-import { posToDOMRect } from '@tiptap/core';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
@@ -89,6 +88,19 @@ export function InstructionPopover({
 }
 
 /**
+ * Same as `posToDOMRect` of `@tiptap/core`, written here because that import would put tiptap in the
+ * first load of the note page.
+ */
+function selectionRect(view: EditorView, from: number, to: number): DOMRect {
+  const clamp = (pos: number): number => Math.max(0, Math.min(pos, view.state.doc.content.size));
+  const start = view.coordsAtPos(clamp(from));
+  const end = view.coordsAtPos(clamp(to), -1);
+  const left = Math.min(start.left, end.left);
+  const top = Math.min(start.top, end.top);
+  return new DOMRect(left, top, Math.max(start.right, end.right) - left, Math.max(start.bottom, end.bottom) - top);
+}
+
+/**
  * A virtual anchor on the selected text. The rect is read again on every scroll, so the
  * popover follows the selection when the editor column scrolls.
  */
@@ -98,7 +110,7 @@ function createSelectionAnchor(getView: () => EditorView | null, selection: Sele
       const view = getView();
       if (!view) return selection.rect;
       try {
-        return posToDOMRect(view, selection.from, selection.to);
+        return selectionRect(view, selection.from, selection.to);
       } catch {
         // The positions are no longer in the document. Keep the last known place.
         return selection.rect;

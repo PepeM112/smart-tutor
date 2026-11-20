@@ -64,7 +64,7 @@ export function FilesContentResults({ query, folderId }: Props) {
     [t('files.title'), ...buildFolderPath(matchFolderId, folders).map(folder => folder.name)].join(' / ');
 
   return (
-    <section aria-label={t('files.found_in_content')} className="mt-4 border-t border-border px-2 pt-3 pb-4">
+    <section aria-label={t('files.found_in_content')} className="mt-4 px-2 pt-3 pb-4">
       <h2 className="mb-1 text-xs font-medium text-muted-foreground">{t('files.found_in_content')}</h2>
       {isSearching && (
         <p className="flex items-center gap-2 py-1 text-sm text-muted-foreground">

@@ -1,45 +1,72 @@
 'use client';
 
-import { Menu } from 'lucide-react';
+import { ArrowLeft, PanelLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { AssistToggle } from '@/features/assist/components/AssistToggle';
 import { NotificationBell } from '@/features/notifications/components/NotificationBell';
+import { useBreadcrumbStore } from '@/store/useBreadcrumbStore';
+import { useOutlineStore } from '@/store/useOutlineStore';
 
-import { SidebarNav } from './SidebarNav';
-
+/**
+ * The header of a page below `lg`, in the place of `PageHeader`. It reads the same store, so a page sets its
+ * title and actions once. Left: the Contents drawer on a page with an outline, else Back. Right: the page
+ * actions, the bell and Ask AI.
+ */
 export function MobileHeader() {
   const t = useTranslations();
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const title = useBreadcrumbStore(s => s.title);
+  const crumbs = useBreadcrumbStore(s => s.crumbs);
+  const back = useBreadcrumbStore(s => s.back);
+  const actions = useBreadcrumbStore(s => s.actions);
+  const subtitle = useBreadcrumbStore(s => s.subtitle);
+  const hasOutline = useOutlineStore(s => s.activeKey !== null);
+  const isDrawerOpen = useOutlineStore(s => s.isDrawerOpen);
+  const setDrawerOpen = useOutlineStore(s => s.setDrawerOpen);
+  const kicker = subtitle ?? crumbs.at(-1)?.label;
 
   return (
-    <header className="flex items-center gap-3 bg-sidebar px-4 py-3 shrink-0">
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
+    <header className="flex h-14 shrink-0 items-center gap-1 border-b border-hairline px-2">
+      {hasOutline ? (
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          icon={PanelLeft}
+          aria-label={t('outline.contents')}
+          aria-haspopup="dialog"
+          aria-expanded={isDrawerOpen}
+          onClick={() => setDrawerOpen(true)}
+          className="size-11 text-muted-foreground [&_svg]:size-5"
+        />
+      ) : (
+        back && (
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="text-sidebar-foreground hover:bg-sidebar-accent"
-            aria-label={t('sidebar.open_menu')}
-          >
-            <Menu size={20} />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left">
-          <div className="flex items-center px-3 py-3.5">
-            <span className="truncate font-serif text-[22px] font-medium text-sidebar-foreground">
-              {t('app.title')}
-            </span>
-          </div>
-          <SidebarNav onNavigate={() => setOpen(false)} />
-        </SheetContent>
-      </Sheet>
-      <span className="min-w-0 flex-1 truncate font-serif text-xl font-medium text-sidebar-foreground">
-        {t('app.title')}
-      </span>
-      <NotificationBell align="end" />
+            size="icon-lg"
+            icon={ArrowLeft}
+            aria-label={t('common.back')}
+            onClick={() => router.push(back)}
+            className="size-11 text-muted-foreground [&_svg]:size-5"
+          />
+        )
+      )}
+      <div className="min-w-0 flex-1 px-1">
+        {kicker && <p className="truncate text-xs leading-4 text-muted-foreground">{kicker}</p>}
+        <h1 className="truncate font-serif text-lg leading-tight font-medium text-foreground">
+          {title || t('app.title')}
+        </h1>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {actions}
+        <NotificationBell
+          align="end"
+          className="size-9 text-muted-foreground hover:bg-muted hover:text-foreground [&_svg]:size-5"
+        />
+        <AssistToggle />
+      </div>
     </header>
   );
 }

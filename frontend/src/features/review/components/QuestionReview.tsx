@@ -126,14 +126,14 @@ export function QuestionReview({
             </div>
 
             {question.explanation && (
-              <p className="text-sm text-muted-foreground mt-3 border-t border-border/50 pt-3">
+              <p className="mt-3 rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                 {question.explanation}
               </p>
             )}
 
             {/* Dev-only: exposes raw SRS state for debugging the spaced-repetition algorithm */}
             {process.env.NEXT_PUBLIC_DEV_MODE === 'true' && checkResult.srsState && (
-              <div className="mt-3 border-t border-border/50 pt-3">
+              <div className="mt-3 rounded-md bg-muted/40 px-3 py-2">
                 <p className="text-xs font-mono text-muted-foreground">
                   SRS: ease={checkResult.srsState.easeFactor.toFixed(2)} interval={checkResult.srsState.interval}d reps=
                   {checkResult.srsState.repetitions} next=

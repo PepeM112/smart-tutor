@@ -44,7 +44,7 @@ export function NotePage({ noteId }: Props) {
   useProvidePageData(useMemo(() => (noteData ? formatNoteDetail(noteData) : null), [noteData]));
 
   return (
-    // h-full: FilePageShell and its SplitPane take their height from this wrapper.
+    // h-full: the note page and its SplitPane take their height from this wrapper.
     <QueryState className="h-full" isLoading={isLoading} isError={isError} errorMessage={errorMessage}>
       {noteData ? (
         noteData.deletedAt ? (

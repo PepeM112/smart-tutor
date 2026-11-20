@@ -19,7 +19,7 @@ export function TreeHeaderRow({ actionsWidthClass, children }: Props) {
   return (
     <div
       role="row"
-      className="flex items-center gap-2 border-b border-border py-1 pr-2 text-xs font-medium text-muted-foreground"
+      className="flex min-h-9 items-center gap-2 pr-2 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase"
       style={{ paddingLeft: `${TREE_NAME_OFFSET_PX}px` }}
     >
       {children}

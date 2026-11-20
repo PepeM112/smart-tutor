@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-import { expectToast, openClassroom, pageHeading, reseedCourses, test } from './helpers';
+import { classroomCrumb, classroomTab, expectToast, openClassroom, reseedCourses, test } from './helpers';
 import { authFile } from './users';
 
 const CLASSROOM = 'Biology 101';
@@ -23,7 +23,7 @@ function unreadName(count: number): string {
 /** The teacher publishes a post in the Stream of the classroom. */
 async function teacherPosts(page: Page, text: string): Promise<void> {
   await openClassroom(page, CLASSROOM);
-  await page.getByRole('tab', { name: 'Stream' }).click();
+  await classroomTab(page, 'Stream').click();
   await page.getByRole('textbox', { name: 'Write a post' }).fill(text);
   await page.getByRole('button', { name: 'Post', exact: true }).click();
   await expectToast(page, 'Post published');
@@ -53,7 +53,7 @@ test('N2: a click on a notification opens the page, marks it read and lowers the
   await item.click();
 
   await expect(student).toHaveURL(/\/classrooms\/.+tab=stream/);
-  await expect(pageHeading(student, CLASSROOM)).toBeVisible();
+  await expect(classroomCrumb(student, CLASSROOM)).toBeVisible();
   await expect(bell(student)).toHaveAccessibleName(unreadName(1));
 });
 
@@ -113,7 +113,7 @@ test('N5: the due-soon notification for the Cell quiz shows once, and a click op
 
 test('N6: a grade override reaches the student, and a click opens the result', async ({ page, pageAs }) => {
   await openClassroom(page, CLASSROOM);
-  await page.getByRole('tab', { name: 'Grades' }).click();
+  await classroomTab(page, 'Grades').click();
   await page
     .getByTestId('gradebook')
     .getByRole('row')

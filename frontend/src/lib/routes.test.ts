@@ -4,6 +4,7 @@ import {
   classroomItemHref,
   courseItemRouteForAttempt,
   folderHref,
+  isExamRoute,
   noteHref,
   parseSlugId,
   spaceIdFromRoute,
@@ -116,5 +117,22 @@ describe('classroomItemHref', () => {
     expect(classroomItemHref({ id: 'abc', title: 'Biology 101' }, 'it 1')).toBe(
       '/classrooms/biology-101-abc?item=it%201'
     );
+  });
+});
+
+describe('isExamRoute', () => {
+  it.each(['/tests/abc', '/tests/abc/', '/courses/intro-01ABC/tests/item1'])('%s is an exam page', path => {
+    expect(isExamRoute(path)).toBe(true);
+  });
+
+  it.each([
+    '/tests',
+    '/tests/new',
+    '/tests/abc/edit',
+    '/courses/intro-01ABC',
+    '/courses/intro-01ABC/settings',
+    '/dashboard',
+  ])('%s is not an exam page', path => {
+    expect(isExamRoute(path)).toBe(false);
   });
 });

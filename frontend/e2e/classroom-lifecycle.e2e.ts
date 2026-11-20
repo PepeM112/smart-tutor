@@ -1,6 +1,15 @@
 import { expect } from '@playwright/test';
 
-import { expectToast, openClassroom, pageHeading, reseedCourses, spaceIdFromUrl, test } from './helpers';
+import {
+  classroomCrumb,
+  classroomTab,
+  classroomTabs,
+  expectToast,
+  openClassroom,
+  reseedCourses,
+  spaceIdFromUrl,
+  test,
+} from './helpers';
 import { authFile } from './users';
 
 const ROOM = 'E2E Room';
@@ -24,9 +33,9 @@ test('the owner creates a classroom (no Public option) and sees the five tabs', 
   await dialog.locator('#classroom-title').fill(ROOM);
   await dialog.getByRole('button', { name: 'Create classroom' }).click();
   await expectToast(page, 'Classroom created');
-  await expect(pageHeading(page, ROOM)).toBeVisible();
+  await expect(classroomCrumb(page, ROOM)).toBeVisible();
 
-  const tabs = page.getByRole('tab');
+  const tabs = classroomTabs(page);
   await expect(tabs).toHaveText(['Stream', 'Classwork', 'Members', 'Grades', 'Settings']);
 });
 
@@ -55,7 +64,7 @@ test('the owner adds a section and a note in edit mode, then publishes', async (
   // A new note opens in its editor. The crumb leads back to the classroom, not to the course list.
   await page.getByRole('link', { name: ROOM }).click();
   await expect(page).toHaveURL(/\/classrooms\//);
-  await expect(pageHeading(page, ROOM)).toBeVisible();
+  await expect(classroomCrumb(page, ROOM)).toBeVisible();
   await expect(page.getByText('Welcome note')).toBeVisible();
 
   await page.getByRole('button', { name: 'Publish' }).click();
@@ -64,7 +73,7 @@ test('the owner adds a section and a note in edit mode, then publishes', async (
   await expect(page.getByRole('button', { name: 'Edit course' })).toBeVisible();
 
   // Read the join code for the next test.
-  await page.getByRole('tab', { name: 'Settings' }).click();
+  await classroomTab(page, 'Settings').click();
   const code = page.getByRole('button', { name: /^Copy code / });
   await expect(code).toBeVisible();
   // The accessible name is "Copy code <code>".
@@ -84,13 +93,13 @@ test('a student joins with the code and sees the item', async ({ pageAs }) => {
   await expect(student.getByRole('heading', { name: 'Week A' })).toBeVisible();
   await expect(student.getByText('Welcome note')).toBeVisible();
   // A student sees neither the teacher tabs nor the edit button.
-  await expect(student.getByRole('tab')).toHaveText(['Stream', 'Classwork']);
+  await expect(classroomTabs(student)).toHaveText(['Stream', 'Classwork']);
   await expect(student.getByRole('button', { name: 'Edit course' })).toHaveCount(0);
 });
 
 test('archive and unarchive, then Delete forever needs the exact name', async ({ page }) => {
   await openClassroom(page, ROOM);
-  await page.getByRole('tab', { name: 'Settings' }).click();
+  await classroomTab(page, 'Settings').click();
 
   await page.getByRole('button', { name: 'Archive', exact: true }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Archive' }).click();

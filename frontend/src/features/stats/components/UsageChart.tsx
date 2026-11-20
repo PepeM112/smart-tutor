@@ -211,8 +211,7 @@ export function UsageChart({ daily, groupBy }: Props) {
             const dataPoint = entry.payload as Record<string, number> | undefined;
             const costValue = isCumulative ? undefined : dataPoint?.[`${key}_cost`];
             return (
-              <div key={key}>
-                {cumulativeIdx > 0 && i === cumulativeIdx && <div className="my-1 border-t border-border/50" />}
+              <div key={key} className={cumulativeIdx > 0 && i === cumulativeIdx ? 'mt-2' : undefined}>
                 <div className="flex items-center justify-between gap-6 py-0.5">
                   <div className="flex items-center gap-1.5">
                     <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: entry.color }} />

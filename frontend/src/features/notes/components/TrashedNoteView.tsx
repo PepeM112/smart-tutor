@@ -1,32 +1,28 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useMemo } from 'react';
 
 import { type NoteRead } from '@/client';
 import { FileBreadcrumb } from '@/features/files/components/FileBreadcrumb';
-import { FilePageShell } from '@/features/files/components/FilePageShell';
 import { useFolderPath } from '@/features/files/hooks/useFolderPath';
+import { folderPathHref } from '@/features/files/lib/folderPathHref';
 import { fileQueryKeys } from '@/features/files/lib/queryKeys';
 import { TrashedBanner } from '@/features/trash/components/TrashedBanner';
 import { useTrashMutations } from '@/features/trash/hooks/useTrashMutations';
+import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { usePageActions, usePageLead } from '@/hooks/usePageActions';
 import { displayTitle } from '@/lib/displayTitle';
 import { pageBleed } from '@/lib/pageBleed';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-import { NoteEditorSkeleton } from '../editor/NoteEditorSkeleton';
+import { LazyRichNoteEditor } from '../editor/LazyRichNoteEditor';
 import { noteColumnClass, useNoteColumn } from '../hooks/useNoteColumn';
 
 import { NoteWidthToggle } from './NoteWidthToggle';
-
-// The editor (Tiptap and its extensions) is large. It loads when a note is shown, not with the page bundle.
-const RichNoteEditor = dynamic(() => import('../editor/RichNoteEditor').then(m => m.RichNoteEditor), {
-  ssr: false,
-  loading: () => <NoteEditorSkeleton />,
-});
 
 /**
  * Rendered instead of NoteForm when note.deletedAt is set.
@@ -65,18 +61,27 @@ export function TrashedNoteView({ note }: { note: NoteRead }) {
 
   const { isDesktop, isFullWidth, toggleWidth } = useNoteColumn();
 
+  useBreadcrumb(title, undefined, folderPathHref(folderPath));
+  // No rename and no move for a trashed note.
+  const headerLead = useMemo(
+    () => (
+      <FileBreadcrumb
+        path={folderPath}
+        current={{ kind: 'note', id: note.id, name: note.title, parentId: note.folderId }}
+        renameDisabled
+      />
+    ),
+    [folderPath, note.id, note.title, note.folderId]
+  );
+  usePageLead(headerLead, true);
+  const headerActions = useMemo(
+    () => (isDesktop ? <NoteWidthToggle isFullWidth={isFullWidth} onToggle={toggleWidth} /> : undefined),
+    [isDesktop, isFullWidth, toggleWidth]
+  );
+  usePageActions(headerActions);
+
   return (
-    <FilePageShell
-      // No rename and no move for a trashed note.
-      breadcrumb={
-        <FileBreadcrumb
-          path={folderPath}
-          current={{ kind: 'note', id: note.id, name: note.title, parentId: note.folderId }}
-          renameDisabled
-        />
-      }
-      actions={isDesktop && <NoteWidthToggle isFullWidth={isFullWidth} onToggle={toggleWidth} />}
-    >
+    <div className="flex h-full flex-col">
       {/* Scrolls at the page edge: the layout padding moves inside (see `pageBleed`). */}
       <div className={cn('min-h-0 flex-1 overflow-y-auto', pageBleed.all)}>
         <div className={cn(noteColumnClass(isFullWidth), 'pb-24')}>
@@ -93,9 +98,9 @@ export function TrashedNoteView({ note }: { note: NoteRead }) {
             />
           </div>
 
-          <RichNoteEditor editable={false} initialContent={note.content ?? ''} />
+          <LazyRichNoteEditor editable={false} initialContent={note.content ?? ''} />
         </div>
       </div>
-    </FilePageShell>
+    </div>
   );
 }

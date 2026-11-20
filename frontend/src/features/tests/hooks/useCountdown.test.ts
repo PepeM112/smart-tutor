@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Countdown } from './Countdown';
+import { useCountdown } from './useCountdown';
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 
@@ -21,10 +21,29 @@ afterEach(() => {
 
 const inSeconds = (seconds: number): Date => new Date(NOW.getTime() + seconds * 1000);
 
-describe('Countdown', () => {
+describe('useCountdown', () => {
+  it('returns null without a deadline', () => {
+    const { result } = renderHook(() => useCountdown(null, vi.fn()));
+
+    expect(result.current).toBeNull();
+  });
+
+  it('returns null again when the deadline is removed', () => {
+    const deadline = inSeconds(30);
+    const { result, rerender } = renderHook(({ at }) => useCountdown(at, vi.fn()), {
+      initialProps: { at: deadline as Date | null },
+    });
+    expect(result.current).toBe(30);
+
+    rerender({ at: null });
+
+    expect(result.current).toBeNull();
+  });
+
   it('calls onTimeout once, at the deadline', () => {
     const onTimeout = vi.fn();
-    render(<Countdown deadlineAt={inSeconds(10)} onTimeout={onTimeout} />);
+    const deadline = inSeconds(10);
+    renderHook(() => useCountdown(deadline, onTimeout));
 
     act(() => {
       vi.advanceTimersByTime(9_000);
@@ -45,14 +64,16 @@ describe('Countdown', () => {
 
   it('calls onTimeout at once when the deadline is already past at mount', () => {
     const onTimeout = vi.fn();
-    render(<Countdown deadlineAt={inSeconds(-30)} onTimeout={onTimeout} />);
+    const deadline = inSeconds(-30);
+    renderHook(() => useCountdown(deadline, onTimeout));
 
     expect(onTimeout).toHaveBeenCalledTimes(1);
   });
 
   it('does not call onTimeout after unmount', () => {
     const onTimeout = vi.fn();
-    const { unmount } = render(<Countdown deadlineAt={inSeconds(10)} onTimeout={onTimeout} />);
+    const deadline = inSeconds(10);
+    const { unmount } = renderHook(() => useCountdown(deadline, onTimeout));
 
     unmount();
     act(() => {
@@ -65,7 +86,8 @@ describe('Countdown', () => {
 
   it('checks the deadline when a hidden tab comes back, with no timer needed', () => {
     const onTimeout = vi.fn();
-    render(<Countdown deadlineAt={inSeconds(10)} onTimeout={onTimeout} />);
+    const deadline = inSeconds(10);
+    renderHook(() => useCountdown(deadline, onTimeout));
 
     // A throttled tab: the clock moved, but no timer ran.
     vi.setSystemTime(inSeconds(20));
@@ -80,9 +102,11 @@ describe('Countdown', () => {
     const first = vi.fn();
     const second = vi.fn();
     const deadline = inSeconds(10);
-    const { rerender } = render(<Countdown deadlineAt={deadline} onTimeout={first} />);
+    const { rerender } = renderHook(({ onTimeout }) => useCountdown(deadline, onTimeout), {
+      initialProps: { onTimeout: first },
+    });
 
-    rerender(<Countdown deadlineAt={deadline} onTimeout={second} />);
+    rerender({ onTimeout: second });
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
