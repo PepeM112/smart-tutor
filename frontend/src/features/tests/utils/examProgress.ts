@@ -5,8 +5,8 @@ import {
   type TestReadStripped,
 } from '@/client';
 
-import { parseMcAnswer } from './questionContent';
 import { groupMaxPoints, questionPoints } from './points';
+import { parseMcAnswer } from './questionContent';
 
 export type ExamItem =
   | { kind: 'question'; question: QuestionReadStripped; order: number }

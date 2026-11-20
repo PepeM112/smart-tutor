@@ -14,13 +14,13 @@ import {
   TREE_ROW_BASE_PADDING_PX,
 } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
+import { LazyRichNoteEditor } from '@/features/notes/editor/LazyRichNoteEditor';
 import { sdk } from '@/lib/apiClient';
 import { noteHref } from '@/lib/routes';
 
 import { useFilesTree } from '../context/FilesTreeContext';
 import { fileQueryKeys } from '../lib/queryKeys';
 
-import { LazyRichNoteEditor } from '@/features/notes/editor/LazyRichNoteEditor';
 import { MoveDialog } from './MoveDialog';
 
 interface NoteInlinePreviewProps {

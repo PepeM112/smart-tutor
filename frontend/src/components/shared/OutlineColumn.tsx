@@ -170,7 +170,9 @@ function ContentsDrawer({ label, children }: ContentsDrawerProps) {
           aria-describedby={undefined}
           className="fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col bg-outline text-foreground outline-none"
         >
-          <DrawerTitle className="px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-2 font-serif text-lg font-medium">{label}</DrawerTitle>
+          <DrawerTitle className="px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-2 font-serif text-lg font-medium">
+            {label}
+          </DrawerTitle>
           <nav aria-label={label} onClick={closeOnPick} className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-4">
             {children}
           </nav>

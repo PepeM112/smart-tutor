@@ -107,13 +107,7 @@ export function buildResultEntries(
       return buildQuestionEntry(item.question, answerMap.get(item.question.id), number);
     }
     const { group } = item;
-    return buildGroupEntry(
-      group.id ?? `group-${idx}`,
-      group.title ?? groupFallbackTitle,
-      group,
-      answerMap,
-      number
-    );
+    return buildGroupEntry(group.id ?? `group-${idx}`, group.title ?? groupFallbackTitle, group, answerMap, number);
   });
 }
 

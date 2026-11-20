@@ -20,7 +20,14 @@ interface ListToolbarProps {
 }
 
 /** The row above a list: the search field, the Filters popover and optional extra controls. */
-export function ListToolbar({ searchPlaceholder, filterConfig, filters, onFilterChange, onClear, children }: ListToolbarProps) {
+export function ListToolbar({
+  searchPlaceholder,
+  filterConfig,
+  filters,
+  onFilterChange,
+  onClear,
+  children,
+}: ListToolbarProps) {
   const { [SEARCH_KEY]: searchValue, ...popoverFilters } = filters;
 
   return (
