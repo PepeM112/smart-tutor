@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AiKeyNotice } from '@/features/classrooms/components/AiKeyNotice';
 import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { usePageActions } from '@/hooks/usePageActions';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { COURSE_ITEM_PARAM, courseItemHref, courseAttemptHref, courseSettingsHref } from '@/lib/routes';
@@ -51,7 +52,8 @@ interface CourseViewProps {
 /**
  * `/courses/[slug-id]`. A member reads the course in an outline column and the page: the overview, a note or a
  * test, chosen by `?item=`. An author in edit mode, and an empty course, have no outline: the draft editor is
- * its own outline. The actions (join, leave, edit, publish) are in the page header (`usePageActions`).
+ * its own outline. The actions (join, leave, edit, publish) are in the page header (`usePageActions`) from `lg`,
+ * and in a toolbar at the top of the page content below it.
  */
 export function CoursePage({ courseId }: { courseId: string }) {
   const t = useTranslations();
@@ -63,9 +65,11 @@ export function CoursePage({ courseId }: { courseId: string }) {
     courseCrumbs(course, { courses: t('courses.title'), classrooms: t('classrooms.title') }),
     courseBackHref(course)
   );
-  // The header renders this node twice (desktop and phone). It reads the course itself, so the node stays stable.
+  // Below `lg` the actions are in the page content (`CourseToolbar`): the phone header has no room for them.
+  const { isDesktop } = useBreakpoint();
+  // It reads the course itself, so the node stays stable.
   const headerActions = useMemo(() => <CourseHeaderActions courseId={courseId} />, [courseId]);
-  usePageActions(headerActions);
+  usePageActions(isDesktop ? headerActions : undefined);
 
   const status = errorStatus(error);
 
@@ -73,8 +77,13 @@ export function CoursePage({ courseId }: { courseId: string }) {
   // A failed refetch keeps the old `data`: after a leave or a delete, Back must not show the old view.
   if (!course || status === 403 || status === 404) return <CourseUnavailable status={status} actions={actions} />;
 
-  if (isDraftView(course) || course.sections.length === 0) return <CourseDraftView course={course} actions={actions} />;
+  if (showsDraftView(course)) return <CourseDraftView course={course} actions={actions} />;
   return <CourseOutlineView course={course} actions={actions} />;
+}
+
+// An empty course has no outline to show, so it uses the draft view too.
+function showsDraftView(course: SpaceDetail): boolean {
+  return isDraftView(course) || course.sections.length === 0;
 }
 
 // `isEditing` alone is not enough: the backend sets it for a viewer too (the course has a draft).
@@ -107,6 +116,7 @@ function CourseOutlineView({ course, actions }: CourseViewProps) {
     >
       <div className={COURSE_COLUMN_CLASS}>
         <CourseNotices course={course} />
+        <CourseToolbar courseId={course.id} />
         {hasMembersTab && tab === 'members' ? (
           <CourseMembers course={course} actions={actions} />
         ) : selectedItem ? (
@@ -139,19 +149,20 @@ function CourseDraftView({ course, actions }: CourseViewProps) {
     <div className={COURSE_COLUMN_CLASS}>
       <CourseSummary course={course} />
       <CourseNotices course={course} />
+      <CourseToolbar courseId={course.id} />
 
       {isAuthor && course.parentId ? (
         <AuthorContent course={course} actions={actions} onOpenNote={openNote} selectedItemId={selectedItemId} />
       ) : isAuthor ? (
-        <Tabs value={tab} onValueChange={changeTab}>
+        <Tabs value={tab} onValueChange={changeTab} className="gap-3">
           <TabsList>
             <TabsTrigger value="content">{t('courses.tab_content')}</TabsTrigger>
             <TabsTrigger value="members">{t('courses.tab_members')}</TabsTrigger>
           </TabsList>
-          <TabsContent value="content" className="pt-4">
+          <TabsContent value="content">
             <AuthorContent course={course} actions={actions} onOpenNote={openNote} selectedItemId={selectedItemId} />
           </TabsContent>
-          <TabsContent value="members" className="pt-4">
+          <TabsContent value="members">
             <CourseMembers course={course} actions={actions} />
           </TabsContent>
         </Tabs>
@@ -187,6 +198,19 @@ function CourseDraftView({ course, actions }: CourseViewProps) {
         // The preview panel has its own frame and scroll.
         insetDrawerBody={false}
       />
+    </div>
+  );
+}
+
+/**
+ * Phone: the actions of the page header (join, member menu, author actions), which have no room in the header.
+ * CSS hides it from `lg` (the `useBreakpoint` desktop threshold): the server cannot know the width, so a JS check
+ * would make the toolbar pop in after hydration on a phone.
+ */
+function CourseToolbar({ courseId }: { courseId: string }) {
+  return (
+    <div className="lg:hidden">
+      <CourseHeaderActions courseId={courseId} className="flex-wrap" />
     </div>
   );
 }
@@ -261,7 +285,7 @@ function CourseSummary({ course }: { course: SpaceDetail }) {
  * the others join or answer an invitation. Authors have the settings link, Edit course, or in edit mode the
  * save state, Discard and Publish (the one filled button of the page).
  */
-function CourseHeaderActions({ courseId }: { courseId: string }) {
+function CourseHeaderActions({ courseId, className }: { courseId: string; className?: string }) {
   const { data: course } = useCourse(courseId);
   const actions = useCourseActions(courseId);
   const selectedItemId = useSearchParams().get(COURSE_ITEM_PARAM);
@@ -273,7 +297,7 @@ function CourseHeaderActions({ courseId }: { courseId: string }) {
   const isActiveMember = !course.isOwner && course.myStatus === MemberStatus.ACTIVE;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={cn('flex items-center gap-2 empty:hidden', className)}>
       {copyNoteId && <CopyToLibraryButton noteId={copyNoteId} />}
       {isActiveMember ? (
         <MemberMenu course={course} actions={actions} />

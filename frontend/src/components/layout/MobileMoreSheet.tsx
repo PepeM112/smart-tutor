@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -9,7 +9,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { useLogout } from '@/features/auth/hooks/useLogout';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 import { isNavItemActive, MORE_ITEMS, NAV_ITEMS, type NavItem } from './navItems';
@@ -24,7 +23,7 @@ type MobileMoreSheetProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-/** The rest of the nav below `lg`: the other destinations, the favorite notes, and the account. */
+/** The rest of the nav below `lg`: the other destinations, the favorite notes, and the account with Log out. */
 export function MobileMoreSheet({ open, onOpenChange }: MobileMoreSheetProps) {
   const t = useTranslations();
   const pathname = usePathname();
@@ -83,15 +82,6 @@ export function MobileMoreSheet({ open, onOpenChange }: MobileMoreSheetProps) {
                 </div>
               </div>
             )}
-            <Link
-              href={Routes.SETTINGS}
-              onClick={close}
-              aria-current={pathname === Routes.SETTINGS ? 'page' : undefined}
-              className={cn(ROW_CLASS, pathname === Routes.SETTINGS && 'bg-muted font-medium')}
-            >
-              <Settings size={20} className="shrink-0 text-muted-foreground" />
-              {t('sidebar.profile_and_settings')}
-            </Link>
             <ConfirmDialog
               trigger={
                 <button type="button" className={cn(ROW_CLASS, 'cursor-pointer text-destructive')}>

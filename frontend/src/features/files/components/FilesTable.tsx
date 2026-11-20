@@ -21,7 +21,7 @@ import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { QueryState } from '@/components/shared/QueryState';
 import { TreeHeaderRow } from '@/components/shared/tree/TreeHeaderRow';
-import { ACTIONS_CELL_ONE_BUTTON_CLASS } from '@/components/shared/tree/treeLayout';
+import { ACTIONS_CELL_TWO_BUTTONS_CLASS } from '@/components/shared/tree/treeLayout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { displayTitle } from '@/lib/displayTitle';
 import { cn } from '@/lib/utils';
@@ -52,7 +52,7 @@ const NO_IDS: ReadonlySet<string> = new Set();
 
 type Props = {
   currentFolderId: string | null;
-  onTogglePreview: (noteId: string) => void;
+  onPreview: (noteId: string) => void;
   previewId: string | null;
   /** The search text. Empty = no search. */
   query: string;
@@ -69,7 +69,7 @@ type Props = {
  * on the path to a match through `isExpanded`, and never writes them into that Set.
  * DnD (desktop only) uses the full folder list for `canDrop` validation.
  */
-export function FilesTable({ currentFolderId, onTogglePreview, previewId, query, filter }: Props) {
+export function FilesTable({ currentFolderId, onPreview, previewId, query, filter }: Props) {
   const t = useTranslations();
   const { isDesktop } = useBreakpoint();
 
@@ -159,22 +159,12 @@ export function FilesTable({ currentFolderId, onTogglePreview, previewId, query,
       onToggleExpand: handleToggleExpand,
       childrenIndex,
       folders,
-      onTogglePreview,
+      onPreview,
       previewId,
       mutations,
       isDesktop,
     }),
-    [
-      isExpanded,
-      isVisible,
-      handleToggleExpand,
-      childrenIndex,
-      folders,
-      onTogglePreview,
-      previewId,
-      mutations,
-      isDesktop,
-    ]
+    [isExpanded, isVisible, handleToggleExpand, childrenIndex, folders, onPreview, previewId, mutations, isDesktop]
   );
 
   // ── Root children ─────────────────────────────────────────────────────────
@@ -285,7 +275,7 @@ function ViewDropZone({ currentFolderId, folders, children }: ViewDropZoneProps)
         highlight && 'bg-primary/5 ring-1 ring-primary/40'
       )}
     >
-      <TreeHeaderRow actionsWidthClass={ACTIONS_CELL_ONE_BUTTON_CLASS}>
+      <TreeHeaderRow actionsWidthClass={ACTIONS_CELL_TWO_BUTTONS_CLASS}>
         <span className="flex-1">{highlight ? t('files.drop_here') : t('files.col_name')}</span>
         <span className="hidden w-24 text-right sm:block">{t('notes.column_updated')}</span>
       </TreeHeaderRow>

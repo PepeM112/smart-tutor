@@ -48,7 +48,7 @@ export function TreeRowShell({ depth, dnd, onClick, expanded, selected, classNam
       aria-expanded={expanded}
       aria-selected={selected}
       className={cn(
-        'group flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors',
+        'group flex items-center gap-2 py-1.5 pr-2 text-sm transition-colors',
         onClick && 'cursor-pointer',
         isDragging ? 'opacity-50' : selected ? 'bg-muted' : 'hover:bg-accent/30',
         isOver && isValidTarget && 'bg-primary/10 ring-1 ring-primary/40',

@@ -95,7 +95,7 @@
   },
   "mobile_nav": {
     "label": "Main navigation",
-    "review": "Review",
+    "ai": "AI",
     "more": "More",
     "account": "Account",
     "trash_hint": "30 days"
@@ -794,12 +794,7 @@
     "found_in_content": "Found in content",
     "searching_content": "Searching content…",
     "search_content_failed": "Could not search note contents.",
-    "failed_to_export": "Failed to export note",
-    "show_preview_for": "Show preview of {title}",
-    "hide_preview_for": "Hide preview of {title}",
-    "open_note": "Open note",
-    "indexed_for_ai": "Indexed for Ask AI",
-    "not_indexed_for_ai": "Not indexed yet"
+    "failed_to_export": "Failed to export note"
   },
   "trash": {
     "title": "Trash",
@@ -918,8 +913,13 @@
     "new_section_placeholder": "New section title",
     "add_section": "Add section",
     "rename": "Rename",
-    "move_up": "Move up",
-    "move_down": "Move down",
+    "drag_section": "Drag to reorder section {title}",
+    "drag_item": "Drag to reorder {title}",
+    "dnd_instructions": "Press Space or Enter to pick up. Use the arrow keys to move. Press Space or Enter to drop, or Escape to cancel.",
+    "dnd_picked_up": "Picked up {title}.",
+    "dnd_over": "{title} is over {target}.",
+    "dnd_dropped": "{title} dropped.",
+    "dnd_cancelled": "Move of {title} cancelled.",
     "delete_section": "Delete section",
     "delete_section_description": "{count, plural, =0 {The section is empty.} one {The section and its # item are deleted.} other {The section and its # items are deleted.}}",
     "remove_item": "Remove from course",
