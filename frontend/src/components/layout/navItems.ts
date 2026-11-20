@@ -20,8 +20,6 @@ export type NavItem = {
   labelKey: string;
   /** Text shown instead of `t(labelKey)`. */
   label?: string;
-  /** A shorter text for the phone tab bar, where the label has 56px. */
-  shortLabelKey?: string;
   /** Replaces the pathname match, for items whose href alone does not tell if they are active. */
   isActive?: boolean;
   href: string | null;
@@ -37,12 +35,7 @@ export type NavSection = {
 /** Every destination of the app nav, once. The sidebar, the tab bar and the More sheet pick from here. */
 export const NAV_ITEMS = {
   dashboard: { labelKey: 'sidebar.dashboard', href: Routes.DASHBOARD, icon: LayoutDashboard },
-  review: {
-    labelKey: 'sidebar.review_now',
-    shortLabelKey: 'mobile_nav.review',
-    href: Routes.REVIEW,
-    icon: RefreshCw,
-  },
+  review: { labelKey: 'sidebar.review_now', href: Routes.REVIEW, icon: RefreshCw },
   tests: { labelKey: 'sidebar.tests', href: Routes.TESTS, icon: BookOpen },
   files: { labelKey: 'sidebar.files', href: Routes.FILES, icon: Folder },
   questions: { labelKey: 'sidebar.questions', href: Routes.QUESTIONS, icon: Grid3X3 },
@@ -60,13 +53,16 @@ export const NAV_SECTIONS: NavSection[] = [
   { labelKey: 'sidebar.analytics', items: [NAV_ITEMS.history, NAV_ITEMS.stats] },
 ];
 
-/** The four tabs of the phone bar. The rest of the nav is in the More sheet (`MORE_ITEMS`). */
-export const TAB_ITEMS: NavItem[] = [NAV_ITEMS.dashboard, NAV_ITEMS.review, NAV_ITEMS.files, NAV_ITEMS.courses];
+/** The plain link tabs of the phone bar. It also has the AI and Spaces tabs, which are not links, and More. */
+export const TAB_ITEMS: NavItem[] = [NAV_ITEMS.dashboard, NAV_ITEMS.files];
+
+/** The menu of the Spaces tab. */
+export const SPACE_ITEMS: NavItem[] = [NAV_ITEMS.courses, NAV_ITEMS.classrooms];
 
 export const MORE_ITEMS: NavItem[] = [
+  NAV_ITEMS.review,
   NAV_ITEMS.tests,
   NAV_ITEMS.questions,
-  NAV_ITEMS.classrooms,
   NAV_ITEMS.history,
   NAV_ITEMS.trash,
 ];

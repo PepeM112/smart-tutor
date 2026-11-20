@@ -30,7 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <MobileHeader />
                 </div>
                 <main className="flex min-h-0 flex-1 flex-col overflow-auto">
-                  <div className="flex-1 px-4 pt-4 pb-4 lg:px-8 lg:pt-6 lg:pb-8">{children}</div>
+                  <div className="min-w-0 flex-1 px-4 pt-4 pb-4 lg:px-8 lg:pt-6 lg:pb-8">{children}</div>
                 </main>
               </div>
             </AssistLayout>

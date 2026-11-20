@@ -55,7 +55,7 @@ export function NoteEditorBody({
   const t = useTranslations();
 
   return (
-    <div className={cn(noteColumnClass(isFullWidth), 'pt-20 pb-24')}>
+    <div className={cn(noteColumnClass(isFullWidth), 'pt-6 pb-24')}>
       <input
         type="text"
         // Same limit as the backend (`NoteBase.title`), so a long title cannot cause a 422.
@@ -65,7 +65,8 @@ export function NoteEditorBody({
         placeholder={t('notes.untitled')}
         className="note-title w-full bg-transparent text-foreground placeholder:text-muted-foreground/50 outline-none border-none focus:ring-0 p-0"
       />
-      <div className="mt-2 mb-6">
+      {/* No tags: only the small "Add tag" button shows, so the row costs less space than with tags. */}
+      <div className={tags.length > 0 ? 'mt-2 mb-6' : 'mt-1 mb-3'}>
         <TagInput tags={tags} onChange={onTagsChange} />
       </div>
 

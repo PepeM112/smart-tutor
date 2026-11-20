@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { Download, EllipsisVertical, FolderInput, Pencil, Trash2 } from 'lucide-react';
+import { Download, EllipsisVertical, Eye, FolderInput, Pencil, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import { type FileTreeFolder, type FileTreeNote } from '@/client';
 import { ActionsMenu, type MobileAction } from '@/components/shared/ActionsMenu';
 import { RowEventBoundary } from '@/components/shared/tree/RowEventBoundary';
 import { TreeActionsCell } from '@/components/shared/tree/TreeActionsCell';
-import { ACTIONS_CELL_ONE_BUTTON_CLASS } from '@/components/shared/tree/treeLayout';
+import { ACTIONS_CELL_TWO_BUTTONS_CLASS } from '@/components/shared/tree/treeLayout';
 import { Button } from '@/components/ui/button';
 import { exportNote } from '@/features/notes/lib/exportNote';
 import { sdk } from '@/lib/apiClient';
@@ -30,13 +30,14 @@ type Props = {
 };
 
 /**
- * Hover actions for a folder row or a note row: one `⋮` menu. A note previews through the chevron of its row.
+ * Hover actions for a folder row or a note row: a note has an Eye (preview) button, both have one `⋮` menu.
+ * Preview is a button, not a menu entry, because it is the most used action (same as DataTableV2).
  * The two kinds differ in the first menu group (note: export), the dialog texts and the mutations,
  * so one component reads them from a small config.
  */
 export function FileRowActions({ item, onStartRename }: Props) {
   const t = useTranslations();
-  const { mutations, childrenIndex } = useFilesTree();
+  const { mutations, onPreview, childrenIndex } = useFilesTree();
   const [moveOpen, setMoveOpen] = useState(false);
   // Focus target after the Move dialog closes. The dialog has no trigger of its own.
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -105,7 +106,19 @@ export function FileRowActions({ item, onStartRename }: Props) {
 
   return (
     <RowEventBoundary>
-      <TreeActionsCell widthClass={ACTIONS_CELL_ONE_BUTTON_CLASS} forceVisible={menuOpen || moveOpen}>
+      <TreeActionsCell widthClass={ACTIONS_CELL_TWO_BUTTONS_CLASS} forceVisible={menuOpen || moveOpen}>
+        {!isFolder && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
+            tooltip={t('common.preview')}
+            aria-label={t('common.preview')}
+            onClick={() => onPreview(id)}
+          >
+            <Eye className="size-4" />
+          </Button>
+        )}
         <ActionsMenu
           actions={isFolder ? [manageActions, deleteActions] : [noteActions, manageActions, deleteActions]}
           onOpenChange={setMenuOpen}

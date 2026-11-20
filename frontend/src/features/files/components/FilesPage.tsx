@@ -1,8 +1,9 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { ResponsiveSplitPane } from '@/components/shared/ResponsiveSplitPane';
 import { SearchInput } from '@/components/shared/SearchInput';
 import { useProvidePageData } from '@/features/assist/hooks/useProvidePageData';
 import { formatFilesView } from '@/features/assist/utils/formatPageData';
@@ -20,6 +21,7 @@ import { FileBreadcrumb } from './FileBreadcrumb';
 import { FilesTable } from './FilesTable';
 import { FilesToolbar } from './FilesToolbar';
 import { NewFolderDialog } from './NewFolderDialog';
+import { NotePreviewPanel } from './NotePreviewPanel';
 
 type Props = {
   /** null = root /files, string = folder ID */
@@ -43,10 +45,6 @@ export function FilesPage({ folderId }: Props) {
   // The preview closes when the folder changes or when its note leaves the tree (trashed).
   const { notes: treeNotes, folders: treeFolders, childrenIndex } = useFileTree();
   const { previewId, openPreview, closePreview } = useRowPreview(treeNotes, folderId ?? '');
-  const handleTogglePreview = useCallback(
-    (noteId: string) => (previewId === noteId ? closePreview() : openPreview(noteId)),
-    [previewId, openPreview, closePreview]
-  );
 
   // Full ancestor chain (root → current folder inclusive) for FileBreadcrumb.
   const folderPath = useFolderPath(folderId);
@@ -100,7 +98,7 @@ export function FilesPage({ folderId }: Props) {
   useProvidePageData(aiPageData);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex h-full flex-col">
       <div role="search" className="flex min-h-12 items-center py-2">
         <SearchInput
           className="w-full sm:w-70"
@@ -109,13 +107,27 @@ export function FilesPage({ folderId }: Props) {
           placeholder={t('files.search_placeholder')}
         />
       </div>
-      <FilesTable
-        currentFolderId={folderId}
-        onTogglePreview={handleTogglePreview}
-        previewId={previewId}
-        query={search}
-        filter={filter}
-      />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <ResponsiveSplitPane
+          storageKey="files-preview-split-ratio"
+          defaultRatio={0.6}
+          // The list scrolls at the page edge (the layout padding moves inside the pane).
+          bleed
+          main={
+            <FilesTable
+              currentFolderId={folderId}
+              onPreview={openPreview}
+              previewId={previewId}
+              query={search}
+              filter={filter}
+            />
+          }
+          side={previewId ? <NotePreviewPanel noteId={previewId} onClose={closePreview} /> : null}
+          onSideClose={closePreview}
+          // The preview panel has its own frame and scroll.
+          insetDrawerBody={false}
+        />
+      </div>
       <NewFolderDialog open={newFolderOpen} onOpenChange={setNewFolderOpen} parentId={folderId} />
     </div>
   );
