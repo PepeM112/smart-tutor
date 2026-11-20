@@ -794,10 +794,7 @@
     "found_in_content": "Encontrado en el contenido",
     "searching_content": "Buscando en el contenido…",
     "search_content_failed": "No se pudo buscar en el contenido de las notas.",
-    "failed_to_export": "Error al exportar la nota",
-    "open_note": "Abrir nota",
-    "indexed_for_ai": "Indexada para Ask AI",
-    "not_indexed_for_ai": "Aún sin indexar"
+    "failed_to_export": "Error al exportar la nota"
   },
   "trash": {
     "title": "Papelera",

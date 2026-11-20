@@ -99,7 +99,6 @@ function CourseOutlineView({ course, actions }: CourseViewProps) {
   // A course of a classroom has no members of its own: only the content.
   const hasMembersTab = isAuthor && !course.parentId;
   const selectedItem = isMember && selectedItemId ? findItem(course.sections, selectedItemId) : undefined;
-  const { isDesktop } = useBreakpoint();
 
   return (
     <OutlineColumn
@@ -117,7 +116,7 @@ function CourseOutlineView({ course, actions }: CourseViewProps) {
     >
       <div className={COURSE_COLUMN_CLASS}>
         <CourseNotices course={course} />
-        {!isDesktop && <CourseToolbar courseId={course.id} />}
+        <CourseToolbar courseId={course.id} />
         {hasMembersTab && tab === 'members' ? (
           <CourseMembers course={course} actions={actions} />
         ) : selectedItem ? (
@@ -140,7 +139,6 @@ function CourseDraftView({ course, actions }: CourseViewProps) {
   const [previewNote, setPreviewNote] = useState<PreviewNote | null>(null);
   const selectedItemId = useSearchParams().get(COURSE_ITEM_PARAM);
   const { isMember, isAuthor } = courseAccess(course);
-  const { isDesktop } = useBreakpoint();
 
   // Enter edit, publish and discard change the note ids (a draft twin is made or deleted): the preview closes.
   const previewNoteId = previewNote?.isEditing === course.isEditing ? previewNote.noteId : null;
@@ -151,7 +149,7 @@ function CourseDraftView({ course, actions }: CourseViewProps) {
     <div className={COURSE_COLUMN_CLASS}>
       <CourseSummary course={course} />
       <CourseNotices course={course} />
-      {!isDesktop && <CourseToolbar courseId={course.id} />}
+      <CourseToolbar courseId={course.id} />
 
       {isAuthor && course.parentId ? (
         <AuthorContent course={course} actions={actions} onOpenNote={openNote} selectedItemId={selectedItemId} />
@@ -204,9 +202,17 @@ function CourseDraftView({ course, actions }: CourseViewProps) {
   );
 }
 
-/** Phone: the actions of the page header (join, member menu, author actions), which have no room in the header. */
+/**
+ * Phone: the actions of the page header (join, member menu, author actions), which have no room in the header.
+ * CSS hides it from `lg` (the `useBreakpoint` desktop threshold): the server cannot know the width, so a JS check
+ * would make the toolbar pop in after hydration on a phone.
+ */
 function CourseToolbar({ courseId }: { courseId: string }) {
-  return <CourseHeaderActions courseId={courseId} className="flex-wrap" />;
+  return (
+    <div className="lg:hidden">
+      <CourseHeaderActions courseId={courseId} className="flex-wrap" />
+    </div>
+  );
 }
 
 /** The archived banner and the notice of a classroom without an AI key. */

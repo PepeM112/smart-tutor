@@ -62,7 +62,10 @@ export function useDraftDnd({ sections, onCommit }: Options) {
         get: (id: string | number) => droppableContainers.get(id),
         getEnabled: () => targetsFor(active.id, droppableContainers.getEnabled()),
       } as unknown as DroppableContainers;
-      return sortableKeyboardCoordinates(event, { ...args, context: { ...args.context, droppableContainers: targets } });
+      return sortableKeyboardCoordinates(event, {
+        ...args,
+        context: { ...args.context, droppableContainers: targets },
+      });
     },
     [targetsFor]
   );

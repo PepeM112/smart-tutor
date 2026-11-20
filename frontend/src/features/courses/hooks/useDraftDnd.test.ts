@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 
-import { type DragEndEvent, type DragOverEvent, type KeyboardCoordinateGetter, type KeyboardSensorOptions } from '@dnd-kit/core';
+import {
+  type DragEndEvent,
+  type DragOverEvent,
+  type KeyboardCoordinateGetter,
+  type KeyboardSensorOptions,
+} from '@dnd-kit/core';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -112,7 +117,14 @@ describe('useDraftDnd', () => {
 
   describe('keyboard coordinates', () => {
     // Layout: s1 holds a, b. s2 holds c. s3 is empty. Each id is a droppable, like in the real editor.
-    const rect = (top: number, height: number) => ({ top, height, left: 0, width: 300, bottom: top + height, right: 300 });
+    const rect = (top: number, height: number) => ({
+      top,
+      height,
+      left: 0,
+      width: 300,
+      bottom: top + height,
+      right: 300,
+    });
     const rects = new Map([
       ['s1', rect(0, 200)],
       ['a', rect(40, 40)],

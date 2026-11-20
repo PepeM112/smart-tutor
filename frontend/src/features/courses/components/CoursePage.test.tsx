@@ -2,7 +2,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SpaceDetail } from '@/client';
@@ -10,7 +9,9 @@ import { useBreadcrumbStore } from '@/store/useBreadcrumbStore';
 
 import { CoursePage } from './CoursePage';
 
-const state = vi.hoisted(() => ({ isDesktop: false, course: null as unknown }));
+import type { ReactNode } from 'react';
+
+const state = vi.hoisted(() => ({ isDesktop: false, course: null as SpaceDetail | null }));
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -81,11 +82,13 @@ describe('CoursePage actions', () => {
     expect(useBreadcrumbStore.getState().actions).toBeUndefined();
   });
 
-  it('on desktop registers the actions for the header and keeps them out of the page content', () => {
+  it('on desktop registers the actions for the header and hides the ones in the page content with CSS', () => {
     state.isDesktop = true;
     renderPage();
 
-    expect(screen.queryByRole('button', { name: 'courses.edit_course' })).toBeNull();
+    // The content toolbar is always rendered (no hydration pop-in on a phone); `lg:hidden` hides it from desktop width.
+    const contentButton = screen.getByRole('button', { name: 'courses.edit_course', hidden: true });
+    expect(contentButton.closest('.lg\\:hidden')).not.toBeNull();
     expect(useBreadcrumbStore.getState().actions).toBeTruthy();
   });
 });

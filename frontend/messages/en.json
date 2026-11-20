@@ -794,10 +794,7 @@
     "found_in_content": "Found in content",
     "searching_content": "Searching content…",
     "search_content_failed": "Could not search note contents.",
-    "failed_to_export": "Failed to export note",
-    "open_note": "Open note",
-    "indexed_for_ai": "Indexed for Ask AI",
-    "not_indexed_for_ai": "Not indexed yet"
+    "failed_to_export": "Failed to export note"
   },
   "trash": {
     "title": "Trash",
