@@ -1,4 +1,4 @@
-import type { GeneratedQuestionPreviewOutput } from '@/client';
+import type { GeneratedQuestionPreviewOutput, ThinkingBlockData } from '@/client';
 
 export type {
   AssistMessage,
@@ -7,6 +7,7 @@ export type {
   PageContext,
   ToolCallData,
   ToolConfirmation,
+  ThinkingBlockData,
   ToolResultData,
 } from '@/client';
 
@@ -43,6 +44,8 @@ export type SSEConfirmRequired = {
   arguments: Record<string, unknown>;
   context?: ConfirmContext;
 };
+/** End of a round that ended with tool calls. The blocks are opaque: they go back unchanged in that round's message. */
+export type SSERoundEnd = { thinking_blocks?: ThinkingBlockData[] };
 export type SSEDone = {
   usage: { input_tokens: number; output_tokens: number };
   pending_confirmations?: string[];

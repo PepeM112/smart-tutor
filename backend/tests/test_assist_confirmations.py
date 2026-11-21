@@ -188,7 +188,7 @@ class TestDoneAndUsage:
             stop_reason="tool_use", text="", tool_calls=[ToolCallDelta(id="w", name="create_note", arguments={})]
         )
         events, _, _ = _run(_FakeLLM(write_round), [USER_MSG])
-        assert _names(events)[-2:] == ["confirm_required", "done"]
+        assert _names(events)[-3:] == ["confirm_required", "round_end", "done"]
         assert events[-1][1]["pending_confirmations"] == ["w"]
 
     def test_an_error_after_a_round_keeps_its_usage(self) -> None:

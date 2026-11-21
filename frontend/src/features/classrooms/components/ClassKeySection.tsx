@@ -26,7 +26,7 @@ import {
 } from '../lib/classKey';
 
 const PROVIDERS = [
-  { value: AiProvider.ANTHROPIC, labelKey: 'settings.anthropic', modelKey: 'settings.model_claude_haiku' },
+  { value: AiProvider.ANTHROPIC, labelKey: 'settings.anthropic', modelKey: 'classrooms.key_model_default' },
   { value: AiProvider.OPENAI, labelKey: 'settings.openai', modelKey: 'settings.model_gpt4o_mini' },
 ] as const;
 

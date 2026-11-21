@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 import { AUTHOR_TABS, type AuthorTab } from '../lib/authorTabs';
 import { outlineItemHref } from '../lib/itemAction';
-import { isCourseViewer } from '../lib/progress';
+import { canDo } from '../lib/permissions';
 
 import { ItemIcon } from './CourseOutline';
 import { CourseProgressBar, ItemProgressCircle, TestAttemptInfo } from './CourseProgress';
@@ -50,7 +50,7 @@ export function CourseOutlineNav({
 
       <div className="flex flex-col gap-3 px-2">
         <p className="text-sm text-muted-foreground">{t('courses.by_owner', { name: course.ownerName })}</p>
-        {isCourseViewer(course) && course.progress && <CourseProgressBar progress={course.progress} />}
+        {canDo(course.myRole, 'trackProgress') && course.progress && <CourseProgressBar progress={course.progress} />}
       </div>
 
       {course.sections.map(section => (
@@ -148,7 +148,7 @@ interface OutlineItemProps {
 
 function OutlineItem({ item, course, linkItems, isSelected }: OutlineItemProps) {
   const rowRef = useRef<HTMLLIElement>(null);
-  const isViewer = isCourseViewer(course);
+  const isViewer = canDo(course.myRole, 'trackProgress');
   const href = linkItems ? outlineItemHref(course, item) : undefined;
 
   // A link or the Assistant can select an item that sits below the fold of a long outline.

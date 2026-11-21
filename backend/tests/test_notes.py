@@ -620,7 +620,7 @@ class TestAnthropicLLMClient:
         client._client = MagicMock()
         client._client.messages.create.return_value = self._mock_response(markdown)
 
-        result = client.complete(system="You are helpful.", user_prompt="Write notes", max_tokens=4096)
+        result = client.complete(system="You are helpful.", user_prompt="Write notes", max_tokens=4096, effort="medium")
         assert "Spanish Verbs" in result.text
         assert "**ser**" in result.text
         assert result.input_tokens == 10
@@ -631,7 +631,7 @@ class TestAnthropicLLMClient:
         client._client = MagicMock()
         client._client.messages.create.return_value = self._mock_response("  \n## Notes\ncontent\n  ")
 
-        result = client.complete(system="sys", user_prompt="usr", max_tokens=4096)
+        result = client.complete(system="sys", user_prompt="usr", max_tokens=4096, effort="medium")
         assert result.text.startswith("## Notes")
         assert result.text.endswith("content")
 
@@ -643,7 +643,7 @@ class TestAnthropicLLMClient:
         client._client.messages.create.return_value = response
 
         with pytest.raises(ValueError, match="Empty response"):
-            client.complete(system="sys", user_prompt="usr", max_tokens=4096)
+            client.complete(system="sys", user_prompt="usr", max_tokens=4096, effort="medium")
 
     def test_raises_on_empty_text(self) -> None:
         client = self._make_client()
@@ -651,19 +651,19 @@ class TestAnthropicLLMClient:
         client._client.messages.create.return_value = self._mock_response("   ")
 
         with pytest.raises(ValueError, match="empty text"):
-            client.complete(system="sys", user_prompt="usr", max_tokens=4096)
+            client.complete(system="sys", user_prompt="usr", max_tokens=4096, effort="medium")
 
-    def test_raises_on_non_text_block(self) -> None:
+    def test_raises_when_no_block_is_text(self) -> None:
         client = self._make_client()
         block = MagicMock()
-        type(block).__name__ = "ToolUseBlock"
+        block.type = "tool_use"
         response = MagicMock()
         response.content = [block]
         client._client = MagicMock()
         client._client.messages.create.return_value = response
 
-        with pytest.raises(TypeError, match="Expected TextBlock"):
-            client.complete(system="sys", user_prompt="usr", max_tokens=4096)
+        with pytest.raises(ValueError, match="empty text"):
+            client.complete(system="sys", user_prompt="usr", max_tokens=4096, effort="medium")
 
     def test_raises_without_api_key(self) -> None:
         with patch.dict("os.environ", {}, clear=True), pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
@@ -695,7 +695,7 @@ class TestOpenAILLMClient:
         client._client = MagicMock()
         client._client.chat.completions.create.return_value = self._mock_response(markdown)
 
-        result = client.complete(system="You are helpful.", user_prompt="Write notes", max_tokens=4096)
+        result = client.complete(system="You are helpful.", user_prompt="Write notes", max_tokens=4096, effort="medium")
         assert "Geography" in result.text
         assert result.input_tokens == 15
         assert result.output_tokens == 25
@@ -706,7 +706,7 @@ class TestOpenAILLMClient:
         client._client.chat.completions.create.return_value = self._mock_response("")
 
         with pytest.raises(ValueError, match="empty text"):
-            client.complete(system="sys", user_prompt="usr", max_tokens=4096)
+            client.complete(system="sys", user_prompt="usr", max_tokens=4096, effort="medium")
 
     def test_raises_without_api_key(self) -> None:
         with patch.dict("os.environ", {}, clear=True), pytest.raises(ValueError, match="OPENAI_API_KEY"):
@@ -899,6 +899,7 @@ class TestAnthropicNoteIntegration:
             system=NOTE_GENERATION_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             max_tokens=4096,
+            effort="medium",
         )
         assert len(result.text) > 100
         assert "#" in result.text
@@ -920,6 +921,7 @@ class TestOpenAINoteIntegration:
             system=NOTE_GENERATION_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             max_tokens=4096,
+            effort="medium",
         )
         assert len(result.text) > 100
         assert "#" in result.text

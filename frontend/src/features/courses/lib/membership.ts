@@ -1,4 +1,6 @@
-import { SpaceRole, type SpaceDetail } from '@/client';
+import { type SpaceDetail } from '@/client';
+
+import { canDo } from './permissions';
 
 export type CourseAccess = {
   /** Reads the published content and opens its items. */
@@ -12,9 +14,8 @@ export type CourseAccess = {
  * The owner has no member row, so `myStatus` is null for the owner.
  */
 export function courseAccess(course: Pick<SpaceDetail, 'myRole'>): CourseAccess {
-  const role = course.myRole;
   return {
-    isMember: role !== null,
-    isAuthor: role === SpaceRole.OWNER || role === SpaceRole.EDITOR,
+    isMember: canDo(course.myRole, 'viewContent'),
+    isAuthor: canDo(course.myRole, 'editContent'),
   };
 }

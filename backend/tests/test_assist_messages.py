@@ -163,3 +163,45 @@ class TestOpenAIConversion:
             ("tool", ["a"]),
             ("tool", ["b"]),
         ]
+
+
+class TestPerRoundHistory:
+    """One stream with two rounds is stored as two assistant messages, each followed by its own results."""
+
+    BLOCKS = [{"type": "thinking", "thinking": "Plan.", "signature": "sig-1"}]
+    HISTORY = [
+        USER,
+        AssistMessage.model_validate(
+            {
+                "role": "assistant",
+                "content": "Looking.",
+                "toolCalls": [{"id": "A", "name": "list_notes", "arguments": {}}],
+                "thinkingBlocks": BLOCKS,
+            }
+        ),
+        _tool(A="notes"),
+        _assistant("Creating.", _call("B", "create_folder")),
+        _tool(B="Created"),
+    ]
+
+    def test_anthropic_keeps_the_rounds_apart_and_the_blocks_on_their_own_message(self) -> None:
+        out = _to_anthropic_messages(self.HISTORY, keep_thinking=True)
+        assert _anthropic_ids(out) == [
+            ("user", []),
+            ("assistant", ["A"]),
+            ("user", ["A"]),
+            ("assistant", ["B"]),
+            ("user", ["B"]),
+        ]
+        assert out[1]["content"][0] == self.BLOCKS[0]
+        assert [b["type"] for b in out[3]["content"]] == ["text", "tool_use"]
+
+    def test_anthropic_without_thinking_keeps_the_same_rounds_with_no_blocks(self) -> None:
+        out = _to_anthropic_messages(self.HISTORY, keep_thinking=False)
+        assert [b["type"] for b in out[1]["content"]] == ["text", "tool_use"]
+        assert len(out) == 5
+
+    def test_openai_ignores_the_blocks_and_keeps_the_rounds(self) -> None:
+        out = _to_openai_messages(self.HISTORY)
+        assert [m["role"] for m in out] == ["user", "assistant", "tool", "assistant", "tool"]
+        assert all("thinking" not in str(m) for m in out)

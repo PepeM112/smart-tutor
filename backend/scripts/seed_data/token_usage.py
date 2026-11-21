@@ -13,6 +13,7 @@ from app.models.base import generate_ulid
 
 PROVIDERS = [
     (AIProvider.ANTHROPIC, "claude-haiku-4-5-20251001"),
+    (AIProvider.ANTHROPIC, "claude-haiku-5-5"),
     (AIProvider.OPENAI, "gpt-4o-mini"),
 ]
 
@@ -27,6 +28,7 @@ FEATURES = [
 
 SEED_PRICES: dict[str, tuple[Decimal, Decimal]] = {
     "anthropic/claude-haiku-4.5": (Decimal("0.000001"), Decimal("0.000005")),
+    "anthropic/claude-haiku-5.5": (Decimal("0.0000001"), Decimal("0.0000005")),
     "openai/gpt-4o-mini": (Decimal("0.00000015"), Decimal("0.0000006")),
 }
 

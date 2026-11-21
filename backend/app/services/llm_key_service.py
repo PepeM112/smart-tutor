@@ -14,11 +14,12 @@ The Class key serves only students (ACTIVE VIEWER) of the classroom. `key_scope`
   and the usage is tagged with that classroom, so the owner sees it in the spend per student.
 """
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.ai_settings import DEFAULT_AI_EFFORT, AiAction, AiEffort
 from app.core.enums import AIProvider, KeyPriority, KeySource, SpaceKind, SpaceRole
 from app.crud import classroom_settings as classroom_settings_crud
 from app.crud import space as space_crud
@@ -29,7 +30,7 @@ from app.models.classroom_settings import ClassroomSettings
 from app.models.space import Space
 from app.models.test_result import TestResult
 from app.models.user import User
-from app.services import access_service, space_service
+from app.services import access_service, ai_settings_service, space_service
 from app.services.llm import (
     CAP_REACHED_MESSAGE,
     NO_KEY_MESSAGE,
@@ -49,6 +50,11 @@ class ResolvedLLM:
     key_source: KeySource
     # The classroom (or classroom course) the usage is booked on. None = personal use paid by the student.
     space_id: str | None
+    # The effort of each action for this call: the user settings, or the defaults when a Class key pays.
+    efforts: dict[AiAction, AiEffort] = field(default_factory=lambda: dict(DEFAULT_AI_EFFORT))
+
+    def effort(self, action: AiAction) -> AiEffort:
+        return self.efforts[action]
 
     def tag(self, result: CompletionResult) -> CompletionResult:
         """Add who paid and for which space to a result, so `record_usage` can store it."""
@@ -193,6 +199,7 @@ def resolve_llm(db: Session, user: User, space_id: str | None = None) -> Resolve
 
     if plan.source == KeySource.CLASS and plan.settings is not None and plan.settings.encrypted_class_key:
         provider = AIProvider(plan.settings.ai_provider)
+        # The Class key owner sets the cost, not the student: the server default model and the default efforts.
         client = build_client(provider, decrypt_key(plan.settings.encrypted_class_key))
         # A personal call paid by a classroom is booked on the classroom.
         return ResolvedLLM(client, provider, KeySource.CLASS, space_id or plan.classroom_id)
@@ -201,4 +208,6 @@ def resolve_llm(db: Session, user: User, space_id: str | None = None) -> Resolve
     # The usage is booked on the space only when the user is a member of it, so nobody can book on a foreign space.
     is_member = space_id is not None and access_service.get_space_access(db, space_id=space_id, user_id=user.id).role
     booked = space_id if is_member else None
-    return ResolvedLLM(get_user_llm_client(user), provider, KeySource.STUDENT, booked)
+    return ResolvedLLM(
+        get_user_llm_client(user), provider, KeySource.STUDENT, booked, ai_settings_service.efforts_of(user)
+    )

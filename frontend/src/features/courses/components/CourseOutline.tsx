@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { SpaceItemKind, type SpaceDetail, type SpaceItemRead, type SpaceSectionRead } from '@/client';
 
 import { itemAction } from '../lib/itemAction';
-import { isCourseViewer } from '../lib/progress';
+import { canDo } from '../lib/permissions';
 
 import { CourseContentFrame, CourseItemRow, CourseSectionFrame } from './CourseLayout';
 import { CourseProgressBar, ItemProgressCircle, TestAttemptButton, TestAttemptInfo } from './CourseProgress';
@@ -27,7 +27,7 @@ type Props = {
 /** The published structure, as members see it. */
 export function CourseOutline({ sections, course, linkItems, onOpenNote, selectedItemId }: Props) {
   const t = useTranslations();
-  const trackedCourse = course && isCourseViewer(course) ? course : undefined;
+  const trackedCourse = course && canDo(course.myRole, 'trackProgress') ? course : undefined;
 
   if (sections.length === 0) {
     return <p className="py-12 text-center text-sm text-muted-foreground">{t('courses.no_content')}</p>;
@@ -56,7 +56,7 @@ export function CourseOutline({ sections, course, linkItems, onOpenNote, selecte
                     {item.kind === SpaceItemKind.COURSE && trackedCourse && item.childProgress && (
                       <CourseProgressBar progress={item.childProgress} className="w-40 shrink-0" />
                     )}
-                    <ScheduleBadges item={item} isAuthor={!course || !isCourseViewer(course)} />
+                    <ScheduleBadges item={item} isAuthor={!course || !canDo(course.myRole, 'trackProgress')} />
                     {trackedCourse && item.kind === SpaceItemKind.TEST && <TestAttemptInfo item={item} />}
                   </>
                 }

@@ -17,7 +17,8 @@ import { Routes } from '@/lib/routes';
 import { useNoteReadProgress } from '../hooks/useNoteReadProgress';
 import { attemptPolicyLines } from '../lib/attemptLines';
 import { outlineItemHref } from '../lib/itemAction';
-import { isCourseViewer, nextItem } from '../lib/progress';
+import { canDo } from '../lib/permissions';
+import { nextItem } from '../lib/progress';
 
 import { CourseNoteBody } from './CourseNoteView';
 import { NoteDoneButton, TestAttemptButton } from './CourseProgress';
@@ -112,7 +113,7 @@ function CourseTestItem({ course, item }: CourseItemViewProps) {
         ))}
       </ul>
       <div className="flex">
-        {isCourseViewer(course) ? (
+        {canDo(course.myRole, 'trackProgress') ? (
           <TestAttemptButton course={course} item={item} size="default" />
         ) : (
           item.testId && (

@@ -29,8 +29,7 @@ function assertValidHistory(messages: AssistMessage[], pendingIds: string[] = []
 describe('buildStreamMessages', () => {
   it('stores the assistant message and then the results of its own tool calls', () => {
     const messages = buildStreamMessages({
-      text: 'Found it.',
-      toolCalls: [call('r1', 'list_notes'), call('r2', 'list_folders')],
+      rounds: [{ text: 'Found it.', toolCalls: [call('r1', 'list_notes'), call('r2', 'list_folders')] }],
       toolResults: [
         { toolCallId: 'r1', output: 'notes' },
         { toolCallId: 'r2', output: 'folders' },
@@ -43,12 +42,73 @@ describe('buildStreamMessages', () => {
   });
 
   it('stores only an assistant message when there are no tool calls', () => {
-    const messages = buildStreamMessages({ text: 'Hi', toolCalls: [], toolResults: [] });
+    const messages = buildStreamMessages({ rounds: [{ text: 'Hi', toolCalls: [] }], toolResults: [] });
     expect(messages).toEqual([{ role: 'assistant', content: 'Hi', toolCalls: undefined }]);
   });
 
+  it('keeps the thinking blocks of a paused turn on its assistant message, unchanged', () => {
+    const thinkingBlocks = [
+      { type: 'thinking' as const, thinking: 'plan', signature: 'sig-1' },
+      { type: 'redacted_thinking' as const, data: 'opaque' },
+    ];
+
+    const messages = buildStreamMessages({
+      rounds: [{ text: 'Moving.', toolCalls: [call('mv', 'move_items')], thinkingBlocks }],
+      toolResults: [],
+    });
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].thinkingBlocks).toEqual(thinkingBlocks);
+  });
+
+  it('adds no thinkingBlocks key when the stream sent none', () => {
+    const [message] = buildStreamMessages({
+      rounds: [{ text: 'Hi', toolCalls: [], thinkingBlocks: [] }],
+      toolResults: [],
+    });
+    expect(message).not.toHaveProperty('thinkingBlocks');
+  });
+
+  it('stores one assistant message per round, each with its own blocks and its own results', () => {
+    const thinking1 = [{ type: 'thinking' as const, thinking: 'one', signature: 'sig-1' }];
+    const thinking2 = [{ type: 'thinking' as const, thinking: 'two', signature: 'sig-2' }];
+
+    const messages = buildStreamMessages({
+      rounds: [
+        { text: 'Looking.', toolCalls: [call('A', 'list_notes')], thinkingBlocks: thinking1 },
+        { text: 'Creating.', toolCalls: [call('B', 'create_folder')], thinkingBlocks: thinking2 },
+      ],
+      // B is pending: it has no result yet.
+      toolResults: [{ toolCallId: 'A', output: 'notes' }],
+    });
+
+    expect(messages.map(m => m.role)).toEqual(['assistant', 'tool', 'assistant']);
+    expect(messages[0]).toMatchObject({ content: 'Looking.', thinkingBlocks: thinking1 });
+    expect(messages[1].toolResults?.map(r => r.toolCallId)).toEqual(['A']);
+    expect(messages[2]).toMatchObject({ content: 'Creating.', thinkingBlocks: thinking2 });
+    assertValidHistory(messages, ['B']);
+  });
+
+  it('puts the approved result first, then each round with its own results, in a resumed stream', () => {
+    const messages = buildStreamMessages({
+      rounds: [
+        { text: '', toolCalls: [call('r1', 'list_folders')] },
+        { text: 'Moving.', toolCalls: [call('mv', 'move_items')] },
+      ],
+      toolResults: [
+        { toolCallId: 'cf', output: 'Created folder' },
+        { toolCallId: 'r1', output: 'folders' },
+      ],
+      confirmations: [{ toolCallId: 'cf', approved: true }],
+    });
+
+    expect(messages.map(m => m.role)).toEqual(['tool', 'assistant', 'tool', 'assistant']);
+    expect(messages[0].toolResults?.map(r => r.toolCallId)).toEqual(['cf']);
+    expect(messages[2].toolResults?.map(r => r.toolCallId)).toEqual(['r1']);
+  });
+
   it('stores nothing for an empty stream', () => {
-    expect(buildStreamMessages({ text: '', toolCalls: [], toolResults: [] })).toEqual([]);
+    expect(buildStreamMessages({ rounds: [{ text: '', toolCalls: [] }], toolResults: [] })).toEqual([]);
   });
 
   it('puts the result of the approved tool BEFORE the new assistant message (create_folder, then move_items)', () => {
@@ -59,8 +119,7 @@ describe('buildStreamMessages', () => {
     ];
 
     const messages = buildStreamMessages({
-      text: 'Now I move them.',
-      toolCalls: [call('mv', 'move_items')],
+      rounds: [{ text: 'Now I move them.', toolCalls: [call('mv', 'move_items')] }],
       toolResults: [{ toolCallId: 'cf', output: 'Created folder' }],
       confirmations: [{ toolCallId: 'cf', approved: true }],
     });
@@ -73,8 +132,7 @@ describe('buildStreamMessages', () => {
 
   it('keeps own read results after the new assistant message in a resumed stream', () => {
     const messages = buildStreamMessages({
-      text: '',
-      toolCalls: [call('r1', 'list_folders')],
+      rounds: [{ text: '', toolCalls: [call('r1', 'list_folders')] }],
       toolResults: [
         { toolCallId: 'cf', output: 'Created folder' },
         { toolCallId: 'r1', output: 'folders' },
@@ -89,8 +147,7 @@ describe('buildStreamMessages', () => {
 
   it('records a decline for the other pending tool calls sent with the request', () => {
     const messages = buildStreamMessages({
-      text: 'Done.',
-      toolCalls: [],
+      rounds: [{ text: 'Done.', toolCalls: [] }],
       toolResults: [{ toolCallId: 'a', output: 'ok' }],
       confirmations: [
         { toolCallId: 'a', approved: true },
@@ -106,8 +163,7 @@ describe('buildStreamMessages', () => {
 
   it('keeps the confirmation results even when the resumed stream has no assistant output', () => {
     const messages = buildStreamMessages({
-      text: '',
-      toolCalls: [],
+      rounds: [{ text: '', toolCalls: [] }],
       toolResults: [{ toolCallId: 'cf', output: 'Created folder' }],
       confirmations: [{ toolCallId: 'cf', approved: true }],
     });

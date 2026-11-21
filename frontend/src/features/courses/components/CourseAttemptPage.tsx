@@ -24,7 +24,8 @@ import { useAttemptDraft, type AttemptAnswers } from '../hooks/useAttemptDraft';
 import { useAttemptRefusalMessage } from '../hooks/useAttemptRefusalMessage';
 import { useCourse } from '../hooks/useCourse';
 import { useVisitItem } from '../hooks/useCourseProgress';
-import { findItem, isCourseViewer } from '../lib/progress';
+import { canDo } from '../lib/permissions';
+import { findItem } from '../lib/progress';
 import { courseQueryKeys, markCourseDetailStale } from '../lib/queryKeys';
 import { courseCrumbs } from '../lib/spaceCrumbs';
 import { spaceHref } from '../lib/spaceHref';
@@ -51,7 +52,7 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
   const queryClient = useQueryClient();
   const userId = useAuthStore(s => s.user?.id);
   const { data: course, isLoading: isCourseLoading } = useCourse(courseId);
-  useVisitItem(courseId, itemId, course !== undefined && isCourseViewer(course));
+  useVisitItem(courseId, itemId, course !== undefined && canDo(course.myRole, 'trackProgress'));
   // A test placed straight in a classroom is a space of kind CLASSROOM: its page is the classroom, not a course.
   const courseUrl = course ? spaceHref(course) : `${Routes.COURSES}/${courseId}`;
 

@@ -43,7 +43,7 @@ Long Text questions cannot be auto-graded like Simple or MC — they require an 
 1. The user writes a free-text answer (up to the character limit defined by the question's length tier)
 2. On submission, the answer receives `PENDING` status — a `BackgroundTask` is fired to grade it asynchronously
 3. The grading service (`grading_service.py`) calls the user's configured `LLMClient` via `get_user_llm_client(user)`, which selects the provider and API key from the user's settings:
-   - `anthropic` — Claude Haiku 4.5
+   - `anthropic` — Claude Haiku 5.5 (default) or 4.5, chosen by the user, with the `grading` effort (see `ai-features.md`)
    - `openai` — GPT-4o-mini
 4. The AI receives: the question prompt, the rubric (criteria + weights), and the user's answer
 5. For each criterion, the AI returns `met: true/false` — stored in `Answer.rubric_result` as JSONB

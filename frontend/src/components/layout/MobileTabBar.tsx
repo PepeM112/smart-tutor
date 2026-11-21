@@ -14,13 +14,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useIsAssistHidden } from '@/features/assist/store/useAssistHiddenStore';
 import { useAssistPanelStore } from '@/features/assist/store/useAssistPanelStore';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
 import { isExamRoute } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { useOutlineStore } from '@/store/useOutlineStore';
 
 import { MobileMoreSheet } from './MobileMoreSheet';
-import { isNavItemActive, MORE_ITEMS, SPACE_ITEMS, TAB_ITEMS } from './navItems';
+import { isNavItemActive, MORE_ITEMS, SPACE_ITEMS, TAB_ITEMS, visibleNavItems } from './navItems';
 
 const TAB_CLASS =
   'my-1 flex h-12 min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50';
@@ -39,11 +40,12 @@ export function MobileTabBar() {
   const isAssistHidden = useIsAssistHidden();
   const isAssistOpen = useAssistPanelStore(s => s.isOpen);
   const toggleAssist = useAssistPanelStore(s => s.toggle);
+  const role = useAuthStore(s => s.user?.role);
 
   if (isExamRoute(pathname)) return null;
 
-  const isMoreActive = MORE_ITEMS.some(item => isNavItemActive(item, pathname));
-  const isSpacesActive = SPACE_ITEMS.some(item => isNavItemActive(item, pathname));
+  const isMoreActive = visibleNavItems(MORE_ITEMS, role).some(item => isNavItemActive(item, pathname));
+  const isSpacesActive = visibleNavItems(SPACE_ITEMS, role).some(item => isNavItemActive(item, pathname));
 
   // One drawer at a time: the Contents drawer closes when this sheet opens.
   const openMore = (): void => {
@@ -62,7 +64,7 @@ export function MobileTabBar() {
         aria-label={t('mobile_nav.label')}
         className="relative z-30 flex shrink-0 bg-background px-1 pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
-        {TAB_ITEMS.map(item => {
+        {visibleNavItems(TAB_ITEMS, role).map(item => {
           const Icon = item.icon;
           const isActive = isNavItemActive(item, pathname);
           return (
@@ -97,7 +99,7 @@ export function MobileTabBar() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="center" sideOffset={8} className="w-48">
-            {SPACE_ITEMS.map(item => {
+            {visibleNavItems(SPACE_ITEMS, role).map(item => {
               const Icon = item.icon;
               return (
                 <DropdownMenuItem key={item.labelKey} asChild className="h-11 gap-3 px-3 text-[15px]">

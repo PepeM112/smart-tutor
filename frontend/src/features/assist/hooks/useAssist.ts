@@ -27,8 +27,8 @@ import type {
   ConfirmHandler,
   PageContext,
   SSEConfirmRequired,
-  SSEDone,
   SSEError,
+  SSERoundEnd,
   SSETextDelta,
   SSEToolCall,
   SSEToolExecuting,
@@ -39,6 +39,7 @@ import type {
   ToolResultData,
   TurnSegment,
 } from '../types';
+import type { StreamRound } from '../utils/buildStreamMessages';
 
 let msgCounter = 0;
 const nextId = () => `msg-${++msgCounter}`;
@@ -161,7 +162,10 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
       // state — a boundary event closes the open segment synchronously, the
       // moment it's parsed, regardless of when its own queued `run()` fires.
       let textSegmentOpen = false;
-      const toolCalls: ToolCallData[] = [];
+      // The history is stored per round, as the model saw it. `round_end` closes a round that ended with tool calls.
+      const rounds: StreamRound[] = [];
+      let roundText = '';
+      let roundToolCalls: ToolCallData[] = [];
       const toolResults: ToolResultData[] = [];
 
       const queue = createStreamQueue({
@@ -256,6 +260,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
           case 'text_delta': {
             const { content } = data as SSETextDelta;
             accumulatedText += content;
+            roundText += content;
 
             // Continuation is decided from wire order (this flag), never from
             // `turns` state — that state only catches up once the queue's
@@ -273,7 +278,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
 
           case 'tool_call': {
             const tc = data as SSEToolCall;
-            toolCalls.push({ id: tc.id, name: tc.name, arguments: tc.arguments });
+            roundToolCalls.push({ id: tc.id, name: tc.name, arguments: tc.arguments });
             textSegmentOpen = false;
 
             const toolSeg: TurnSegment = {
@@ -394,10 +399,19 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
             break;
           }
 
+          case 'round_end': {
+            const { thinking_blocks: thinkingBlocks } = data as SSERoundEnd;
+            rounds.push({ text: roundText, toolCalls: roundToolCalls, thinkingBlocks });
+            roundText = '';
+            roundToolCalls = [];
+            break;
+          }
+
           case 'done': {
-            void (data as SSEDone);
             receivedDone = true;
             textSegmentOpen = false;
+            // The last round has no tool calls (or the stream broke before its `round_end`).
+            rounds.push({ text: roundText, toolCalls: roundToolCalls });
 
             queue.enqueue('done', () => {
               // Finalize any streaming text segments in the active turn
@@ -418,8 +432,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
 
               conversationRef.current.push(
                 ...buildStreamMessages({
-                  text: accumulatedText,
-                  toolCalls,
+                  rounds,
                   toolResults,
                   confirmations: request.toolConfirmations ?? undefined,
                 })

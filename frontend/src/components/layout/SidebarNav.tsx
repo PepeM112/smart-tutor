@@ -7,10 +7,11 @@ import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { LogoutButton } from '@/features/auth/components/LogoutButton';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-import { isNavItemActive, NAV_SECTIONS, type NavSection } from './navItems';
+import { ADMIN_SECTION, isNavItemActive, NAV_SECTIONS, type NavSection, visibleNavSections } from './navItems';
 import { useFavoriteNavItems } from './useFavoriteNavItems';
 
 type SidebarNavProps = {
@@ -21,12 +22,20 @@ export function SidebarNav({ collapsed = false }: SidebarNavProps) {
   const t = useTranslations();
   const pathname = usePathname();
   const favorites = useFavoriteNavItems();
+  const role = useAuthStore(s => s.user?.role);
 
-  // Favorites sit after Analytics. The section is left out when there are none.
+  // Favorites sit after Analytics and before Admin. The favorites section is left out when there are none.
   const allSections = useMemo<NavSection[]>(
     () =>
-      favorites.length === 0 ? NAV_SECTIONS : [...NAV_SECTIONS, { labelKey: 'sidebar.favorites', items: favorites }],
-    [favorites]
+      visibleNavSections(
+        [
+          ...NAV_SECTIONS,
+          ...(favorites.length === 0 ? [] : [{ labelKey: 'sidebar.favorites', items: favorites }]),
+          ADMIN_SECTION,
+        ],
+        role
+      ),
+    [favorites, role]
   );
 
   return (

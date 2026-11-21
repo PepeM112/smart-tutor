@@ -1,25 +1,14 @@
-import {
-  SpaceItemKind,
-  SpaceRole,
-  SpaceStatus,
-  type SpaceDetail,
-  type SpaceItemRead,
-  type SpaceSectionRead,
-} from '@/client';
+import { SpaceItemKind, SpaceStatus, type SpaceDetail, type SpaceItemRead, type SpaceSectionRead } from '@/client';
 
+import { canDo } from './permissions';
 import { isHiddenByVisibleFrom } from './schedule';
 
 /** What the Start / Resume button of a test row does. */
 export type AttemptAction = 'resume' | 'start' | 'no_attempts_left' | 'cooldown';
 
-/** A viewer tracks progress. The owner and the editors preview the course: no completion, no attempt rows. */
-export function isCourseViewer(course: Pick<SpaceDetail, 'myRole'>): boolean {
-  return course.myRole === SpaceRole.VIEWER;
-}
-
 /** A viewer can mark notes and start attempts only while the course is not archived (the backend gives 409). */
 export function canTrackProgress(course: Pick<SpaceDetail, 'myRole' | 'status'>): boolean {
-  return isCourseViewer(course) && course.status !== SpaceStatus.ARCHIVED;
+  return canDo(course.myRole, 'trackProgress') && course.status !== SpaceStatus.ARCHIVED;
 }
 
 export function flattenItems(sections: SpaceSectionRead[]): SpaceItemRead[] {

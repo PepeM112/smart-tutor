@@ -23,6 +23,7 @@ from app.services import space_progress_service
 from app.services.challenge_prompts import CHALLENGE_SYSTEM_PROMPT, build_challenge_user_prompt
 from app.services.grading_prompts import strip_code_fences
 from app.services.grading_service import effective_met, recalculate_test_result
+from app.services.llm import AIRefusalError
 from app.services.llm_key_service import resolve_llm, space_id_of_result
 
 logger = logging.getLogger("smarttutor.grading")
@@ -204,7 +205,12 @@ def process_challenge(answer_id: str) -> None:
         )
 
         resolved = resolve_llm(db, user, space_id_of_result(db, test_result))
-        completion = resolved.client.complete(system=CHALLENGE_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
+        completion = resolved.client.complete(
+            system=CHALLENGE_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            max_tokens=2048,
+            effort=resolved.effort("challenge"),
+        )
 
         from app.services import token_usage_service
 
@@ -261,6 +267,9 @@ def process_challenge(answer_id: str) -> None:
             len(pending_indices),
         )
 
+    except AIRefusalError:
+        logger.warning("Challenge failed for answer %s -- the model refused to answer", answer_id)
+        _mark_challenge_as_failed(db, answer_id)
     except (AnthropicAuthError, OpenAIAuthError) as exc:
         logger.error("Challenge failed for answer %s -- AUTH ERROR: %s", answer_id, exc)
         _mark_challenge_as_failed(db, answer_id)
