@@ -35,6 +35,24 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: 'sidebar.profile_and_settings' })).toBeTruthy();
   });
 
+  it('keeps section headings mounted at a fixed height, fading and hidden from assistive technology', () => {
+    render(<Sidebar />);
+    const heading = (): HTMLElement => screen.getByText('sidebar.learning');
+    const sizeClasses = (): string[] =>
+      heading()
+        .className.split(' ')
+        .filter(c => /^(h-|leading-|mb-)/.test(c));
+    const expandedSize = sizeClasses();
+
+    expect(expandedSize).toContain('h-5');
+    expect(heading().className).toContain('opacity-100');
+    toggle();
+
+    expect(heading().className).toContain('opacity-0');
+    expect(heading().getAttribute('aria-hidden')).toBe('true');
+    expect(sizeClasses()).toEqual(expandedSize);
+  });
+
   it('shows the labels again when expanded', () => {
     render(<Sidebar />);
     toggle();

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { NotificationBell } from '@/features/notifications/components/NotificationBell';
-import { PANEL_FADE_CLASS, PANEL_WIDTH_CLASS } from '@/lib/panelMotion';
+import { fadeWithWidthClass, PANEL_WIDTH_CLASS } from '@/lib/panelMotion';
 import { cn } from '@/lib/utils';
 
 import { SidebarNav } from './SidebarNav';
@@ -28,8 +28,8 @@ export function Sidebar() {
           aria-hidden={collapsed || undefined}
           className={cn(
             'truncate font-serif text-[22px] font-medium text-sidebar-foreground',
-            PANEL_FADE_CLASS,
-            collapsed ? 'pointer-events-none absolute opacity-0' : 'opacity-100'
+            fadeWithWidthClass(!collapsed),
+            collapsed && 'pointer-events-none absolute'
           )}
         >
           {t('app.title')}

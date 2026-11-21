@@ -1,4 +1,4 @@
-import { PANEL_FADE_CLASS } from '@/lib/panelMotion';
+import { fadeWithWidthClass } from '@/lib/panelMotion';
 import { cn } from '@/lib/utils';
 
 import type { ReactNode } from 'react';
@@ -15,10 +15,7 @@ type SidebarLabelProps = {
  */
 export function SidebarLabel({ collapsed, children, className }: SidebarLabelProps) {
   return (
-    <span
-      aria-hidden={collapsed || undefined}
-      className={cn('truncate', PANEL_FADE_CLASS, collapsed ? 'opacity-0' : 'opacity-100', className)}
-    >
+    <span aria-hidden={collapsed || undefined} className={cn('truncate', fadeWithWidthClass(!collapsed), className)}>
       {children}
     </span>
   );

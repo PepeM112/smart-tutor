@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 
 import { LogoutButton } from '@/features/auth/components/LogoutButton';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { fadeWithWidthClass } from '@/lib/panelMotion';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
@@ -46,10 +47,17 @@ export function SidebarNav({ collapsed = false }: SidebarNavProps) {
         {allSections.map(section => {
           return (
             <div key={section.labelKey} role="group" aria-labelledby={`sidebar-section-${section.labelKey}`}>
-              {/* Stays in the DOM when collapsed so screen readers still get the group name. */}
+              {/*
+                Always mounted with a fixed height, so the nav does not jump when the sidebar toggles. It is
+                hidden from assistive technology while railed, but `aria-labelledby` still reads it as the group name.
+              */}
               <p
                 id={`sidebar-section-${section.labelKey}`}
-                className={collapsed ? 'sr-only' : 'px-3 mb-1 text-[13px] font-medium text-sidebar-muted'}
+                aria-hidden={collapsed || undefined}
+                className={cn(
+                  'mb-1 h-5 truncate px-3 text-[13px] leading-5 font-medium text-sidebar-muted',
+                  fadeWithWidthClass(!collapsed)
+                )}
               >
                 {t(section.labelKey)}
               </p>
