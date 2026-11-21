@@ -44,9 +44,10 @@ const PANEL_REVEAL_DELAY_MS = 150;
 /** One frame of slack: the fold of the library starts one frame after the phase starts. */
 const FRAME_MS = 16;
 
+const prefersReducedMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 /** 0 with reduced motion: no animation, so no `data-animating` and no timer. */
-export const readPanelDurationMs = (): number =>
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : PANEL_DURATION_MS;
+export const readPanelDurationMs = (): number => (prefersReducedMotion() ? 0 : PANEL_DURATION_MS);
 
 /**
  * `animate(group)` sets `data-animating` on the group and removes it after the duration. It does nothing with
@@ -70,17 +71,20 @@ export function usePanelAnimation(): { animate: (group: HTMLElement | null) => v
 
 type StagedPhase = 'closed' | 'opening' | 'open' | 'fadingOut' | 'folding';
 
-/** What follows each timed phase, and after how many milliseconds (0 with reduced motion). */
-const STAGED_NEXT: Partial<Record<StagedPhase, { phase: StagedPhase; delayMs: number }>> = {
-  opening: { phase: 'open', delayMs: PANEL_REVEAL_DELAY_MS },
-  fadingOut: { phase: 'folding', delayMs: PANEL_FADE_MS },
-  folding: { phase: 'closed', delayMs: PANEL_DURATION_MS + FRAME_MS },
+/**
+ * What follows each timed phase, and after how many milliseconds. With reduced motion the delay is 0, except
+ * for the fold: `null` means no timer, and `completeFold` ends the phase after the fold frame ran.
+ */
+const STAGED_NEXT: Partial<
+  Record<StagedPhase, { phase: StagedPhase; delayMs: number; reducedDelayMs: number | null }>
+> = {
+  opening: { phase: 'open', delayMs: PANEL_REVEAL_DELAY_MS, reducedDelayMs: 0 },
+  fadingOut: { phase: 'folding', delayMs: PANEL_FADE_MS, reducedDelayMs: 0 },
+  folding: { phase: 'closed', delayMs: PANEL_DURATION_MS + FRAME_MS, reducedDelayMs: null },
 };
 
 const STAGED_CONTENT_CLASS =
   'h-full transition-opacity duration-150 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none';
-
-const prefersReducedMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export type StagedReveal = {
   /** Width side: true from the open until the fade-out ends. Drives the divider, the minimum size and the bleed. */
@@ -89,6 +93,11 @@ export type StagedReveal = {
   isMounted: boolean;
   /** True while the width folds: the caller resizes the panel to 0 then. */
   isFolding: boolean;
+  /**
+   * Call it after the fold resize ran. With reduced motion it ends the fold at once, so the content never
+   * unmounts before the resize. With motion the fold timer ends it.
+   */
+  completeFold: () => void;
   /** Put it on the wrapper of the side content, not on the frame. */
   contentClassName: string;
 };
@@ -97,7 +106,7 @@ export type StagedReveal = {
  * Staged fade of a side panel (`SplitPane`). Open: the width grows, then the content fades in.
  * Close: the content fades out, then the width folds, then the content unmounts.
  * The phase moves by timers, so the opacity always has a rendered start value to transition from.
- * With reduced motion the delays are 0 and the classes carry no transition.
+ * With reduced motion the delays are 0 (see `STAGED_NEXT`; the fold waits for `completeFold`) and the classes carry no transition.
  */
 export function useStagedReveal(open: boolean): StagedReveal {
   const [phase, setPhase] = useState<StagedPhase>(open ? 'open' : 'closed');
@@ -112,15 +121,22 @@ export function useStagedReveal(open: boolean): StagedReveal {
   useEffect(() => {
     const next = STAGED_NEXT[phase];
     if (!next) return;
-    const timer = window.setTimeout(() => setPhase(next.phase), prefersReducedMotion() ? 0 : next.delayMs);
+    const delayMs = prefersReducedMotion() ? next.reducedDelayMs : next.delayMs;
+    if (delayMs === null) return;
+    const timer = window.setTimeout(() => setPhase(next.phase), delayMs);
     return () => window.clearTimeout(timer);
   }, [phase]);
+
+  const completeFold = useCallback((): void => {
+    if (prefersReducedMotion()) setPhase(current => (current === 'folding' ? 'closed' : current));
+  }, []);
 
   const isContentVisible = phase === 'open';
   return {
     isWidthOpen: phase === 'opening' || phase === 'open' || phase === 'fadingOut',
     isMounted: phase !== 'closed',
     isFolding: phase === 'folding',
+    completeFold,
     contentClassName: `${STAGED_CONTENT_CLASS} ${isContentVisible ? 'opacity-100' : 'opacity-0'}`,
   };
 }

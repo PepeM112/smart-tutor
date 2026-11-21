@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -164,6 +164,51 @@ describe('SettingsPage', () => {
       expect(toast.success).not.toHaveBeenCalled();
     });
 
+    it('puts the saved display name back when the save fails', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockRejectedValue(new Error('network'));
+      mount();
+
+      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
+      fireEvent.blur(nameInput());
+
+      await waitFor(() => expect(nameInput().value).toBe('Jose'));
+    });
+
+    it('puts the saved SRS value back, without a request, when the value is out of range', () => {
+      mount('srs');
+
+      fireEvent.change(easeInput(), { target: { value: '9' } });
+      fireEvent.blur(easeInput());
+      fireEvent.change(limitInput(), { target: { value: '0' } });
+      fireEvent.blur(limitInput());
+
+      expect(easeInput().value).toBe('2.5');
+      expect(limitInput().value).toBe('');
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+    });
+
+    it('puts the saved SRS value back when the save fails', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockRejectedValue(new Error('network'));
+      mount('srs');
+
+      fireEvent.change(easeInput(), { target: { value: '3' } });
+      fireEvent.blur(easeInput());
+
+      await waitFor(() => expect(easeInput().value).toBe('2.5'));
+    });
+
+    it('saves on Enter, and saves once when the blur follows', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: { ...USER, displayName: 'Pepe' } } as never);
+      mount();
+
+      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
+      fireEvent.submit(nameInput().closest('form')!);
+      fireEvent.blur(nameInput());
+
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { displayName: 'Pepe' } }));
+      expect(sdk.usersUpdateMe).toHaveBeenCalledTimes(1);
+    });
+
     it('saves the SRS values, and skips an empty or unchanged value', async () => {
       vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: USER } as never);
       mount('srs');
@@ -192,6 +237,36 @@ describe('SettingsPage', () => {
       fireEvent.click(screen.getByRole('button', { name: /^settings.openai/ }));
 
       await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { aiProvider: AiProvider.OPENAI } }));
+    });
+
+    it('disables the provider buttons while the save is pending', async () => {
+      let finishSave: (value: never) => void = () => undefined;
+      vi.mocked(sdk.usersUpdateMe).mockReturnValueOnce(new Promise(resolve => (finishSave = resolve)) as never);
+      mount('ai');
+
+      fireEvent.click(screen.getByRole('button', { name: /^settings.openai/ }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^settings.anthropic/ }).hasAttribute('disabled')).toBe(true)
+      );
+      // The cache is shared by all tests, and a request that never ends would block the next ones in the scope.
+      finishSave({ data: USER } as never);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^settings.anthropic/ }).hasAttribute('disabled')).toBe(false)
+      );
+    });
+
+    it('removes a key after the user confirms', async () => {
+      useAuthStore.setState({ user: { ...USER, hasAnthropicKey: true } });
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: USER } as never);
+      mount('ai');
+
+      fireEvent.click(screen.getByRole('button', { name: 'settings.remove_key' }));
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'settings.remove_key' }));
+
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { anthropicApiKey: null } }));
     });
 
     it('saves a key only with its Save key button, then clears the field', async () => {
@@ -250,7 +325,8 @@ describe('SettingsPage', () => {
           body: { permissions: { get_test_details: true } },
         })
       );
-      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('settings.settings_saved'));
+      await waitFor(() => expect(sdk.usersUpdateAiToolPermissions).toHaveBeenCalledTimes(1));
+      expect(toast.success).not.toHaveBeenCalled();
     });
 
     it('sends only the changed tools when the user selects all', async () => {

@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { toast } from 'sonner';
 
 import { QuestionType, type QuestionRead } from '@/client';
@@ -41,6 +41,7 @@ type MCFormData = {
 
 export function QuestionForm({ question }: Props) {
   const t = useTranslations();
+  const typeSelectId = useId();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isEditing = !!question;
@@ -103,9 +104,9 @@ export function QuestionForm({ question }: Props) {
     <div className="max-w-2xl space-y-6">
       {!isEditing && (
         <div className="space-y-2">
-          <Label>{t('questions.column_type')}</Label>
+          <Label htmlFor={typeSelectId}>{t('questions.column_type')}</Label>
           <Select value={String(questionType)} onValueChange={value => setQuestionType(Number(value))}>
-            <SelectTrigger>
+            <SelectTrigger id={typeSelectId}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

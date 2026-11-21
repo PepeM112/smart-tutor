@@ -1,16 +1,12 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback } from 'react';
-import { toast } from 'sonner';
 
-import { type UserRead, type UserUpdate } from '@/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAiToolPermissions } from '@/features/assist/hooks/useAiToolPermissions';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { sdk } from '@/lib/apiClient';
 
 import { useSaveAiToolPermissions } from '../hooks/useSaveAiToolPermissions';
 import { parseSettingsTab, SETTINGS_TABS } from '../utils';
@@ -26,8 +22,6 @@ import { SrsSection } from './SrsSection';
 export function SettingsPage() {
   const t = useTranslations();
   const user = useAuthStore(s => s.user);
-  const setUser = useAuthStore(s => s.setUser);
-  const queryClient = useQueryClient();
 
   const { data: permissions, isLoading: isLoadingPermissions, isError: isPermissionsError } = useAiToolPermissions();
   const { mutate: saveAiToolPermissions } = useSaveAiToolPermissions();
@@ -48,22 +42,6 @@ export function SettingsPage() {
 
   const hasAnthropicKey = user?.hasAnthropicKey ?? false;
   const hasOpenaiKey = user?.hasOpenaiKey ?? false;
-
-  const { mutate: removeKey, isPending: isRemovingKey } = useMutation({
-    mutationFn: async (provider: 'anthropic' | 'openai') => {
-      const payload: UserUpdate = provider === 'anthropic' ? { anthropicApiKey: null } : { openaiApiKey: null };
-      const result = await sdk.usersUpdateMe({ body: payload });
-      return result.data!;
-    },
-    onSuccess: (updatedUser: UserRead) => {
-      setUser(updatedUser);
-      void queryClient.invalidateQueries({ queryKey: ['me'] });
-      toast.success(t('settings.settings_saved'));
-    },
-    onError: () => {
-      toast.error(t('settings.failed_to_save'));
-    },
-  });
 
   if (!user) return null;
 
@@ -87,8 +65,6 @@ export function SettingsPage() {
             anthropicModel={user.anthropicModel}
             hasAnthropicKey={hasAnthropicKey}
             hasOpenaiKey={hasOpenaiKey}
-            removeKey={removeKey}
-            isRemovingKey={isRemovingKey}
           />
           <AiModelSection provider={user.aiProvider ?? null} />
           <AiPermissionsSection

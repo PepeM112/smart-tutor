@@ -44,6 +44,8 @@ describe('buildDailyLimitPatch', () => {
     expect(buildDailyLimitPatch('', user)).toBeNull();
     expect(buildDailyLimitPatch('20', { ...user, dailyReviewLimit: 20 })).toBeNull();
     expect(buildDailyLimitPatch('abc', user)).toBeNull();
+    expect(buildDailyLimitPatch('0', user)).toBeNull();
+    expect(buildDailyLimitPatch('-3', user)).toBeNull();
   });
 
   it('returns the limit, or null for no limit', () => {
@@ -56,6 +58,8 @@ describe('buildEaseFactorPatch', () => {
   it('returns null for the saved value and for an empty field', () => {
     expect(buildEaseFactorPatch('2.5', user)).toBeNull();
     expect(buildEaseFactorPatch('', user)).toBeNull();
+    expect(buildEaseFactorPatch('1.2', user)).toBeNull();
+    expect(buildEaseFactorPatch('5.1', user)).toBeNull();
   });
 
   it('returns the new value', () => {

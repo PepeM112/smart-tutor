@@ -21,8 +21,6 @@ type Props = {
   anthropicModel: AnthropicModel;
   hasAnthropicKey: boolean;
   hasOpenaiKey: boolean;
-  removeKey: (provider: 'anthropic' | 'openai') => void;
-  isRemovingKey: boolean;
 };
 
 const PROVIDERS = [
@@ -32,25 +30,19 @@ const PROVIDERS = [
 
 type KeyProvider = 'anthropic' | 'openai';
 
-const KEY_FIELDS: Record<KeyProvider, { id: string; labelKey: string; toPayload: (key: string) => UserUpdate }> = {
-  anthropic: {
-    id: 'anthropicKey',
-    labelKey: 'settings.anthropic_api_key',
-    toPayload: key => ({ anthropicApiKey: key }),
-  },
-  openai: { id: 'openaiKey', labelKey: 'settings.openai_api_key', toPayload: key => ({ openaiApiKey: key }) },
-};
+const KEY_FIELDS: Record<KeyProvider, { id: string; labelKey: string; toPayload: (key: string | null) => UserUpdate }> =
+  {
+    anthropic: {
+      id: 'anthropicKey',
+      labelKey: 'settings.anthropic_api_key',
+      toPayload: key => ({ anthropicApiKey: key }),
+    },
+    openai: { id: 'openaiKey', labelKey: 'settings.openai_api_key', toPayload: key => ({ openaiApiKey: key }) },
+  };
 
-export function AiSection({
-  aiProvider,
-  anthropicModel,
-  hasAnthropicKey,
-  hasOpenaiKey,
-  removeKey,
-  isRemovingKey,
-}: Props) {
+export function AiSection({ aiProvider, anthropicModel, hasAnthropicKey, hasOpenaiKey }: Props) {
   const t = useTranslations();
-  const { mutate: saveProvider } = useUpdateUser();
+  const { mutate: saveProvider, isPending: isSavingProvider } = useUpdateUser();
 
   return (
     <SettingsSection title={t('settings.ai_configuration')} description={t('settings.ai_description')}>
@@ -62,9 +54,10 @@ export function AiSection({
             {PROVIDERS.map(({ value, labelKey }) => (
               <button
                 key={value}
+                disabled={isSavingProvider}
                 onClick={() => value !== aiProvider && saveProvider({ aiProvider: value })}
                 className={cn(
-                  'flex flex-col items-start gap-0.5 rounded-lg border px-4 py-2.5 text-sm transition-colors',
+                  'flex flex-col items-start gap-0.5 rounded-lg border px-4 py-2.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50',
                   aiProvider === value
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -79,18 +72,8 @@ export function AiSection({
           </div>
         </div>
 
-        <ApiKeyField
-          provider="anthropic"
-          hasKey={hasAnthropicKey}
-          onRemove={() => removeKey('anthropic')}
-          isRemoving={isRemovingKey}
-        />
-        <ApiKeyField
-          provider="openai"
-          hasKey={hasOpenaiKey}
-          onRemove={() => removeKey('openai')}
-          isRemoving={isRemovingKey}
-        />
+        <ApiKeyField provider="anthropic" hasKey={hasAnthropicKey} />
+        <ApiKeyField provider="openai" hasKey={hasOpenaiKey} />
       </div>
     </SettingsSection>
   );
@@ -99,17 +82,15 @@ export function AiSection({
 type ApiKeyFieldProps = {
   provider: KeyProvider;
   hasKey: boolean;
-  onRemove: () => void;
-  isRemoving: boolean;
 };
 
-function ApiKeyField({ provider, hasKey, onRemove, isRemoving }: ApiKeyFieldProps) {
+function ApiKeyField({ provider, hasKey }: ApiKeyFieldProps) {
   const t = useTranslations();
   const { id, labelKey, toPayload } = KEY_FIELDS[provider];
   // The backend never returns a key, so the field starts blank. A half-typed secret is saved only by the button.
   const [apiKey, setApiKey] = useState('');
   const [isShown, setIsShown] = useState(false);
-  const { mutate: saveKey, isPending: isSavingKey } = useUpdateUser();
+  const { mutate: updateKey, isPending: isUpdatingKey } = useUpdateUser();
 
   return (
     <div className="space-y-1.5">
@@ -147,15 +128,21 @@ function ApiKeyField({ provider, hasKey, onRemove, isRemoving }: ApiKeyFieldProp
         </div>
         <Button
           size="sm"
-          disabled={!apiKey || isSavingKey}
-          onClick={() => saveKey(toPayload(apiKey), { onSuccess: () => setApiKey('') })}
+          disabled={!apiKey || isUpdatingKey}
+          onClick={() => updateKey(toPayload(apiKey), { onSuccess: () => setApiKey('') })}
         >
           {t('settings.save_key')}
         </Button>
         {hasKey && (
           <ConfirmDialog
             trigger={
-              <Button variant="destructive" size="icon-sm" tooltip={t('settings.remove_key')} disabled={isRemoving}>
+              <Button
+                variant="destructive"
+                size="icon-sm"
+                tooltip={t('settings.remove_key')}
+                disabled={isUpdatingKey}
+                aria-label={t('settings.remove_key')}
+              >
                 <X className="size-3.5" />
               </Button>
             }
@@ -163,7 +150,7 @@ function ApiKeyField({ provider, hasKey, onRemove, isRemoving }: ApiKeyFieldProp
             description={t('settings.remove_key_confirm')}
             confirmLabel={t('settings.remove_key')}
             confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onConfirm={onRemove}
+            onConfirm={() => updateKey(toPayload(null))}
           />
         )}
       </div>

@@ -11,6 +11,8 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
+import { USER_UPDATE_SCOPE } from '../hooks/useUpdateUser';
+
 import { SettingsSection } from './SettingsSection';
 
 const LANGUAGES = [
@@ -26,6 +28,7 @@ export function LanguageSection() {
   const setUser = useAuthStore(s => s.setUser);
 
   const { mutate: updateLocale, isPending: isUpdating } = useMutation({
+    scope: { id: USER_UPDATE_SCOPE },
     mutationFn: async (locale: string) => {
       const result = await sdk.usersUpdateMe({ body: { locale } });
       return result.data!;

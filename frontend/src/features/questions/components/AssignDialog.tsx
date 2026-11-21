@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ type Props = {
 
 export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Props) {
   const t = useTranslations();
+  const testSelectId = useId();
   const queryClient = useQueryClient();
   const [selectedTestId, setSelectedTestId] = useState('');
   const isBulk = questionIds.length > 1;
@@ -88,9 +89,9 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
         </DialogHeader>
 
         <div className="space-y-2 py-4">
-          <Label>{t('questions.filter_test')}</Label>
+          <Label htmlFor={testSelectId}>{t('questions.filter_test')}</Label>
           <Select value={selectedTestId} onValueChange={setSelectedTestId}>
-            <SelectTrigger>
+            <SelectTrigger id={testSelectId}>
               <SelectValue placeholder={t('common.select')} />
             </SelectTrigger>
             <SelectContent>

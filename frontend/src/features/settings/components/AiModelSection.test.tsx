@@ -129,4 +129,27 @@ describe('AiModelSection', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
     expect(useAuthStore.getState().user?.aiEffort.grading).toBe(AiEffort.MEDIUM);
   });
+
+  it('sends an effort change and a model change one after the other', async () => {
+    let resolveFirst: (value: never) => void = () => undefined;
+    updateMe.mockImplementationOnce(() => new Promise(resolve => (resolveFirst = resolve)) as never);
+    updateMe.mockResolvedValueOnce({ data: userWith(AnthropicModel.CLAUDE_HAIKU_5_5) } as never);
+    renderSection(AiProvider.ANTHROPIC, AnthropicModel.CLAUDE_HAIKU_5_5);
+
+    chooseOption(
+      screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_grading'),
+      `settings.ai_effort_level_${AiEffort.LOW}`
+    );
+    await waitFor(() => expect(screen.queryByRole('option')).toBeNull());
+    chooseOption(
+      screen.getByLabelText('settings.ai_model'),
+      MODEL_LABEL_KEYS[AnthropicModel.CLAUDE_HAIKU_4_5_20251001]
+    );
+
+    await waitFor(() => expect(updateMe).toHaveBeenCalledTimes(1));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(updateMe).toHaveBeenCalledTimes(1);
+    resolveFirst({ data: userWith(AnthropicModel.CLAUDE_HAIKU_5_5) } as never);
+    await waitFor(() => expect(updateMe).toHaveBeenCalledTimes(2));
+  });
 });

@@ -89,7 +89,9 @@ export function SplitPane({
   if (side && side !== retainedSide) setRetainedSide(side);
   const shownSide = side || retainedSide;
 
-  const { isWidthOpen, isMounted, isFolding, contentClassName } = useStagedReveal(hasSide);
+  const { isWidthOpen, isMounted, isFolding, completeFold, contentClassName } = useStagedReveal(hasSide);
+  // Release the node once the fold ended, so a closed pane holds no stale content.
+  if (!side && !isMounted && retainedSide) setRetainedSide(null);
 
   const wasWidthOpen = useRef(hasSide);
   useEffect(() => {
@@ -108,9 +110,10 @@ export function SplitPane({
     const foldFrame = window.requestAnimationFrame(() => {
       animate(groupElementRef.current);
       sidePanelRef.current?.resize(0);
+      completeFold();
     });
     return () => window.cancelAnimationFrame(foldFrame);
-  }, [isFolding, animate, sidePanelRef]);
+  }, [isFolding, animate, sidePanelRef, completeFold]);
 
   const saveRatio = (next: number): void => {
     ratio.current = next;
