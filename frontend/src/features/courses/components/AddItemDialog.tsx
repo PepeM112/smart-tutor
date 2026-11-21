@@ -5,7 +5,7 @@ import { BookOpen, FileText, GraduationCap } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
-import { SpaceItemKind, SpaceRole, type SpaceSummary } from '@/client';
+import { SpaceItemKind, type SpaceSummary } from '@/client';
 import { SearchInput } from '@/components/shared/SearchInput';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,6 +18,7 @@ import { displayTitle } from '@/lib/displayTitle';
 import { cn } from '@/lib/utils';
 
 import { COURSE_LIMITS } from '../lib/limits';
+import { rolesThatCan } from '../lib/permissions';
 import { courseQueryKeys, type MyCoursesParams } from '../lib/queryKeys';
 
 /** A COURSE item is added in a classroom only. */
@@ -42,7 +43,7 @@ const COPY_ICONS = {
 } as const;
 
 // Standalone courses the user can copy: the backend needs author rights on the source.
-const COURSE_SOURCE_PARAMS: MyCoursesParams = { role: [SpaceRole.OWNER, SpaceRole.EDITOR] };
+const COURSE_SOURCE_PARAMS: MyCoursesParams = { role: [...rolesThatCan('editContent')] };
 
 type Props = {
   mode: AddItemMode | null;

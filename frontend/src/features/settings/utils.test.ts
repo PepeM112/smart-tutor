@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AiToolPermissionRead } from '@/client';
+import type { AiToolPermissionRead, UserRead } from '@/client';
 
 import {
   applyPermissionDraft,
-  buildPermissionsPayload,
-  getDirtyTabs,
-  mergePermissionDraft,
+  buildDailyLimitPatch,
+  buildDisplayNamePatch,
+  buildEaseFactorPatch,
   parseSettingsTab,
 } from './utils';
 
@@ -16,49 +16,50 @@ const server = [
   { name: 'c', kind: 'write', autoApprove: false },
 ] as AiToolPermissionRead[];
 
-describe('mergePermissionDraft', () => {
-  it('keeps a change that differs from the server', () => {
-    expect(mergePermissionDraft(server, {}, { b: true })).toEqual({ b: true });
-  });
-
-  it('removes a change that goes back to the server value', () => {
-    expect(mergePermissionDraft(server, { b: true }, { b: false })).toEqual({});
-  });
-
-  it('merges several changes with the old draft', () => {
-    expect(mergePermissionDraft(server, { b: true }, { a: false, c: true })).toEqual({ a: false, b: true, c: true });
-  });
-});
+const user = { displayName: 'Jose', dailyReviewLimit: null, initialEaseFactor: 2.5 } as UserRead;
 
 describe('applyPermissionDraft', () => {
-  it('puts the draft over the server values', () => {
+  it('puts the changes over the server values', () => {
     expect(applyPermissionDraft(server, { b: true }).map(tool => tool.autoApprove)).toEqual([true, true, false]);
   });
 });
 
-describe('buildPermissionsPayload', () => {
-  it('returns an empty object when nothing differs', () => {
-    expect(buildPermissionsPayload(server, {})).toEqual({});
-    expect(buildPermissionsPayload(server, { a: true })).toEqual({});
+describe('buildDisplayNamePatch', () => {
+  it('returns null for the saved value', () => {
+    expect(buildDisplayNamePatch('Jose', user)).toBeNull();
   });
 
-  it('returns only the changed keys', () => {
-    expect(buildPermissionsPayload(server, { a: true, b: true })).toEqual({ b: true });
+  it('returns the new name, or null when the field is cleared', () => {
+    expect(buildDisplayNamePatch('Pepe', user)).toEqual({ displayName: 'Pepe' });
+    expect(buildDisplayNamePatch('', user)).toEqual({ displayName: null });
+  });
+
+  it('treats a missing name as an empty field', () => {
+    expect(buildDisplayNamePatch('', { ...user, displayName: null })).toBeNull();
   });
 });
 
-describe('getDirtyTabs', () => {
-  it('returns no tab when nothing changed', () => {
-    expect(getDirtyTabs({}, {}).size).toBe(0);
+describe('buildDailyLimitPatch', () => {
+  it('returns null for the saved value and for a value that is not a number', () => {
+    expect(buildDailyLimitPatch('', user)).toBeNull();
+    expect(buildDailyLimitPatch('20', { ...user, dailyReviewLimit: 20 })).toBeNull();
+    expect(buildDailyLimitPatch('abc', user)).toBeNull();
   });
 
-  it('maps each payload key to its tab', () => {
-    expect([...getDirtyTabs({ displayName: 'x', initialEaseFactor: 2 }, {})].sort()).toEqual(['profile', 'srs']);
-    expect([...getDirtyTabs({ aiProvider: null, openaiApiKey: 'k' }, {})]).toEqual(['ai']);
+  it('returns the limit, or null for no limit', () => {
+    expect(buildDailyLimitPatch('30', user)).toEqual({ dailyReviewLimit: 30 });
+    expect(buildDailyLimitPatch('', { ...user, dailyReviewLimit: 20 })).toEqual({ dailyReviewLimit: null });
+  });
+});
+
+describe('buildEaseFactorPatch', () => {
+  it('returns null for the saved value and for an empty field', () => {
+    expect(buildEaseFactorPatch('2.5', user)).toBeNull();
+    expect(buildEaseFactorPatch('', user)).toBeNull();
   });
 
-  it('marks the AI tab for a permission change', () => {
-    expect([...getDirtyTabs({}, { a: true })]).toEqual(['ai']);
+  it('returns the new value', () => {
+    expect(buildEaseFactorPatch('3', user)).toEqual({ initialEaseFactor: 3 });
   });
 });
 

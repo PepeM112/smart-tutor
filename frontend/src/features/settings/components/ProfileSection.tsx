@@ -1,23 +1,30 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 
 import { type UserRead } from '@/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { SettingsSection } from './SettingsSection';
+import { useUpdateUser } from '../hooks/useUpdateUser';
+import { buildDisplayNamePatch } from '../utils';
 
-import type { SettingsForm, UpdateField } from '../types';
+import { SettingsSection } from './SettingsSection';
 
 type Props = {
   user: UserRead;
-  form: Pick<SettingsForm, 'displayName'>;
-  updateField: UpdateField;
 };
 
-export function ProfileSection({ user, form, updateField }: Props) {
+export function ProfileSection({ user }: Props) {
   const t = useTranslations();
+  const [displayName, setDisplayName] = useState(user.displayName ?? '');
+  const { mutate: saveDisplayName } = useUpdateUser();
+
+  const saveOnBlur = (): void => {
+    const patch = buildDisplayNamePatch(displayName, user);
+    if (patch) saveDisplayName(patch);
+  };
 
   return (
     <SettingsSection title={t('settings.profile')}>
@@ -27,8 +34,9 @@ export function ProfileSection({ user, form, updateField }: Props) {
           <Input
             id="displayName"
             placeholder={t('settings.display_name_placeholder')}
-            value={form.displayName}
-            onChange={e => updateField('displayName', e.target.value)}
+            value={displayName}
+            onChange={e => setDisplayName(e.target.value)}
+            onBlur={saveOnBlur}
           />
         </div>
         <div className="space-y-1.5">

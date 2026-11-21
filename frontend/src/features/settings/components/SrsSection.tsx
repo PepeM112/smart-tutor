@@ -1,21 +1,38 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 
+import { type UserRead } from '@/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+import { useUpdateUser } from '../hooks/useUpdateUser';
+import { buildDailyLimitPatch, buildEaseFactorPatch, DEFAULT_EASE_FACTOR } from '../utils';
+
 import { SettingsSection } from './SettingsSection';
 
-import type { SettingsForm, UpdateField } from '../types';
-
 type Props = {
-  form: Pick<SettingsForm, 'dailyReviewLimit' | 'initialEaseFactor'>;
-  updateField: UpdateField;
+  user: UserRead;
 };
 
-export function SrsSection({ form, updateField }: Props) {
+export function SrsSection({ user }: Props) {
   const t = useTranslations();
+  const [dailyReviewLimit, setDailyReviewLimit] = useState(
+    user.dailyReviewLimit != null ? String(user.dailyReviewLimit) : ''
+  );
+  const [initialEaseFactor, setInitialEaseFactor] = useState(String(user.initialEaseFactor ?? DEFAULT_EASE_FACTOR));
+  const { mutate: saveDailyReviewLimit } = useUpdateUser();
+  const { mutate: saveInitialEaseFactor } = useUpdateUser();
+
+  const saveLimitOnBlur = (): void => {
+    const patch = buildDailyLimitPatch(dailyReviewLimit, user);
+    if (patch) saveDailyReviewLimit(patch);
+  };
+  const saveEaseOnBlur = (): void => {
+    const patch = buildEaseFactorPatch(initialEaseFactor, user);
+    if (patch) saveInitialEaseFactor(patch);
+  };
 
   return (
     <SettingsSection title={t('settings.srs_preferences')} description={t('settings.srs_description')}>
@@ -28,8 +45,9 @@ export function SrsSection({ form, updateField }: Props) {
             type="number"
             min={1}
             placeholder={t('settings.unlimited')}
-            value={form.dailyReviewLimit}
-            onChange={e => updateField('dailyReviewLimit', e.target.value)}
+            value={dailyReviewLimit}
+            onChange={e => setDailyReviewLimit(e.target.value)}
+            onBlur={saveLimitOnBlur}
           />
         </div>
         <div className="space-y-1.5">
@@ -41,8 +59,9 @@ export function SrsSection({ form, updateField }: Props) {
             min={1.3}
             max={5.0}
             step={0.1}
-            value={form.initialEaseFactor}
-            onChange={e => updateField('initialEaseFactor', e.target.value)}
+            value={initialEaseFactor}
+            onChange={e => setInitialEaseFactor(e.target.value)}
+            onBlur={saveEaseOnBlur}
           />
         </div>
       </div>

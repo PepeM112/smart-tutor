@@ -4,16 +4,24 @@ import { useState } from 'react';
 
 import { AutoTextarea } from '@/components/shared/AutoTextarea';
 import { InlineRename } from '@/components/shared/InlineRename';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 import { SandboxDemo, SandboxSection } from './SandboxSection';
 
+const SELECT_OPTIONS = ['day', 'week', 'month'].map(unit => (
+  <SelectItem key={unit} value={unit} className="capitalize">
+    {unit}
+  </SelectItem>
+));
+
 export function FormFieldsSection() {
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
   const [isSwitchOn, setIsSwitchOn] = useState(true);
   const [isChecked, setIsChecked] = useState(true);
   const [autoText, setAutoText] = useState('This field grows with its text.');
@@ -45,12 +53,25 @@ export function FormFieldsSection() {
           </div>
         </SandboxDemo>
 
-        <SandboxDemo label="Native select">
-          <NativeSelect aria-label="Native select" defaultValue="week">
-            <option value="day">Day</option>
-            <option value="week">Week</option>
-            <option value="month">Month</option>
-          </NativeSelect>
+        <SandboxDemo label="Select">
+          <div className="grid max-w-sm gap-3">
+            <Select defaultValue="week">
+              <SelectTrigger aria-label="Select closed">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>{SELECT_OPTIONS}</SelectContent>
+            </Select>
+            {/* A button opens the list: an always-open Radix list would lock the whole page */}
+            <Select value="week" open={isSelectOpen} onOpenChange={setIsSelectOpen}>
+              <SelectTrigger aria-label="Select open">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>{SELECT_OPTIONS}</SelectContent>
+            </Select>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsSelectOpen(true)}>
+              Open the select
+            </Button>
+          </div>
         </SandboxDemo>
 
         <SandboxDemo label="Switch and checkbox">

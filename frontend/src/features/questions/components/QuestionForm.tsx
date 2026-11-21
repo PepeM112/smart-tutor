@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
@@ -104,10 +104,17 @@ export function QuestionForm({ question }: Props) {
       {!isEditing && (
         <div className="space-y-2">
           <Label>{t('questions.column_type')}</Label>
-          <NativeSelect value={String(questionType)} onChange={e => setQuestionType(Number(e.target.value))}>
-            <option value={String(QuestionType.SIMPLE)}>{t('test_editor.simple')}</option>
-            <option value={String(QuestionType.MULTIPLE_CHOICE)}>{t('questions.type_multiple_choice')}</option>
-          </NativeSelect>
+          <Select value={String(questionType)} onValueChange={value => setQuestionType(Number(value))}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={String(QuestionType.SIMPLE)}>{t('test_editor.simple')}</SelectItem>
+              <SelectItem value={String(QuestionType.MULTIPLE_CHOICE)}>
+                {t('questions.type_multiple_choice')}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 

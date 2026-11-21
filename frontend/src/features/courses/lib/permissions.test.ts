@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SpaceRole } from '@/client';
 
-import { canDo, type SpaceAction } from './permissions';
+import { canDo, rolesThatCan, type SpaceAction } from './permissions';
 
 const ROLES = [SpaceRole.OWNER, SpaceRole.EDITOR, SpaceRole.VIEWER, null, undefined] as const;
 
@@ -18,6 +18,16 @@ describe('canDo', () => {
     ROLES.forEach((role, index) => {
       it(`${action} for role ${String(role)} is ${allowed[index]}`, () => {
         expect(canDo(role, action as SpaceAction)).toBe(allowed[index]);
+      });
+    });
+  });
+});
+
+describe('rolesThatCan', () => {
+  it('agrees with canDo for every action and role', () => {
+    (Object.keys(EXPECTED) as SpaceAction[]).forEach(action => {
+      ROLES.forEach(role => {
+        expect(role != null && rolesThatCan(action).includes(role)).toBe(canDo(role, action));
       });
     });
   });

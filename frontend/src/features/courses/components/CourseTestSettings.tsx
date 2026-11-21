@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { parsePolicyNumber, thresholdToPercent } from '../lib/policy';
 
@@ -92,17 +92,21 @@ export function CourseTestSettings({
           />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`reveal-${item.id}`}>{t('courses.policy_reveal_answers')}</Label>
-            <NativeSelect
-              id={`reveal-${item.id}`}
-              value={item.revealAnswers ?? RevealAnswers.AFTER_PASS_OR_LAST}
-              onChange={e => onUpdate({ revealAnswers: Number(e.target.value) })}
+            <Select
+              value={String(item.revealAnswers ?? RevealAnswers.AFTER_PASS_OR_LAST)}
+              onValueChange={value => onUpdate({ revealAnswers: Number(value) })}
             >
-              {Object.entries(REVEAL_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {t(label)}
-                </option>
-              ))}
-            </NativeSelect>
+              <SelectTrigger id={`reveal-${item.id}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(REVEAL_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {t(label)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </section>

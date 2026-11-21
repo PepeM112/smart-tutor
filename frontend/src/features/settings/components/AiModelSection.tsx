@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 import { AiProvider, type AiEffort, type AiEffortSettings, type AnthropicModel, type UserRead } from '@/client';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 
@@ -84,19 +84,19 @@ export function AiModelSection({ provider }: Props) {
         {isAnthropic && (
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor={modelId}>{t('settings.ai_model')}</Label>
-            <NativeSelect
-              id={modelId}
-              value={user.anthropicModel}
-              // SAFETY: the options are built from ANTHROPIC_MODELS, so the value is one of them
-              onChange={e => saveModel(e.target.value as AnthropicModel)}
-              className="w-44"
-            >
-              {ANTHROPIC_MODELS.map(model => (
-                <option key={model} value={model}>
-                  {t(MODEL_LABEL_KEYS[model])}
-                </option>
-              ))}
-            </NativeSelect>
+            {/* SAFETY: the items are built from ANTHROPIC_MODELS, so the value is one of them */}
+            <Select value={user.anthropicModel} onValueChange={value => saveModel(value as AnthropicModel)}>
+              <SelectTrigger id={modelId} className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ANTHROPIC_MODELS.map(model => (
+                  <SelectItem key={model} value={model}>
+                    {t(MODEL_LABEL_KEYS[model])}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
@@ -134,20 +134,19 @@ function EffortRow({ label, value, disabled, onChange }: EffortRowProps) {
   return (
     <li className="flex items-center justify-between gap-3 py-3">
       <span className="min-w-0 text-sm text-foreground">{label}</span>
-      <NativeSelect
-        value={value}
-        disabled={disabled}
-        // SAFETY: the options are built from EFFORT_LEVELS, so the value is one of them
-        onChange={e => onChange(e.target.value as AiEffort)}
-        aria-label={t('settings.ai_effort_select', { action: label })}
-        className="w-32"
-      >
-        {EFFORT_LEVELS.map(level => (
-          <option key={level} value={level}>
-            {t(`settings.ai_effort_level_${level}`)}
-          </option>
-        ))}
-      </NativeSelect>
+      {/* SAFETY: the items are built from EFFORT_LEVELS, so the value is one of them */}
+      <Select value={value} disabled={disabled} onValueChange={next => onChange(next as AiEffort)}>
+        <SelectTrigger aria-label={t('settings.ai_effort_select', { action: label })} className="w-32">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {EFFORT_LEVELS.map(level => (
+            <SelectItem key={level} value={level}>
+              {t(`settings.ai_effort_level_${level}`)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </li>
   );
 }

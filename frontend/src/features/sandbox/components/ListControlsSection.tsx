@@ -1,11 +1,9 @@
 'use client';
 
 import { Archive, Trash2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { BulkBar } from '@/components/shared/BulkBar';
-import { FilterBar } from '@/components/shared/filters/FilterBar';
 import { ListToolbar } from '@/components/shared/ListToolbar';
 import { SearchInput } from '@/components/shared/SearchInput';
 import { SortMenu } from '@/components/shared/SortMenu';
@@ -24,7 +22,6 @@ const withoutKey = (filters: FilterValue, key: string): FilterValue =>
   Object.fromEntries(Object.entries(filters).filter(([entryKey]) => entryKey !== key));
 
 export function ListControlsSection() {
-  const t = useTranslations();
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<FilterValue>({});
   const [sort, setSort] = useState<SortValue>('updated');
@@ -59,15 +56,6 @@ export function ListControlsSection() {
             onDirectionChange={setDirection}
           />
         </ListToolbar>
-      </SandboxDemo>
-
-      <SandboxDemo label="Filter bar">
-        <FilterBar
-          filterConfig={DEMO_FILTER_CONFIG.map(item => ({ ...item, label: t(item.label) }))}
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onClear={() => setFilters({})}
-        />
       </SandboxDemo>
 
       <SandboxDemo label="Bulk bar">

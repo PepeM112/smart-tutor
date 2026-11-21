@@ -69,6 +69,19 @@ describe('SplitPane', () => {
     await vi.waitFor(() => expect(screen.queryByText('side')).toBeNull());
   });
 
+  it('fades the side pane with its width: hidden after the fold starts, visible after the open', async () => {
+    const sidePanel = (): HTMLElement => screen.getByText('side').parentElement!;
+    const { rerender } = renderPane();
+    expect(sidePanel().className).toContain('opacity-100');
+
+    rerender(<SplitPane storageKey={KEY} main={<p>main</p>} side={null} />);
+    await vi.waitFor(() => expect(screen.queryByText('side')).toBeNull());
+
+    rerender(<SplitPane storageKey={KEY} main={<p>main</p>} side={<p>side</p>} />);
+    expect(sidePanel().className).toContain('opacity-0');
+    await vi.waitFor(() => expect(sidePanel().className).toContain('opacity-100'));
+  });
+
   it('resets the saved ratio on double click', () => {
     localStorage.setItem(KEY, '0.7');
     render(<SplitPane storageKey={KEY} defaultRatio={0.4} main={<p>main</p>} side={<p>side</p>} />);

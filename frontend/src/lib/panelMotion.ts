@@ -18,10 +18,17 @@ export const PANEL_DURATION_MS = 200;
 
 /**
  * Written in full, not built from parts: Tailwind finds a class only as a complete string in the source.
- * The separator animates its width, for a separator that folds to 0 together with its panel.
+ * A panel also fades (`opacity`), for a panel that hides its content with it. The separator animates its
+ * width, for a separator that folds to 0 together with its panel.
  */
 export const PANEL_ANIMATING_CLASS =
-  '[&[data-animating]>[data-panel]]:transition-[flex-grow] [&[data-animating]>[data-panel]]:duration-200 [&[data-animating]>[data-panel]]:ease-[cubic-bezier(0.2,0,0,1)] [&[data-animating]>[data-separator]]:transition-[width] [&[data-animating]>[data-separator]]:duration-200 [&[data-animating]>[data-separator]]:ease-[cubic-bezier(0.2,0,0,1)]';
+  '[&[data-animating]>[data-panel]]:transition-[flex-grow,opacity] [&[data-animating]>[data-panel]]:duration-200 [&[data-animating]>[data-panel]]:ease-[cubic-bezier(0.2,0,0,1)] [&[data-animating]>[data-separator]]:transition-[width] [&[data-animating]>[data-separator]]:duration-200 [&[data-animating]>[data-separator]]:ease-[cubic-bezier(0.2,0,0,1)]';
+
+/** Sidebar width and label fade: same duration and easing as the panels, no delay, none with reduced motion. */
+export const PANEL_WIDTH_CLASS =
+  'transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none';
+export const PANEL_FADE_CLASS =
+  'transition-opacity duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none';
 
 /** 0 with reduced motion: no animation, so no `data-animating` and no timer. */
 export const readPanelDurationMs = (): number =>

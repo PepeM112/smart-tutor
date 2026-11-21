@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { type SpaceSummary } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { courseQueryKeys } from '@/features/courses/lib/queryKeys';
 import { ReviewSession } from '@/features/review/components/ReviewSession';
 import { REVIEW_BATCH_SIZE, REVIEW_SCOPE_ALL, resolveReviewScope, reviewScopeOptions } from '@/features/review/helpers';
@@ -56,13 +56,18 @@ export default function ReviewPage() {
   const scopeSelect = scopeOptions.length > 2 && (
     <label className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
       {t('review.scope_label')}
-      <NativeSelect className="w-auto" value={scope} onChange={e => setChosenScope(e.target.value)}>
-        {scopeOptions.map(option => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </NativeSelect>
+      <Select value={scope} onValueChange={setChosenScope}>
+        <SelectTrigger className="w-auto">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {scopeOptions.map(option => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </label>
   );
 

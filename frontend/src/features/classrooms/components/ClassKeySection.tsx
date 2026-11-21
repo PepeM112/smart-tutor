@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SettingsSection } from '@/features/settings/components/SettingsSection';
 import { cn } from '@/lib/utils';
 
@@ -169,19 +169,22 @@ function ClassKeyFields({ classroomId, settings, readOnly }: SectionProps & { se
 
       <div className="space-y-1.5">
         <Label htmlFor="key-priority">{t('classrooms.key_priority_label')}</Label>
-        <NativeSelect
-          id="key-priority"
-          className="max-w-sm"
-          value={form.keyPriority}
+        <Select
+          value={String(form.keyPriority)}
           disabled={readOnly}
-          onChange={e => setField('keyPriority', Number(e.target.value))}
+          onValueChange={value => setField('keyPriority', Number(value))}
         >
-          {PRIORITY_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
-              {t(option.label)}
-            </option>
-          ))}
-        </NativeSelect>
+          <SelectTrigger id="key-priority" className="max-w-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRIORITY_OPTIONS.map(option => (
+              <SelectItem key={option.value} value={String(option.value)}>
+                {t(option.label)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p className="text-xs text-muted-foreground">
           {t(
             form.keyPriority === KeyPriority.CLASS
@@ -193,19 +196,22 @@ function ClassKeyFields({ classroomId, settings, readOnly }: SectionProps & { se
 
       <div className="space-y-1.5">
         <Label htmlFor="key-scope">{t('classrooms.key_scope_label')}</Label>
-        <NativeSelect
-          id="key-scope"
-          className="max-w-sm"
-          value={form.keyScope}
+        <Select
+          value={String(form.keyScope)}
           disabled={readOnly}
-          onChange={e => setField('keyScope', Number(e.target.value))}
+          onValueChange={value => setField('keyScope', Number(value))}
         >
-          {SCOPE_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
-              {t(option.label)}
-            </option>
-          ))}
-        </NativeSelect>
+          <SelectTrigger id="key-scope" className="max-w-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SCOPE_OPTIONS.map(option => (
+              <SelectItem key={option.value} value={String(option.value)}>
+                {t(option.label)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p className="text-xs text-muted-foreground">
           {t(form.keyScope === KeyScope.ALL ? 'classrooms.key_scope_all_hint' : 'classrooms.key_scope_content_hint')}
         </p>

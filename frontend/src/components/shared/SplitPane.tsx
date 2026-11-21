@@ -88,6 +88,10 @@ export function SplitPane({
   if (side && side !== retainedSide) setRetainedSide(side);
   const shownSide = side || retainedSide;
 
+  // The side pane fades with its width. It mounts hidden and shows one frame later, so the browser has an
+  // opacity to start from. `data-animating` (see `PANEL_ANIMATING_CLASS`) is what turns the transition on.
+  const [isRevealed, setIsRevealed] = useState(hasSide);
+
   const wasOpen = useRef(hasSide);
   useEffect(() => {
     if (wasOpen.current === hasSide) return;
@@ -95,6 +99,8 @@ export function SplitPane({
     if (!hasSide) return;
     animate(groupElementRef.current);
     groupRef.current?.setLayout({ [MAIN_ID]: ratio.current * 100, [SIDE_ID]: (1 - ratio.current) * 100 });
+    const revealFrame = window.requestAnimationFrame(() => setIsRevealed(true));
+    return () => window.cancelAnimationFrame(revealFrame);
   }, [hasSide, animate, groupRef]);
 
   // Close: the side panel loses its minimum in the render where `side` is null, then it folds. The library
@@ -106,6 +112,7 @@ export function SplitPane({
     let unmountTimer: number | undefined;
     const foldFrame = window.requestAnimationFrame(() => {
       animate(groupElementRef.current);
+      setIsRevealed(false);
       sidePanelRef.current?.resize(0);
       unmountTimer = window.setTimeout(() => setRetainedSide(null), readPanelDurationMs());
     });
@@ -199,7 +206,11 @@ export function SplitPane({
           // library folds a collapsible pane when a drag goes past its minimum, and the user must stop there.
           minSize={hasSide ? toPercent(MIN_SPLIT_RATIO) : 0}
           maxSize={toPercent(MAX_SPLIT_RATIO)}
-          className={cn('min-w-0', shownSide && (sideClassName ?? 'rounded-xl border border-border bg-card'))}
+          className={cn(
+            'min-w-0',
+            shownSide && (sideClassName ?? 'rounded-xl border border-border bg-card'),
+            hasSide && isRevealed ? 'opacity-100' : 'opacity-0'
+          )}
           // The default frame is a card that clips its content. A custom frame scrolls by itself.
           style={sideClassName ? undefined : { overflow: 'hidden' }}
         >
