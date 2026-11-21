@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AiEffort, AnthropicModel, type AiToolPermissionRead, type UserRead } from '@/client';
+import { AiEffort, AiProvider, AnthropicModel, type AiToolPermissionRead, type UserRead } from '@/client';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 
@@ -74,7 +74,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
 const ui = () => (
   <QueryClientProvider client={queryClient}>
     <SettingsPage />
@@ -89,19 +89,15 @@ function mount(tab?: string) {
 
 /** Clicks a tab. The mocked router stores the new URL, so a re-render shows the new tab. */
 function openTab(name: string, rerender: (ui: React.ReactElement) => void) {
-  // A tab with unsaved changes has the dot label in its name, so the name is a prefix match.
-  const tab = screen.getByRole('tab', { name: new RegExp(`^${name}`) });
+  const tab = screen.getByRole('tab', { name });
   fireEvent.mouseDown(tab, { button: 0 });
   fireEvent.click(tab);
   rerender(ui());
 }
 
-const saveButton = () => screen.getByRole('button', { name: 'common.save' });
 const nameInput = () => document.getElementById('displayName') as HTMLInputElement;
-// `:disabled` also matches a control inside a disabled `fieldset` (the `disabled` property does not).
-const isDisabled = (element: Element): boolean => element.matches(':disabled');
-/** TanStack Query sends its state changes in a `setTimeout(0)` batch. */
-const flush = () => act(() => new Promise(resolve => setTimeout(resolve, 0)));
+const easeInput = () => document.getElementById('initialEaseFactor') as HTMLInputElement;
+const limitInput = () => document.getElementById('dailyReviewLimit') as HTMLInputElement;
 
 describe('SettingsPage', () => {
   describe('tabs', () => {
@@ -122,63 +118,174 @@ describe('SettingsPage', () => {
       openTab('settings.tab_ai', rerender);
       expect(replace).toHaveBeenCalledWith('/settings?tab=ai', { scroll: false });
     });
+  });
 
-    it('keeps the draft when the user changes tabs, shows a dot on the changed tab, and saves it', async () => {
-      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: { ...USER, displayName: 'Pepe' } } as never);
-      const { rerender } = mount();
-      const dot = () => screen.queryAllByRole('img', { name: 'settings.unsaved_changes' });
-      expect(dot()).toHaveLength(0);
-
-      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
-      expect(dot()).toHaveLength(1);
-
-      openTab('settings.tab_srs', rerender);
-      expect(nameInput()).toBeNull();
-      // The dot stays on the profile tab, so the changed tab is visible from another tab.
-      expect(screen.getByRole('tab', { name: /settings.tab_profile/ }).querySelector('[role="img"]')).not.toBeNull();
-
-      openTab('settings.tab_profile', rerender);
-      expect(nameInput().value).toBe('Pepe');
-
-      // Save is shared: it works from a tab other than the changed one.
-      openTab('settings.tab_srs', rerender);
-      fireEvent.click(saveButton());
-      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { displayName: 'Pepe' } }));
-      await waitFor(() => expect(dot()).toHaveLength(0));
+  it('has no Save button on any tab', () => {
+    const { rerender } = mount();
+    ['settings.tab_profile', 'settings.tab_ai', 'settings.tab_srs'].forEach(name => {
+      openTab(name, rerender);
+      expect(screen.queryByRole('button', { name: 'common.save' })).toBeNull();
     });
   });
 
-  // Regression: any edit set a "dirty" flag, so a value changed and then changed back still enabled Save.
-  it('disables Save again when a field gets back its saved value', () => {
-    mount();
-    expect(isDisabled(saveButton())).toBe(true);
+  describe('save on blur', () => {
+    it('saves the display name when the value changed', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: { ...USER, displayName: 'Pepe' } } as never);
+      mount();
 
-    fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
-    expect(isDisabled(saveButton())).toBe(false);
+      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+      fireEvent.blur(nameInput());
 
-    fireEvent.change(nameInput(), { target: { value: 'Jose' } });
-    expect(isDisabled(saveButton())).toBe(true);
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { displayName: 'Pepe' } }));
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('settings.settings_saved'));
+      expect(useAuthStore.getState().user?.displayName).toBe('Pepe');
+    });
+
+    it('does not save when the value did not change, or went back to the saved one', () => {
+      mount();
+      fireEvent.blur(nameInput());
+
+      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
+      fireEvent.change(nameInput(), { target: { value: 'Jose' } });
+      fireEvent.blur(nameInput());
+
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+    });
+
+    it('shows an error toast when the save fails', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockRejectedValue(new Error('network'));
+      mount();
+
+      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
+      fireEvent.blur(nameInput());
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.failed_to_save'));
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('puts the saved display name back when the save fails', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockRejectedValue(new Error('network'));
+      mount();
+
+      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
+      fireEvent.blur(nameInput());
+
+      await waitFor(() => expect(nameInput().value).toBe('Jose'));
+    });
+
+    it('puts the saved SRS value back, without a request, when the value is out of range', () => {
+      mount('srs');
+
+      fireEvent.change(easeInput(), { target: { value: '9' } });
+      fireEvent.blur(easeInput());
+      fireEvent.change(limitInput(), { target: { value: '0' } });
+      fireEvent.blur(limitInput());
+
+      expect(easeInput().value).toBe('2.5');
+      expect(limitInput().value).toBe('');
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+    });
+
+    it('puts the saved SRS value back when the save fails', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockRejectedValue(new Error('network'));
+      mount('srs');
+
+      fireEvent.change(easeInput(), { target: { value: '3' } });
+      fireEvent.blur(easeInput());
+
+      await waitFor(() => expect(easeInput().value).toBe('2.5'));
+    });
+
+    it('saves on Enter, and saves once when the blur follows', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: { ...USER, displayName: 'Pepe' } } as never);
+      mount();
+
+      fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
+      fireEvent.submit(nameInput().closest('form')!);
+      fireEvent.blur(nameInput());
+
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { displayName: 'Pepe' } }));
+      expect(sdk.usersUpdateMe).toHaveBeenCalledTimes(1);
+    });
+
+    it('saves the SRS values, and skips an empty or unchanged value', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: USER } as never);
+      mount('srs');
+
+      fireEvent.change(easeInput(), { target: { value: '' } });
+      fireEvent.blur(easeInput());
+      fireEvent.change(easeInput(), { target: { value: '2.5' } });
+      fireEvent.blur(easeInput());
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+
+      fireEvent.change(easeInput(), { target: { value: '3' } });
+      fireEvent.blur(easeInput());
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { initialEaseFactor: 3 } }));
+
+      fireEvent.change(limitInput(), { target: { value: '25' } });
+      fireEvent.blur(limitInput());
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { dailyReviewLimit: 25 } }));
+    });
   });
 
-  // Regression: an edit made during the save was not in the request, and the response overwrote it.
-  it('makes the form read-only while the save runs', async () => {
-    let finishSave: (value: { data: UserRead }) => void = () => undefined;
-    vi.mocked(sdk.usersUpdateMe).mockReturnValue(
-      new Promise(resolve => {
-        finishSave = resolve;
-      }) as never
-    );
-    mount();
+  describe('AI provider and keys', () => {
+    it('saves the provider when the user picks one', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: { ...USER, aiProvider: AiProvider.OPENAI } } as never);
+      mount('ai');
 
-    fireEvent.change(nameInput(), { target: { value: 'Pepe' } });
-    fireEvent.click(saveButton());
-    await flush();
-    expect(isDisabled(nameInput())).toBe(true);
+      fireEvent.click(screen.getByRole('button', { name: /^settings.openai/ }));
 
-    finishSave({ data: { ...USER, displayName: 'Pepe' } });
-    await waitFor(() => expect(isDisabled(nameInput())).toBe(false));
-    expect(nameInput().value).toBe('Pepe');
-    expect(isDisabled(saveButton())).toBe(true);
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { aiProvider: AiProvider.OPENAI } }));
+    });
+
+    it('disables the provider buttons while the save is pending', async () => {
+      let finishSave: (value: never) => void = () => undefined;
+      vi.mocked(sdk.usersUpdateMe).mockReturnValueOnce(new Promise(resolve => (finishSave = resolve)) as never);
+      mount('ai');
+
+      fireEvent.click(screen.getByRole('button', { name: /^settings.openai/ }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^settings.anthropic/ }).hasAttribute('disabled')).toBe(true)
+      );
+      // The cache is shared by all tests, and a request that never ends would block the next ones in the scope.
+      finishSave({ data: USER } as never);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^settings.anthropic/ }).hasAttribute('disabled')).toBe(false)
+      );
+    });
+
+    it('removes a key after the user confirms', async () => {
+      useAuthStore.setState({ user: { ...USER, hasAnthropicKey: true } });
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: USER } as never);
+      mount('ai');
+
+      fireEvent.click(screen.getByRole('button', { name: 'settings.remove_key' }));
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'settings.remove_key' }));
+
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { anthropicApiKey: null } }));
+    });
+
+    it('saves a key only with its Save key button, then clears the field', async () => {
+      vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: USER } as never);
+      mount('ai');
+      const keyInput = document.getElementById('anthropicKey') as HTMLInputElement;
+      const [saveAnthropicKey, saveOpenaiKey] = screen.getAllByRole('button', { name: 'settings.save_key' });
+      expect(saveAnthropicKey.hasAttribute('disabled')).toBe(true);
+
+      fireEvent.change(keyInput, { target: { value: 'sk-test' } });
+      fireEvent.blur(keyInput);
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+      expect(saveOpenaiKey.hasAttribute('disabled')).toBe(true);
+
+      fireEvent.click(saveAnthropicKey);
+
+      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { anthropicApiKey: 'sk-test' } }));
+      await waitFor(() => expect(keyInput.value).toBe(''));
+    });
   });
 
   describe('AI permissions', () => {
@@ -190,6 +297,7 @@ describe('SettingsPage', () => {
 
     beforeEach(() => {
       serverPermissions.current = [permission('list_tests', true), permission('get_test_details', false)];
+      vi.mocked(sdk.usersUpdateAiToolPermissions).mockResolvedValue({ data: [] } as never);
     });
 
     it('keeps the tool switches hidden until the group is opened, and closes it again', () => {
@@ -206,47 +314,25 @@ describe('SettingsPage', () => {
       expect(screen.queryAllByRole('switch')).toHaveLength(0);
     });
 
-    it('lets the group checkbox change the tools while the group is closed', () => {
-      mount('ai');
-      fireEvent.click(groupCheckbox());
-      expect(groupCheckbox().getAttribute('aria-checked')).toBe('true');
-      openGroup();
-      expect(switches().map(s => s.getAttribute('aria-checked'))).toEqual(['true', 'true']);
-    });
-
-    // The group checkbox is the only control with a native mixed state.
-    it('shows the mixed state, then allows all tools, then turns all tools off', () => {
+    it('saves a tool at once when the user toggles its switch', async () => {
       mount('ai');
       openGroup();
-      expect(groupCheckbox().getAttribute('aria-checked')).toBe('mixed');
-
-      fireEvent.click(groupCheckbox());
-      expect(switches().map(s => s.getAttribute('aria-checked'))).toEqual(['true', 'true']);
-      expect(groupCheckbox().getAttribute('aria-checked')).toBe('true');
-
-      fireEvent.click(groupCheckbox());
-      expect(switches().map(s => s.getAttribute('aria-checked'))).toEqual(['false', 'false']);
-      expect(groupCheckbox().getAttribute('aria-checked')).toBe('false');
-    });
-
-    it('enables Save for a changed tool, and disables it again when the change is undone', () => {
-      mount('ai');
-      openGroup();
-      expect(isDisabled(saveButton())).toBe(true);
 
       fireEvent.click(switches()[1]);
-      expect(isDisabled(saveButton())).toBe(false);
 
-      fireEvent.click(switches()[1]);
-      expect(isDisabled(saveButton())).toBe(true);
+      await waitFor(() =>
+        expect(sdk.usersUpdateAiToolPermissions).toHaveBeenCalledWith({
+          body: { permissions: { get_test_details: true } },
+        })
+      );
+      await waitFor(() => expect(sdk.usersUpdateAiToolPermissions).toHaveBeenCalledTimes(1));
+      expect(toast.success).not.toHaveBeenCalled();
     });
 
     it('sends only the changed tools when the user selects all', async () => {
-      vi.mocked(sdk.usersUpdateAiToolPermissions).mockResolvedValue({ data: [] } as never);
       mount('ai');
 
       fireEvent.click(groupCheckbox());
-      fireEvent.click(saveButton());
 
       await waitFor(() =>
         expect(sdk.usersUpdateAiToolPermissions).toHaveBeenCalledWith({
@@ -255,19 +341,15 @@ describe('SettingsPage', () => {
       );
     });
 
-    it('shows an error toast and keeps the change when the save fails', async () => {
+    it('shows an error toast when the save fails', async () => {
       vi.mocked(sdk.usersUpdateAiToolPermissions).mockRejectedValue(new Error('network'));
       mount('ai');
       openGroup();
 
       fireEvent.click(switches()[1]);
-      fireEvent.click(saveButton());
 
       await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.failed_to_save'));
       expect(toast.success).not.toHaveBeenCalled();
-      // The draft stays, so the user can try again.
-      await waitFor(() => expect(isDisabled(saveButton())).toBe(false));
-      expect(switches()[1].getAttribute('aria-checked')).toBe('true');
     });
   });
 });

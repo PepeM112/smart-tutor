@@ -30,7 +30,7 @@ describe('useCountdown', () => {
 
   it('returns null again when the deadline is removed', () => {
     const deadline = inSeconds(30);
-    const { result, rerender } = renderHook(({ at }) => useCountdown(at, vi.fn()), {
+    const { result, rerender } = renderHook<number | null, { at: Date | null }>(({ at }) => useCountdown(at, vi.fn()), {
       initialProps: { at: deadline },
     });
     expect(result.current).toBe(30);

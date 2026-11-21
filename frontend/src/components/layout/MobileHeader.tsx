@@ -6,11 +6,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
-import { useAuthStore } from '@/features/auth/store/authStore';
 import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 import { Routes } from '@/lib/routes';
 import { useBreadcrumbStore } from '@/store/useBreadcrumbStore';
 import { useOutlineStore } from '@/store/useOutlineStore';
+
+import { UserAvatar } from './UserAvatar';
 
 /**
  * The header of a page below `lg`, in the place of `PageHeader`. It reads the same store, so a page sets its
@@ -21,7 +22,6 @@ export function MobileHeader() {
   const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
-  const user = useAuthStore(s => s.user);
   const title = useBreadcrumbStore(s => s.title);
   const crumbs = useBreadcrumbStore(s => s.crumbs);
   const back = useBreadcrumbStore(s => s.back);
@@ -31,7 +31,6 @@ export function MobileHeader() {
   const isDrawerOpen = useOutlineStore(s => s.isDrawerOpen);
   const setDrawerOpen = useOutlineStore(s => s.setDrawerOpen);
   const kicker = subtitle ?? crumbs.at(-1)?.label;
-  const name = user?.displayName || user?.username;
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-1 border-b border-hairline px-2">
@@ -78,12 +77,7 @@ export function MobileHeader() {
           aria-current={pathname === Routes.SETTINGS ? 'page' : undefined}
           className="flex size-9 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <span
-            aria-hidden
-            className="flex size-7 items-center justify-center rounded-full bg-muted font-serif text-sm text-foreground"
-          >
-            {name?.charAt(0).toUpperCase()}
-          </span>
+          <UserAvatar />
         </Link>
       </div>
     </header>

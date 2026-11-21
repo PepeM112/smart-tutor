@@ -6,30 +6,34 @@ import { type UserRead } from '@/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { SettingsSection } from './SettingsSection';
+import { useAutoSaveField } from '../hooks/useAutoSaveField';
+import { buildDisplayNamePatch } from '../utils';
 
-import type { SettingsForm, UpdateField } from '../types';
+import { AutoSaveForm } from './AutoSaveForm';
+import { SettingsSection } from './SettingsSection';
 
 type Props = {
   user: UserRead;
-  form: Pick<SettingsForm, 'displayName'>;
-  updateField: UpdateField;
 };
 
-export function ProfileSection({ user, form, updateField }: Props) {
+export function ProfileSection({ user }: Props) {
   const t = useTranslations();
+  const displayName = useAutoSaveField(user.displayName ?? '', value => buildDisplayNamePatch(value, user));
 
   return (
     <SettingsSection title={t('settings.profile')}>
       <div className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="displayName">{t('settings.display_name')}</Label>
-          <Input
-            id="displayName"
-            placeholder={t('settings.display_name_placeholder')}
-            value={form.displayName}
-            onChange={e => updateField('displayName', e.target.value)}
-          />
+          <AutoSaveForm onSave={displayName.save}>
+            <Input
+              id="displayName"
+              placeholder={t('settings.display_name_placeholder')}
+              value={displayName.value}
+              onChange={e => displayName.setValue(e.target.value)}
+              onBlur={displayName.save}
+            />
+          </AutoSaveForm>
         </div>
         <div className="space-y-1.5">
           <Label>{t('settings.username')}</Label>

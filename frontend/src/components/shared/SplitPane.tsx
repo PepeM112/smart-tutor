@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Group, Panel, Separator, useGroupRef, usePanelRef } from 'react-resizable-panels';
 
 import { pageBleed } from '@/lib/pageBleed';
-import { PANEL_ANIMATING_CLASS, readPanelDurationMs, usePanelAnimation } from '@/lib/panelMotion';
+import { PANEL_ANIMATING_CLASS, usePanelAnimation, useStagedReveal } from '@/lib/panelMotion';
 import { cn } from '@/lib/utils';
 
 export type SplitPaneProps = {
@@ -47,8 +47,9 @@ const toPercent = (ratio: number): string => `${ratio * 100}%`;
  * Use it for every "list + detail panel on the right" page, so all of them get the same motion.
  *
  * Open and close: the side panel and its divider stay in the tree. `side` going from null to a node grows
- * the panel from 0 to the saved ratio, and null folds it back to 0 (see `panelMotion`). The content stays
- * rendered until the fold ends. No motion on the first render, and none with reduced motion.
+ * the panel from 0 to the saved ratio, then the content fades in. null fades the content out, then folds the
+ * panel back to 0 (see `useStagedReveal`). The content stays rendered until the fold ends. No motion on the
+ * first render, and none with reduced motion.
  *
  * The ratio is the share of the main pane (0..1). It is saved in `storageKey` after a drag, a key press or a reset.
  *
@@ -88,32 +89,31 @@ export function SplitPane({
   if (side && side !== retainedSide) setRetainedSide(side);
   const shownSide = side || retainedSide;
 
-  const wasOpen = useRef(hasSide);
+  const { isWidthOpen, isMounted, isFolding, completeFold, contentClassName } = useStagedReveal(hasSide);
+  // Release the node once the fold ended, so a closed pane holds no stale content.
+  if (!side && !isMounted && retainedSide) setRetainedSide(null);
+
+  const wasWidthOpen = useRef(hasSide);
   useEffect(() => {
-    if (wasOpen.current === hasSide) return;
-    wasOpen.current = hasSide;
-    if (!hasSide) return;
+    if (wasWidthOpen.current === isWidthOpen) return;
+    wasWidthOpen.current = isWidthOpen;
+    if (!isWidthOpen) return;
     animate(groupElementRef.current);
     groupRef.current?.setLayout({ [MAIN_ID]: ratio.current * 100, [SIDE_ID]: (1 - ratio.current) * 100 });
-  }, [hasSide, animate, groupRef]);
+  }, [isWidthOpen, animate, groupRef]);
 
-  // Close: the side panel loses its minimum in the render where `side` is null, then it folds. The library
-  // applies a new minimum after the effects of that render, so the fold waits one frame. A fold in the same
-  // pass would stop at the old minimum. The content stays rendered (`retainedSide`) until the fold ends.
-  const isFolding = !hasSide && Boolean(retainedSide);
+  // Fold: the side panel loses its minimum in the render where `isWidthOpen` turns false. The library applies
+  // a new minimum after the effects of that render, so the fold waits one frame. A fold in the same
+  // pass would stop at the old minimum.
   useEffect(() => {
     if (!isFolding) return;
-    let unmountTimer: number | undefined;
     const foldFrame = window.requestAnimationFrame(() => {
       animate(groupElementRef.current);
       sidePanelRef.current?.resize(0);
-      unmountTimer = window.setTimeout(() => setRetainedSide(null), readPanelDurationMs());
+      completeFold();
     });
-    return () => {
-      window.cancelAnimationFrame(foldFrame);
-      window.clearTimeout(unmountTimer);
-    };
-  }, [isFolding, animate, sidePanelRef]);
+    return () => window.cancelAnimationFrame(foldFrame);
+  }, [isFolding, animate, sidePanelRef, completeFold]);
 
   const saveRatio = (next: number): void => {
     ratio.current = next;
@@ -158,7 +158,7 @@ export function SplitPane({
             'min-w-0 overflow-y-auto',
             bleed && [pageBleed.marginBottom, pageBleed.paddingBottom],
             // With a side pane the main pane ends at the divider. The change eases with the pane motion.
-            bleed && !hasSide && [pageBleed.marginRight, pageBleed.paddingRight],
+            bleed && !isWidthOpen && [pageBleed.marginRight, pageBleed.paddingRight],
             bleed && 'transition-[margin,padding] duration-200 motion-reduce:transition-none',
             mainClassName
           )}
@@ -176,14 +176,14 @@ export function SplitPane({
         <Separator
           data-slot="split-pane-divider"
           aria-label={dividerLabel ?? t('resize_panel')}
-          aria-hidden={!hasSide}
-          inert={!hasSide}
-          disabled={!hasSide}
+          aria-hidden={!isWidthOpen}
+          inert={!isWidthOpen}
+          disabled={!isWidthOpen}
           disableDoubleClick
           onDoubleClick={resetRatio}
           className={cn(
             'group relative flex shrink-0 cursor-col-resize items-center justify-center overflow-hidden outline-none',
-            hasSide ? 'w-9' : 'w-0'
+            isWidthOpen ? 'w-9' : 'w-0'
           )}
         >
           <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-border" />
@@ -197,13 +197,14 @@ export function SplitPane({
           defaultSize={initial.hasSide ? toPercent(1 - initial.ratio) : '0%'}
           // The minimum is 0 while there is no side pane, so it can fold. It is not `collapsible`: the
           // library folds a collapsible pane when a drag goes past its minimum, and the user must stop there.
-          minSize={hasSide ? toPercent(MIN_SPLIT_RATIO) : 0}
+          minSize={isWidthOpen ? toPercent(MIN_SPLIT_RATIO) : 0}
           maxSize={toPercent(MAX_SPLIT_RATIO)}
-          className={cn('min-w-0', shownSide && (sideClassName ?? 'rounded-xl border border-border bg-card'))}
+          className={cn('min-w-0', isMounted && (sideClassName ?? 'rounded-xl border border-border bg-card'))}
           // The default frame is a card that clips its content. A custom frame scrolls by itself.
           style={sideClassName ? undefined : { overflow: 'hidden' }}
         >
-          {shownSide}
+          {/* The fade is on this wrapper: the library puts the panel `className` on an inner element. */}
+          {isMounted && <div className={contentClassName}>{shownSide}</div>}
         </Panel>
       </Group>
     </div>

@@ -53,7 +53,34 @@ test('Include in Review adds nothing from an AFTER_PASS_OR_LAST test before a pa
   expect(await reviewCount(viewer)).toBe(0);
 
   await viewer.goto('/review');
-  await expect(viewer.getByRole('combobox')).toContainText(COURSE);
+  await viewer.getByRole('combobox').click();
+  await expect(viewer.getByRole('option', { name: COURSE })).toBeVisible();
+});
+
+test('the Review scope select lists the course while Include in Review is on, and drops it when off', async ({
+  pageAs,
+}) => {
+  const viewer = await pageAs('viewer');
+  await viewer.goto('/review');
+  await viewer.getByRole('combobox').click();
+  await expect(viewer.getByRole('option')).toHaveText(['All', 'Personal', COURSE]);
+  await viewer.getByRole('option', { name: COURSE }).click();
+  await expect(viewer.getByRole('combobox')).toHaveText(COURSE);
+
+  await viewer.goto(`/courses/${courseSlug}`);
+  await viewer.getByRole('button', { name: 'More actions' }).click();
+  await viewer.getByRole('menuitem', { name: 'Remove from Review' }).click();
+  await expectToast(viewer, 'Course questions removed from Review');
+
+  // With no course in Review the select has nothing to choose, so the page hides it.
+  await viewer.goto('/review');
+  await expect(viewer.getByRole('combobox')).toHaveCount(0);
+
+  // Later tests need the course in Review.
+  await viewer.goto(`/courses/${courseSlug}`);
+  await viewer.getByRole('button', { name: 'More actions' }).click();
+  await viewer.getByRole('menuitem', { name: 'Include in Review' }).click();
+  await expectToast(viewer, 'Course questions added to Review');
 });
 
 test('the Assistant is hidden and refused during an attempt', async ({ pageAs }) => {

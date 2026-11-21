@@ -3,11 +3,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { toast } from 'sonner';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AiEffort, AiProvider, AnthropicModel, type UserRead } from '@/client';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
+
+import { MODEL_LABEL_KEYS } from '../aiModel';
 
 import { AiModelSection } from './AiModelSection';
 
@@ -41,6 +43,21 @@ function renderSection(provider: AiProvider | null, model: AnthropicModel): void
   );
 }
 
+// jsdom lacks the pointer and layout APIs that Radix Select calls when its list opens
+function chooseOption(trigger: HTMLElement, optionName: string): void {
+  fireEvent.keyDown(trigger, { key: 'Enter' });
+  fireEvent.click(screen.getByRole('option', { name: optionName }));
+}
+
+beforeAll(() => {
+  window.HTMLElement.prototype.hasPointerCapture = () => false;
+  window.HTMLElement.prototype.scrollIntoView = () => undefined;
+  window.ResizeObserver ??= class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  };
+});
 beforeEach(() => vi.clearAllMocks());
 afterEach(cleanup);
 
@@ -68,7 +85,7 @@ describe('AiModelSection', () => {
 
     expect(screen.getByText('settings.ai_effort_disabled_openai')).toBeTruthy();
     expect(
-      screen.getByLabelText<HTMLSelectElement>('settings.ai_effort_select:settings.ai_effort_action_grading').disabled
+      screen.getByLabelText<HTMLButtonElement>('settings.ai_effort_select:settings.ai_effort_action_grading').disabled
     ).toBe(true);
   });
 
@@ -78,9 +95,10 @@ describe('AiModelSection', () => {
     } as never);
     renderSection(AiProvider.ANTHROPIC, AnthropicModel.CLAUDE_HAIKU_5_5);
 
-    fireEvent.change(screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_grading'), {
-      target: { value: AiEffort.LOW },
-    });
+    chooseOption(
+      screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_grading'),
+      `settings.ai_effort_level_${AiEffort.LOW}`
+    );
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
     expect(updateMe).toHaveBeenCalledWith({ body: { aiEffort: { grading: AiEffort.LOW } } });
@@ -90,9 +108,10 @@ describe('AiModelSection', () => {
     updateMe.mockResolvedValueOnce({ data: userWith(AnthropicModel.CLAUDE_HAIKU_4_5_20251001) } as never);
     renderSection(AiProvider.ANTHROPIC, AnthropicModel.CLAUDE_HAIKU_5_5);
 
-    fireEvent.change(screen.getByLabelText('settings.ai_model'), {
-      target: { value: AnthropicModel.CLAUDE_HAIKU_4_5_20251001 },
-    });
+    chooseOption(
+      screen.getByLabelText('settings.ai_model'),
+      MODEL_LABEL_KEYS[AnthropicModel.CLAUDE_HAIKU_4_5_20251001]
+    );
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
     expect(updateMe).toHaveBeenCalledWith({ body: { anthropicModel: AnthropicModel.CLAUDE_HAIKU_4_5_20251001 } });
@@ -102,11 +121,35 @@ describe('AiModelSection', () => {
     updateMe.mockRejectedValueOnce(new Error('boom'));
     renderSection(AiProvider.ANTHROPIC, AnthropicModel.CLAUDE_HAIKU_5_5);
 
-    fireEvent.change(screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_grading'), {
-      target: { value: AiEffort.MAX },
-    });
+    chooseOption(
+      screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_grading'),
+      `settings.ai_effort_level_${AiEffort.MAX}`
+    );
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
     expect(useAuthStore.getState().user?.aiEffort.grading).toBe(AiEffort.MEDIUM);
+  });
+
+  it('sends an effort change and a model change one after the other', async () => {
+    let resolveFirst: (value: never) => void = () => undefined;
+    updateMe.mockImplementationOnce(() => new Promise(resolve => (resolveFirst = resolve)) as never);
+    updateMe.mockResolvedValueOnce({ data: userWith(AnthropicModel.CLAUDE_HAIKU_5_5) } as never);
+    renderSection(AiProvider.ANTHROPIC, AnthropicModel.CLAUDE_HAIKU_5_5);
+
+    chooseOption(
+      screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_grading'),
+      `settings.ai_effort_level_${AiEffort.LOW}`
+    );
+    await waitFor(() => expect(screen.queryByRole('option')).toBeNull());
+    chooseOption(
+      screen.getByLabelText('settings.ai_model'),
+      MODEL_LABEL_KEYS[AnthropicModel.CLAUDE_HAIKU_4_5_20251001]
+    );
+
+    await waitFor(() => expect(updateMe).toHaveBeenCalledTimes(1));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(updateMe).toHaveBeenCalledTimes(1);
+    resolveFirst({ data: userWith(AnthropicModel.CLAUDE_HAIKU_5_5) } as never);
+    await waitFor(() => expect(updateMe).toHaveBeenCalledTimes(2));
   });
 });

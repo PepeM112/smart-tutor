@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { FeedPermission, type SpaceDetail } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CourseSettings } from '@/features/courses/components/CourseSettings';
 import { type useCourseActions } from '@/features/courses/hooks/useCourseActions';
 import { SettingsSection } from '@/features/settings/components/SettingsSection';
@@ -54,19 +54,22 @@ function FeedPermissionSection({ classroomId, readOnly }: { classroomId: string;
       <QueryState isLoading={isLoading} isError={isError} errorMessage={t('classrooms.failed_to_load_settings')}>
         <div className="space-y-2">
           <Label htmlFor="feed-permission">{t('classrooms.feed_label')}</Label>
-          <NativeSelect
-            id="feed-permission"
-            className="max-w-sm"
-            value={settings?.feedPermission ?? FeedPermission.TEACHERS_ONLY}
+          <Select
+            value={String(settings?.feedPermission ?? FeedPermission.TEACHERS_ONLY)}
             disabled={readOnly || isSaving}
-            onChange={e => updateSettings({ feedPermission: Number(e.target.value) })}
+            onValueChange={value => updateSettings({ feedPermission: Number(value) })}
           >
-            {FEED_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {t(option.label)}
-              </option>
-            ))}
-          </NativeSelect>
+            <SelectTrigger id="feed-permission" className="max-w-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FEED_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={String(option.value)}>
+                  {t(option.label)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </QueryState>
     </SettingsSection>

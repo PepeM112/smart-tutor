@@ -4,7 +4,7 @@ import { Check, Eye, EyeOff, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { AiProvider, type AnthropicModel } from '@/client';
+import { AiProvider, type AnthropicModel, type UserUpdate } from '@/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
@@ -12,19 +12,15 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 import { MODEL_LABEL_KEYS } from '../aiModel';
+import { useUpdateUser } from '../hooks/useUpdateUser';
 
 import { SettingsSection } from './SettingsSection';
 
-import type { SettingsForm, UpdateField } from '../types';
-
 type Props = {
-  form: Pick<SettingsForm, 'aiProvider' | 'anthropicApiKey' | 'openaiApiKey'>;
-  updateField: UpdateField;
+  aiProvider: AiProvider | null;
   anthropicModel: AnthropicModel;
   hasAnthropicKey: boolean;
   hasOpenaiKey: boolean;
-  removeKey: (provider: 'anthropic' | 'openai') => void;
-  isRemovingKey: boolean;
 };
 
 const PROVIDERS = [
@@ -32,18 +28,21 @@ const PROVIDERS = [
   { value: AiProvider.OPENAI, labelKey: 'settings.openai' },
 ] as const;
 
-export function AiSection({
-  form,
-  updateField,
-  anthropicModel,
-  hasAnthropicKey,
-  hasOpenaiKey,
-  removeKey,
-  isRemovingKey,
-}: Props) {
+type KeyProvider = 'anthropic' | 'openai';
+
+const KEY_FIELDS: Record<KeyProvider, { id: string; labelKey: string; toPayload: (key: string | null) => UserUpdate }> =
+  {
+    anthropic: {
+      id: 'anthropicKey',
+      labelKey: 'settings.anthropic_api_key',
+      toPayload: key => ({ anthropicApiKey: key }),
+    },
+    openai: { id: 'openaiKey', labelKey: 'settings.openai_api_key', toPayload: key => ({ openaiApiKey: key }) },
+  };
+
+export function AiSection({ aiProvider, anthropicModel, hasAnthropicKey, hasOpenaiKey }: Props) {
   const t = useTranslations();
-  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const { mutate: saveProvider, isPending: isSavingProvider } = useUpdateUser();
 
   return (
     <SettingsSection title={t('settings.ai_configuration')} description={t('settings.ai_description')}>
@@ -55,10 +54,11 @@ export function AiSection({
             {PROVIDERS.map(({ value, labelKey }) => (
               <button
                 key={value}
-                onClick={() => updateField('aiProvider', value)}
+                disabled={isSavingProvider}
+                onClick={() => value !== aiProvider && saveProvider({ aiProvider: value })}
                 className={cn(
-                  'flex flex-col items-start gap-0.5 rounded-lg border px-4 py-2.5 text-sm transition-colors',
-                  form.aiProvider === value
+                  'flex flex-col items-start gap-0.5 rounded-lg border px-4 py-2.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50',
+                  aiProvider === value
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
@@ -72,118 +72,88 @@ export function AiSection({
           </div>
         </div>
 
-        {/* Anthropic API Key */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="anthropicKey">{t('settings.anthropic_api_key')}</Label>
-            {hasAnthropicKey && (
-              <span className="flex items-center gap-1 text-xs text-feedback-correct">
-                <Check className="size-3" />
-                {t('settings.api_key_configured')}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Input
-                id="anthropicKey"
-                type={showAnthropicKey ? 'text' : 'password'}
-                placeholder={hasAnthropicKey ? '••••••••••••••••' : t('settings.api_key_placeholder')}
-                value={form.anthropicApiKey}
-                onChange={e => updateField('anthropicApiKey', e.target.value)}
-                autoComplete="off"
-                className={form.anthropicApiKey ? 'pr-10' : undefined}
-              />
-              {form.anthropicApiKey && (
-                <button
-                  type="button"
-                  onClick={() => setShowAnthropicKey(!showAnthropicKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                  aria-label={showAnthropicKey ? t('settings.hide_key') : t('settings.show_key')}
-                >
-                  {showAnthropicKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                </button>
-              )}
-            </div>
-            {hasAnthropicKey && (
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    tooltip={t('settings.remove_key')}
-                    disabled={isRemovingKey}
-                  >
-                    <X className="size-3.5" />
-                  </Button>
-                }
-                title={t('settings.remove_key_title')}
-                description={t('settings.remove_key_confirm')}
-                confirmLabel={t('settings.remove_key')}
-                confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onConfirm={() => removeKey('anthropic')}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* OpenAI API Key */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="openaiKey">{t('settings.openai_api_key')}</Label>
-            {hasOpenaiKey && (
-              <span className="flex items-center gap-1 text-xs text-feedback-correct">
-                <Check className="size-3" />
-                {t('settings.api_key_configured')}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Input
-                id="openaiKey"
-                type={showOpenaiKey ? 'text' : 'password'}
-                placeholder={hasOpenaiKey ? '••••••••••••••••' : t('settings.api_key_placeholder')}
-                value={form.openaiApiKey}
-                onChange={e => updateField('openaiApiKey', e.target.value)}
-                autoComplete="off"
-                className={form.openaiApiKey ? 'pr-10' : undefined}
-              />
-              {form.openaiApiKey && (
-                <button
-                  type="button"
-                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                  aria-label={showOpenaiKey ? t('settings.hide_key') : t('settings.show_key')}
-                >
-                  {showOpenaiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                </button>
-              )}
-            </div>
-            {hasOpenaiKey && (
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    tooltip={t('settings.remove_key')}
-                    disabled={isRemovingKey}
-                  >
-                    <X className="size-3.5" />
-                  </Button>
-                }
-                title={t('settings.remove_key_title')}
-                description={t('settings.remove_key_confirm')}
-                confirmLabel={t('settings.remove_key')}
-                confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onConfirm={() => removeKey('openai')}
-              />
-            )}
-          </div>
-        </div>
+        <ApiKeyField provider="anthropic" hasKey={hasAnthropicKey} />
+        <ApiKeyField provider="openai" hasKey={hasOpenaiKey} />
       </div>
     </SettingsSection>
+  );
+}
+
+type ApiKeyFieldProps = {
+  provider: KeyProvider;
+  hasKey: boolean;
+};
+
+function ApiKeyField({ provider, hasKey }: ApiKeyFieldProps) {
+  const t = useTranslations();
+  const { id, labelKey, toPayload } = KEY_FIELDS[provider];
+  // The backend never returns a key, so the field starts blank. A half-typed secret is saved only by the button.
+  const [apiKey, setApiKey] = useState('');
+  const [isShown, setIsShown] = useState(false);
+  const { mutate: updateKey, isPending: isUpdatingKey } = useUpdateUser();
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label htmlFor={id}>{t(labelKey)}</Label>
+        {hasKey && (
+          <span className="flex items-center gap-1 text-xs text-feedback-correct">
+            <Check className="size-3" />
+            {t('settings.api_key_configured')}
+          </span>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Input
+            id={id}
+            type={isShown ? 'text' : 'password'}
+            placeholder={hasKey ? '••••••••••••••••' : t('settings.api_key_placeholder')}
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            autoComplete="off"
+            className={apiKey ? 'pr-10' : undefined}
+          />
+          {apiKey && (
+            <button
+              type="button"
+              onClick={() => setIsShown(shown => !shown)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+              aria-label={isShown ? t('settings.hide_key') : t('settings.show_key')}
+            >
+              {isShown ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+            </button>
+          )}
+        </div>
+        <Button
+          size="sm"
+          disabled={!apiKey || isUpdatingKey}
+          onClick={() => updateKey(toPayload(apiKey), { onSuccess: () => setApiKey('') })}
+        >
+          {t('settings.save_key')}
+        </Button>
+        {hasKey && (
+          <ConfirmDialog
+            trigger={
+              <Button
+                variant="destructive"
+                size="icon-sm"
+                tooltip={t('settings.remove_key')}
+                disabled={isUpdatingKey}
+                aria-label={t('settings.remove_key')}
+              >
+                <X className="size-3.5" />
+              </Button>
+            }
+            title={t('settings.remove_key_title')}
+            description={t('settings.remove_key_confirm')}
+            confirmLabel={t('settings.remove_key')}
+            confirmClassName="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onConfirm={() => updateKey(toPayload(null))}
+          />
+        )}
+      </div>
+    </div>
   );
 }

@@ -22,3 +22,8 @@ const SPACE_PERMISSIONS: Record<SpaceAction, readonly SpaceRole[]> = {
 export function canDo(role: SpaceRole | null | undefined, action: SpaceAction): boolean {
   return role != null && SPACE_PERMISSIONS[action].includes(role);
 }
+
+/** The roles that can do `action`, for a backend filter that takes a role list. */
+export function rolesThatCan(action: SpaceAction): readonly SpaceRole[] {
+  return SPACE_PERMISSIONS[action];
+}

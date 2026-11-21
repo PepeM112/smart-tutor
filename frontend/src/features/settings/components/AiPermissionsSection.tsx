@@ -23,22 +23,15 @@ const GROUPS: { kind: ToolKind; titleKey: string }[] = [
 ];
 
 type AiPermissionsSectionProps = {
-  /** Server permissions with the unsaved draft already applied. */
+  /** Server permissions. A change shows at once, before the backend answers. */
   permissions: AiToolPermissionRead[] | undefined;
   isLoading: boolean;
   isError: boolean;
-  disabled: boolean;
-  /** Reports changed tools as `tool name -> autoApprove`. The page owns the draft and the save. */
+  /** Reports changed tools as `tool name -> autoApprove`. The page saves them. */
   onChange: (changes: PermissionDraft) => void;
 };
 
-export function AiPermissionsSection({
-  permissions,
-  isLoading,
-  isError,
-  disabled,
-  onChange,
-}: AiPermissionsSectionProps) {
+export function AiPermissionsSection({ permissions, isLoading, isError, onChange }: AiPermissionsSectionProps) {
   const t = useTranslations();
 
   return (
@@ -52,7 +45,6 @@ export function AiPermissionsSection({
               key={group.kind}
               title={t(group.titleKey)}
               tools={permissions.filter(p => p.kind === group.kind)}
-              disabled={disabled}
               onChange={onChange}
             />
           ))}
@@ -65,11 +57,10 @@ export function AiPermissionsSection({
 type PermissionGroupProps = {
   title: string;
   tools: AiToolPermissionRead[];
-  disabled: boolean;
   onChange: (changes: PermissionDraft) => void;
 };
 
-function PermissionGroup({ title, tools, disabled, onChange }: PermissionGroupProps) {
+function PermissionGroup({ title, tools, onChange }: PermissionGroupProps) {
   const t = useTranslations('settings');
   const [isOpen, setIsOpen] = useState(false);
   const checkboxId = useId();
@@ -100,7 +91,6 @@ function PermissionGroup({ title, tools, disabled, onChange }: PermissionGroupPr
           <Checkbox
             id={checkboxId}
             checked={masterState}
-            disabled={disabled}
             onCheckedChange={toggleGroup}
             aria-label={t('ai_permissions_group_toggle', { group: title })}
           />
@@ -121,12 +111,7 @@ function PermissionGroup({ title, tools, disabled, onChange }: PermissionGroupPr
       </div>
       <ul id={listId} hidden={!isOpen} className="divide-y divide-hairline">
         {tools.map(tool => (
-          <PermissionRow
-            key={tool.name}
-            tool={tool}
-            disabled={disabled}
-            onChange={value => onChange({ [tool.name]: value })}
-          />
+          <PermissionRow key={tool.name} tool={tool} onChange={value => onChange({ [tool.name]: value })} />
         ))}
       </ul>
     </div>
@@ -135,11 +120,10 @@ function PermissionGroup({ title, tools, disabled, onChange }: PermissionGroupPr
 
 type PermissionRowProps = {
   tool: AiToolPermissionRead;
-  disabled: boolean;
   onChange: (value: boolean) => void;
 };
 
-function PermissionRow({ tool, disabled, onChange }: PermissionRowProps) {
+function PermissionRow({ tool, onChange }: PermissionRowProps) {
   const t = useTranslations();
   const label = t(`settings.ai_permissions_tool_names.${tool.name}`);
   const descriptionKey = `assist.tool_descriptions.${tool.name}`;
@@ -152,7 +136,6 @@ function PermissionRow({ tool, disabled, onChange }: PermissionRowProps) {
       </div>
       <Switch
         checked={tool.autoApprove}
-        disabled={disabled}
         onCheckedChange={onChange}
         aria-label={t('settings.ai_permissions_tool_toggle', { tool: label })}
       />

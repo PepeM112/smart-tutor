@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAllTests } from '@/features/tests/hooks/useAllTests';
 import { sdk } from '@/lib/apiClient';
 
@@ -28,6 +28,7 @@ type Props = {
 
 export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Props) {
   const t = useTranslations();
+  const testSelectId = useId();
   const queryClient = useQueryClient();
   const [selectedTestId, setSelectedTestId] = useState('');
   const isBulk = questionIds.length > 1;
@@ -88,15 +89,19 @@ export function AssignDialog({ questionIds, open, onOpenChange, onSuccess }: Pro
         </DialogHeader>
 
         <div className="space-y-2 py-4">
-          <Label>{t('questions.filter_test')}</Label>
-          <NativeSelect value={selectedTestId} onChange={e => setSelectedTestId(e.target.value)}>
-            <option value="">{t('common.select')}</option>
-            {tests.map(test => (
-              <option key={test.id} value={test.id}>
-                {test.title}
-              </option>
-            ))}
-          </NativeSelect>
+          <Label htmlFor={testSelectId}>{t('questions.filter_test')}</Label>
+          <Select value={selectedTestId} onValueChange={setSelectedTestId}>
+            <SelectTrigger id={testSelectId}>
+              <SelectValue placeholder={t('common.select')} />
+            </SelectTrigger>
+            <SelectContent>
+              {tests.map(test => (
+                <SelectItem key={test.id} value={test.id}>
+                  {test.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <DialogFooter>

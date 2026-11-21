@@ -12,6 +12,8 @@ import { sdk } from '@/lib/apiClient';
 import { parseTheme, THEME_MODES, type ThemeMode } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 
+import { USER_UPDATE_SCOPE } from '../hooks/useUpdateUser';
+
 export function ThemePicker() {
   const t = useTranslations();
   const queryClient = useQueryClient();
@@ -26,7 +28,7 @@ export function ThemePicker() {
   // The page changes at once. Saves run one at a time (same `scope`), so the last click is the last write
   // on the backend. A failed save reverts the page only if no later click replaced it.
   const { mutate: saveTheme } = useMutation({
-    scope: { id: 'user-theme' },
+    scope: { id: USER_UPDATE_SCOPE },
     mutationFn: async (mode: ThemeMode) => (await sdk.usersUpdateMe({ body: { theme: mode } })).data!,
     onMutate: (mode: ThemeMode) => {
       requestedMode.current = mode;

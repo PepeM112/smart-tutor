@@ -1,9 +1,37 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SplitPane } from './SplitPane';
+
+import type * as ResizablePanels from 'react-resizable-panels';
+
+// The library may replace the panel handle between renders, so the calls are recorded at the ref, not on one handle.
+const panelResizes = vi.hoisted(() => ({ calls: [] as number[] }));
+
+vi.mock('react-resizable-panels', async importOriginal => {
+  const actual = await importOriginal<typeof ResizablePanels>();
+  return {
+    ...actual,
+    usePanelRef: () => {
+      const ref = actual.usePanelRef();
+      return {
+        set current(handle: typeof ref.current) {
+          ref.current = handle;
+        },
+        get current() {
+          const handle = ref.current;
+          const recording = (size: number): void => {
+            panelResizes.calls.push(size);
+            handle?.resize(size);
+          };
+          return handle && ({ ...handle, resize: recording } as typeof handle);
+        },
+      };
+    },
+  };
+});
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => `common.${key}` }));
 
@@ -60,13 +88,120 @@ describe('SplitPane', () => {
     expect(screen.queryByText('side')).toBeNull();
   });
 
-  it('keeps the side content while the pane folds, then removes it', async () => {
-    const { rerender } = renderPane();
+  describe('staged fade', () => {
+    const sidePanel = (): HTMLElement => screen.getByText('side').parentElement!;
+    const divider = (): HTMLElement => screen.getByRole('separator', { hidden: true });
+    const advance = (ms: number): void => {
+      act(() => {
+        vi.advanceTimersByTime(ms);
+      });
+    };
+    const closed = <SplitPane storageKey={KEY} main={<p>main</p>} side={null} />;
+    const open = <SplitPane storageKey={KEY} main={<p>main</p>} side={<p>side</p>} />;
 
-    rerender(<SplitPane storageKey={KEY} main={<p>main</p>} side={null} />);
-    expect(screen.queryByText('side')).not.toBeNull();
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
-    await vi.waitFor(() => expect(screen.queryByText('side')).toBeNull());
+    it('close: the content fades out first, then the width folds, then the content is removed', () => {
+      const { rerender } = renderPane();
+      expect(sidePanel().className).toContain('opacity-100');
+
+      rerender(closed);
+      expect(sidePanel().className).toContain('opacity-0');
+      expect(divider().className).toContain('w-9');
+
+      advance(149);
+      expect(divider().className).toContain('w-9');
+      advance(1);
+      expect(divider().className).toContain('w-0');
+      expect(screen.queryByText('side')).not.toBeNull();
+
+      advance(300);
+      expect(screen.queryByText('side')).toBeNull();
+    });
+
+    it('open: the width starts at once and the content shows only after the delay', () => {
+      const { rerender } = renderPane(null);
+
+      rerender(open);
+      expect(divider().className).toContain('w-9');
+      expect(sidePanel().className).toContain('opacity-0');
+
+      advance(149);
+      expect(sidePanel().className).toContain('opacity-0');
+      advance(1);
+      expect(sidePanel().className).toContain('opacity-100');
+    });
+
+    it('has no delay and no fade class with reduced motion', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        media: query,
+        matches: true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }));
+      const { rerender } = renderPane(null);
+
+      rerender(open);
+      advance(0);
+      expect(sidePanel().className).toContain('opacity-100');
+      expect(sidePanel().className).toContain('motion-reduce:transition-none');
+
+      rerender(closed);
+      advance(0);
+      advance(0);
+      advance(0);
+      expect(screen.queryByText('side')).not.toBeNull();
+      advance(32);
+      expect(screen.queryByText('side')).toBeNull();
+    });
+
+    it('still folds the side panel to 0 with reduced motion', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        media: query,
+        matches: true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }));
+      const { rerender } = renderPane();
+      panelResizes.calls = [];
+
+      rerender(closed);
+      advance(0);
+      advance(0);
+      advance(32);
+
+      expect(panelResizes.calls).toContain(0);
+      expect(screen.queryByText('side')).toBeNull();
+    });
+
+    it('folds before it unmounts even when the animation frame is late', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        media: query,
+        matches: true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }));
+      vi.stubGlobal('requestAnimationFrame', (callback: () => void) => window.setTimeout(callback, 500));
+      vi.stubGlobal('cancelAnimationFrame', (id: number) => window.clearTimeout(id));
+      const { rerender } = renderPane();
+      panelResizes.calls = [];
+
+      rerender(closed);
+      advance(0);
+      advance(0);
+      advance(499);
+      expect(panelResizes.calls).toEqual([]);
+      expect(screen.queryByText('side')).not.toBeNull();
+
+      advance(1);
+      expect(panelResizes.calls).toContain(0);
+      expect(screen.queryByText('side')).toBeNull();
+    });
   });
 
   it('resets the saved ratio on double click', () => {
