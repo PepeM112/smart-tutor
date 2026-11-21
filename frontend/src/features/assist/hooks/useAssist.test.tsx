@@ -199,6 +199,127 @@ describe('useAssist — tool history after an approval (tool_use without tool_re
   });
 });
 
+describe('useAssist — thinking blocks per round', () => {
+  const usage = { usage: { inputTokens: 1, outputTokens: 1 } };
+  const streamOf = (events: MockSSEEvent[]) => ({
+    ok: true,
+    body: { getReader: () => makeSSEReader(events) },
+    json: () => Promise.resolve({}),
+  });
+
+  it('sends the blocks back unchanged on the assistant message when the user approves', async () => {
+    const thinkingBlocks = [
+      { type: 'thinking', thinking: 'plan', signature: 'sig-1' },
+      { type: 'redacted_thinking', data: 'opaque' },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        streamOf([
+          { event: 'tool_call', data: { id: 'cf', name: 'create_folder', arguments: { name: 'X' } } },
+          { event: 'confirm_required', data: { id: 'cf', name: 'create_folder', arguments: { name: 'X' } } },
+          { event: 'round_end', data: { thinking_blocks: thinkingBlocks } },
+          { event: 'done', data: { ...usage, pending_confirmations: ['cf'] } },
+        ])
+      )
+      .mockResolvedValueOnce(streamOf([{ event: 'done', data: usage }]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+
+    act(() => result.current.send('make a folder'));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    act(() => result.current.confirm('cf', true));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const body = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body) as {
+      messages: { role: string; thinkingBlocks?: unknown[] }[];
+    };
+    expect(body.messages.map(m => m.role)).toEqual(['user', 'assistant']);
+    expect(body.messages[1].thinkingBlocks).toEqual(thinkingBlocks);
+  });
+
+  it('stores one assistant message per round, each with its own blocks, and one visible turn', async () => {
+    const thinking1 = [{ type: 'thinking', thinking: 'first', signature: 'sig-1' }];
+    const thinking2 = [{ type: 'thinking', thinking: 'second', signature: 'sig-2' }];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        streamOf([
+          { event: 'text_delta', data: { content: 'Looking.' } },
+          { event: 'tool_call', data: { id: 'A', name: 'list_notes', arguments: {} } },
+          { event: 'tool_executing', data: { id: 'A', name: 'list_notes' } },
+          { event: 'tool_result', data: { id: 'A', name: 'list_notes', output: 'notes' } },
+          { event: 'round_end', data: { thinking_blocks: thinking1 } },
+          { event: 'text_delta', data: { content: 'Now I create it.' } },
+          { event: 'tool_call', data: { id: 'B', name: 'create_folder', arguments: { name: 'X' } } },
+          { event: 'confirm_required', data: { id: 'B', name: 'create_folder', arguments: { name: 'X' } } },
+          { event: 'round_end', data: { thinking_blocks: thinking2 } },
+          { event: 'done', data: { ...usage, pending_confirmations: ['B'] } },
+        ])
+      )
+      .mockResolvedValueOnce(
+        streamOf([
+          { event: 'tool_executing', data: { id: 'B', name: 'create_folder' } },
+          { event: 'tool_result', data: { id: 'B', name: 'create_folder', output: 'Created X' } },
+          { event: 'text_delta', data: { content: 'Done.' } },
+          { event: 'done', data: usage },
+        ])
+      )
+      .mockResolvedValueOnce(streamOf([{ event: 'done', data: usage }]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useAssist(PAGE_CONTEXT), { wrapper });
+
+    act(() => result.current.send('make a folder'));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    act(() => result.current.confirm('B', true));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.isStreaming).toBe(false), { timeout: 3000 });
+    // The rounds and the resumed stream are one visible assistant turn: the user sees no change.
+    expect(result.current.turns.filter(t => t.role === 'assistant')).toHaveLength(1);
+
+    act(() => result.current.send('thanks'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+
+    type Body = {
+      messages: {
+        role: string;
+        content: string;
+        toolCalls?: { id: string }[];
+        toolResults?: { toolCallId: string }[];
+        thinkingBlocks?: unknown[];
+      }[];
+    };
+    const body = (call: number): Body => JSON.parse((fetchMock.mock.calls[call][1] as { body: string }).body) as Body;
+    const summary = (b: Body) =>
+      b.messages.map(m => [m.role, m.toolCalls?.map(tc => tc.id) ?? m.toolResults?.map(r => r.toolCallId) ?? null]);
+
+    // Approval request: the history is what the model saw, round by round.
+    expect(summary(body(1))).toEqual([
+      ['user', null],
+      ['assistant', ['A']],
+      ['tool', ['A']],
+      ['assistant', ['B']],
+    ]);
+    expect(body(1).messages[1].content).toBe('Looking.');
+    expect(body(1).messages[1].thinkingBlocks).toEqual(thinking1);
+    expect(body(1).messages[3].content).toBe('Now I create it.');
+    expect(body(1).messages[3].thinkingBlocks).toEqual(thinking2);
+
+    // Next request: the approved result goes before the new assistant message of the resumed stream.
+    expect(summary(body(2))).toEqual([
+      ['user', null],
+      ['assistant', ['A']],
+      ['tool', ['A']],
+      ['assistant', ['B']],
+      ['tool', ['B']],
+      ['assistant', null],
+      ['user', null],
+    ]);
+  });
+});
+
 describe('useAssist — always allow', () => {
   const usage = { usage: { inputTokens: 1, outputTokens: 1 } };
 

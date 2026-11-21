@@ -11,7 +11,7 @@ Each AI call creates one `token_usage` row with:
 | Field            | Description                                                     |
 | ---------------- | --------------------------------------------------------------- |
 | `provider`       | `ANTHROPIC` or `OPENAI`                                         |
-| `model`          | SDK model ID (e.g., `claude-haiku-4-5-20251001`, `gpt-4o-mini`) |
+| `model`          | SDK model ID (e.g., `claude-haiku-5-5`, `claude-haiku-4-5-20251001`, `gpt-4o-mini`) |
 | `feature`        | Which AI feature triggered the call (see table below)           |
 | `input_tokens`   | Tokens sent to the model (prompt + system message)              |
 | `output_tokens`  | Tokens received from the model (completion)                     |
@@ -60,9 +60,14 @@ Prices come from the OpenRouter public API (`GET https://openrouter.ai/api/v1/mo
 The SDK model IDs used in our code differ from OpenRouter's model IDs. A mapping dict in `core/model_registry.py` translates between them:
 
 ```
+claude-haiku-5-5           →  anthropic/claude-haiku-5.5
 claude-haiku-4-5-20251001  →  anthropic/claude-haiku-4.5
 gpt-4o-mini                →  openai/gpt-4o-mini
 ```
+
+OpenRouter can list a context variant with a suffix, such as `anthropic/claude-haiku-5.5[1m]`. `fetch_and_update_prices` strips the `[...]` suffix before the lookup. The plain id always wins. A variant is used only when the plain id is not in the listing, and a warning is logged.
+
+**Price tiers (Haiku 5.5):** $0.10 input / $0.50 output per 1M tokens up to 100K prompt tokens, and $0.50 / $2.50 above that. `calculate_cost` applies one rate (the base tier). Our prompts stay under 100K tokens, so this is exact today. Thinking tokens are billed as output tokens and are part of `output_tokens`.
 
 ### Cost Formula
 

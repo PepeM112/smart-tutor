@@ -77,6 +77,42 @@ export enum AiProvider {
     OPENAI = 2
 }
 
+export enum AiEffort {
+    LOW = 'low',
+    MEDIUM = 'medium',
+    HIGH = 'high',
+    XHIGH = 'xhigh',
+    MAX = 'max'
+}
+
+/**
+ * AiEffortSettings
+ *
+ * The effort level of every AI action. One field per action of `core/ai_settings.AiAction` that calls an LLM.
+ */
+export type AiEffortSettings = {
+    grading: AiEffort;
+    challenge: AiEffort;
+    noteGeneration: AiEffort;
+    noteEdit: AiEffort;
+    testGeneration: AiEffort;
+    assistantChat: AiEffort;
+};
+
+/**
+ * AiEffortUpdate
+ *
+ * Partial update: an action that is not set keeps its level. null resets that action to its default.
+ */
+export type AiEffortUpdate = {
+    grading?: AiEffort | null;
+    challenge?: AiEffort | null;
+    noteGeneration?: AiEffort | null;
+    noteEdit?: AiEffort | null;
+    testGeneration?: AiEffort | null;
+    assistantChat?: AiEffort | null;
+};
+
 /**
  * AiToolPermissionRead
  */
@@ -189,6 +225,11 @@ export enum AnswerStatus {
     FAILED = 5
 }
 
+export enum AnthropicModel {
+    CLAUDE_HAIKU_4_5_20251001 = 'claude-haiku-4-5-20251001',
+    CLAUDE_HAIKU_5_5 = 'claude-haiku-5-5'
+}
+
 /**
  * AssignQuestionRequest
  */
@@ -219,6 +260,10 @@ export type AssistMessage = {
      * Toolresults
      */
     toolResults?: Array<ToolResultData> | null;
+    /**
+     * Thinkingblocks
+     */
+    thinkingBlocks?: Array<ThinkingBlockData> | null;
 };
 
 /**
@@ -3718,6 +3763,30 @@ export type TestUpdate = {
 };
 
 /**
+ * ThinkingBlockData
+ *
+ * A `thinking` or `redacted_thinking` block of Anthropic. The values are opaque: send them back unchanged.
+ */
+export type ThinkingBlockData = {
+    /**
+     * Type
+     */
+    type: 'thinking' | 'redacted_thinking';
+    /**
+     * Thinking
+     */
+    thinking?: string | null;
+    /**
+     * Signature
+     */
+    signature?: string | null;
+    /**
+     * Data
+     */
+    data?: string | null;
+};
+
+/**
  * TokenUsageDailySummary
  */
 export type TokenUsageDailySummary = {
@@ -3989,6 +4058,8 @@ export type UserRead = {
      */
     theme?: 'light' | 'dark' | 'system';
     aiProvider?: AiProvider | null;
+    anthropicModel: AnthropicModel;
+    aiEffort: AiEffortSettings;
     /**
      * Hasanthropickey
      */
@@ -4056,6 +4127,8 @@ export type UserUpdate = {
      */
     theme?: 'light' | 'dark' | 'system' | null;
     aiProvider?: AiProvider | null;
+    anthropicModel?: AnthropicModel | null;
+    aiEffort?: AiEffortUpdate | null;
     /**
      * Anthropicapikey
      */

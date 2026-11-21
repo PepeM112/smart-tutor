@@ -33,6 +33,8 @@ export const Routes = {
   NOTIFICATIONS: '/notifications',
 
   SETTINGS: '/settings',
+
+  SANDBOX: '/sandbox',
 } as const;
 
 // ─── slug URL helpers ─────────────────────────────────────────────────────────

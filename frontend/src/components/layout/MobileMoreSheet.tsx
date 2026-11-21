@@ -11,7 +11,7 @@ import { useLogout } from '@/features/auth/hooks/useLogout';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { cn } from '@/lib/utils';
 
-import { isNavItemActive, MORE_ITEMS, NAV_ITEMS, type NavItem } from './navItems';
+import { isNavItemActive, MORE_ITEMS, NAV_ITEMS, type NavItem, visibleNavItems } from './navItems';
 import { useFavoriteNavItems } from './useFavoriteNavItems';
 
 const ROW_CLASS =
@@ -38,7 +38,7 @@ export function MobileMoreSheet({ open, onOpenChange }: MobileMoreSheetProps) {
       <DrawerContent title={t('mobile_nav.more')}>
         <div className="min-h-0 overflow-y-auto px-2 pb-[max(env(safe-area-inset-bottom),1rem)]">
           <ul>
-            {MORE_ITEMS.map(item => (
+            {visibleNavItems(MORE_ITEMS, user?.role).map(item => (
               <li key={item.labelKey}>
                 <NavRow item={item} isActive={isNavItemActive(item, pathname)} onNavigate={close}>
                   {item === NAV_ITEMS.trash && (

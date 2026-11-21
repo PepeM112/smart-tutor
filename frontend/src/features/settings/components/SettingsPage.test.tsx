@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type AiToolPermissionRead, type UserRead } from '@/client';
+import { AiEffort, AnthropicModel, type AiToolPermissionRead, type UserRead } from '@/client';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 
@@ -42,6 +42,15 @@ const USER = {
   displayName: 'Jose',
   initialEaseFactor: 2.5,
   dailyReviewLimit: null,
+  anthropicModel: AnthropicModel.CLAUDE_HAIKU_5_5,
+  aiEffort: {
+    grading: AiEffort.MEDIUM,
+    challenge: AiEffort.MEDIUM,
+    noteGeneration: AiEffort.MEDIUM,
+    noteEdit: AiEffort.MEDIUM,
+    testGeneration: AiEffort.MEDIUM,
+    assistantChat: AiEffort.MEDIUM,
+  },
 } as UserRead;
 
 const permission = (name: string, autoApprove: boolean): AiToolPermissionRead => ({

@@ -110,7 +110,7 @@ Every AI call is metered — input/output tokens, model, provider, feature, and 
 | **Backend**        | FastAPI, Python 3.10+, SQLAlchemy 2.0, Pydantic v2, Alembic                                              |
 | **Database**       | PostgreSQL (Neon.tech) with pgvector (embeddings) and pg_trgm (fuzzy text search)                        |
 | **Auth**           | JWT via HTTP-only cookies (passlib + bcrypt)                                                             |
-| **AI**             | Anthropic Claude Haiku 4.5 / OpenAI GPT-4o-mini (LLM), OpenAI text-embedding-3-small (RAG)               |
+| **AI**             | Anthropic Claude Haiku 5.5 (default) or Haiku 4.5 / OpenAI GPT-4o-mini (LLM), OpenAI text-embedding-3-small (RAG)               |
 | **API Contract**   | OpenAPI schema → auto-generated TypeScript client (hey-api)                                              |
 | **Infrastructure** | Docker Compose (local), Render (backend), Vercel (frontend)                                              |
 
@@ -150,7 +150,7 @@ src/
 
 ```
 User ──► LLMClient (ABC)
-              ├── AnthropicClient (Claude Haiku 4.5)
+              ├── AnthropicClient (Claude Haiku 5.5 default, Haiku 4.5 selectable)
               └── OpenAIClient (GPT-4o-mini)
 
 Per-user encrypted API keys (Fernet) ──► get_user_llm_client(user)

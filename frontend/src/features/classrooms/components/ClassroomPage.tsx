@@ -21,7 +21,8 @@ import { useCourseActions } from '@/features/courses/hooks/useCourseActions';
 import { VISIBILITY_LABELS, roleLabelKey } from '@/features/courses/lib/labels';
 import { COURSE_COLUMN_CLASS } from '@/features/courses/lib/layout';
 import { courseAccess } from '@/features/courses/lib/membership';
-import { findItem, findNoteItem, isCourseViewer } from '@/features/courses/lib/progress';
+import { canDo } from '@/features/courses/lib/permissions';
+import { findItem, findNoteItem } from '@/features/courses/lib/progress';
 import { Stream } from '@/features/feed/components/Stream';
 import { NotePreviewPanel } from '@/features/files/components/NotePreviewPanel';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -114,7 +115,7 @@ export function ClassroomPage({ classroomId }: { classroomId: string }) {
         ))}
       {tab === 'classwork' && (
         <div className="flex flex-col gap-6">
-          {isCourseViewer(classroom) && <DueSoonList classroomId={classroom.id} />}
+          {canDo(classroom.myRole, 'trackProgress') && <DueSoonList classroomId={classroom.id} />}
           {courseAccess(classroom).isAuthor ? (
             <AuthorContent course={classroom} actions={actions} onOpenNote={openNote} selectedItemId={selectedItemId} />
           ) : (
@@ -208,7 +209,9 @@ function ClassroomOutline({ classroom, tabs, activeTab }: ClassroomOutlineProps)
         {classroom.description && (
           <p className="text-sm whitespace-pre-line text-muted-foreground">{classroom.description}</p>
         )}
-        {isCourseViewer(classroom) && classroom.progress && <CourseProgressBar progress={classroom.progress} />}
+        {canDo(classroom.myRole, 'trackProgress') && classroom.progress && (
+          <CourseProgressBar progress={classroom.progress} />
+        )}
         <div className="flex flex-wrap gap-1.5 text-xs">
           {classroom.myRole && <Badge>{t(roleLabelKey(classroom.myRole, true))}</Badge>}
           {!classroom.publishedAt && <Badge>{t('courses.not_published')}</Badge>}

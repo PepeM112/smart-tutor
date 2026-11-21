@@ -589,4 +589,4 @@ A teacher, a completed item, a hidden item and an item with no `due_at` get noth
 
 No milestone is open. Ideas for later (for example email notifications) are in `.claude/local/IDEAS.md`. The channel list in `notification_service` and the `space_id` FK of the feed tables are the two extension points: a new channel is a new class, and a feed for courses needs no schema change.
 
-The full plan and the decision log are in `.claude/local/TASK_CLASSROOM.md`.
+The design and its decisions are in this file and in [Decisions](decisions.md).

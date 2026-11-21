@@ -8,6 +8,7 @@ from app.core.security import decode_refresh_token
 from app.crud import user as user_crud
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
+from app.services import ai_settings_service
 from app.services.encryption import encrypt
 
 
@@ -77,6 +78,13 @@ def update_user(db: Session, *, current_user: User, data: UserUpdate) -> User:
     if "openai_api_key" in update_data:
         key = update_data.pop("openai_api_key")
         update_data["encrypted_openai_key"] = encrypt(key) if key else None
+
+    if "ai_effort" in update_data:
+        incoming = update_data["ai_effort"]
+        # Null resets every action to its default.
+        update_data["ai_effort"] = (
+            {} if incoming is None else ai_settings_service.merge_effort_update(current_user, incoming)
+        )
 
     if not update_data:
         return current_user

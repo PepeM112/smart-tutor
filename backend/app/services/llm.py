@@ -14,12 +14,14 @@ import os
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from cryptography.fernet import InvalidToken
 from fastapi import HTTPException, status
 
+from app.core.ai_settings import DEFAULT_ANTHROPIC_MODEL, EFFORT_MODELS, AiAction, AiEffort, AnthropicModel
 from app.core.enums import AIProvider, KeySource
+from app.services.ai_settings_service import anthropic_model_of, efforts_of
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -33,6 +35,12 @@ CAP_REACHED_MESSAGE = (
     "The AI budget of this classroom is used up for this month. Add your own API key in Settings to continue."
 )
 KEY_UNREADABLE_MESSAGE = "The saved AI key cannot be read. Please enter the key again."
+REFUSAL_MESSAGE = "The AI model declined to answer this request. Try rephrasing your input."
+
+# On Haiku 5.5 the thinking tokens count toward `max_tokens`. This gives the thinking room on top of the answer
+# budget of the call, so a high effort cannot use up the budget and cut the answer. Only the call site knows the
+# answer size, only the effort sets the thinking size: one table here, not a number per call site.
+THINKING_HEADROOM: dict[AiEffort, int] = {"low": 1024, "medium": 2048, "high": 4096, "xhigh": 8192, "max": 16384}
 
 
 class AIKeyError(ValueError):
@@ -44,6 +52,16 @@ class AIKeyError(ValueError):
     def __init__(self, message: str, *, cap_reached: bool = False) -> None:
         super().__init__(message)
         self.cap_reached = cap_reached
+
+
+class AIRefusalError(Exception):
+    """The model stopped with `stop_reason == "refusal"`. `str(exc)` is a message for the user.
+
+    Not a `ValueError`: a refusal is not a broken response, so callers must not treat it as one.
+    """
+
+    def __init__(self, message: str = REFUSAL_MESSAGE) -> None:
+        super().__init__(message)
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +110,8 @@ class StreamResult:
     output_tokens: int = 0
     provider: str = ""
     model: str = ""
+    # The `thinking` / `redacted_thinking` blocks of the turn, as the API needs them back with the tool results.
+    thinking_blocks: list[dict[str, object]] = field(default_factory=list)
 
 
 StreamEvent = TextDelta | ToolCallDelta
@@ -103,8 +123,11 @@ class LLMClient(ABC):
     def name(self) -> str: ...
 
     @abstractmethod
-    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
-        """Send a system + user message pair and return the text response with usage data."""
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int, effort: AiEffort) -> CompletionResult:
+        """Send a system + user message pair and return the text response with usage data.
+
+        `effort` is the level the user chose for this action. A client that has no effort control ignores it.
+        """
         ...
 
     @abstractmethod
@@ -115,6 +138,7 @@ class LLMClient(ABC):
         messages: list[dict[str, object]],
         tools: list[dict[str, object]] | None = None,
         max_tokens: int,
+        effort: AiEffort,
     ) -> Generator[StreamEvent, None, StreamResult]:
         """Stream a multi-turn conversation with optional tool definitions.
 
@@ -126,40 +150,55 @@ class LLMClient(ABC):
 
 
 class AnthropicLLMClient(LLMClient):
-    MODEL = "claude-haiku-4-5-20251001"
-
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, model: AnthropicModel = DEFAULT_ANTHROPIC_MODEL) -> None:
         from anthropic import Anthropic
 
         resolved_key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
         if not resolved_key:
             raise ValueError("ANTHROPIC_API_KEY is not set")
         self._client = Anthropic(api_key=resolved_key)
+        self.model: AnthropicModel = model
 
     @property
     def name(self) -> str:
-        return f"Anthropic ({self.MODEL})"
+        return f"Anthropic ({self.model})"
 
-    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
-        from anthropic.types import TextBlock
+    @property
+    def takes_effort(self) -> bool:
+        return self.model in EFFORT_MODELS
 
+    def _request_kwargs(self, *, max_tokens: int, effort: AiEffort) -> dict[str, object]:
+        """The model, the token budget and the effort of one request.
+
+        Only a model that takes effort gets `output_config` and the thinking headroom. Haiku 4.5 rejects the
+        field. No `thinking`, `temperature`, `top_p`, `top_k` or prefill is ever sent.
+        """
+        if not self.takes_effort:
+            return {"model": self.model, "max_tokens": max_tokens}
+        return {
+            "model": self.model,
+            "max_tokens": max_tokens + THINKING_HEADROOM[effort],
+            "output_config": {"effort": effort},
+        }
+
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int, effort: AiEffort) -> CompletionResult:
         response = self._client.messages.create(
-            model=self.MODEL,
-            max_tokens=max_tokens,
+            **self._request_kwargs(max_tokens=max_tokens, effort=effort),  # type: ignore[arg-type]
             system=system,
             messages=[{"role": "user", "content": user_prompt}],
         )
+
+        if response.stop_reason == "refusal":
+            logger.warning("Anthropic refused the request (model=%s, usage=%s)", self.model, response.usage)
+            raise AIRefusalError
 
         if not response.content:
             raise ValueError(
                 f"Empty response from Anthropic (stop_reason={response.stop_reason}, usage={response.usage})"
             )
 
-        block = response.content[0]
-        if not isinstance(block, TextBlock):
-            raise TypeError(f"Expected TextBlock, got {type(block).__name__}")
-
-        text = block.text.strip()
+        # A Haiku 5.5 response can start with `thinking` blocks: only the `text` blocks are the answer.
+        text = "".join(block.text for block in response.content if block.type == "text").strip()
         if not text:
             raise ValueError(
                 f"Anthropic returned empty text (stop_reason={response.stop_reason}, usage={response.usage})"
@@ -174,7 +213,7 @@ class AnthropicLLMClient(LLMClient):
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             provider="anthropic",
-            model=self.MODEL,
+            model=self.model,
             truncated=truncated,
         )
 
@@ -185,10 +224,10 @@ class AnthropicLLMClient(LLMClient):
         messages: list[dict[str, object]],
         tools: list[dict[str, object]] | None = None,
         max_tokens: int,
+        effort: AiEffort,
     ) -> Generator[StreamEvent, None, StreamResult]:
         kwargs: dict[str, object] = {
-            "model": self.MODEL,
-            "max_tokens": max_tokens,
+            **self._request_kwargs(max_tokens=max_tokens, effort=effort),
             "system": system,
             "messages": messages,
         }
@@ -234,8 +273,20 @@ class AnthropicLLMClient(LLMClient):
             input_tokens=final.usage.input_tokens,
             output_tokens=final.usage.output_tokens,
             provider="anthropic",
-            model=self.MODEL,
+            model=self.model,
+            thinking_blocks=_thinking_blocks(final.content),
         )
+
+
+def _thinking_blocks(content: list[Any]) -> list[dict[str, object]]:
+    """The thinking blocks of a response, with only the fields the API accepts back (the signature included)."""
+    return [
+        {"type": "thinking", "thinking": block.thinking, "signature": block.signature}
+        if block.type == "thinking"
+        else {"type": "redacted_thinking", "data": block.data}
+        for block in content
+        if block.type in ("thinking", "redacted_thinking")
+    ]
 
 
 class OpenAILLMClient(LLMClient):
@@ -253,7 +304,7 @@ class OpenAILLMClient(LLMClient):
     def name(self) -> str:
         return f"OpenAI ({self.MODEL})"
 
-    def complete(self, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
+    def complete(self, *, system: str, user_prompt: str, max_tokens: int, effort: AiEffort) -> CompletionResult:
         response = self._client.chat.completions.create(
             model=self.MODEL,
             max_tokens=max_tokens,
@@ -289,6 +340,7 @@ class OpenAILLMClient(LLMClient):
         messages: list[dict[str, object]],
         tools: list[dict[str, object]] | None = None,
         max_tokens: int,
+        effort: AiEffort,
     ) -> Generator[StreamEvent, None, StreamResult]:
         oai_messages: list[dict[str, object]] = [{"role": "system", "content": system}, *messages]
 
@@ -409,7 +461,9 @@ def get_user_llm_client(user: User) -> LLMClient:
     if provider is None or provider == AIProvider.ANTHROPIC:
         if not user.encrypted_anthropic_key:
             raise ValueError("No Anthropic API key configured")
-        return build_client(AIProvider.ANTHROPIC, decrypt_key(user.encrypted_anthropic_key))
+        return build_client(
+            AIProvider.ANTHROPIC, decrypt_key(user.encrypted_anthropic_key), model=anthropic_model_of(user)
+        )
     if provider == AIProvider.OPENAI:
         if not user.encrypted_openai_key:
             raise ValueError("No OpenAI API key configured")
@@ -417,10 +471,13 @@ def get_user_llm_client(user: User) -> LLMClient:
     raise ValueError(f"Unknown AI provider: {provider}")
 
 
-def build_client(provider: AIProvider, api_key: str) -> LLMClient:
-    """A client for one provider and one plain-text key (a user key or a Class key)."""
+def build_client(provider: AIProvider, api_key: str, *, model: AnthropicModel = DEFAULT_ANTHROPIC_MODEL) -> LLMClient:
+    """A client for one provider and one plain-text key (a user key or a Class key).
+
+    `model` is for Anthropic only. A Class key call leaves it out and gets the server default.
+    """
     if provider == AIProvider.ANTHROPIC:
-        return AnthropicLLMClient(api_key=api_key)
+        return AnthropicLLMClient(api_key=api_key, model=model)
     if provider == AIProvider.OPENAI:
         return OpenAILLMClient(api_key=api_key)
     raise ValueError(f"Unknown AI provider: {provider}")
@@ -445,7 +502,7 @@ def classify_provider_error(exc: Exception) -> HTTPException | None:
         if is_content_filter:
             logger.warning("AI output blocked by content filter: %s", message)
             return HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="The AI provider's content filter blocked this request. Try rephrasing your input.",
             )
 
@@ -476,9 +533,13 @@ def classify_provider_error(exc: Exception) -> HTTPException | None:
     return None
 
 
-def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
+def _run_completion(
+    llm: LLMClient, *, system: str, user_prompt: str, max_tokens: int, effort: AiEffort
+) -> CompletionResult:
     try:
-        return llm.complete(system=system, user_prompt=user_prompt, max_tokens=max_tokens)
+        return llm.complete(system=system, user_prompt=user_prompt, max_tokens=max_tokens, effort=effort)
+    except AIRefusalError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except (ValueError, TypeError) as exc:
         logger.error("AI provider returned unusable response: %s", exc)
         raise HTTPException(
@@ -496,7 +557,7 @@ def _run_completion(llm: LLMClient, *, system: str, user_prompt: str, max_tokens
         ) from exc
 
 
-def complete(*, system: str, user_prompt: str, max_tokens: int) -> CompletionResult:
+def complete(*, system: str, user_prompt: str, max_tokens: int, effort: AiEffort) -> CompletionResult:
     try:
         llm = get_llm_client()
     except ValueError as exc:
@@ -506,14 +567,16 @@ def complete(*, system: str, user_prompt: str, max_tokens: int) -> CompletionRes
             detail="AI service is not configured. Please contact the administrator.",
         ) from exc
 
-    return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
+    return _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens, effort=effort)
 
 
 def complete_for_user(
-    *, user: User, system: str, user_prompt: str, max_tokens: int, db: Session | None = None
+    *, user: User, action: AiAction, system: str, user_prompt: str, max_tokens: int, db: Session | None = None
 ) -> CompletionResult:
     """A personal AI call. With `db`, the key follows the classroom rules (`llm_key_service.resolve_llm`):
-    a Class key with scope ALL can pay for it. The result then says who paid, for `record_usage`."""
+    a Class key with scope ALL can pay for it. The result then says who paid, for `record_usage`.
+
+    The model and the effort of `action` are the settings of the user. A Class key call uses the defaults."""
     from app.services.llm_key_service import resolve_llm
 
     try:
@@ -527,5 +590,6 @@ def complete_for_user(
             detail=str(exc) if isinstance(exc, AIKeyError) else NO_KEY_MESSAGE,
         ) from exc
 
-    result = _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens)
+    effort = resolved.effort(action) if resolved is not None else efforts_of(user)[action]
+    result = _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens, effort=effort)
     return resolved.tag(result) if resolved is not None else result

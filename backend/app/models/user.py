@@ -27,6 +27,10 @@ class User(Base, CreatedAtMixin):
     encrypted_openai_key: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     daily_review_limit: Mapped[int | None] = mapped_column(nullable=True, default=None)
     initial_ease_factor: Mapped[float] = mapped_column(Float, default=2.5)
+    # The exact API id of the Anthropic model. NULL = the default model (`core/ai_settings.py`).
+    anthropic_model: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    # {action: effort level}. An action that is not in the map uses its default. Unknown names are ignored.
+    ai_effort: Mapped[dict[str, str] | None] = mapped_column(JSONB, nullable=True, default=dict, server_default="{}")
     # {tool_name: auto_approve}. A tool that is not in the map uses the default of its kind. Unknown names are ignored.
     ai_tool_permissions: Mapped[dict[str, bool] | None] = mapped_column(
         JSONB, nullable=True, default=dict, server_default="{}"

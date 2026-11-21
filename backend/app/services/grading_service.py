@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import NotRequired
 
+from app.core.ai_settings import DEFAULT_AI_EFFORT, AiEffort
 from app.core.enums import AIFeature, AnswerStatus, QuestionType
 from app.crud import answer as answer_crud
 from app.crud import test_result as test_result_crud
@@ -22,7 +23,7 @@ from app.models.test_result import TestResult
 from app.schemas.question import LongTextContent, RubricItem
 from app.services import space_progress_service
 from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
-from app.services.llm import CompletionResult, LLMClient
+from app.services.llm import AIRefusalError, CompletionResult, LLMClient
 from app.services.llm_key_service import resolve_llm, space_id_of_result
 
 logger = logging.getLogger("smarttutor.grading")
@@ -42,11 +43,11 @@ class CriterionResult:
 
 
 def grade(
-    llm: LLMClient, prompt: str, rubric: list[RubricItem], answer: str
+    llm: LLMClient, prompt: str, rubric: list[RubricItem], answer: str, effort: AiEffort = DEFAULT_AI_EFFORT["grading"]
 ) -> tuple[list[CriterionResult], CompletionResult]:
     """Grade a long-text answer against a rubric via the provided LLM client."""
     user_prompt = build_grading_user_prompt(prompt, rubric, answer)
-    completion = llm.complete(system=GRADING_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048)
+    completion = llm.complete(system=GRADING_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048, effort=effort)
     cleaned = strip_code_fences(completion.text)
     data: dict[str, list[_RawCriterionDict]] = json.loads(cleaned)
     criteria = [
@@ -227,7 +228,9 @@ def grade_pending_answers(test_result_id: str) -> None:
 
             try:
                 content = LongTextContent.model_validate(question.content)
-                results, completion = grade(llm, question.prompt, content.rubric, answer.user_answer)
+                results, completion = grade(
+                    llm, question.prompt, content.rubric, answer.user_answer, resolved.effort("grading")
+                )
 
                 from app.services import token_usage_service
 
@@ -258,6 +261,9 @@ def grade_pending_answers(test_result_id: str) -> None:
                     total,
                     exc,
                 )
+                answer.status = int(AnswerStatus.FAILED)
+            except AIRefusalError:
+                logger.warning("FAILED Q%d/%d -- the model refused to grade this answer", idx, total)
                 answer.status = int(AnswerStatus.FAILED)
             except (AnthropicAPIError, OpenAIAPIError) as exc:
                 logger.error(

@@ -114,9 +114,14 @@ test: ## Run tests (backend + frontend)
 	@echo "\n=== Frontend: vitest ==="
 	cd frontend && npm run test
 
-# Real-Postgres tests on the dev DB (each test is rolled back). ENVIRONMENT=test turns off the SQL echo.
-test-db: ## Run backend tests that use the real DB
-	$(DOCKER_COMPOSE) exec -e ENVIRONMENT=test backend pytest --run-db -m db tests/ -v
+# Real-Postgres tests on the local pgvector DB of docker-compose.e2e.yml, never on Neon (each test is rolled back).
+# `run --rm` starts a one-off backend container, so the dev `backend` keeps its Neon config. The guard fails the
+# run unless DATABASE_URL points at the local `db` service. ENVIRONMENT=test turns off the SQL echo.
+test-db: ## Run backend DB tests on a local Postgres (never Neon)
+	$(DOCKER_COMPOSE_E2E) run --rm -e ENVIRONMENT=test backend bash -c '\
+		python -c "import os, sys; from urllib.parse import urlparse; h = urlparse(os.environ[\"DATABASE_URL\"]).hostname; print(\"test-db DATABASE_URL host:\", h); sys.exit(0 if h == \"db\" else 1)" \
+		&& alembic upgrade head \
+		&& pytest --run-db -m db tests/ -v'
 
 install-backend: ## Install backend dependencies in container
 	$(DOCKER_COMPOSE) exec backend poetry install
@@ -212,13 +217,13 @@ seed-courses: ## Seed courses + 3 extra users for browser testing (run `make see
 	bash backend/scripts/seed_courses.sh
 
 fetch-prices: ## Fetch model prices from OpenRouter into model_pricing table
-	docker exec backend python3 /app/scripts/fetch_prices.py
+	docker exec -e PYTHONPATH=/app backend python3 /app/scripts/fetch_prices.py
 
 backfill-costs: ## Backfill estimated_cost on token_usage rows missing cost data
-	docker exec backend python3 /app/scripts/backfill_costs.py
+	docker exec -e PYTHONPATH=/app backend python3 /app/scripts/backfill_costs.py
 
 reindex-notes: ## Re-index notes with is_indexed=false (failed async embeddings)
-	docker exec backend python3 /app/scripts/reindex_notes.py
+	docker exec -e PYTHONPATH=/app backend python3 /app/scripts/reindex_notes.py
 
 clean: ## Stop services and remove containers, volumes, and local images
 	$(DOCKER_COMPOSE) down -v --rmi local

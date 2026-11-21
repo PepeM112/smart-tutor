@@ -4,7 +4,7 @@ import { Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { type SpaceRole } from '@/client';
-import { isCourseViewer } from '@/features/courses/lib/progress';
+import { canDo } from '@/features/courses/lib/permissions';
 
 import { useAiKeyStatus } from '../hooks/useClassrooms';
 import { KEY_NOTICE_TEXT, keyNoticeKind } from '../lib/keyNotice';
@@ -18,7 +18,7 @@ type Props = {
 /** Students only: which AI key pays in this classroom, as one small inline line. Teachers see nothing. */
 export function AiKeyNotice({ classroomId, myRole }: Props) {
   const t = useTranslations();
-  const isStudent = isCourseViewer({ myRole });
+  const isStudent = canDo(myRole, 'trackProgress');
   const { data: status } = useAiKeyStatus(classroomId, isStudent);
   const kind = keyNoticeKind(status, isStudent);
   if (!kind) return null;

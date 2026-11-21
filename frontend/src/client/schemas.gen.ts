@@ -74,6 +74,119 @@ export const AIProviderSchema = {
     ]
 } as const;
 
+export const AiEffortSchema = {
+    type: 'string',
+    enum: [
+        'low',
+        'medium',
+        'high',
+        'xhigh',
+        'max'
+    ]
+} as const;
+
+export const AiEffortSettingsSchema = {
+    properties: {
+        grading: {
+            $ref: '#/components/schemas/AiEffort'
+        },
+        challenge: {
+            $ref: '#/components/schemas/AiEffort'
+        },
+        noteGeneration: {
+            $ref: '#/components/schemas/AiEffort'
+        },
+        noteEdit: {
+            $ref: '#/components/schemas/AiEffort'
+        },
+        testGeneration: {
+            $ref: '#/components/schemas/AiEffort'
+        },
+        assistantChat: {
+            $ref: '#/components/schemas/AiEffort'
+        }
+    },
+    type: 'object',
+    required: [
+        'grading',
+        'challenge',
+        'noteGeneration',
+        'noteEdit',
+        'testGeneration',
+        'assistantChat'
+    ],
+    title: 'AiEffortSettings',
+    description: 'The effort level of every AI action. One field per action of `core/ai_settings.AiAction` that calls an LLM.'
+} as const;
+
+export const AiEffortUpdateSchema = {
+    properties: {
+        grading: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AiEffort'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        challenge: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AiEffort'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        noteGeneration: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AiEffort'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        noteEdit: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AiEffort'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        testGeneration: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AiEffort'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        assistantChat: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AiEffort'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    title: 'AiEffortUpdate',
+    description: 'Partial update: an action that is not set keeps its level. null resets that action to its default.'
+} as const;
+
 export const AiToolPermissionReadSchema = {
     properties: {
         name: {
@@ -260,6 +373,14 @@ export const AnswerStatusSchema = {
     ]
 } as const;
 
+export const AnthropicModelSchema = {
+    type: 'string',
+    enum: [
+        'claude-haiku-4-5-20251001',
+        'claude-haiku-5-5'
+    ]
+} as const;
+
 export const AssignQuestionRequestSchema = {
     properties: {
         testId: {
@@ -317,6 +438,20 @@ export const AssistMessageSchema = {
                 }
             ],
             title: 'Toolresults'
+        },
+        thinkingBlocks: {
+            anyOf: [
+                {
+                    items: {
+                        $ref: '#/components/schemas/ThinkingBlockData'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Thinkingblocks'
         }
     },
     type: 'object',
@@ -6423,6 +6558,58 @@ export const TestUpdateSchema = {
     title: 'TestUpdate'
 } as const;
 
+export const ThinkingBlockDataSchema = {
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'thinking',
+                'redacted_thinking'
+            ],
+            title: 'Type'
+        },
+        thinking: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Thinking'
+        },
+        signature: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Signature'
+        },
+        data: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Data'
+        }
+    },
+    type: 'object',
+    required: [
+        'type'
+    ],
+    title: 'ThinkingBlockData',
+    description: 'A `thinking` or `redacted_thinking` block of Anthropic. The values are opaque: send them back unchanged.'
+} as const;
+
 export const TokenUsageDailySummarySchema = {
     properties: {
         date: {
@@ -6863,6 +7050,12 @@ export const UserReadSchema = {
                 }
             ]
         },
+        anthropicModel: {
+            $ref: '#/components/schemas/AnthropicModel'
+        },
+        aiEffort: {
+            $ref: '#/components/schemas/AiEffortSettings'
+        },
         hasAnthropicKey: {
             type: 'boolean',
             title: 'Hasanthropickey',
@@ -6896,7 +7089,9 @@ export const UserReadSchema = {
         'email',
         'id',
         'status',
-        'role'
+        'role',
+        'anthropicModel',
+        'aiEffort'
     ],
     title: 'UserRead'
 } as const;
@@ -6973,6 +7168,26 @@ export const UserUpdateSchema = {
             anyOf: [
                 {
                     $ref: '#/components/schemas/AIProvider'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        anthropicModel: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AnthropicModel'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        aiEffort: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AiEffortUpdate'
                 },
                 {
                     type: 'null'

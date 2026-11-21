@@ -1,4 +1,5 @@
 import logging
+import re
 from decimal import Decimal
 
 import httpx
@@ -10,6 +11,13 @@ from app.crud import model_pricing as pricing_crud
 logger = logging.getLogger("smarttutor.pricing")
 
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+
+# OpenRouter can list a context variant of a model as `<id>[1m]`. The price rows use the plain id.
+_CONTEXT_VARIANT_SUFFIX = re.compile(r"\[[^\]]+\]$")
+
+
+def _canonical_id(model_id: str) -> str:
+    return _CONTEXT_VARIANT_SUFFIX.sub("", model_id)
 
 
 def fetch_and_update_prices(db: Session) -> int:
@@ -23,10 +31,11 @@ def fetch_and_update_prices(db: Session) -> int:
     response.raise_for_status()
 
     all_models = response.json().get("data", [])
-    prices: list[dict[str, str | Decimal]] = []
+    prices_by_id: dict[str, dict[str, str | Decimal]] = {}
 
     for model in all_models:
-        model_id = model.get("id", "")
+        listed_id = model.get("id", "")
+        model_id = _canonical_id(listed_id)
         if model_id not in our_models:
             continue
         # OpenRouter reports pricing as USD per single token, not per 1K/1M tokens
@@ -34,17 +43,22 @@ def fetch_and_update_prices(db: Session) -> int:
         prompt_price = pricing.get("prompt")
         completion_price = pricing.get("completion")
         if prompt_price is None or completion_price is None:
-            logger.warning("Missing pricing for %s, skipping", model_id)
+            logger.warning("Missing pricing for %s, skipping", listed_id)
             continue
 
-        prices.append(
-            {
-                "model_id": model_id,
-                "input_price": Decimal(prompt_price),
-                "output_price": Decimal(completion_price),
-            }
-        )
+        entry: dict[str, str | Decimal] = {
+            "model_id": model_id,
+            "input_price": Decimal(prompt_price),
+            "output_price": Decimal(completion_price),
+        }
+        # The plain id wins. A variant (`[1m]`) is used only when the plain id is not listed.
+        if listed_id == model_id:
+            prices_by_id[model_id] = entry
+        elif model_id not in prices_by_id:
+            logger.warning("Using the price of the variant %s for %s", listed_id, model_id)
+            prices_by_id[model_id] = entry
 
+    prices = list(prices_by_id.values())
     if not prices:
         logger.warning("No matching models found in OpenRouter response")
         return 0

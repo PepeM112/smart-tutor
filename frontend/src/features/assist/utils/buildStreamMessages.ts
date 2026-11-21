@@ -1,11 +1,19 @@
-import type { AssistMessage, ToolCallData, ToolConfirmation, ToolResultData } from '../types';
+import type { AssistMessage, ThinkingBlockData, ToolCallData, ToolConfirmation, ToolResultData } from '../types';
 
 export const DECLINED_OUTPUT = 'User declined this action.';
 export const INTERRUPTED_OUTPUT = 'The action did not finish.';
 
-type StreamOutcome = {
+/** One model response of a stream: its text, its tool calls and its thinking blocks. */
+export type StreamRound = {
   text: string;
   toolCalls: ToolCallData[];
+  /** As the provider sent them. Kept on the assistant message of this round. */
+  thinkingBlocks?: ThinkingBlockData[];
+};
+
+type StreamOutcome = {
+  rounds: StreamRound[];
+  /** The results of the whole stream: the read tools of every round and the approved tools of the previous turn. */
   toolResults: ToolResultData[];
   /** Decisions sent with the request that started this stream (a resumed stream after approval). */
   confirmations?: ToolConfirmation[];
@@ -29,29 +37,36 @@ function confirmationResults(
 /**
  * Conversation messages to store after a stream ends with `done`.
  *
- * Both providers need the result of a tool call in the message right after the assistant
- * message that holds the call. A resumed stream receives the result of the approved tool
- * (and the decline text of the others) first, so those go BEFORE the new assistant message.
- * The results of the tool calls of this stream (read tools) go after it.
+ * The history must match what the model saw: one assistant message per round, each followed by
+ * the results of its own tool calls. Haiku 5.5 checks the thinking signatures against that
+ * conversation. Both providers need the result of a tool call in the message right after the
+ * assistant message that holds the call. A resumed stream receives the result of the approved
+ * tool (and the decline text of the others) first, so those go BEFORE the first new assistant
+ * message. The results of the read tools of a round go right after that round.
  */
-export function buildStreamMessages({
-  text,
-  toolCalls,
-  toolResults,
-  confirmations = [],
-}: StreamOutcome): AssistMessage[] {
-  const decidedIds = new Set(confirmations.map(c => c.toolCallId));
-  const ownResults = toolResults.filter(r => !decidedIds.has(r.toolCallId));
+export function buildStreamMessages({ rounds, toolResults, confirmations = [] }: StreamOutcome): AssistMessage[] {
   const decided = confirmationResults(confirmations, toolResults, INTERRUPTED_OUTPUT);
 
-  const messages: AssistMessage[] = [];
-  if (decided.length > 0) messages.push({ role: 'tool', content: '', toolResults: decided });
-  // An empty assistant message (a stream that only failed) would be rejected by the provider.
-  if (text || toolCalls.length > 0) {
-    messages.push({ role: 'assistant', content: text, toolCalls: toolCalls.length > 0 ? toolCalls : undefined });
-  }
-  if (ownResults.length > 0) messages.push({ role: 'tool', content: '', toolResults: ownResults });
-  return messages;
+  const roundMessages = rounds
+    // An empty assistant message (a stream that only failed) would be rejected by the provider.
+    .filter(({ text, toolCalls }) => text || toolCalls.length > 0)
+    .flatMap(({ text, toolCalls, thinkingBlocks }): AssistMessage[] => {
+      const ownResults = toolResults.filter(r => toolCalls.some(tc => tc.id === r.toolCallId));
+      return [
+        {
+          role: 'assistant',
+          content: text,
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          ...(thinkingBlocks?.length && { thinkingBlocks }),
+        },
+        ...(ownResults.length > 0 ? [{ role: 'tool' as const, content: '', toolResults: ownResults }] : []),
+      ];
+    });
+
+  return [
+    ...(decided.length > 0 ? [{ role: 'tool' as const, content: '', toolResults: decided }] : []),
+    ...roundMessages,
+  ];
 }
 
 /**

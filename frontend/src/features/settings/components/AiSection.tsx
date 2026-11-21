@@ -4,12 +4,14 @@ import { Check, Eye, EyeOff, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { AiProvider } from '@/client';
+import { AiProvider, type AnthropicModel } from '@/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+
+import { MODEL_LABEL_KEYS } from '../aiModel';
 
 import { SettingsSection } from './SettingsSection';
 
@@ -18,6 +20,7 @@ import type { SettingsForm, UpdateField } from '../types';
 type Props = {
   form: Pick<SettingsForm, 'aiProvider' | 'anthropicApiKey' | 'openaiApiKey'>;
   updateField: UpdateField;
+  anthropicModel: AnthropicModel;
   hasAnthropicKey: boolean;
   hasOpenaiKey: boolean;
   removeKey: (provider: 'anthropic' | 'openai') => void;
@@ -25,11 +28,19 @@ type Props = {
 };
 
 const PROVIDERS = [
-  { value: AiProvider.ANTHROPIC, labelKey: 'settings.anthropic', modelKey: 'settings.model_claude_haiku' },
-  { value: AiProvider.OPENAI, labelKey: 'settings.openai', modelKey: 'settings.model_gpt4o_mini' },
+  { value: AiProvider.ANTHROPIC, labelKey: 'settings.anthropic' },
+  { value: AiProvider.OPENAI, labelKey: 'settings.openai' },
 ] as const;
 
-export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, removeKey, isRemovingKey }: Props) {
+export function AiSection({
+  form,
+  updateField,
+  anthropicModel,
+  hasAnthropicKey,
+  hasOpenaiKey,
+  removeKey,
+  isRemovingKey,
+}: Props) {
   const t = useTranslations();
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
@@ -41,7 +52,7 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
         <div className="space-y-2">
           <Label>{t('settings.ai_provider')}</Label>
           <div className="flex gap-2">
-            {PROVIDERS.map(({ value, labelKey, modelKey }) => (
+            {PROVIDERS.map(({ value, labelKey }) => (
               <button
                 key={value}
                 onClick={() => updateField('aiProvider', value)}
@@ -53,7 +64,9 @@ export function AiSection({ form, updateField, hasAnthropicKey, hasOpenaiKey, re
                 )}
               >
                 <span className="font-medium">{t(labelKey)}</span>
-                <span className="text-xs opacity-70">{t(modelKey)}</span>
+                <span className="text-xs opacity-70">
+                  {t(value === AiProvider.ANTHROPIC ? MODEL_LABEL_KEYS[anthropicModel] : 'settings.model_gpt4o_mini')}
+                </span>
               </button>
             ))}
           </div>

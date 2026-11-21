@@ -23,11 +23,22 @@ class ToolResultData(BaseSchema):
     output: object
 
 
+class ThinkingBlockData(BaseSchema):
+    """A `thinking` or `redacted_thinking` block of Anthropic. The values are opaque: send them back unchanged."""
+
+    type: Literal["thinking", "redacted_thinking"]
+    thinking: str | None = None
+    signature: str | None = None
+    data: str | None = None
+
+
 class AssistMessage(BaseSchema):
     role: Literal["user", "assistant", "tool"]
     content: str = ""
     tool_calls: list[ToolCallData] | None = None
     tool_results: list[ToolResultData] | None = None
+    # The blocks of this round. Haiku 5.5 needs them back with the tool calls of the same message.
+    thinking_blocks: list[ThinkingBlockData] | None = None
 
 
 class ToolConfirmation(BaseSchema):

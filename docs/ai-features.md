@@ -26,10 +26,41 @@ In Settings, a user:
 1. Picks a preferred provider — Anthropic or OpenAI.
 2. Pastes an API key for that provider. A key for the other provider can also be stored, but only the preferred provider's key is used for AI calls.
 
-| Provider  | Model            |
-| --------- | ---------------- |
-| Anthropic | Claude Haiku 4.5 |
-| OpenAI    | GPT-4o-mini      |
+| Provider  | Model                                              |
+| --------- | -------------------------------------------------- |
+| Anthropic | Claude Haiku 5.5 (default) or Claude Haiku 4.5     |
+| OpenAI    | GPT-4o-mini                                        |
+
+### Anthropic model and effort
+
+A user picks the Anthropic model (`user.anthropic_model`, the exact API id: `claude-haiku-5-5` or `claude-haiku-4-5-20251001`). NULL means the default, Haiku 5.5. The user also picks an effort per AI action (`user.ai_effort`, JSONB, one level per action). The Literals, the defaults and the resolvers live in `core/ai_settings.py`. `UserRead` always returns the resolved model and the full effort map, typed (`AnthropicModel`, `AiEffortSettings`). `UserUpdate.ai_effort` is a partial `AiEffortUpdate`: the server merges it into the stored map, and `null` resets all. Stored maps with an unknown action key still load: the resolver ignores that key. Answer correction uses Levenshtein, so it has no effort.
+
+| Action (`AiAction`) | Default effort | Call site                                                          |
+| ------------------- | -------------- | ------------------------------------------------------------------ |
+| `grading`           | high           | `grading_service.grade`                                            |
+| `challenge`         | high           | `challenge_service.process_challenge`                              |
+| `test_generation`   | high           | `test_generation_service._call_and_validate`                       |
+| `note_generation`   | medium         | `note_service.generate_note`                                       |
+| `note_edit`         | medium         | `note_service.preview_refine_note`, `note_service.edit_note_chunk` |
+| `assistant_chat`    | medium         | `assist_service.stream_assist`                                     |
+
+Rules in `services/llm.py`:
+
+- Haiku 5.5 gets `output_config={"effort": ...}`. Haiku 4.5 and OpenAI get no effort and no `thinking` parameter. No call sends `temperature`, `top_p`, `top_k` or a prefill.
+- Thinking counts toward `max_tokens` on Haiku 5.5. `THINKING_HEADROOM` (effort to extra tokens) is added in one place, `_request_kwargs`, so no call site changes its own limit.
+- The response is read by block `type`: the `text` blocks are joined, `thinking` and `redacted_thinking` blocks are ignored. A response with no text is an error, not an empty answer.
+- In the Assistant tool loop the `thinking` blocks of a round go back first and unchanged, before the `tool_use` blocks. The API needs the blocks of every assistant message in the open tool loop to keep the reasoning chain.
+- At the end of each round that ends with tool calls, the stream sends a `round_end` event with the blocks of that round (`thinking_blocks`). The client stores one assistant message per round and keeps the blocks on it (`AssistMessage.thinking_blocks`). It sends them back byte for byte with the next request, for example the approval of a write tool, so the history is `assistant[t1, A] → user[result A] → assistant[t2, B]` as the model saw it. `_to_anthropic_messages` puts the blocks first in their own message on Haiku 5.5 only. It drops them for Haiku 4.5 and OpenAI, which reject blocks they did not produce.
+- A Class key (see below) always uses the server default model and the default effort of each action. The student's settings do not apply.
+- `token_usage.model` records the model that ran (`CompletionResult.model`).
+
+### Refusals
+
+Haiku 5.5 can end a response with `stop_reason == "refusal"`. The client raises `AIRefusalError`, never a 500:
+
+- Request/response routes (`complete_for_user`): HTTP 422 with a clear `detail`.
+- Assistant stream: an SSE `error` event, then `done` (the tokens of the refused round are still booked).
+- Async grading and challenges: the answer is marked `FAILED` (grading) or the challenge is marked failed. The reason is only logged.
 
 ### Key storage
 

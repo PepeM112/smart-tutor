@@ -33,6 +33,8 @@ from app.services.assist_tools import (
 )
 from app.services.llm import (
     AIKeyError,
+    AIRefusalError,
+    AnthropicLLMClient,
     CompletionResult,
     StreamEvent,
     StreamResult,
@@ -145,8 +147,13 @@ def _history_outcomes(results: list[ToolResultData]) -> list[_ToolOutcome]:
     return [_ToolOutcome(tr.tool_call_id, str(tr.output)) for tr in results]
 
 
-def _to_anthropic_messages(messages: list[AssistMessage]) -> list[dict[str, Any]]:
-    """Convert our schema messages to Anthropic's message format."""
+def _to_anthropic_messages(messages: list[AssistMessage], *, keep_thinking: bool = False) -> list[dict[str, Any]]:
+    """Convert our schema messages to Anthropic's message format.
+
+    `keep_thinking` is true only for a model that thinks (Haiku 5.5). The user can change model between two requests,
+    and Haiku 4.5 rejects thinking blocks it did not produce. The history has one assistant message per round, each
+    with the blocks of its own round: the API needs the blocks of every assistant message of the open tool loop.
+    """
     out: list[dict[str, Any]] = []
 
     for msg in _repair_tool_result_order(messages):
@@ -155,6 +162,9 @@ def _to_anthropic_messages(messages: list[AssistMessage]) -> list[dict[str, Any]
 
         elif msg.role == "assistant":
             content: list[dict[str, Any]] = []
+            if keep_thinking and msg.thinking_blocks:
+                # First, and unchanged: the signature covers the block.
+                content.extend(block.model_dump(exclude_none=True) for block in msg.thinking_blocks)
             if msg.content:
                 content.append({"type": "text", "text": msg.content})
             if msg.tool_calls:
@@ -307,6 +317,8 @@ def stream_assist(
         if isinstance(exc, AIKeyError):
             logger.warning("No AI key for the assistant: %s", exc)
             yield _sse("error", {"message": str(exc)})
+        elif isinstance(exc, AIRefusalError):
+            yield _sse("error", {"message": str(exc)})
         elif classified:
             logger.warning("Provider error in stream_assist: %s", classified.detail)
             yield _sse("error", {"message": str(classified.detail)})
@@ -344,7 +356,8 @@ def _stream_assist_inner(
 
     history = _repair_tool_result_order(request.messages)
     if is_anthropic:
-        provider_messages = _to_anthropic_messages(history)
+        keep_thinking = isinstance(llm, AnthropicLLMClient) and llm.takes_effort
+        provider_messages = _to_anthropic_messages(history, keep_thinking=keep_thinking)
         tool_defs = get_tool_definitions_anthropic()
     else:
         provider_messages = _to_openai_messages(history)
@@ -365,9 +378,15 @@ def _stream_assist_inner(
             messages=provider_messages,
             tools=tool_defs or None,
             max_tokens=MAX_TOKENS,
+            effort=resolved.effort("assistant_chat"),
         )
         stream_result = yield from _relay_text(stream)
         usage.add(stream_result)
+
+        # Raised after `usage.add`, so the tokens of the refused round are still booked.
+        if stream_result.stop_reason == "refusal":
+            logger.warning("The model refused the assistant request")
+            raise AIRefusalError
 
         logger.info(
             "Round %d: stop_reason=%s, tool_calls=%d, text_len=%d",
@@ -405,11 +424,15 @@ def _stream_assist_inner(
                 if context:
                     event_data["context"] = context
                 yield _sse("confirm_required", event_data)
+            yield _round_end(stream_result)
             return {"pending_confirmations": [wc.id for wc in confirm_calls]}
+
+        yield _round_end(stream_result)
 
         # Feed auto-executed tool results back into the conversation
         if is_anthropic:
-            assistant_content: list[dict[str, Any]] = []
+            # The thinking blocks of this turn go first and unchanged: the API rejects the tool results otherwise.
+            assistant_content: list[dict[str, Any]] = [*stream_result.thinking_blocks]
             if stream_result.text:
                 assistant_content.append({"type": "text", "text": stream_result.text})
             for tc in stream_result.tool_calls:
@@ -437,6 +460,16 @@ def _stream_assist_inner(
 
     yield _sse("error", {"message": "Too many tool rounds. Please try a simpler request."})
     return {}
+
+
+def _round_end(result: StreamResult) -> str:
+    """Close a round that ended with tool calls.
+
+    The client stores one assistant message per round, with the text, tool calls and thinking blocks of that
+    round. It sends the blocks back unchanged, and Haiku 5.5 can answer 400 without them. The last round of a
+    stream has no tool calls and needs no event: `done` closes it.
+    """
+    return _sse("round_end", {"thinking_blocks": result.thinking_blocks})
 
 
 def _relay_text(stream: Generator[StreamEvent, None, StreamResult]) -> Generator[str, None, StreamResult]:

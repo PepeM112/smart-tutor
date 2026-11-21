@@ -292,6 +292,7 @@ def generate_note(db: Session, *, current_user: User, data: NoteGenerate) -> Not
 
     result = complete_for_user(
         user=current_user,
+        action="note_generation",
         system=NOTE_GENERATION_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=max_tokens,
@@ -333,6 +334,7 @@ def preview_refine_note(db: Session, *, note_id: str, current_user: User, instru
 
     result = complete_for_user(
         user=current_user,
+        action="note_edit",
         system=NOTE_REFINEMENT_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=_edit_max_tokens(note.content),
@@ -355,6 +357,7 @@ def edit_note_chunk(db: Session, *, note_id: str, current_user: User, data: Note
 
     result = complete_for_user(
         user=current_user,
+        action="note_edit",
         system=NOTE_CHUNK_EDIT_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=_edit_max_tokens(data.selected_text),

@@ -1,6 +1,7 @@
 import {
   BarChart2,
   BookOpen,
+  FlaskConical,
   Folder,
   GraduationCap,
   Grid3X3,
@@ -11,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 
+import { UserRole } from '@/client';
 import { Routes } from '@/lib/routes';
 
 import type { LucideIcon } from 'lucide-react';
@@ -25,6 +27,8 @@ export type NavItem = {
   href: string | null;
   icon: LucideIcon;
   disabled?: boolean;
+  /** Only users with this role see the item. Leave it out for an item for everyone. */
+  requiredRole?: UserRole;
 };
 
 export type NavSection = {
@@ -44,6 +48,7 @@ export const NAV_ITEMS = {
   classrooms: { labelKey: 'sidebar.classrooms', href: Routes.CLASSROOMS, icon: School },
   history: { labelKey: 'sidebar.test_history', href: Routes.HISTORY, icon: History },
   stats: { labelKey: 'sidebar.progress_stats', href: Routes.STATS, icon: BarChart2, disabled: true },
+  sandbox: { labelKey: 'sidebar.sandbox', href: Routes.SANDBOX, icon: FlaskConical, requiredRole: UserRole.ADMIN },
 } satisfies Record<string, NavItem>;
 
 export const NAV_SECTIONS: NavSection[] = [
@@ -52,6 +57,9 @@ export const NAV_SECTIONS: NavSection[] = [
   { labelKey: 'sidebar.spaces', items: [NAV_ITEMS.courses, NAV_ITEMS.classrooms] },
   { labelKey: 'sidebar.analytics', items: [NAV_ITEMS.history, NAV_ITEMS.stats] },
 ];
+
+/** Last section of the sidebar, after the favorites. A user without the role gets no section at all. */
+export const ADMIN_SECTION: NavSection = { labelKey: 'sidebar.admin', items: [NAV_ITEMS.sandbox] };
 
 /** The plain link tabs of the phone bar. It also has the AI and Spaces tabs, which are not links, and More. */
 export const TAB_ITEMS: NavItem[] = [NAV_ITEMS.dashboard, NAV_ITEMS.files];
@@ -65,9 +73,22 @@ export const MORE_ITEMS: NavItem[] = [
   NAV_ITEMS.questions,
   NAV_ITEMS.history,
   NAV_ITEMS.trash,
+  NAV_ITEMS.sandbox,
 ];
 
 export function isNavItemActive(item: NavItem, pathname: string): boolean {
   if (item.isActive !== undefined) return item.isActive;
   return item.href !== null && (pathname === item.href || pathname.startsWith(item.href + '/'));
+}
+
+/** The items this role can see. The one filter for the sidebar, the tab bar and the More sheet. */
+export function visibleNavItems(items: NavItem[], role: UserRole | undefined): NavItem[] {
+  return items.filter(item => item.requiredRole === undefined || item.requiredRole === role);
+}
+
+/** Same filter for sections. A section with no visible item is dropped, so no empty heading shows. */
+export function visibleNavSections(sections: NavSection[], role: UserRole | undefined): NavSection[] {
+  return sections
+    .map(section => ({ ...section, items: visibleNavItems(section.items, role) }))
+    .filter(section => section.items.length > 0);
 }

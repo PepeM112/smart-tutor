@@ -16,6 +16,7 @@ import { usePermissionDraft } from '../hooks/usePermissionDraft';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 import { buildSettingsPayload, DEFAULT_EASE_FACTOR, getDirtyTabs, parseSettingsTab, SETTINGS_TABS } from '../utils';
 
+import { AiModelSection } from './AiModelSection';
 import { AiPermissionsSection } from './AiPermissionsSection';
 import { AiSection } from './AiSection';
 import { AppearanceSection } from './AppearanceSection';
@@ -120,11 +121,13 @@ export function SettingsPage() {
           <AiSection
             form={form}
             updateField={updateField}
+            anthropicModel={user.anthropicModel}
             hasAnthropicKey={hasAnthropicKey}
             hasOpenaiKey={hasOpenaiKey}
             removeKey={removeKey}
             isRemovingKey={isRemovingKey}
           />
+          <AiModelSection provider={form.aiProvider} />
           <AiPermissionsSection
             permissions={permissionDraft.permissions}
             isLoading={permissionDraft.isLoading}

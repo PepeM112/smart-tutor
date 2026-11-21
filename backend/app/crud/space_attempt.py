@@ -15,15 +15,6 @@ def get(db: Session, *, attempt_id: str, for_update: bool = False) -> SpaceAttem
     return db.scalars(stmt.with_for_update() if for_update else stmt).first()
 
 
-def get_open(db: Session, *, user_id: str, item_id: str) -> SpaceAttempt | None:
-    stmt = select(SpaceAttempt).where(
-        SpaceAttempt.user_id == user_id,
-        SpaceAttempt.item_id == item_id,
-        SpaceAttempt.status == int(AttemptStatus.OPEN),
-    )
-    return db.scalars(stmt).first()
-
-
 def has_live_open(db: Session, *, user_id: str, now: datetime, grace_seconds: int) -> bool:
     """True when the user has an OPEN attempt that is not past its deadline plus grace (no deadline: always live)."""
     deadline_limit = now - timedelta(seconds=grace_seconds)

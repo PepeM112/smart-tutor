@@ -2,6 +2,7 @@ from typing import Literal
 
 from pydantic import field_validator, model_validator
 
+from app.core.ai_settings import AiEffort, AnthropicModel, resolve_anthropic_model, resolve_effort_map
 from app.core.enums import AIProvider, UserRole, UserStatus
 from app.schemas.base import BaseSchema
 
@@ -9,6 +10,28 @@ ToolKind = Literal["read", "write"]
 ThemeMode = Literal["light", "dark", "system"]
 
 VALID_LOCALES = {"en", "es"}
+
+
+class AiEffortSettings(BaseSchema):
+    """The effort level of every AI action. One field per action of `core/ai_settings.AiAction` that calls an LLM."""
+
+    grading: AiEffort
+    challenge: AiEffort
+    note_generation: AiEffort
+    note_edit: AiEffort
+    test_generation: AiEffort
+    assistant_chat: AiEffort
+
+
+class AiEffortUpdate(BaseSchema):
+    """Partial update: an action that is not set keeps its level. null resets that action to its default."""
+
+    grading: AiEffort | None = None
+    challenge: AiEffort | None = None
+    note_generation: AiEffort | None = None
+    note_edit: AiEffort | None = None
+    test_generation: AiEffort | None = None
+    assistant_chat: AiEffort | None = None
 
 
 class UserBase(BaseSchema):
@@ -25,6 +48,10 @@ class UserUpdate(BaseSchema):
     locale: str | None = None
     theme: ThemeMode | None = None
     ai_provider: AIProvider | None = None
+    # null resets to the default model.
+    anthropic_model: AnthropicModel | None = None
+    # null resets every action to its default.
+    ai_effort: AiEffortUpdate | None = None
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None
     daily_review_limit: int | None = None
@@ -72,6 +99,10 @@ class UserRead(UserBase):
     locale: str = "en"
     theme: ThemeMode = "system"
     ai_provider: AIProvider | None = None
+    # The model that runs and the level of every action: the saved values with the defaults merged in.
+    # Required in the API: `_compute_key_flags` always fills them, so the client never has to handle a gap.
+    anthropic_model: AnthropicModel
+    ai_effort: AiEffortSettings
     has_anthropic_key: bool = False
     has_openai_key: bool = False
     daily_review_limit: int | None = None
@@ -86,6 +117,8 @@ class UserRead(UserBase):
             # `getattr` and not `vars()`: `vars()` misses attributes that are expired or not loaded yet.
             names = [*cls.model_fields, "encrypted_anthropic_key", "encrypted_openai_key"]
             values = {name: value for name in names if (value := getattr(data, name, _MISSING)) is not _MISSING}
+        values["anthropic_model"] = resolve_anthropic_model(values.get("anthropic_model"))
+        values["ai_effort"] = resolve_effort_map(values.get("ai_effort"))
         values["has_anthropic_key"] = bool(values.get("encrypted_anthropic_key"))
         values["has_openai_key"] = bool(values.get("encrypted_openai_key"))
         return values
