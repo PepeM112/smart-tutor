@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
+import { QuestionTagsField } from './QuestionTagsField';
+
 type Props = {
   question?: QuestionRead;
 };
@@ -27,6 +29,7 @@ type SimpleFormData = {
   hint: string;
   explanation: string;
   points: number;
+  tags: string[];
 };
 
 type MCChoice = { text: string; isCorrect: boolean };
@@ -37,11 +40,13 @@ type MCFormData = {
   hint: string;
   explanation: string;
   points: number;
+  tags: string[];
 };
 
 export function QuestionForm({ question }: Props) {
   const t = useTranslations();
   const typeSelectId = useId();
+  const tagsId = useId();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isEditing = !!question;
@@ -75,6 +80,7 @@ export function QuestionForm({ question }: Props) {
         hint: simpleData.hint || null,
         explanation: simpleData.explanation || null,
         points: simpleData.points,
+        tags: simpleData.tags,
       };
     }
     return {
@@ -87,12 +93,13 @@ export function QuestionForm({ question }: Props) {
       hint: mcData.hint || null,
       explanation: mcData.explanation || null,
       points: mcData.points,
+      tags: mcData.tags,
     };
   }
 
   type SharedField = keyof SimpleFormData & keyof MCFormData;
   const data = questionType === QuestionType.SIMPLE ? simpleData : mcData;
-  const setField = (field: SharedField, value: string | number) => {
+  const setField = (field: SharedField, value: string | number | string[]) => {
     if (questionType === QuestionType.SIMPLE) {
       setSimpleData(prev => ({ ...prev, [field]: value }));
     } else {
@@ -163,6 +170,11 @@ export function QuestionForm({ question }: Props) {
           onChange={e => setField('explanation', e.target.value)}
           placeholder={t('questions.explanation_placeholder')}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={tagsId}>{t('questions.tags_label')}</Label>
+        <QuestionTagsField id={tagsId} value={data.tags} onChange={tags => setField('tags', tags)} />
       </div>
 
       <div className="flex items-center gap-2 pt-2">
@@ -284,9 +296,10 @@ function initSimpleData(q?: QuestionRead): SimpleFormData {
       hint: q.hint ?? '',
       explanation: q.explanation ?? '',
       points: q.points ?? 1,
+      tags: q.tags ?? [],
     };
   }
-  return { prompt: '', answers: [''], hint: '', explanation: '', points: 1 };
+  return { prompt: '', answers: [''], hint: '', explanation: '', points: 1, tags: [] };
 }
 
 function initMCData(q?: QuestionRead): MCFormData {
@@ -302,6 +315,7 @@ function initMCData(q?: QuestionRead): MCFormData {
       hint: q.hint ?? '',
       explanation: q.explanation ?? '',
       points: q.points ?? 1,
+      tags: q.tags ?? [],
     };
   }
   return {
@@ -313,5 +327,6 @@ function initMCData(q?: QuestionRead): MCFormData {
     hint: '',
     explanation: '',
     points: 1,
+    tags: [],
   };
 }

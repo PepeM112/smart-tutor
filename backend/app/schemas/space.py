@@ -18,8 +18,8 @@ from app.core.enums import (
     SpaceVisibility,
 )
 from app.schemas.base import BaseSchema
-from app.schemas.note import normalize_tags
 from app.schemas.pagination import PaginatedResponse
+from app.schemas.tags import normalize_tags
 from app.schemas.test import TestReadStripped
 
 SPACE_DESCRIPTION_MAX = 5000

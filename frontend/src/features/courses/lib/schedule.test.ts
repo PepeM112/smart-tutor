@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fromLocalInputValue, isHiddenByVisibleFrom, scheduleLabels, toLocalInputValue, windowState } from './schedule';
+import { isHiddenByVisibleFrom, scheduleLabels, windowState } from './schedule';
 
 const now = new Date(2026, 4, 10, 12, 0);
 const at = (hours: number): Date => new Date(now.getTime() + hours * 3_600_000);
@@ -53,19 +53,5 @@ describe('scheduleLabels', () => {
 
   it('gives nothing for an item with no schedule', () => {
     expect(scheduleLabels({}, now, true)).toEqual([]);
-  });
-});
-
-describe('datetime-local conversion', () => {
-  it('round-trips a local date', () => {
-    const value = toLocalInputValue(new Date(2026, 0, 5, 9, 7));
-    expect(value).toBe('2026-01-05T09:07');
-    expect(fromLocalInputValue(value)).toEqual(new Date(2026, 0, 5, 9, 7));
-  });
-
-  it('gives empty text for no date and null for empty or bad text', () => {
-    expect(toLocalInputValue(null)).toBe('');
-    expect(fromLocalInputValue('')).toBeNull();
-    expect(fromLocalInputValue('nope')).toBeNull();
   });
 });

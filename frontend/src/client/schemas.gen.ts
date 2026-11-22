@@ -3203,6 +3203,14 @@ export const QuestionCreateSchema = {
             type: 'number',
             title: 'Points',
             default: 1
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
         }
     },
     type: 'object',
@@ -3263,6 +3271,14 @@ export const QuestionCreateStandaloneSchema = {
             type: 'number',
             title: 'Points',
             default: 1
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
         }
     },
     type: 'object',
@@ -3413,6 +3429,14 @@ export const QuestionListReadSchema = {
             title: 'Points',
             default: 1
         },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
+        },
         originId: {
             anyOf: [
                 {
@@ -3534,6 +3558,14 @@ export const QuestionReadSchema = {
             type: 'number',
             title: 'Points',
             default: 1
+        },
+        tags: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Tags',
+            default: []
         },
         id: {
             type: 'string',
@@ -3741,6 +3773,20 @@ export const QuestionUpdateSchema = {
                 }
             ],
             title: 'Points'
+        },
+        tags: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Tags'
         }
     },
     type: 'object',
@@ -7034,11 +7080,34 @@ export const UserReadSchema = {
             type: 'string',
             enum: [
                 'light',
+                'light-frame',
+                'light-ink',
+                'light-ink-frame',
                 'dark',
                 'system'
             ],
             title: 'Theme',
             default: 'system'
+        },
+        timeFormat: {
+            type: 'string',
+            enum: [
+                '12h',
+                '24h'
+            ],
+            title: 'Timeformat',
+            default: '24h'
+        },
+        timezone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Timezone'
         },
         aiProvider: {
             anyOf: [
@@ -7154,6 +7223,9 @@ export const UserUpdateSchema = {
                     type: 'string',
                     enum: [
                         'light',
+                        'light-frame',
+                        'light-ink',
+                        'light-ink-frame',
                         'dark',
                         'system'
                     ]
@@ -7163,6 +7235,32 @@ export const UserUpdateSchema = {
                 }
             ],
             title: 'Theme'
+        },
+        timeFormat: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        '12h',
+                        '24h'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Timeformat'
+        },
+        timezone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Timezone'
         },
         aiProvider: {
             anyOf: [

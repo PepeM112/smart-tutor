@@ -1,10 +1,12 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { type UserRead, type UserUpdate } from '@/client';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
+
+import { overlayUnconfirmed } from './unconfirmedUserChanges';
 
 import type { UseMutationResult } from '@tanstack/react-query';
 
@@ -26,6 +28,7 @@ type UpdateUserHandlers = {
  */
 export function useUpdateUser(handlers: UpdateUserHandlers = {}): UseMutationResult<UserRead, Error, UserUpdate> {
   const t = useTranslations();
+  const queryClient = useQueryClient();
   const setUser = useAuthStore(s => s.setUser);
 
   return useMutation({
@@ -33,7 +36,11 @@ export function useUpdateUser(handlers: UpdateUserHandlers = {}): UseMutationRes
     mutationFn: async (body: UserUpdate): Promise<UserRead> => (await sdk.usersUpdateMe({ body })).data!,
     onMutate: body => handlers.onMutate?.(body),
     onSuccess: (updatedUser, body) => {
-      setUser(updatedUser);
+      // A response never undoes a change the user made after this request was sent (see `useDebouncedUpdateUser`).
+      const shownUser = overlayUnconfirmed(updatedUser);
+      setUser(shownUser);
+      // Readers of the `me` query (AuthGuard) get the new values at once, with no refetch.
+      queryClient.setQueryData<{ data?: UserRead }>(['me'], current => current && { ...current, data: shownUser });
       toast.success(t('settings.settings_saved'));
       handlers.onSuccess?.(updatedUser, body);
     },

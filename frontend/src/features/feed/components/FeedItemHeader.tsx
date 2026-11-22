@@ -6,6 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { type FeedAuthor } from '@/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDateTime } from '@/lib/datetime';
 import { formatRelativeTime } from '@/lib/relativeTime';
 
 import { authorName, isEdited } from '../lib/feedItem';
@@ -41,6 +43,7 @@ export function FeedItemHeader({
 }: FeedItemHeaderProps) {
   const t = useTranslations('feed');
   const locale = useLocale();
+  const prefs = useDateTimePrefs();
 
   return (
     <div className="flex items-start justify-between gap-2">
@@ -48,7 +51,7 @@ export function FeedItemHeader({
         <span className="truncate text-sm font-medium text-foreground">{authorName(author)}</span>
         <time
           dateTime={createdAt.toISOString()}
-          title={createdAt.toLocaleString(locale)}
+          title={formatDateTime(createdAt, prefs)}
           className="text-xs text-muted-foreground"
         >
           {formatRelativeTime(createdAt, locale)}

@@ -54,13 +54,14 @@ def user(db_session: Session) -> User:
     return new_user
 
 
-def _q(prompt: str, *, order: int = 0, points: float = 1.0) -> QuestionCreate:
+def _q(prompt: str, *, order: int = 0, points: float = 1.0, tags: list[str] | None = None) -> QuestionCreate:
     return QuestionCreate(
         question_type=QuestionType.SIMPLE,
         prompt=prompt,
         content=SimpleContent(answers=["x"]),
         order=order,
         points=points,
+        tags=tags or [],
     )
 
 
@@ -285,3 +286,128 @@ class TestDeletedQuestionsAreMissing:
 
         assert context is not None
         assert [q["id"] for q in context["questions_to_remove"]] == [solo.id]
+
+
+# ---------------------------------------------------------------------------
+# Tags: filter, tag list, copies
+# ---------------------------------------------------------------------------
+
+
+def _tagged(db: Session, user: User, prompt: str, tags: list[str]) -> Question:
+    data = QuestionCreateStandalone(
+        question_type=QuestionType.SIMPLE, prompt=prompt, content=SimpleContent(answers=["x"]), tags=tags
+    )
+    return question_service.create_question(db, current_user=user, data=data)
+
+
+@pytest.fixture
+def other_user(db_session: Session) -> User:
+    tag = str(ULID()).lower()
+    new_user = User(username=f"dbother-{tag}", email=f"dbother-{tag}@example.com", hashed_password="x")
+    db_session.add(new_user)
+    db_session.flush()
+    return new_user
+
+
+def test_create_question_saves_normalized_tags(db_session: Session, user: User) -> None:
+    question = _tagged(db_session, user, "a", [" Geo ", "geo", "History"])
+    assert question.tags == ["geo", "history"]
+
+
+def test_question_without_tags_has_empty_list(db_session: Session, user: User) -> None:
+    assert _bank_question(db_session, user).tags == []
+
+
+def test_list_filters_by_any_of_the_tags(db_session: Session, user: User) -> None:
+    _tagged(db_session, user, "geo", ["geo"])
+    _tagged(db_session, user, "both", ["geo", "history"])
+    _tagged(db_session, user, "history", ["history"])
+    _tagged(db_session, user, "none", [])
+    assert _prompts(db_session, user, tags=["geo"]) == ["both", "geo"]
+    assert _prompts(db_session, user, tags=["geo", "history"]) == ["both", "geo", "history"]
+    assert _prompts(db_session, user, tags=["missing"]) == []
+    assert _prompts(db_session, user) == ["both", "geo", "history", "none"]
+
+
+def test_tags_list_counts_orders_and_isolates_owners(db_session: Session, user: User, other_user: User) -> None:
+    _tagged(db_session, user, "1", ["beta", "alpha"])
+    _tagged(db_session, user, "2", ["beta", "gamma"])
+    _tagged(db_session, other_user, "3", ["secret", "beta"])
+    result = question_service.list_question_tags(db_session, current_user=user, search=None, limit=20)
+    # beta is used twice; alpha and gamma once each, alphabetical.
+    assert result == ["beta", "alpha", "gamma"]
+
+
+def test_tags_list_search_is_case_insensitive_contains(db_session: Session, user: User) -> None:
+    _tagged(db_session, user, "1", ["geography", "history", "biology"])
+    assert question_service.list_question_tags(db_session, current_user=user, search="GEO", limit=20) == ["geography"]
+    assert question_service.list_question_tags(db_session, current_user=user, search="i", limit=20) == [
+        "biology",
+        "history",
+    ]
+
+
+def test_tags_list_respects_limit(db_session: Session, user: User) -> None:
+    _tagged(db_session, user, "1", ["a", "b", "c"])
+    assert question_service.list_question_tags(db_session, current_user=user, search=None, limit=2) == ["a", "b"]
+
+
+def test_tags_list_ignores_frozen_versions_and_deleted_questions(db_session: Session, user: User) -> None:
+    test = test_service.create_test(
+        db_session,
+        current_user=user,
+        data=TestCreate(title="T", questions=[_q("t", tags=["frozen-copy"])]),
+    )
+    loaded = test_crud.get_by_id(db_session, id=test.id)
+    assert loaded is not None
+    clone_test(
+        db_session,
+        test=loaded,
+        user_id=user.id,
+        parent_id=loaded.id,
+        space_id=None,
+        source_note_id=None,
+        link_origin=True,
+    )
+    db_session.flush()
+    # The live question and its frozen copy both carry the tag, but the tag counts once.
+    assert question_service.list_question_tags(db_session, current_user=user, search=None, limit=20) == ["frozen-copy"]
+    test_service.delete_test(db_session, test_id=test.id, current_user=user)
+    assert question_service.list_question_tags(db_session, current_user=user, search=None, limit=20) == []
+
+
+def test_duplicate_to_bank_keeps_tags(db_session: Session, user: User) -> None:
+    source = _tagged(db_session, user, "src", ["geo"])
+    duplicate = question_service.duplicate_question(db_session, question_id=source.id, current_user=user)
+    assert duplicate.tags == ["geo"]
+    assert duplicate.tags is not source.tags
+
+
+def test_assign_to_test_keeps_tags(db_session: Session, user: User) -> None:
+    source = _tagged(db_session, user, "src", ["geo"])
+    test = test_service.create_test(db_session, current_user=user, data=TestCreate(title="Target"))
+    copy = question_service.assign_question_to_test(
+        db_session, question_id=source.id, test_id=test.id, current_user=user
+    )
+    assert copy.tags == ["geo"]
+
+
+def test_new_test_version_keeps_tags(db_session: Session, user: User) -> None:
+    test = test_service.create_test(
+        db_session,
+        current_user=user,
+        data=TestCreate(title="V", questions=[_q("v", tags=["geo"])]),
+    )
+    loaded = test_crud.get_by_id(db_session, id=test.id)
+    assert loaded is not None
+    frozen, _ = clone_test(
+        db_session,
+        test=loaded,
+        user_id=user.id,
+        parent_id=loaded.id,
+        space_id=None,
+        source_note_id=None,
+        link_origin=True,
+    )
+    db_session.flush()
+    assert [q.tags for q in frozen.questions] == [["geo"]]

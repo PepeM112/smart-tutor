@@ -16,3 +16,9 @@ export const FEED_LIMITS = {
   post: 5000,
   comment: 2000,
 } as const;
+
+/** Max tags per question and max length of one tag. Same numbers as the backend (`app/schemas/tags.py`). A higher number would cause a 422. */
+export const TAG_LIMITS = {
+  maxTags: 10,
+  maxChars: 25,
+} as const;

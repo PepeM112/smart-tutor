@@ -25,6 +25,8 @@ import { sdk } from '@/lib/apiClient';
 import { FilterType, type FilterItem, type Primitive } from '@/lib/filters';
 import { Routes } from '@/lib/routes';
 
+import { fetchQuestionTags, QUESTION_TAGS_QUERY_KEY } from '../lib/questionTags';
+
 import { AssignDialog } from './AssignDialog';
 import { QuestionsTable } from './QuestionsTable';
 
@@ -97,6 +99,13 @@ export function QuestionsPage() {
         options: { items: testOptions },
       },
       {
+        label: t('questions.filter_tags'),
+        key: 'tags',
+        type: FilterType.MULTIPLE_SELECT,
+        query: 'tags',
+        options: { asyncItems: { queryKey: QUESTION_TAGS_QUERY_KEY, fetch: fetchQuestionTags } },
+      },
+      {
         label: t('questions.filter_grouping'),
         key: 'grouping',
         type: FilterType.TOGGLE,
@@ -125,9 +134,10 @@ export function QuestionsPage() {
   const questionType = getValue<Primitive[]>('question_type');
   const testId = getValue<Primitive[]>('test_id');
   const search = getValue<string>('search');
+  const tags = getValue<Primitive[]>('tags');
   const grouping = getValue<string>('grouping') as 'grouped' | 'ungrouped' | undefined;
 
-  const listParams = { questionType, testId, search, grouping, page, sortBy, sortOrder };
+  const listParams = { questionType, testId, search, tags, grouping, page, sortBy, sortOrder };
 
   const {
     data: response,
@@ -142,6 +152,7 @@ export function QuestionsPage() {
           question_type: questionType?.map(Number) ?? undefined,
           test_id: testId?.map(String) ?? undefined,
           search: search || undefined,
+          tags: tags?.map(String) ?? undefined,
           grouping: grouping || undefined,
           page,
           per_page: PER_PAGE,

@@ -1,53 +1,58 @@
 'use client';
 
-// Width of the note text column: the 720px reading column, or the full page width.
-// One setting per viewer for all notes, stored in localStorage. Storage can throw
+// Width of a text column: the 720px reading column, or the full page width.
+// One setting per viewer and per key, stored in localStorage. Storage can throw
 // (private mode, blocked site data), so reads and writes fall back to the default.
 
 import { useCallback, useSyncExternalStore } from 'react';
 
 export type NoteWidth = 'reading' | 'full';
 
-const STORAGE_KEY = 'note-width';
-const DEFAULT_WIDTH: NoteWidth = 'reading';
+type WidthStore = () => { width: NoteWidth; toggleWidth: () => void };
 
-const subscribers = new Set<() => void>();
-let current: NoteWidth | undefined;
+// A store per key, so the note width and the test editor width do not change each other.
+// The default is a parameter: the test editor was full width before it got the toggle.
+export function createWidthStore(storageKey: string, defaultWidth: NoteWidth): WidthStore {
+  const subscribers = new Set<() => void>();
+  let current: NoteWidth | undefined;
 
-function readStored(): NoteWidth {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === 'full' ? 'full' : DEFAULT_WIDTH;
-  } catch {
-    return DEFAULT_WIDTH;
-  }
-}
-
-function subscribe(cb: () => void): () => void {
-  subscribers.add(cb);
-  return () => subscribers.delete(cb);
-}
-
-function getSnapshot(): NoteWidth {
-  current ??= readStored();
-  return current;
-}
-
-function getServerSnapshot(): NoteWidth {
-  return DEFAULT_WIDTH;
-}
-
-export function useNoteWidth(): { width: NoteWidth; toggleWidth: () => void } {
-  const width = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-
-  const toggleWidth = useCallback(() => {
-    current = getSnapshot() === 'full' ? 'reading' : 'full';
+  const readStored = (): NoteWidth => {
     try {
-      localStorage.setItem(STORAGE_KEY, current);
+      const stored = localStorage.getItem(storageKey);
+      return stored === 'full' || stored === 'reading' ? stored : defaultWidth;
     } catch {
-      // The toggle still works for this page view.
+      return defaultWidth;
     }
-    subscribers.forEach(cb => cb());
-  }, []);
+  };
 
-  return { width, toggleWidth };
+  const subscribe = (cb: () => void): (() => void) => {
+    subscribers.add(cb);
+    return () => subscribers.delete(cb);
+  };
+
+  const getSnapshot = (): NoteWidth => {
+    current ??= readStored();
+    return current;
+  };
+
+  const getServerSnapshot = (): NoteWidth => defaultWidth;
+
+  return function useWidth() {
+    const width = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+    const toggleWidth = useCallback(() => {
+      current = getSnapshot() === 'full' ? 'reading' : 'full';
+      try {
+        localStorage.setItem(storageKey, current);
+      } catch {
+        // The toggle still works for this page view.
+      }
+      subscribers.forEach(cb => cb());
+    }, []);
+
+    return { width, toggleWidth };
+  };
 }
+
+export const useNoteWidth = createWidthStore('note-width', 'reading');
+export const useTestWidth = createWidthStore('test-width', 'full');

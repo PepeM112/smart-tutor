@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 import { MODEL_LABEL_KEYS } from '../aiModel';
+import { useDebouncedUpdateUser } from '../hooks/useDebouncedUpdateUser';
 import { useUpdateUser } from '../hooks/useUpdateUser';
 
 import { SettingsSection } from './SettingsSection';
@@ -42,7 +43,7 @@ const KEY_FIELDS: Record<KeyProvider, { id: string; labelKey: string; toPayload:
 
 export function AiSection({ aiProvider, anthropicModel, hasAnthropicKey, hasOpenaiKey }: Props) {
   const t = useTranslations();
-  const { mutate: saveProvider, isPending: isSavingProvider } = useUpdateUser();
+  const saveUser = useDebouncedUpdateUser();
 
   return (
     <SettingsSection title={t('settings.ai_configuration')} description={t('settings.ai_description')}>
@@ -54,10 +55,9 @@ export function AiSection({ aiProvider, anthropicModel, hasAnthropicKey, hasOpen
             {PROVIDERS.map(({ value, labelKey }) => (
               <button
                 key={value}
-                disabled={isSavingProvider}
-                onClick={() => value !== aiProvider && saveProvider({ aiProvider: value })}
+                onClick={() => value !== aiProvider && saveUser({ aiProvider: value }, { field: 'aiProvider' })}
                 className={cn(
-                  'flex flex-col items-start gap-0.5 rounded-lg border px-4 py-2.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50',
+                  'flex flex-col items-start gap-0.5 rounded-lg border px-4 py-2.5 text-sm transition-colors',
                   aiProvider === value
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'

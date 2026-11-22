@@ -147,6 +147,7 @@ def clone_test(
             group_id=frozen_group_id,
             order=question.order,
             points=question.points,
+            tags=list(question.tags),
             status=question.status,
             origin_id=question.id if link_origin else None,
         )

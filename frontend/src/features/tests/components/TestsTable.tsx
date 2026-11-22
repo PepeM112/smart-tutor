@@ -11,11 +11,12 @@ import { toast } from 'sonner';
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
 import { expandToggleColumn } from '@/components/shared/expandToggleColumn';
+import { FormattedDate } from '@/components/shared/FormattedDate';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
+import { HoverHint } from '@/components/ui/hover-hint';
 import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
 import { sdk } from '@/lib/apiClient';
-import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 import { TestExpandedRow } from './TestExpandedRow';
@@ -133,13 +134,12 @@ function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number 
   if (count === 0) return null;
   const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
   return (
-    <span
-      title={`${count} ${t(labelKey)}`}
-      className="inline-flex items-center gap-1 rounded-md border border-hairline bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground"
-    >
-      <Icon className="size-3.5" />
-      {count}
-    </span>
+    <HoverHint label={`${count} ${t(labelKey)}`}>
+      <span className="inline-flex items-center gap-1 rounded-md border border-hairline bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        <Icon className="size-3.5" />
+        {count}
+      </span>
+    </HoverHint>
   );
 }
 
@@ -199,7 +199,9 @@ function useTestsColumns(): ColumnDef<TestRead, unknown>[] {
       header: t('tests.column_created'),
       meta: { sortKey: 'created_at', widthClass: 'w-24 text-right' },
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>
+        <span className="text-sm text-muted-foreground">
+          <FormattedDate value={row.original.createdAt} />
+        </span>
       ),
     },
   ];

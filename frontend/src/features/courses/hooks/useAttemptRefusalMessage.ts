@@ -1,6 +1,8 @@
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useCallback } from 'react';
 
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDateTime } from '@/lib/datetime';
 import { getErrorDetail } from '@/lib/utils';
 
 import { classifyAttemptRefusal } from '../lib/attemptErrors';
@@ -11,7 +13,7 @@ import { classifyAttemptRefusal } from '../lib/attemptErrors';
  */
 export function useAttemptRefusalMessage(): (error: unknown) => string {
   const t = useTranslations();
-  const format = useFormatter();
+  const prefs = useDateTimePrefs();
 
   return useCallback(
     (error: unknown): string => {
@@ -20,7 +22,7 @@ export function useAttemptRefusalMessage(): (error: unknown) => string {
         case 'cooldown':
           return refusal.nextAttemptAt
             ? t('courses.attempt_error_cooldown', {
-                date: format.dateTime(refusal.nextAttemptAt, { dateStyle: 'short', timeStyle: 'short' }),
+                date: formatDateTime(refusal.nextAttemptAt, prefs, 'short'),
               })
             : t('courses.cooldown_wait');
         case 'no_attempts_left':
@@ -40,6 +42,6 @@ export function useAttemptRefusalMessage(): (error: unknown) => string {
           return t('courses.attempt_refused');
       }
     },
-    [t, format]
+    [t, prefs]
   );
 }

@@ -32,7 +32,7 @@ export function FilterPopover({ filterConfig, filters, onFilterChange, onClear }
           )}
         </Button>
       </FloatingCardTrigger>
-      <FloatingCardContent align="start" className="w-80 space-y-4">
+      <FloatingCardContent align="start" className="w-80 space-y-4 px-4 pb-5 pt-3">
         {filterConfig.map(item => (
           <div key={item.key} className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">{item.label}</label>

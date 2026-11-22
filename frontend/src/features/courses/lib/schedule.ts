@@ -42,18 +42,3 @@ export function scheduleLabels(item: ScheduleFields, now: Date, isAuthor: boolea
   ];
   return labels.filter((label): label is ScheduleLabel => label !== null);
 }
-
-const pad = (value: number): string => String(value).padStart(2, '0');
-
-/** A `Date` as the value of an `<input type="datetime-local">` (local time, no seconds). Empty for no date. */
-export function toLocalInputValue(date: Date | null | undefined): string {
-  if (!date) return '';
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-/** The value of a datetime-local input as a `Date`. Empty or bad text gives null (the field is cleared). */
-export function fromLocalInputValue(value: string): Date | null {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}

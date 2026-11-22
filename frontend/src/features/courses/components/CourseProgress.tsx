@@ -2,11 +2,13 @@
 
 import { Check, CircleCheck, Play, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { type SpaceDetail, type SpaceItemRead, type SpaceProgress } from '@/client';
 import { Button } from '@/components/ui/button';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDateTime } from '@/lib/datetime';
 import { courseAttemptHref } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
@@ -96,7 +98,7 @@ export function NoteDoneButton({
 /** Attempts left, time limit, best score and the cooldown of a TEST item. */
 export function TestAttemptInfo({ item }: { item: SpaceItemRead }) {
   const t = useTranslations();
-  const format = useFormatter();
+  const prefs = useDateTimePrefs();
   // One clock reading per mount: a cooldown that ends shows after the next refetch.
   const [now] = useState(() => new Date());
 
@@ -110,7 +112,7 @@ export function TestAttemptInfo({ item }: { item: SpaceItemRead }) {
       : null,
     item.nextAttemptAt && item.nextAttemptAt.getTime() > now.getTime()
       ? t('courses.next_attempt', {
-          date: format.dateTime(item.nextAttemptAt, { dateStyle: 'short', timeStyle: 'short' }),
+          date: formatDateTime(item.nextAttemptAt, prefs, 'short'),
         })
       : null,
   ].filter((part): part is string => part !== null);

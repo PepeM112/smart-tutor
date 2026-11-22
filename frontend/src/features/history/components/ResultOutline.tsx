@@ -5,6 +5,8 @@ import { useFormatter, useTranslations } from 'next-intl';
 
 import { AnswerStatus, type TestResultRead } from '@/client';
 import { Tooltip } from '@/components/ui/tooltip';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDate } from '@/lib/datetime';
 import { cn } from '@/lib/utils';
 
 import { formatPoints, summarizeEntries, type ResultEntry } from '../utils/resultEntries';
@@ -46,6 +48,7 @@ export function ResultOutline({ result, testTitle, entries, selectedId, onSelect
 function ScoreBlock({ result, testTitle, entries }: Pick<ResultOutlineProps, 'result' | 'testTitle' | 'entries'>) {
   const t = useTranslations();
   const format = useFormatter();
+  const prefs = useDateTimePrefs();
   const summary = summarizeEntries(entries);
   const hasPoints = result.totalPoints != null && result.totalPoints > 0;
 
@@ -73,7 +76,7 @@ function ScoreBlock({ result, testTitle, entries }: Pick<ResultOutlineProps, 're
           {t('exam.points', { earned: formatPoints(format, result.earnedPoints ?? 0), total: result.totalPoints ?? 0 })}
         </p>
       )}
-      <p className="text-xs text-muted-foreground">{format.dateTime(result.createdAt, { dateStyle: 'medium' })}</p>
+      <p className="text-xs text-muted-foreground">{formatDate(result.createdAt, prefs)}</p>
       <ul className="mt-1 flex flex-col gap-1">
         {summary.map(({ status, count }) => (
           <li key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">

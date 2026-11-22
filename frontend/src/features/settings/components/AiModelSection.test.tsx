@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +10,8 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 
 import { MODEL_LABEL_KEYS } from '../aiModel';
+import { clearUnconfirmedChanges } from '../hooks/unconfirmedUserChanges';
+import { SAVE_DELAY_MS } from '../hooks/useDebouncedUpdateUser';
 
 import { AiModelSection } from './AiModelSection';
 
@@ -58,8 +60,18 @@ beforeAll(() => {
     disconnect(): void {}
   };
 });
-beforeEach(() => vi.clearAllMocks());
-afterEach(cleanup);
+// Only the timers that hold the save delay are faked: Radix and Testing Library need the others.
+const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  vi.clearAllMocks();
+  clearUnconfirmedChanges();
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe('AiModelSection', () => {
   it('shows the model select for Anthropic and hides it for OpenAI', () => {
@@ -100,8 +112,27 @@ describe('AiModelSection', () => {
       `settings.ai_effort_level_${AiEffort.LOW}`
     );
 
-    await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+    await advance(SAVE_DELAY_MS);
+
+    expect(toast.success).toHaveBeenCalledTimes(1);
     expect(updateMe).toHaveBeenCalledWith({ body: { aiEffort: { grading: AiEffort.LOW } } });
+  });
+
+  it('sends one request per action and keeps the last level of each', async () => {
+    updateMe.mockResolvedValue({ data: userWith(AnthropicModel.CLAUDE_HAIKU_5_5) } as never);
+    renderSection(AiProvider.ANTHROPIC, AnthropicModel.CLAUDE_HAIKU_5_5);
+    const grading = screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_grading');
+    const challenge = screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_challenge');
+
+    chooseOption(grading, `settings.ai_effort_level_${AiEffort.LOW}`);
+    chooseOption(challenge, `settings.ai_effort_level_${AiEffort.HIGH}`);
+    chooseOption(grading, `settings.ai_effort_level_${AiEffort.MAX}`);
+    await advance(SAVE_DELAY_MS);
+
+    expect(updateMe.mock.calls.map(([options]) => options.body)).toEqual([
+      { aiEffort: { challenge: AiEffort.HIGH } },
+      { aiEffort: { grading: AiEffort.MAX } },
+    ]);
   });
 
   it('saves the chosen model', async () => {
@@ -113,7 +144,9 @@ describe('AiModelSection', () => {
       MODEL_LABEL_KEYS[AnthropicModel.CLAUDE_HAIKU_4_5_20251001]
     );
 
-    await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+    await advance(SAVE_DELAY_MS);
+
+    expect(toast.success).toHaveBeenCalledTimes(1);
     expect(updateMe).toHaveBeenCalledWith({ body: { anthropicModel: AnthropicModel.CLAUDE_HAIKU_4_5_20251001 } });
   });
 
@@ -126,7 +159,9 @@ describe('AiModelSection', () => {
       `settings.ai_effort_level_${AiEffort.MAX}`
     );
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+    await advance(SAVE_DELAY_MS);
+
+    expect(toast.error).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().user?.aiEffort.grading).toBe(AiEffort.MEDIUM);
   });
 
@@ -140,16 +175,16 @@ describe('AiModelSection', () => {
       screen.getByLabelText('settings.ai_effort_select:settings.ai_effort_action_grading'),
       `settings.ai_effort_level_${AiEffort.LOW}`
     );
-    await waitFor(() => expect(screen.queryByRole('option')).toBeNull());
+    await advance(0);
     chooseOption(
       screen.getByLabelText('settings.ai_model'),
       MODEL_LABEL_KEYS[AnthropicModel.CLAUDE_HAIKU_4_5_20251001]
     );
 
-    await waitFor(() => expect(updateMe).toHaveBeenCalledTimes(1));
-    await new Promise(resolve => setTimeout(resolve, 20));
+    await advance(SAVE_DELAY_MS);
     expect(updateMe).toHaveBeenCalledTimes(1);
     resolveFirst({ data: userWith(AnthropicModel.CLAUDE_HAIKU_5_5) } as never);
-    await waitFor(() => expect(updateMe).toHaveBeenCalledTimes(2));
+    await advance(0);
+    expect(updateMe).toHaveBeenCalledTimes(2);
   });
 });

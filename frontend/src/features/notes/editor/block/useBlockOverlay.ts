@@ -24,6 +24,8 @@ export type BlockState = {
   left: number;
   /** Left edge of the block in the viewport. */
   viewportLeft: number;
+  /** Left edge of the nearest scroll container, in the viewport. It clips the handle. */
+  clipLeft: number;
   /** Vertical center of the first line, relative to the container. */
   centerY: number;
 };
@@ -84,9 +86,21 @@ function computeState(
     pos: active.pos,
     left: active.left,
     viewportLeft: active.viewportLeft,
+    clipLeft: clipLeftOf(container),
     // No text to measure (a divider, an empty table): use the middle of the block, at most one line down.
     centerY: center !== null ? center - box.top : active.top + Math.min(active.height / 2, 14),
   };
+}
+
+/**
+ * Left edge of the nearest scroll container above `el`. The note column scrolls inside it, and it clips the
+ * handle: in full width the padding (48px) is smaller than the handle plus gap (56px), so the "+" went 8px past it.
+ */
+function clipLeftOf(el: HTMLElement): number {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowX !== 'visible') return node.getBoundingClientRect().left;
+  }
+  return 0;
 }
 
 export function useBlockOverlay(editor: Editor, containerRef: RefObject<HTMLElement | null>): BlockOverlay {

@@ -14,6 +14,7 @@ import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2'
 import { expandToggleColumn } from '@/components/shared/expandToggleColumn';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Checkbox } from '@/components/ui/checkbox';
+import { HoverHint } from '@/components/ui/hover-hint';
 import { Tooltip } from '@/components/ui/tooltip';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
 import { sdk } from '@/lib/apiClient';
@@ -180,10 +181,12 @@ function QuestionTypeBadge({ type }: { type: QuestionType }) {
   const t = useTranslations();
   const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border border-hairline bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      <Icon className="size-3.5" />
-      {t(labelKey)}
-    </span>
+    <HoverHint label={t(labelKey)}>
+      <span className="inline-flex items-center gap-1 rounded-md border border-hairline bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        <Icon className="size-3.5" />
+        {t(labelKey)}
+      </span>
+    </HoverHint>
   );
 }
 

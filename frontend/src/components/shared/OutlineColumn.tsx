@@ -30,9 +30,9 @@ const toPx = (width: number): string => `${width}px`;
 
 /**
  * A page with an outline: a column on the left of the page (from `lg`) and a left drawer below it.
- * The column is a resizable panel, with the same motion as the Ask AI sheet (`panelMotion`). It sits flush
- * in the sheet under the header, so it cancels the layout padding (`app/(app)/layout.tsx`) and gives it back
- * to the page. Open state, auto-collapse for Ask AI and the Contents drawer live in `useOutlineStore`.
+ * The column is a resizable panel, with the same motion as the Ask AI sheet (`panelMotion`). The outline is a
+ * floating card inside the sheet, with a gap to the sheet edges and to the page. The column cancels the layout
+ * padding (`app/(app)/layout.tsx`) so the panel can clip the card while it folds, and gives the padding back to the page. Open state, auto-collapse for Ask AI and the Contents drawer live in `useOutlineStore`.
  * Its height is a percentage of the layout wrapper (a flex item, so definite) plus the padding it cancels (3.5rem).
  */
 export function OutlineColumn({ storageKey, label, outline, children }: OutlineColumnProps) {
@@ -91,7 +91,7 @@ export function OutlineColumn({ storageKey, label, outline, children }: OutlineC
   return (
     <div
       data-slot="outline-column"
-      className="flex h-full min-h-0 overflow-hidden rounded-bl-lg lg:-mt-6 lg:-mr-8 lg:-mb-8 lg:-ml-8 lg:h-[calc(100%+3.5rem)]"
+      className="flex h-full min-h-0 overflow-hidden lg:-mt-6 lg:-mr-8 lg:-mb-8 lg:-ml-8 lg:h-[calc(100%+3.5rem)]"
     >
       <Group
         elementRef={groupElementRef}
@@ -114,13 +114,20 @@ export function OutlineColumn({ storageKey, label, outline, children }: OutlineC
           style={{ overflow: 'hidden' }}
         >
           {isDesktop && (
-            <nav aria-label={label} inert={!isOpen} className="h-full min-w-50 overflow-y-auto bg-outline px-2.5 py-4">
-              {outline}
-            </nav>
+            // The wrapper holds the gap, so the card keeps its shadow inside the clipped panel.
+            <div className="h-full min-w-50 py-3 pl-3">
+              <nav
+                aria-label={label}
+                inert={!isOpen}
+                className="h-full overflow-y-auto rounded-lg border border-border bg-outline px-2.5 py-4 shadow-card"
+              >
+                {outline}
+              </nav>
+            </div>
           )}
         </Panel>
 
-        {/* No border: the change of ground marks the edge. The line shows on hover and focus only. */}
+        {/* The line shows on hover and focus only: the card edge already marks the column. */}
         <Separator
           aria-label={t('resize')}
           aria-hidden={!isShown}

@@ -46,7 +46,7 @@ export function AssistLayout({ children }: AssistLayoutProps) {
 
   return (
     <>
-      <div className="flex min-h-0 min-w-0 flex-1 lg:p-3 lg:pl-0">
+      <div className="flex min-h-0 min-w-0 flex-1 lg:p-3">
         <SheetGroup isSheetWanted={isSheetWanted && isDesktop}>{children}</SheetGroup>
       </div>
       {isSheetWanted && !isDesktop && <AssistFullScreen />}
@@ -177,7 +177,7 @@ function SheetGroup({ isSheetWanted, children }: SheetGroupProps) {
               isExpanded ? 'w-3' : 'w-0'
             )}
           >
-            <div className="h-10 w-1 rounded-sm bg-rule transition-colors group-hover:bg-muted-foreground group-focus-visible:bg-ring" />
+            <div className="h-10 w-1 rounded-sm bg-ground-handle transition-colors group-hover:bg-ground-handle-hover group-focus-visible:bg-ground-handle-focus" />
           </Separator>
           <Panel
             id={ASSIST_ID}

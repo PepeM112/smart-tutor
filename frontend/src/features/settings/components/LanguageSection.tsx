@@ -1,17 +1,13 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useTransition } from 'react';
-import { toast } from 'sonner';
+import { useId, useTransition } from 'react';
 
+import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { Label } from '@/components/ui/label';
-import { useAuthStore } from '@/features/auth/store/authStore';
-import { sdk } from '@/lib/apiClient';
-import { cn } from '@/lib/utils';
 
-import { USER_UPDATE_SCOPE } from '../hooks/useUpdateUser';
+import { useDebouncedUpdateUser } from '../hooks/useDebouncedUpdateUser';
 
 import { SettingsSection } from './SettingsSection';
 
@@ -24,54 +20,33 @@ export function LanguageSection() {
   const t = useTranslations();
   const router = useRouter();
   const currentLocale = useLocale();
-  const [isRefreshing, startTransition] = useTransition();
-  const setUser = useAuthStore(s => s.setUser);
+  const labelId = useId();
+  const [, startTransition] = useTransition();
+  const saveUser = useDebouncedUpdateUser();
 
-  const { mutate: updateLocale, isPending: isUpdating } = useMutation({
-    scope: { id: USER_UPDATE_SCOPE },
-    mutationFn: async (locale: string) => {
-      const result = await sdk.usersUpdateMe({ body: { locale } });
-      return result.data!;
-    },
-    onSuccess: updatedUser => {
-      // Server components read locale from this cookie, so it must be set before router.refresh()
-      document.cookie = `locale=${updatedUser.locale};path=/;max-age=31536000`;
-      setUser(updatedUser);
-      toast.success(t('settings.settings_saved'));
-      startTransition(() => {
-        router.refresh();
-      });
-    },
-    onError: () => {
-      toast.error(t('settings.failed_to_save'));
-    },
-  });
+  const items: ButtonGroupItem<string>[] = LANGUAGES.map(({ value, labelKey, flag }) => ({
+    value,
+    label: `${flag} ${t(labelKey)}`,
+  }));
 
-  // Cover the request and the refresh, so a second click cannot start another request.
-  const isPending = isUpdating || isRefreshing;
+  // Server components read the locale from this cookie, so it is set before the refresh. The refresh
+  // makes the page change language at once. The save of the profile follows after the delay.
+  const showLocale = ({ locale }: { locale?: string }): void => {
+    if (!locale) return;
+    document.cookie = `locale=${locale};path=/;max-age=31536000`;
+    startTransition(() => router.refresh());
+  };
 
   return (
     <SettingsSection title={t('settings.language')} description={t('settings.language_description')}>
       <div className="space-y-3">
-        <Label>{t('settings.language')}</Label>
-        <div className={cn('flex gap-2', isPending && 'opacity-50 pointer-events-none')}>
-          {LANGUAGES.map(({ value, labelKey, flag }) => (
-            <button
-              key={value}
-              onClick={() => updateLocale(value)}
-              disabled={isPending}
-              className={cn(
-                'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
-                currentLocale === value
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
-            >
-              <span>{flag}</span>
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
+        <Label id={labelId}>{t('settings.language')}</Label>
+        <ButtonGroup
+          aria-labelledby={labelId}
+          value={currentLocale}
+          items={items}
+          onChange={locale => locale !== currentLocale && saveUser({ locale }, { field: 'locale', show: showLocale })}
+        />
       </div>
     </SettingsSection>
   );

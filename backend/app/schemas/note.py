@@ -4,21 +4,9 @@ from pydantic import Field, field_validator
 
 from app.core.enums import NoteLength
 from app.schemas.base import BaseSchema
+from app.schemas.tags import normalize_tags
 
 NOTE_CONTENT_MAX_CHARS = 50_000
-NOTE_MAX_TAGS = 10
-NOTE_TAG_MAX_CHARS = 25
-
-
-def normalize_tags(tags: list[str]) -> list[str]:
-    """Trim, lowercase, drop empty tags and duplicates (first one wins), then check the limits."""
-    cleaned = list(dict.fromkeys(tag.strip().lower() for tag in tags if tag.strip()))
-    if len(cleaned) > NOTE_MAX_TAGS:
-        raise ValueError(f"You can add at most {NOTE_MAX_TAGS} tags")
-    too_long = next((tag for tag in cleaned if len(tag) > NOTE_TAG_MAX_CHARS), None)
-    if too_long is not None:
-        raise ValueError(f"Tag '{too_long}' is longer than {NOTE_TAG_MAX_CHARS} characters")
-    return cleaned
 
 
 # Input limits live on Create/Update only. `NoteRead` inherits `NoteBase`, and a limit there

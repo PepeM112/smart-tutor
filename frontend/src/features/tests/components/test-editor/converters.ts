@@ -27,6 +27,9 @@ export function mcToApiQuestion(q: MultipleChoiceQuestionData, order: number): Q
     prompt: q.prompt,
     order,
     points: q.points,
+    tags: q.tags,
+    hint: q.hint,
+    explanation: q.explanation,
     content: {
       options: q.choices.map(c => c.text),
       correctIndices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
@@ -40,6 +43,9 @@ export function longTextToApiQuestion(q: LongTextQuestionData, order: number): Q
     prompt: q.prompt,
     order,
     points: q.points,
+    tags: q.tags,
+    hint: q.hint,
+    explanation: q.explanation,
     content: {
       lengthLimit: q.lengthLimit,
       rubric: q.criteria.map(c => ({
@@ -61,6 +67,9 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
       questionType: QuestionType.SIMPLE,
       prompt: row.prompt,
       order: i,
+      tags: row.tags,
+      hint: row.hint,
+      explanation: row.explanation,
       content: {
         answers: row.answers.filter(Boolean),
       },
@@ -85,6 +94,9 @@ function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
       isCorrect: (content.correctIndices ?? []).includes(i),
     })) satisfies Choice[],
     points: q.points ?? 1,
+    tags: q.tags,
+    hint: q.hint,
+    explanation: q.explanation,
   };
 }
 
@@ -103,6 +115,9 @@ function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
       category: r.category ?? '',
     })) satisfies Criterion[],
     points: q.points ?? 1,
+    tags: q.tags,
+    hint: q.hint,
+    explanation: q.explanation,
   };
 }
 
@@ -119,6 +134,9 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
         id: q.id,
         prompt: q.prompt,
         answers: content.answers ?? [],
+        tags: q.tags,
+        hint: q.hint,
+        explanation: q.explanation,
       } satisfies SimpleRow;
     }),
     points: g.points ?? 1,
@@ -316,7 +334,7 @@ export function mergeAiEditResult(
         flatCursor++;
         if (!aiQ) return row;
         const content = aiQ.content as SimpleContent;
-        return { id: row.id, prompt: aiQ.prompt, answers: content.answers } satisfies SimpleRow;
+        return { ...row, prompt: aiQ.prompt, answers: content.answers } satisfies SimpleRow;
       }),
     };
   });
