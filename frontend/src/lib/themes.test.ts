@@ -4,11 +4,15 @@ import { parseTheme, resolveTheme, THEME_INIT_SCRIPT, THEME_STORAGE_KEY } from '
 
 const LEGACY_LIGHT_IDS = ['ocean-blue', 'sky', 'slate-minimal', 'sunset', 'coral', 'forest', 'mint', 'sage'];
 const LEGACY_DARK_IDS = ['midnight', 'carbon', 'neon', 'noir'];
+const REMOVED_LIGHT_VARIANTS = ['light-sand', 'light-clay', 'light-clay-soft', 'light-clay-mist'];
 
 describe('parseTheme', () => {
-  it.each(['light', 'dark', 'system'])('keeps the valid mode %s', mode => {
-    expect(parseTheme(mode)).toBe(mode);
-  });
+  it.each(['light', 'light-frame', 'light-ink', 'light-ink-frame', 'dark', 'system'])(
+    'keeps the valid mode %s',
+    mode => {
+      expect(parseTheme(mode)).toBe(mode);
+    }
+  );
 
   it.each(LEGACY_LIGHT_IDS)('maps the old light id %s to light', id => {
     expect(parseTheme(id)).toBe('light');
@@ -18,7 +22,15 @@ describe('parseTheme', () => {
     expect(parseTheme(id)).toBe('dark');
   });
 
-  it.each([null, undefined, '', 'unknown', 'Dark'])('falls back to system for %s', value => {
+  it.each(REMOVED_LIGHT_VARIANTS)('maps the removed variant %s to light', id => {
+    expect(parseTheme(id)).toBe('light');
+  });
+
+  it('maps the removed light-clay-frame to light-frame', () => {
+    expect(parseTheme('light-clay-frame')).toBe('light-frame');
+  });
+
+  it.each([null, undefined, '', 'unknown', 'Dark', 'constructor', 'toString'])('falls back to system for %s', value => {
     expect(parseTheme(value)).toBe('system');
   });
 });
@@ -30,10 +42,30 @@ describe('resolveTheme', () => {
     expect(resolveTheme('light', true)).toBe('light');
     expect(resolveTheme('dark', false)).toBe('dark');
   });
+
+  it('keeps a light variant in every OS setting', () => {
+    expect(resolveTheme('light-frame', true)).toBe('light-frame');
+    expect(resolveTheme('light-ink', false)).toBe('light-ink');
+    expect(resolveTheme('light-ink-frame', true)).toBe('light-ink-frame');
+  });
 });
 
 describe('THEME_INIT_SCRIPT', () => {
-  const stored = [null, 'light', 'dark', 'system', 'junk', ...LEGACY_LIGHT_IDS, ...LEGACY_DARK_IDS];
+  const stored = [
+    null,
+    'light',
+    'light-frame',
+    'light-ink',
+    'light-ink-frame',
+    'dark',
+    'system',
+    'junk',
+    'constructor',
+    ...REMOVED_LIGHT_VARIANTS,
+    'light-clay-frame',
+    ...LEGACY_LIGHT_IDS,
+    ...LEGACY_DARK_IDS,
+  ];
 
   /** Runs the script like the browser does and returns the data-theme it sets. */
   function runScript(

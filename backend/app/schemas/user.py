@@ -1,4 +1,5 @@
 from typing import Literal
+from zoneinfo import available_timezones
 
 from pydantic import field_validator, model_validator
 
@@ -7,9 +8,20 @@ from app.core.enums import AIProvider, UserRole, UserStatus
 from app.schemas.base import BaseSchema
 
 ToolKind = Literal["read", "write"]
-ThemeMode = Literal["light", "dark", "system"]
+# The `light-*` themes only change the sidebar and, for `-frame`, the ground (see `lib/themes.ts` in the frontend).
+ThemeMode = Literal[
+    "light",
+    "light-frame",
+    "light-ink",
+    "light-ink-frame",
+    "dark",
+    "system",
+]
+TimeFormat = Literal["12h", "24h"]
 
 VALID_LOCALES = {"en", "es"}
+# Computed once: `available_timezones()` scans the tz database on every call.
+VALID_TIMEZONES = frozenset(available_timezones())
 
 
 class AiEffortSettings(BaseSchema):
@@ -47,6 +59,9 @@ class UserUpdate(BaseSchema):
     display_name: str | None = None
     locale: str | None = None
     theme: ThemeMode | None = None
+    time_format: TimeFormat | None = None
+    # null or "" clears the zone: the browser zone is used.
+    timezone: str | None = None
     ai_provider: AIProvider | None = None
     # null resets to the default model.
     anthropic_model: AnthropicModel | None = None
@@ -57,10 +72,10 @@ class UserUpdate(BaseSchema):
     daily_review_limit: int | None = None
     initial_ease_factor: float | None = None
 
-    @field_validator("locale", "theme")
+    @field_validator("locale", "theme", "time_format")
     @classmethod
     def _reject_null(cls, v: str | None) -> str | None:
-        # Both columns are NOT NULL: an explicit null would reach the DB and give a 500, so refuse it here.
+        # These columns are NOT NULL: an explicit null would reach the DB and give a 500, so refuse it here.
         if v is None:
             raise ValueError("value cannot be null")
         return v
@@ -70,6 +85,15 @@ class UserUpdate(BaseSchema):
     def _validate_locale(cls, v: str) -> str:
         if v not in VALID_LOCALES:
             raise ValueError(f"locale must be one of {sorted(VALID_LOCALES)}")
+        return v
+
+    @field_validator("timezone")
+    @classmethod
+    def _validate_timezone(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        if v not in VALID_TIMEZONES:
+            raise ValueError("timezone must be an IANA zone name, for example Europe/Madrid")
         return v
 
     @field_validator("initial_ease_factor")
@@ -98,6 +122,8 @@ class UserRead(UserBase):
     display_name: str | None = None
     locale: str = "en"
     theme: ThemeMode = "system"
+    time_format: TimeFormat = "24h"
+    timezone: str | None = None
     ai_provider: AIProvider | None = None
     # The model that runs and the level of every action: the saved values with the defaults merged in.
     # Required in the API: `_compute_key_flags` always fills them, so the client never has to handle a gap.

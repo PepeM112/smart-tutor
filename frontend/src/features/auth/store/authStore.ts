@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 import { type UserRead } from '@/client';
+import { clearUnconfirmedChanges } from '@/features/settings/hooks/unconfirmedUserChanges';
 
 const STORAGE_KEY = 'auth-storage';
 
@@ -19,6 +20,8 @@ export const useAuthStore = create<AuthState>()(
       setUser: user => set({ user }),
 
       logout: () => {
+        // The overlay is module state: without this, the next user would see the last user's unsaved settings.
+        clearUnconfirmedChanges();
         set({ user: null });
       },
     }),

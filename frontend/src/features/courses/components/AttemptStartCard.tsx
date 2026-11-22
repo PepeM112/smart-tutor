@@ -1,11 +1,12 @@
 'use client';
 
 import { Play } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { type SpaceItemRead } from '@/client';
 import { Button } from '@/components/ui/button';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
 
 import { attemptPolicyLines } from '../lib/attemptLines';
 import { attemptAction } from '../lib/progress';
@@ -25,7 +26,7 @@ type Props = {
  */
 export function AttemptStartCard({ item, isStarting, onStart }: Props) {
   const t = useTranslations();
-  const format = useFormatter();
+  const prefs = useDateTimePrefs();
   // One clock reading per mount, as in the course outline.
   const [now] = useState(() => new Date());
 
@@ -41,7 +42,7 @@ export function AttemptStartCard({ item, isStarting, onStart }: Props) {
         : action === 'cooldown'
           ? 'courses.cooldown_wait'
           : 'courses.no_attempts_left';
-  const lines = attemptPolicyLines(item, now, t, format);
+  const lines = attemptPolicyLines(item, now, t, prefs);
 
   return (
     <div

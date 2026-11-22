@@ -21,7 +21,7 @@ export function PageHeader() {
   const router = useRouter();
 
   return (
-    <div className="flex h-14 shrink-0 items-center gap-3 border-b border-hairline px-4 lg:px-5">
+    <div className="flex h-14 shrink-0 items-center gap-3 px-4 lg:px-5">
       <OutlineToggle />
       {lead ? (
         <>

@@ -32,6 +32,10 @@ export type LongTextQuestionData = {
   lengthLimit: number;
   criteria: Criterion[];
   points: number;
+  /** Not editable here: carried through so saving the test does not wipe them. */
+  tags?: string[];
+  hint?: string | null;
+  explanation?: string | null;
 };
 
 type Props = {

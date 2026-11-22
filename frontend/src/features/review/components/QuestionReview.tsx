@@ -9,6 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { parseMcAnswer, toggleMcOption } from '@/features/tests/utils/questionContent';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDate } from '@/lib/datetime';
 import { cn } from '@/lib/utils';
 
 import { feedbackBg, feedbackTextColor, statusLabelKey } from '../helpers';
@@ -42,6 +44,7 @@ export function QuestionReview({
   isLast,
 }: Props) {
   const t = useTranslations();
+  const prefs = useDateTimePrefs();
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isSimple = question.questionType === QuestionType.SIMPLE;
   // SAFETY: isMC check below guards all MC-specific access; content is opaque JSON from the API
@@ -138,8 +141,8 @@ export function QuestionReview({
                   SRS: ease={checkResult.srsState.easeFactor.toFixed(2)} interval={checkResult.srsState.interval}d reps=
                   {checkResult.srsState.repetitions} next=
                   {checkResult.srsState.nextReview
-                    ? new Date(checkResult.srsState.nextReview).toLocaleDateString()
-                    : 'n/a'}
+                    ? formatDate(checkResult.srsState.nextReview, prefs)
+                    : t('review.next_review_none')}
                 </p>
               </div>
             )}

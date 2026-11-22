@@ -30,6 +30,8 @@ class Question(Base):
     content: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
     hint: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown before answering
     explanation: Mapped[str | None] = mapped_column(String, nullable=True, default=None)  # shown after answering
+    # Lowercase labels, normalized by `schemas/tags.py`. Filtered with the GIN index `ix_question_tags`.
+    tags: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
     user_id: Mapped[str] = mapped_column(String(26), ForeignKey("user.id"), index=True)
     test_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("test.id"), index=True)
     # Organizational grouping within a test (e.g. a "Vocabulary" section with a shared title)
@@ -73,4 +75,5 @@ class Question(Base):
             unique=True,
             postgresql_where=(status == int(QuestionStatus.ACTIVE)),
         ),
+        Index("ix_question_tags", "tags", postgresql_using="gin"),
     )

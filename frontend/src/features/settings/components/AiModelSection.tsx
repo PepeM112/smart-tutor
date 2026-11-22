@@ -1,66 +1,32 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useId, useRef } from 'react';
+import { useId } from 'react';
 
-import {
-  AiProvider,
-  type AiEffort,
-  type AiEffortSettings,
-  type AnthropicModel,
-  type UserRead,
-  type UserUpdate,
-} from '@/client';
+import { AiProvider, type AiEffort, type AiEffortSettings, type AnthropicModel } from '@/client';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '@/features/auth/store/authStore';
 
 import { ANTHROPIC_MODELS, EFFORT_ACTION_LABEL_KEYS, EFFORT_LEVELS, EFFORT_MODELS, MODEL_LABEL_KEYS } from '../aiModel';
-import { useUpdateUser } from '../hooks/useUpdateUser';
+import { useDebouncedUpdateUser } from '../hooks/useDebouncedUpdateUser';
 
 import { SettingsSection } from './SettingsSection';
 
 type EffortAction = keyof AiEffortSettings;
-type EffortChange = { action: EffortAction; level: AiEffort };
 
 type Props = {
   /** The provider shown in the form. No provider chosen yet means Anthropic, as in the backend. */
   provider: AiProvider | null;
 };
 
-/** Saves at once, like the theme: each change is its own request, so these controls are not part of the form. */
+/** Each control shows its change at once and saves after a delay, like the theme. They are not part of the form. */
 export function AiModelSection({ provider }: Props) {
   const t = useTranslations();
   const user = useAuthStore(s => s.user);
   const modelId = useId();
 
-  // The last value the backend confirmed. A failed save goes back to it, unless a later change replaced it.
-  const savedModel = useRef<AnthropicModel | undefined>(user?.anthropicModel);
-  const savedEffort = useRef<AiEffortSettings | undefined>(user?.aiEffort);
-
-  const { mutate: saveModel } = useUpdateUser({
-    onMutate: ({ anthropicModel }) => anthropicModel && patchUser({ anthropicModel }),
-    onSuccess: updatedUser => {
-      savedModel.current = updatedUser.anthropicModel;
-    },
-    onError: ({ anthropicModel }) => {
-      if (useAuthStore.getState().user?.anthropicModel === anthropicModel && savedModel.current) {
-        patchUser({ anthropicModel: savedModel.current });
-      }
-    },
-  });
-
-  const { mutate: saveEffort } = useUpdateUser({
-    onMutate: ({ aiEffort }) => changedEffort(aiEffort).forEach(({ action, level }) => patchEffort(action, level)),
-    onSuccess: updatedUser => {
-      savedEffort.current = updatedUser.aiEffort;
-    },
-    onError: ({ aiEffort }) =>
-      changedEffort(aiEffort).forEach(({ action, level }) => {
-        const saved = savedEffort.current?.[action];
-        if (useAuthStore.getState().user?.aiEffort[action] === level && saved) patchEffort(action, saved);
-      }),
-  });
+  const saveUser = useDebouncedUpdateUser();
 
   if (!user) return null;
 
@@ -80,7 +46,9 @@ export function AiModelSection({ provider }: Props) {
             {/* SAFETY: the items are built from ANTHROPIC_MODELS, so the value is one of them */}
             <Select
               value={user.anthropicModel}
-              onValueChange={value => saveModel({ anthropicModel: value as AnthropicModel })}
+              onValueChange={value =>
+                saveUser({ anthropicModel: value as AnthropicModel }, { field: 'anthropicModel' })
+              }
             >
               <SelectTrigger id={modelId} className="w-44">
                 <SelectValue />
@@ -107,7 +75,7 @@ export function AiModelSection({ provider }: Props) {
                 label={t(EFFORT_ACTION_LABEL_KEYS[action])}
                 value={user.aiEffort[action]}
                 disabled={effortDisabledKey !== null}
-                onChange={level => saveEffort({ aiEffort: { [action]: level } })}
+                onChange={level => saveUser({ aiEffort: { [action]: level } }, { field: `aiEffort.${action}` })}
               />
             ))}
           </ul>
@@ -145,23 +113,4 @@ function EffortRow({ label, value, disabled, onChange }: EffortRowProps) {
       </Select>
     </li>
   );
-}
-
-/** Shows a change in the store before the backend answers. */
-function patchUser(changes: Partial<UserRead>): void {
-  const { user, setUser } = useAuthStore.getState();
-  if (user) setUser({ ...user, ...changes });
-}
-
-/** The request carries one action, so this is the single changed level (or none). */
-function changedEffort(aiEffort: UserUpdate['aiEffort']): EffortChange[] {
-  // SAFETY: the keys of AiEffortUpdate are the same as the keys of AiEffortSettings
-  return Object.entries(aiEffort ?? {}).flatMap(([action, level]) =>
-    level ? [{ action: action as EffortAction, level }] : []
-  );
-}
-
-function patchEffort(action: EffortAction, level: AiEffort): void {
-  const user = useAuthStore.getState().user;
-  if (user) patchUser({ aiEffort: { ...user.aiEffort, [action]: level } });
 }

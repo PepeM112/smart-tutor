@@ -2,9 +2,11 @@
 
 import { CalendarClock, FileText, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 
 import { SpaceItemKind } from '@/client';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDateTime } from '@/lib/datetime';
 
 import { useDueSoon } from '../hooks/useClassrooms';
 import { dueSoonHref } from '../lib/dueSoonHref';
@@ -12,7 +14,7 @@ import { dueSoonHref } from '../lib/dueSoonHref';
 /** Students: the next items with a due date, at the top of Classwork. It shows nothing when there are none. */
 export function DueSoonList({ classroomId }: { classroomId: string }) {
   const t = useTranslations();
-  const format = useFormatter();
+  const prefs = useDateTimePrefs();
   const { data: items = [] } = useDueSoon(classroomId);
 
   if (items.length === 0) return null;
@@ -44,7 +46,7 @@ export function DueSoonList({ classroomId }: { classroomId: string }) {
               </span>
               <span className="shrink-0 text-xs text-muted-foreground">
                 {t('courses.schedule_label_due', {
-                  date: format.dateTime(item.dueAt, { dateStyle: 'short', timeStyle: 'short' }),
+                  date: formatDateTime(item.dueAt, prefs, 'short'),
                 })}
               </span>
             </Link>

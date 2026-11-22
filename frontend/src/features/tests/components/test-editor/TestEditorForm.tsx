@@ -29,9 +29,13 @@ import {
 import { useAssistCoversPage } from '@/features/assist/hooks/useAssistCoversPage';
 import { useAssistDiffStore } from '@/features/assist/store/useAssistDiffStore';
 import { markCourseDetailStale } from '@/features/courses/lib/queryKeys';
+import { NoteWidthToggle } from '@/features/notes/components/NoteWidthToggle';
+import { useTestWidth } from '@/features/notes/hooks/useNoteWidth';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { usePageActions } from '@/hooks/usePageActions';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
+import { cn } from '@/lib/utils';
 
 import { useQuestionBlockList } from '../../hooks/useQuestionBlockList';
 import { type AddItemType, AddQuestionDropdown } from '../AddQuestionDropdown';
@@ -68,6 +72,10 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [isEditing, setIsEditing] = useState(!isEdit);
+  // Only desktop has room for a full-width column: smaller screens always fill the page.
+  const { isDesktop } = useBreakpoint();
+  const { width, toggleWidth } = useTestWidth();
+  const isFullWidth = !isDesktop || width === 'full';
   const {
     items,
     setItems,
@@ -181,11 +189,14 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
         isEditing={isEditing}
         isSaving={isSaving}
         canSave={canSave}
+        showWidthToggle={isDesktop}
+        isFullWidth={isFullWidth}
+        onToggleWidth={toggleWidth}
         onToggleEditing={setIsEditing}
         onSave={saveTest}
       />
     ),
-    [testId, isEdit, isEditing, isSaving, canSave, saveTest]
+    [testId, isEdit, isEditing, isSaving, canSave, isDesktop, isFullWidth, toggleWidth, saveTest]
   );
   usePageActions(headerActions);
 
@@ -206,7 +217,7 @@ export function TestEditorForm({ testId, initialTitle = '', initialDescription =
       <ResponsiveSplitPane
         storageKey={ASSIST_TEST_DIFF_SPLIT_KEY}
         main={
-          <div className="min-w-0">
+          <div className={cn('min-w-0', !isFullWidth && 'mx-auto max-w-[720px]')}>
             <div className="mb-6 space-y-3">
               {isEditing ? (
                 <>
@@ -291,6 +302,9 @@ type EditorActionsProps = {
   isEditing: boolean;
   isSaving: boolean;
   canSave: boolean;
+  showWidthToggle: boolean;
+  isFullWidth: boolean;
+  onToggleWidth: () => void;
   onToggleEditing: (editing: boolean) => void;
   onSave: () => void;
 };
@@ -301,6 +315,9 @@ function TestEditorActions({
   isEditing,
   isSaving,
   canSave,
+  showWidthToggle,
+  isFullWidth,
+  onToggleWidth,
   onToggleEditing,
   onSave,
 }: EditorActionsProps) {
@@ -308,6 +325,7 @@ function TestEditorActions({
 
   return (
     <>
+      {showWidthToggle && <NoteWidthToggle isFullWidth={isFullWidth} onToggle={onToggleWidth} />}
       {isEdit && testId && (
         <Button variant="outline" icon={Dumbbell} className="text-feedback-partial" asChild>
           <Link href={Routes.TEST_DETAIL(testId)} aria-label={t('tests.take_test_action')}>

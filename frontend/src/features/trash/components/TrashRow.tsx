@@ -5,8 +5,9 @@ import { useFormatter, useTranslations } from 'next-intl';
 
 import { TreeChevron } from '@/components/shared/tree/TreeChevron';
 import { TreeRowShell } from '@/components/shared/tree/TreeRowShell';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDateTime } from '@/lib/datetime';
 import { displayTitle } from '@/lib/displayTitle';
-import { formatDate } from '@/lib/format';
 
 import { useTrashTable } from '../context/TrashTableContext';
 import { type TrashTarget } from '../hooks/useTrashMutations';
@@ -44,6 +45,7 @@ export function TrashRow({
 }: Props) {
   const t = useTranslations();
   const format = useFormatter();
+  const prefs = useDateTimePrefs();
   const { now } = useTrashTable();
 
   const isFolder = target.kind === 'folder';
@@ -72,7 +74,7 @@ export function TrashRow({
       </span>
       <span
         className="hidden w-28 shrink-0 truncate text-right text-xs text-muted-foreground sm:block"
-        title={deletedAt ? formatDate(deletedAt) : undefined}
+        title={deletedAt ? formatDateTime(deletedAt, prefs) : undefined}
       >
         {deletedAt ? format.relativeTime(deletedAt, now) : null}
       </span>

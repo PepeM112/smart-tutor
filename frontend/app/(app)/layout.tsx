@@ -12,8 +12,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <AuthGuard>
       <PageDataProvider>
         <AssistProvider>
-          {/* The nav sits on the ground (`bg-background`). The page and the Ask AI sheet are sheets on it. */}
-          <div className="flex h-dvh flex-col bg-background lg:flex-row">
+          {/* The nav sits on the ground (`lg:bg-ground`). The page and the Ask AI sheet are sheets on it.
+              Below lg the page fills the screen and the tab bar sits on `bg-background`. */}
+          <div className="flex h-dvh flex-col bg-background lg:flex-row lg:bg-ground">
             <div className="hidden lg:flex">
               <Sidebar />
             </div>

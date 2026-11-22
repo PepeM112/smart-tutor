@@ -157,6 +157,7 @@ class TestUserSchemas:
             role=2,
             locale="en",
             theme="system",
+            time_format="24h",
             initial_ease_factor=2.5,
             **fields,
         )

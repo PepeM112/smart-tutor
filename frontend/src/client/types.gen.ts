@@ -1928,6 +1928,10 @@ export type QuestionCreate = {
      * Points
      */
     points?: number;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
 };
 
 /**
@@ -1957,6 +1961,10 @@ export type QuestionCreateStandalone = {
      * Points
      */
     points?: number;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
 };
 
 /**
@@ -2039,6 +2047,10 @@ export type QuestionListRead = {
      */
     points?: number;
     /**
+     * Tags
+     */
+    tags?: Array<string>;
+    /**
      * Originid
      */
     originId?: string | null;
@@ -2089,6 +2101,10 @@ export type QuestionRead = {
      * Points
      */
     points?: number;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
     /**
      * Id
      */
@@ -2187,6 +2203,10 @@ export type QuestionUpdate = {
      * Points
      */
     points?: number | null;
+    /**
+     * Tags
+     */
+    tags?: Array<string> | null;
 };
 
 /**
@@ -4056,7 +4076,15 @@ export type UserRead = {
     /**
      * Theme
      */
-    theme?: 'light' | 'dark' | 'system';
+    theme?: 'light' | 'light-frame' | 'light-ink' | 'light-ink-frame' | 'dark' | 'system';
+    /**
+     * Timeformat
+     */
+    timeFormat?: '12h' | '24h';
+    /**
+     * Timezone
+     */
+    timezone?: string | null;
     aiProvider?: AiProvider | null;
     anthropicModel: AnthropicModel;
     aiEffort: AiEffortSettings;
@@ -4125,7 +4153,15 @@ export type UserUpdate = {
     /**
      * Theme
      */
-    theme?: 'light' | 'dark' | 'system' | null;
+    theme?: 'light' | 'light-frame' | 'light-ink' | 'light-ink-frame' | 'dark' | 'system' | null;
+    /**
+     * Timeformat
+     */
+    timeFormat?: '12h' | '24h' | null;
+    /**
+     * Timezone
+     */
+    timezone?: string | null;
     aiProvider?: AiProvider | null;
     anthropicModel?: AnthropicModel | null;
     aiEffort?: AiEffortUpdate | null;
@@ -4819,6 +4855,10 @@ export type QuestionsListData = {
          */
         search?: string | null;
         /**
+         * Tags
+         */
+        tags?: Array<string> | null;
+        /**
          * Grouping
          */
         grouping?: 'grouped' | 'ungrouped' | null;
@@ -4884,6 +4924,42 @@ export type QuestionsCreateResponses = {
 };
 
 export type QuestionsCreateResponse = QuestionsCreateResponses[keyof QuestionsCreateResponses];
+
+export type QuestionsListTagsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Search
+         */
+        search?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/questions/tags';
+};
+
+export type QuestionsListTagsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type QuestionsListTagsError = QuestionsListTagsErrors[keyof QuestionsListTagsErrors];
+
+export type QuestionsListTagsResponses = {
+    /**
+     * Response Questionslisttags
+     *
+     * Successful Response
+     */
+    200: Array<string>;
+};
+
+export type QuestionsListTagsResponse = QuestionsListTagsResponses[keyof QuestionsListTagsResponses];
 
 export type QuestionsDeleteData = {
     body?: never;

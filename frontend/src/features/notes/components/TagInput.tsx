@@ -7,7 +7,7 @@ import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState, type KeyboardEvent } from 'react';
 
-// Same limits as the backend (`NOTE_MAX_TAGS`, `NOTE_TAG_MAX_CHARS` in `schemas/note.py`).
+// Same limits as the backend (`MAX_TAGS`, `TAG_MAX_CHARS` in `schemas/tags.py`).
 // Autosave does not retry a 422, so the UI must not let the user go over them.
 const MAX_TAGS = 10;
 const MAX_TAG_CHARS = 25;

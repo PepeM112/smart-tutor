@@ -8,10 +8,10 @@ import { useState } from 'react';
 
 import { MemberStatus, SpaceKind, SpaceRole, type SpaceDetail, type SpaceMemberRead } from '@/client';
 import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
+import { FormattedDate } from '@/components/shared/FormattedDate';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/apiClient';
-import { formatShortDate } from '@/lib/format';
 
 import { type useCourseActions } from '../hooks/useCourseActions';
 import { MEMBER_STATUS_LABELS, ROLE_ICONS, roleLabelKey } from '../lib/labels';
@@ -240,7 +240,7 @@ function useMemberColumns(isClassroom: boolean): ColumnDef<SpaceMemberRead, unkn
       meta: { widthClass: 'w-24 text-right' },
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {row.original.joinedAt ? formatShortDate(row.original.joinedAt) : '—'}
+          {row.original.joinedAt ? <FormattedDate value={row.original.joinedAt} /> : '—'}
         </span>
       ),
     },

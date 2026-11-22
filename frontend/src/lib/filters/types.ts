@@ -43,6 +43,8 @@ export type FilterOptions = {
   returnObject?: boolean;
   /** TOGGLE only: the translation key of the "no filter" choice. Default `common.all`. Use it when no filter has a default meaning (for example "Active"). */
   allLabel?: string;
+  /** MULTIPLE_SELECT only: options come from the server while the user types, so `items` is not needed. The values are strings. */
+  asyncItems?: { queryKey: readonly unknown[]; fetch: (search: string) => Promise<string[]> };
 };
 
 export type FilterValue = Record<

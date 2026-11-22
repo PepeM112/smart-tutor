@@ -11,7 +11,6 @@ import {
   GraduationCap,
   Files,
   Pencil,
-  PencilLine,
   Plus,
   SlidersHorizontal,
   Sparkles,
@@ -37,7 +36,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
 import { courseHref, noteHref, Routes } from '@/lib/routes';
-import { cn } from '@/lib/utils';
 
 import { courseWriteKey, type useCourseActions } from '../hooks/useCourseActions';
 import { useDraftDnd } from '../hooks/useDraftDnd';
@@ -499,7 +497,7 @@ function DraftSection({
                       <ItemSchedulePanel
                         item={item}
                         isClassroom={isClassroom}
-                        onUpdate={(body, onError) => onUpdateItem(item, body, onError)}
+                        onUpdate={body => onUpdateItem(item, body)}
                       />
                     </li>
                   )}
@@ -532,12 +530,14 @@ function ItemBadge({ item }: { item: SpaceItemRead }) {
   const isNew = item.draftOfId === null;
   if (!isNew && !item.hasChanges) return null;
   const label = t(isNew ? 'courses.badge_new' : 'courses.badge_changed');
-  const Icon = isNew ? Sparkles : PencilLine;
-
   return (
     <Tooltip content={label}>
       <span role="img" aria-label={label} className="flex size-6 shrink-0 items-center justify-center">
-        <Icon className={cn('size-4', isNew ? 'text-feedback-correct' : 'text-feedback-partial')} />
+        {isNew ? (
+          <Sparkles className="size-4 text-feedback-correct" />
+        ) : (
+          <span className="size-2 rounded-full bg-feedback-partial" />
+        )}
       </span>
     </Tooltip>
   );

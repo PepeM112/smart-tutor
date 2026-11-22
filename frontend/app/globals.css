@@ -61,6 +61,13 @@
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-destructive: var(--sidebar-destructive);
+  --color-sidebar-primary: var(--sidebar-primary);
+
+  /* Ground: the area behind the page sheet at lg and wider */
+  --color-ground: var(--ground);
+  --color-ground-handle: var(--ground-handle);
+  --color-ground-handle-hover: var(--ground-handle-hover);
+  --color-ground-handle-focus: var(--ground-handle-focus);
 
   /* Code blocks */
   --color-code-bg: var(--code-bg);
@@ -117,7 +124,10 @@
    ═══════════════════════════════════════════════════════════════ */
 @layer base {
   :root,
-  [data-theme='light'] {
+  [data-theme='light'],
+  [data-theme='light-frame'],
+  [data-theme='light-ink'],
+  [data-theme='light-ink-frame'] {
     color-scheme: light;
 
     --background: #f6f2ea;
@@ -156,12 +166,17 @@
     --highlight-ai-active: #f0cdb0;
     --code-bg: #2a2622;
     --code-fg: #ece6da;
-    --sidebar: #f6f2ea;
-    --sidebar-foreground: #2a2622;
-    --sidebar-muted: #6e665c;
-    --sidebar-accent: #efe9dd;
-    --sidebar-border: #ece5d8;
-    --sidebar-destructive: #9a3a1e;
+    --sidebar: #8e5e4b;
+    --sidebar-foreground: #fffaf4;
+    --sidebar-muted: #f9eee4;
+    --sidebar-accent: #7e5240;
+    --sidebar-border: #9d6e5b;
+    --sidebar-destructive: #ffe8de;
+    --sidebar-primary: #ffeed8;
+    --ground: var(--background);
+    --ground-handle: var(--rule);
+    --ground-handle-hover: var(--muted-foreground);
+    --ground-handle-focus: var(--ring);
     --shadow-card: 0 1px 2px rgb(42 38 34 / 5%);
     --radius: 0.5rem;
 
@@ -193,6 +208,34 @@
     --chart-both-openai-test-generation: #0d9488;
     --chart-both-openai-assist: #0f766e;
     --chart-both-openai-embedding: #115e59;
+  }
+
+  /* Same sidebar values as the dark palette, on the light page. */
+  [data-theme='light-ink'],
+  [data-theme='light-ink-frame'] {
+    --sidebar: #1c1a17;
+    --sidebar-foreground: #ece6da;
+    --sidebar-muted: #a89f92;
+    --sidebar-accent: #332e27;
+    --sidebar-border: #2f2b25;
+    --sidebar-destructive: #e8836a;
+    --sidebar-primary: #e0875a;
+  }
+
+  /* The frame variants paint the ground with the sidebar color. The handle between the sheets gets its own
+     colors: the defaults are made for a light ground. */
+  [data-theme='light-frame'] {
+    --ground: var(--sidebar);
+    --ground-handle: #d6bfb1;
+    --ground-handle-hover: #fffdf8;
+    --ground-handle-focus: #fffdf8;
+  }
+
+  [data-theme='light-ink-frame'] {
+    --ground: var(--sidebar);
+    --ground-handle: #7a7266;
+    --ground-handle-hover: #ece6da;
+    --ground-handle-focus: #ece6da;
   }
 
   [data-theme='dark'] {
@@ -240,6 +283,14 @@
     --sidebar-accent: #332e27;
     --sidebar-border: #2f2b25;
     --sidebar-destructive: #e8836a;
+    --sidebar-primary: #e0875a;
+
+    /* Every palette must declare the ground tokens. Without them a dark preview inside a frame theme
+       inherits the frame ground, because custom properties inherit. */
+    --ground: var(--background);
+    --ground-handle: var(--rule);
+    --ground-handle-hover: var(--muted-foreground);
+    --ground-handle-focus: var(--ring);
     --shadow-card: none;
   }
 }

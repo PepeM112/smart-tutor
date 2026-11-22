@@ -5,6 +5,7 @@ from pydantic import Field, ValidationInfo, field_validator, model_validator
 from app.core.enums import LongTextLength, QuestionType
 from app.schemas.base import BaseSchema
 from app.schemas.pagination import PaginatedResponse
+from app.schemas.tags import normalize_tags
 
 # --- Content sub-models ---
 
@@ -98,6 +99,7 @@ class QuestionBase(BaseSchema):
     group_id: str | None = None
     order: int = 0
     points: float = 1.0
+    tags: list[str] = []
 
     @field_validator("content")
     @classmethod
@@ -107,8 +109,13 @@ class QuestionBase(BaseSchema):
         return v
 
 
+# Tag limits live on the input schemas only: `QuestionRead` inherits `QuestionBase`, and a limit there
+# would make stored questions that are over it fail to serialize (same rule as `NoteBase`).
 class QuestionCreate(QuestionBase):
-    pass
+    @field_validator("tags")
+    @classmethod
+    def _validate_tags(cls, tags: list[str]) -> list[str]:
+        return normalize_tags(tags)
 
 
 class QuestionUpdate(BaseSchema):
@@ -118,6 +125,12 @@ class QuestionUpdate(BaseSchema):
     hint: str | None = None
     explanation: str | None = None
     points: float | None = None
+    tags: list[str] | None = None
+
+    @field_validator("tags")
+    @classmethod
+    def _validate_tags(cls, tags: list[str] | None) -> list[str] | None:
+        return None if tags is None else normalize_tags(tags)
 
     @model_validator(mode="after")
     def validate_content_consistency(self) -> "QuestionUpdate":
@@ -158,6 +171,7 @@ class QuestionCreateStandalone(BaseSchema):
     hint: str | None = None
     explanation: str | None = None
     points: float = 1.0
+    tags: list[str] = []
 
     @field_validator("content")
     @classmethod
@@ -165,6 +179,11 @@ class QuestionCreateStandalone(BaseSchema):
         q_type = info.data.get("question_type")
         _validate_content(q_type, v)
         return v
+
+    @field_validator("tags")
+    @classmethod
+    def _validate_tags(cls, tags: list[str]) -> list[str]:
+        return normalize_tags(tags)
 
 
 class QuestionListRead(BaseSchema):
@@ -181,6 +200,7 @@ class QuestionListRead(BaseSchema):
     group_id: str | None = None
     order: int = 0
     points: float = 1.0
+    tags: list[str] = []
     origin_id: str | None = None
     test_title: str | None = None
     group_title: str | None = None

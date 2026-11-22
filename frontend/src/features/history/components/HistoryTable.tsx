@@ -8,10 +8,10 @@ import { useCallback, useMemo } from 'react';
 
 import type { TestResultListItem } from '@/client';
 import { DataTableV2 } from '@/components/shared/DataTableV2';
+import { FormattedDate } from '@/components/shared/FormattedDate';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Tooltip } from '@/components/ui/tooltip';
 import { getScoreBadgeClasses } from '@/features/history/utils/scoreColors';
-import { formatShortDate } from '@/lib/format';
 import { Routes } from '@/lib/routes';
 
 type Props = {
@@ -36,7 +36,9 @@ export function HistoryTable({ data, sort, onSort, onPreview, previewId }: Props
             <OlderVersionIcon isOlder={row.isOlderVersion} label={t('history.older_version')} />
             <CourseLabel title={row.spaceTitle} label={t('history.course_label', { title: row.spaceTitle ?? '' })} />
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">{formatShortDate(row.createdAt)}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            <FormattedDate value={row.createdAt} />
+          </p>
         </div>
         <ScoreBadge score={row.score ?? 0} />
       </div>
@@ -142,7 +144,9 @@ function getColumns(t: ReturnType<typeof useTranslations>): ColumnDef<TestResult
       header: t('history.column_date'),
       meta: { sortKey: 'created_at', widthClass: 'w-24 text-right' },
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{formatShortDate(row.original.createdAt)}</span>
+        <span className="text-sm text-muted-foreground">
+          <FormattedDate value={row.original.createdAt} />
+        </span>
       ),
     },
   ];

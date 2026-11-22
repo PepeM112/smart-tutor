@@ -13,7 +13,7 @@ import { buildChildrenIndex } from '../lib/fileTree';
 
 import { FolderTreeRow, NoteTreeRow } from './FileTreeRow';
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('./MoveDialog', () => ({ MoveDialog: () => null }));
 

@@ -20,6 +20,10 @@ export type SimpleRow = {
   id?: string;
   prompt: string;
   answers: string[];
+  /** Not editable here: carried through so saving the test does not wipe them. */
+  tags?: string[];
+  hint?: string | null;
+  explanation?: string | null;
 };
 
 export type QuestionGroupData = {

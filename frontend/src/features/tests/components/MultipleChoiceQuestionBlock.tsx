@@ -27,6 +27,10 @@ export type MultipleChoiceQuestionData = {
   prompt: string;
   choices: Choice[];
   points: number;
+  /** Not editable here: carried through so saving the test does not wipe them. */
+  tags?: string[];
+  hint?: string | null;
+  explanation?: string | null;
 };
 
 const MIN_CHOICES = 2;

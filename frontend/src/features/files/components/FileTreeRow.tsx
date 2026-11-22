@@ -7,11 +7,11 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import { type FileTreeFolder, type FileTreeNote } from '@/client';
+import { FormattedDate } from '@/components/shared/FormattedDate';
 import { InlineRename } from '@/components/shared/InlineRename';
 import { TreeChevron } from '@/components/shared/tree/TreeChevron';
 import { TreeRowShell } from '@/components/shared/tree/TreeRowShell';
 import { displayTitle } from '@/lib/displayTitle';
-import { formatShortDate } from '@/lib/format';
 import { NAME_LIMITS } from '@/lib/limits';
 import { folderHref, noteHref } from '@/lib/routes';
 
@@ -113,7 +113,7 @@ export function FolderTreeRow({ folder, depth }: FolderTreeRowProps) {
 
         {/* Updated column */}
         <span className="hidden shrink-0 text-xs text-muted-foreground sm:block w-24 text-right">
-          {formatShortDate(folder.updatedAt)}
+          <FormattedDate value={folder.updatedAt} />
         </span>
 
         {/* Inline actions */}
@@ -197,7 +197,7 @@ export function NoteTreeRow({ note, depth }: NoteTreeRowProps) {
 
       {/* Updated column */}
       <span className="hidden shrink-0 text-xs text-muted-foreground sm:block w-24 text-right">
-        {formatShortDate(note.updatedAt)}
+        <FormattedDate value={note.updatedAt} />
       </span>
 
       <FileRowActions item={{ kind: 'note', note }} onStartRename={() => setRenaming(true)} />

@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AiEffort, AiProvider, AnthropicModel, type AiToolPermissionRead, type UserRead } from '@/client';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
+
+import { clearUnconfirmedChanges } from '../hooks/unconfirmedUserChanges';
+import { SAVE_DELAY_MS } from '../hooks/useDebouncedUpdateUser';
 
 import { SettingsPage } from './SettingsPage';
 
@@ -61,6 +64,7 @@ const permission = (name: string, autoApprove: boolean): AiToolPermissionRead =>
 });
 
 beforeEach(() => {
+  clearUnconfirmedChanges();
   useAuthStore.setState({ user: USER });
   serverPermissions.current = [];
   nav.query = '';
@@ -71,6 +75,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
 });
 
@@ -230,30 +235,17 @@ describe('SettingsPage', () => {
   });
 
   describe('AI provider and keys', () => {
-    it('saves the provider when the user picks one', async () => {
+    it('shows the provider at once and saves it after the delay', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
       vi.mocked(sdk.usersUpdateMe).mockResolvedValue({ data: { ...USER, aiProvider: AiProvider.OPENAI } } as never);
       mount('ai');
 
       fireEvent.click(screen.getByRole('button', { name: /^settings.openai/ }));
 
-      await waitFor(() => expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { aiProvider: AiProvider.OPENAI } }));
-    });
-
-    it('disables the provider buttons while the save is pending', async () => {
-      let finishSave: (value: never) => void = () => undefined;
-      vi.mocked(sdk.usersUpdateMe).mockReturnValueOnce(new Promise(resolve => (finishSave = resolve)) as never);
-      mount('ai');
-
-      fireEvent.click(screen.getByRole('button', { name: /^settings.openai/ }));
-
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: /^settings.anthropic/ }).hasAttribute('disabled')).toBe(true)
-      );
-      // The cache is shared by all tests, and a request that never ends would block the next ones in the scope.
-      finishSave({ data: USER } as never);
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: /^settings.anthropic/ }).hasAttribute('disabled')).toBe(false)
-      );
+      expect(useAuthStore.getState().user?.aiProvider).toBe(AiProvider.OPENAI);
+      expect(sdk.usersUpdateMe).not.toHaveBeenCalled();
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      expect(sdk.usersUpdateMe).toHaveBeenCalledWith({ body: { aiProvider: AiProvider.OPENAI } });
     });
 
     it('removes a key after the user confirms', async () => {

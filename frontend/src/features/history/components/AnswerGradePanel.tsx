@@ -1,7 +1,7 @@
 'use client';
 
 import { GraduationCap, PencilLine } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 
 import { type AnswerRead } from '@/client';
@@ -10,6 +10,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { questionPoints } from '@/features/tests/utils/points';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDate } from '@/lib/datetime';
 
 import { useResultReview } from '../context/resultReviewContext';
 import { useAnswerOverride } from '../hooks/useAnswerOverride';
@@ -67,7 +69,7 @@ function StudentGrade({ answer, question }: Props) {
 
 function TeacherGrade({ answer, question }: Props) {
   const t = useTranslations();
-  const format = useFormatter();
+  const prefs = useDateTimePrefs();
   const { resultId } = useResultReview();
   const { setOverride, isSettingOverride, clearOverride, isClearingOverride } = useAnswerOverride(resultId);
   const maxPoints = questionPoints(question);
@@ -112,7 +114,7 @@ function TeacherGrade({ answer, question }: Props) {
       )}
       {overridden && !isEditing && answer.overriddenAt && (
         <p className="text-xs text-muted-foreground">
-          {t('history.overridden_at', { date: format.dateTime(answer.overriddenAt, { dateStyle: 'short' }) })}
+          {t('history.overridden_at', { date: formatDate(answer.overriddenAt, prefs, 'short') })}
         </p>
       )}
 

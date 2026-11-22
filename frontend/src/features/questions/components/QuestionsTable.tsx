@@ -181,7 +181,7 @@ function QuestionTypeBadge({ type }: { type: QuestionType }) {
   const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
   return (
     <span className="inline-flex items-center gap-1 rounded-md border border-hairline bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      <Icon className="size-3.5" />
+      <Icon className="size-3.5" aria-hidden />
       {t(labelKey)}
     </span>
   );

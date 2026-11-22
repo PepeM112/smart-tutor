@@ -97,7 +97,10 @@ export function SidebarNav({ collapsed = false }: SidebarNavProps) {
                         aria-label={collapsed ? label : undefined}
                         className={sidebarItemClass(isActive)}
                       >
-                        <Icon size={16} className={cn('shrink-0', isActive ? 'text-primary' : 'text-sidebar-muted')} />
+                        <Icon
+                          size={16}
+                          className={cn('shrink-0', isActive ? 'text-sidebar-primary' : 'text-sidebar-muted')}
+                        />
                         <SidebarLabel collapsed={collapsed}>{label}</SidebarLabel>
                       </Link>
                     </li>

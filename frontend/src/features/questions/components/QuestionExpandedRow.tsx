@@ -24,6 +24,18 @@ export function QuestionExpandedRow({ question, onDuplicate, isDuplicating }: Qu
     <div className="space-y-3">
       {question.hint && <p className="text-sm text-muted-foreground">{t('exam.hint', { hint: question.hint })}</p>}
       <QuestionContent question={question} />
+      {question.tags && question.tags.length > 0 && (
+        <section className="space-y-1.5">
+          <SectionTitle>{t('questions.tags_label')}</SectionTitle>
+          <ul className="flex flex-wrap gap-1.5">
+            {question.tags.map(tag => (
+              <li key={tag} className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground/80">
+                {tag}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {question.explanation && (
         <div>
           <SectionTitle>{t('history.explanation')}</SectionTitle>

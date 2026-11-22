@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { type NotificationRead } from '@/client';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
+import { formatDateTime } from '@/lib/datetime';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +22,7 @@ type NotificationItemProps = {
 export function NotificationItem({ notification, onNavigate }: NotificationItemProps) {
   const t = useTranslations('notifications');
   const locale = useLocale();
+  const prefs = useDateTimePrefs();
   const { mutate: markRead } = useMarkRead();
   const { textKey, params, href, icon: Icon } = renderNotification(notification);
   const isUnread = notification.readAt === null;
@@ -46,7 +49,7 @@ export function NotificationItem({ notification, onNavigate }: NotificationItemP
           </p>
           <time
             dateTime={notification.createdAt.toISOString()}
-            title={notification.createdAt.toLocaleString(locale)}
+            title={formatDateTime(notification.createdAt, prefs)}
             className="text-xs text-muted-foreground"
           >
             {formatRelativeTime(notification.createdAt, locale)}

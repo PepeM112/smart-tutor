@@ -198,3 +198,42 @@ class TestPaginatedResponseValidation:
         dumped = paginated.model_dump(by_alias=True)
         assert "perPage" in dumped
         assert "per_page" not in dumped
+
+
+# ---------------------------------------------------------------------------
+# Tags
+# ---------------------------------------------------------------------------
+
+
+def _standalone(**extra: object) -> QuestionCreateStandalone:
+    return QuestionCreateStandalone(
+        question_type=QuestionType.SIMPLE,
+        prompt="p",
+        content={"answers": ["a"]},
+        **extra,  # type: ignore[arg-type]
+    )
+
+
+class TestQuestionTags:
+    def test_default_is_empty(self) -> None:
+        assert _standalone().tags == []
+
+    def test_create_trims_lowercases_and_dedupes(self) -> None:
+        assert _standalone(tags=[" Geo ", "GEO", "", "History"]).tags == ["geo", "history"]
+
+    def test_create_rejects_more_than_ten_tags(self) -> None:
+        with pytest.raises(ValidationError, match="at most 10"):
+            _standalone(tags=[f"t{i}" for i in range(11)])
+
+    def test_create_rejects_a_long_tag(self) -> None:
+        with pytest.raises(ValidationError, match="longer than 25"):
+            _standalone(tags=["x" * 26])
+
+    def test_update_normalizes_tags(self) -> None:
+        assert QuestionUpdate(tags=["  A", "a", "B"]).tags == ["a", "b"]
+
+    def test_update_without_tags_leaves_them_unset(self) -> None:
+        assert "tags" not in QuestionUpdate(prompt="x").model_dump(exclude_unset=True)
+
+    def test_update_can_clear_tags(self) -> None:
+        assert QuestionUpdate(tags=[]).model_dump(exclude_unset=True)["tags"] == []

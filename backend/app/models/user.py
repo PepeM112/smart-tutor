@@ -21,6 +21,10 @@ class User(Base, CreatedAtMixin):
     display_name: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     locale: Mapped[str] = mapped_column(String(5), default="en")
     theme: Mapped[str] = mapped_column(String(20), default="system")
+    # "12h" | "24h" for every time display (see `TimeFormat` in schemas/user.py).
+    time_format: Mapped[str] = mapped_column(String(3), default="24h", server_default="24h")
+    # IANA zone name. NULL = use the browser zone.
+    timezone: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
     # None falls back to Anthropic in get_user_llm_client — not the AI_GRADING_PROVIDER env var used for system calls
     ai_provider: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     encrypted_anthropic_key: Mapped[str | None] = mapped_column(String, nullable=True, default=None)

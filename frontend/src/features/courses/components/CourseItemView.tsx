@@ -3,13 +3,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import { SpaceItemKind, type NoteRead, type SpaceDetail, type SpaceItemRead } from '@/client';
 import { QueryState } from '@/components/shared/QueryState';
 import { Button } from '@/components/ui/button';
 import { fileQueryKeys } from '@/features/files/lib/queryKeys';
+import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
 import { sdk } from '@/lib/apiClient';
 import { displayTitle } from '@/lib/displayTitle';
 import { Routes } from '@/lib/routes';
@@ -99,10 +100,10 @@ function CourseNoteArticle({ course, item, note }: CourseItemViewProps & { note:
 
 function CourseTestItem({ course, item }: CourseItemViewProps) {
   const t = useTranslations();
-  const format = useFormatter();
+  const prefs = useDateTimePrefs();
   // One clock reading per mount, as in the start card.
   const [now] = useState(() => new Date());
-  const lines = attemptPolicyLines(item, now, t, format);
+  const lines = attemptPolicyLines(item, now, t, prefs);
 
   return (
     <article className="flex flex-col gap-4">

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { type ItemRowAction } from '../lib/itemAction';
 
 /**
- * The course content layout (ST-66 style 5): no cards, a muted header bar per section, plain rows below.
+ * The course content layout (style 5): no cards, a muted header bar per section, plain rows below.
  * The outline (members) and the draft editor (authors) both use these frames, so both look the same.
  */
 export function CourseContentFrame({ children }: { children: ReactNode }) {

@@ -165,7 +165,8 @@ function HandleControls({ editor, containerRef, overlay, state, onDropLineChange
   const gestureActive = useRef(false);
 
   const containerViewportLeft = state.viewportLeft - state.left;
-  const left = Math.max(state.left - HANDLE_GAP - HANDLE_WIDTH, VIEWPORT_MARGIN - containerViewportLeft);
+  const minLeft = Math.max(VIEWPORT_MARGIN, state.clipLeft) - containerViewportLeft;
+  const left = Math.max(state.left - HANDLE_GAP - HANDLE_WIDTH, minLeft);
   const style: CSSProperties = { left, top: state.centerY - BUTTON / 2, width: HANDLE_WIDTH, height: BUTTON };
 
   return (

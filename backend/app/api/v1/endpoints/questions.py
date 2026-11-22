@@ -42,6 +42,7 @@ def list_(
     question_type: Annotated[list[int] | None, Query()] = None,
     test_id: Annotated[list[str] | None, Query()] = None,
     search: str | None = None,
+    tags: Annotated[list[str] | None, Query()] = None,
     grouping: Annotated[QuestionGrouping | None, Query()] = None,
     sort_by: Annotated[QuestionSortBy | None, Query()] = None,
     sort_order: Annotated[SortOrder, Query()] = "desc",
@@ -54,6 +55,7 @@ def list_(
         question_type=question_type,
         test_id=test_id,
         search=search,
+        tags=tags,
         grouping=grouping,
         sort_by=sort_by,
         sort_order=sort_order,
@@ -61,6 +63,17 @@ def list_(
         per_page=per_page,
     )
     return PaginatedQuestionListRead(items=items, total=total, page=page, per_page=per_page)
+
+
+# Registered before the `/{question_id}` routes, or "tags" would match as a question id.
+@router.get("/tags", response_model=list[str])
+def list_tags(
+    db: DbSession,
+    current_user: CurrentUser,
+    search: str | None = None,
+    limit: int = Query(default=20, ge=1, le=50),
+) -> list[str]:
+    return question_service.list_question_tags(db, current_user=current_user, search=search, limit=limit)
 
 
 @router.post("", response_model=QuestionRead, status_code=status.HTTP_201_CREATED)

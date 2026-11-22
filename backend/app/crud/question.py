@@ -5,6 +5,7 @@ from typing import cast
 
 import sqlalchemy as sa
 from sqlalchemy import ColumnElement, Select, UnaryExpression, func, select
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import InstrumentedAttribute, Session, aliased, contains_eager, joinedload, selectinload
 
 from app.core.enums import MemberStatus, QuestionStatus, QuestionType, RevealAnswers, TestStatus
@@ -33,6 +34,23 @@ from app.schemas.question import (
 # Review scopes. Any other value is the id of one course.
 REVIEW_SCOPE_ALL = "all"
 REVIEW_SCOPE_PERSONAL = "personal"
+
+_BANK_QUESTION = sa.and_(Question.test_id.is_(None), Question.group_id.is_(None))
+
+
+def _personal_scope(owning_test: type[Test]) -> ColumnElement[bool]:
+    """Bank questions, or questions of a live personal test.
+
+    Excludes frozen version snapshots (parent_id set), deleted tests and course / classroom tests (space_id set).
+    """
+    return sa.or_(
+        _BANK_QUESTION,
+        sa.and_(
+            owning_test.parent_id.is_(None),
+            owning_test.status == int(TestStatus.ACTIVE),
+            owning_test.space_id.is_(None),
+        ),
+    )
 
 
 def get_by_id(db: Session, *, id: str, active_only: bool = False) -> Question | None:
@@ -92,6 +110,7 @@ def list_by_user(
     question_type: list[int] | None = None,
     test_id: list[str] | None = None,
     search: str | None = None,
+    tags: list[str] | None = None,
     grouping: QuestionGrouping | None = None,
     sort_by: QuestionSortBy | None = None,
     sort_order: SortOrder = "desc",
@@ -107,7 +126,7 @@ def list_by_user(
     # relationship, so the titles are loaded with `selectinload` (see `Question.owning_test`).
     owning_test = aliased(Test)
     resolved_test_id = func.coalesce(Question.test_id, TestQuestionGroup.test_id)
-    is_bank = sa.and_(Question.test_id.is_(None), Question.group_id.is_(None))
+    is_bank = _BANK_QUESTION
     stmt = (
         select(Question)
         .outerjoin(TestQuestionGroup, Question.group_id == TestQuestionGroup.id)
@@ -119,16 +138,7 @@ def list_by_user(
         .where(
             Question.user_id == user_id,
             Question.status == int(QuestionStatus.ACTIVE),
-            # Bank questions, or questions of a live personal test: no frozen version snapshot
-            # (parent_id set), no deleted test and no course / classroom test (space_id set).
-            sa.or_(
-                is_bank,
-                sa.and_(
-                    owning_test.parent_id.is_(None),
-                    owning_test.status == int(TestStatus.ACTIVE),
-                    owning_test.space_id.is_(None),
-                ),
-            ),
+            _personal_scope(owning_test),
         )
     )
 
@@ -148,6 +158,9 @@ def list_by_user(
         stmt = stmt.where(Question.group_id.is_not(None))
     elif grouping == "ungrouped":
         stmt = stmt.where(Question.group_id.is_(None))
+    if tags:
+        # `?|` = the question has ANY of the tags.
+        stmt = stmt.where(Question.tags.op("?|")(sa.cast(tags, ARRAY(sa.Text))))
     if search:
         stmt = stmt.where(token_search(Question.prompt, search=search))
 
@@ -159,6 +172,39 @@ def list_by_user(
     return questions, total
 
 
+def list_tags(db: Session, *, user_id: str, search: str | None, limit: int) -> list[str]:
+    """The user's distinct question tags, most used first, then alphabetical.
+
+    Same scope as the questions list, so a tag only shows up while a visible question carries it.
+    """
+    owning_test = aliased(Test)
+    # Explicit lateral join: the from-linter cannot see that the tag function reads from `question`.
+    # `render_derived` names the column (`AS question_tag(tag)`); a plain alias would rename it.
+    tags_fn = (
+        func.jsonb_array_elements_text(Question.tags).table_valued("tag").render_derived(name="question_tag").lateral()
+    )
+    tag = tags_fn.c.tag
+    uses = func.count().label("uses")
+    stmt = (
+        select(tag)
+        .select_from(Question)
+        .join(tags_fn, sa.true())
+        .outerjoin(TestQuestionGroup, Question.group_id == TestQuestionGroup.id)
+        .outerjoin(owning_test, func.coalesce(Question.test_id, TestQuestionGroup.test_id) == owning_test.id)
+        .where(
+            Question.user_id == user_id,
+            Question.status == int(QuestionStatus.ACTIVE),
+            _personal_scope(owning_test),
+        )
+        .group_by(tag)
+        .order_by(uses.desc(), tag)
+        .limit(limit)
+    )
+    if search:
+        stmt = stmt.where(token_search(tag, search=search))
+    return list(db.scalars(stmt).all())
+
+
 def create_one(db: Session, *, data: QuestionCreateStandalone, user_id: str) -> Question:
     obj = Question(
         user_id=user_id,
@@ -168,6 +214,7 @@ def create_one(db: Session, *, data: QuestionCreateStandalone, user_id: str) -> 
         hint=data.hint,
         explanation=data.explanation,
         points=data.points,
+        tags=data.tags,
     )
     db.add(obj)
     db.flush()
@@ -194,6 +241,7 @@ def create_many(
             explanation=q.explanation,
             order=q.order,
             points=q.points,
+            tags=q.tags,
         )
         for q in questions
     ]
@@ -215,6 +263,7 @@ def duplicate_to_bank(db: Session, *, source: Question, user_id: str) -> Questio
         hint=source.hint,
         explanation=source.explanation,
         points=source.points,
+        tags=list(source.tags),
         origin_id=source.id,
     )
     db.add(obj)
@@ -234,6 +283,7 @@ def copy_to_test(db: Session, *, source: Question, user_id: str, test_id: str, o
         test_id=test_id,
         order=order,
         points=source.points,
+        tags=list(source.tags),
         origin_id=source.id,
     )
     db.add(obj)
