@@ -87,6 +87,13 @@ def _owned_personal(questions: Sequence[Question], *, current_user: User) -> lis
     ]
 
 
+def _clean_filter_tags(tags: list[str] | None) -> list[str] | None:
+    # Stored tags are lowercase and trimmed, so a filter typed as " Geo " must match them.
+    # `normalize_tags` is not used: it enforces the write limits, which do not apply to a filter.
+    cleaned = [tag.strip().lower() for tag in tags or [] if tag.strip()]
+    return cleaned or None
+
+
 def list_questions(
     db: Session,
     *,
@@ -107,7 +114,7 @@ def list_questions(
         question_type=question_type,
         test_id=test_id,
         search=search,
-        tags=tags,
+        tags=_clean_filter_tags(tags),
         grouping=grouping,
         sort_by=sort_by,
         sort_order=sort_order,

@@ -37,7 +37,7 @@ const NOV_3_TO_14 = range('2026-11-02T23:00:00.000Z', '2026-11-14T22:59:59.999Z'
 
 function setup(value: DateFilterValue | undefined) {
   prefs.current = createPrefs('24h', ZONE, 'en');
-  const onChange = vi.fn();
+  const onChange = vi.fn<(value: DateFilterValue | undefined) => void>();
   render(<DateRangeField value={value} onChange={onChange} />);
   return onChange;
 }
@@ -99,6 +99,22 @@ describe('DateRangeField', () => {
 
     expect(onChange).toHaveBeenCalledWith(undefined);
     expect(screen.queryByText('filters_date.today')).toBeNull();
+  });
+
+  it('ends the range on the second click even when the value prop does not change', () => {
+    const onChange = setup(undefined);
+    fireEvent.click(screen.getByRole('button'));
+    const days = screen.getAllByRole('gridcell').map(cell => cell.querySelector('button') as HTMLElement);
+
+    fireEvent.click(days[10]);
+    fireEvent.click(days[12]);
+
+    expect(onChange).toHaveBeenCalledTimes(2);
+    const [first, second] = onChange.mock.calls.map(([value]) => value);
+    expect(first?.from).toBeInstanceOf(Date);
+    expect(first?.to).toBeUndefined();
+    expect(second?.from).toBeInstanceOf(Date);
+    expect(second?.to).toBeInstanceOf(Date);
   });
 
   it('keeps the filter popover open while the inner one is used and closes only the inner one on Escape', () => {

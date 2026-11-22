@@ -40,6 +40,13 @@ describe('DateTimeField', () => {
     expect(screen.getByRole('button').textContent?.replace(/\s/g, ' ')).toContain('Jan 15, 2026, 12:00');
   });
 
+  it('puts its slot on a wrapper, not on the trigger button', () => {
+    setup(null, '24h', 'Europe/Madrid');
+
+    expect(screen.getByRole('button').getAttribute('data-slot')).not.toBe('date-time-field');
+    expect(screen.getByRole('button').closest('[data-slot="date-time-field"]')).toBeTruthy();
+  });
+
   it('shows the placeholder for an empty value', () => {
     setup(null, '24h', 'Europe/Madrid');
 

@@ -5,10 +5,12 @@ The mock tests do not run the SQL joins, so these tests do. Each test is rolled 
 Run with `pytest --run-db tests/test_questions_db.py` (`make test-db`).
 """
 
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from ulid import ULID
 
@@ -112,6 +114,19 @@ def test_update_test_keeps_points(db_session: Session, user: User) -> None:
     loaded = test_crud.get_by_id(db_session, id=test.id)
     assert loaded is not None
     assert [q.points for q in loaded.questions] == [3.0]
+
+
+def test_update_test_keeps_tags(db_session: Session, user: User) -> None:
+    test = test_service.create_test(db_session, current_user=user, data=TestCreate(title="T"))
+    update = TestUpdate(
+        questions=[_q("c", order=0, tags=["geo"])],
+        question_groups=[TestQuestionGroupCreate(order=1, questions=[_q("g", order=0, tags=["history"])])],
+    )
+    test_service.update_test(db_session, test_id=test.id, current_user=user, data=update)
+    loaded = test_crud.get_by_id(db_session, id=test.id)
+    assert loaded is not None
+    assert [q.tags for q in loaded.questions] == [["geo"]]
+    assert [q.tags for q in loaded.question_groups[0].questions] == [["history"]]
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +344,24 @@ def test_list_filters_by_any_of_the_tags(db_session: Session, user: User) -> Non
     assert _prompts(db_session, user) == ["both", "geo", "history", "none"]
 
 
+def _service_prompts(db: Session, user: User, tags: list[str]) -> list[str]:
+    items, _ = question_service.list_questions(db, current_user=user, tags=tags)
+    return sorted(item.prompt for item in items)
+
+
+def test_list_tag_filter_ignores_case_and_spaces(db_session: Session, user: User) -> None:
+    _tagged(db_session, user, "geo", ["geo"])
+    _tagged(db_session, user, "history", ["history"])
+    assert _service_prompts(db_session, user, [" Geo "]) == ["geo"]
+    assert _service_prompts(db_session, user, ["GEO", "History"]) == ["geo", "history"]
+
+
+def test_list_tag_filter_with_only_blank_tags_is_no_filter(db_session: Session, user: User) -> None:
+    _tagged(db_session, user, "geo", ["geo"])
+    _tagged(db_session, user, "none", [])
+    assert _service_prompts(db_session, user, ["  ", ""]) == ["geo", "none"]
+
+
 def test_tags_list_counts_orders_and_isolates_owners(db_session: Session, user: User, other_user: User) -> None:
     _tagged(db_session, user, "1", ["beta", "alpha"])
     _tagged(db_session, user, "2", ["beta", "gamma"])
@@ -336,6 +369,31 @@ def test_tags_list_counts_orders_and_isolates_owners(db_session: Session, user: 
     result = question_service.list_question_tags(db_session, current_user=user, search=None, limit=20)
     # beta is used twice; alpha and gamma once each, alphabetical.
     assert result == ["beta", "alpha", "gamma"]
+
+
+@pytest.fixture
+def client(db_session: Session, user: User) -> Iterator[TestClient]:
+    from app.database import get_session
+    from app.dependencies.auth import get_current_user
+    from app.main import app
+
+    app.dependency_overrides[get_session] = lambda: db_session
+    app.dependency_overrides[get_current_user] = lambda: user
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_tags_endpoint_returns_the_tag_list(db_session: Session, user: User, client: TestClient) -> None:
+    _tagged(db_session, user, "1", ["beta", "alpha"])
+    _tagged(db_session, user, "2", ["beta"])
+
+    response = client.get("/api/v1/questions/tags")
+
+    # Not 404/422: "/tags" must be registered before "/{question_id}".
+    assert response.status_code == 200
+    assert response.json() == ["beta", "alpha"]
 
 
 def test_tags_list_search_is_case_insensitive_contains(db_session: Session, user: User) -> None:

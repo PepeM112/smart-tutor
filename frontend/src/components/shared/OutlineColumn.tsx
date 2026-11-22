@@ -7,7 +7,7 @@ import { Drawer as DrawerPrimitive } from 'vaul';
 
 import { Drawer, DrawerPortal, DrawerTitle } from '@/components/ui/drawer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { PANEL_ANIMATING_CLASS, usePanelAnimation } from '@/lib/panelMotion';
+import { PANEL_ANIMATING_CLASS, usePanelAnimation, useStagedReveal } from '@/lib/panelMotion';
 import { cn } from '@/lib/utils';
 import { DEFAULT_OUTLINE_WIDTH, MIN_OUTLINE_WIDTH, selectOutlineWidth, useOutlineStore } from '@/store/useOutlineStore';
 
@@ -61,17 +61,29 @@ export function OutlineColumn({ storageKey, label, outline, children }: OutlineC
     width: selectOutlineWidth({ widths: useOutlineStore.getState().widths, activeKey: storageKey }),
   }));
 
+  // Same staged fade as the Files preview (`SplitPane`): the card fades out, then the width folds. Opening grows
+  // the width at once and the card fades in near the end.
+  const { isWidthOpen, isMounted, isFolding, completeFold, contentClassName } = useStagedReveal(isShown);
+
   const wasShown = useRef(isShown);
   useEffect(() => {
     if (wasShown.current === isShown) return;
     wasShown.current = isShown;
+    if (!isShown) return;
     animate(groupElementRef.current);
-    if (!isShown) {
-      panelRef.current?.collapse();
-      return;
-    }
     panelRef.current?.resize(toPx(selectOutlineWidth(useOutlineStore.getState())));
   }, [isShown, animate, panelRef]);
+
+  // The fold waits one frame: the phase must render before the panel collapses (see `SplitPane`).
+  useEffect(() => {
+    if (!isFolding) return;
+    const foldFrame = window.requestAnimationFrame(() => {
+      animate(groupElementRef.current);
+      panelRef.current?.collapse();
+      completeFold();
+    });
+    return () => window.cancelAnimationFrame(foldFrame);
+  }, [isFolding, animate, panelRef, completeFold]);
 
   // Only user resizes count: a fold for Ask AI or a window resize also changes the layout. A drag down to the
   // minimum closes the column, and the toggle in the header then shows it as closed.
@@ -113,12 +125,13 @@ export function OutlineColumn({ storageKey, label, outline, children }: OutlineC
           // Clipped: the content keeps its width while the column moves, and is revealed, not squeezed.
           style={{ overflow: 'hidden' }}
         >
-          {isDesktop && (
-            // The wrapper holds the gap, so the card keeps its shadow inside the clipped panel.
-            <div className="h-full min-w-50 py-3 pl-3">
+          {isDesktop && isMounted && (
+            // The wrapper holds the gap, so the card keeps its shadow inside the clipped panel. The fade is on it, so
+            // the card, its border and its shadow fade together.
+            <div className={cn('min-w-50 py-3 pl-3', contentClassName)}>
               <nav
                 aria-label={label}
-                inert={!isOpen}
+                inert={!isShown}
                 className="h-full overflow-y-auto rounded-lg border border-border bg-outline px-2.5 py-4 shadow-card"
               >
                 {outline}
@@ -137,7 +150,7 @@ export function OutlineColumn({ storageKey, label, outline, children }: OutlineC
           onDoubleClick={handleResetWidth}
           className={cn(
             'group relative flex shrink-0 cursor-col-resize items-center justify-center overflow-hidden outline-none',
-            isShown ? 'w-1.5' : 'w-0'
+            isWidthOpen ? 'w-1.5' : 'w-0'
           )}
         >
           <div className="h-full w-px bg-transparent transition-colors group-hover:bg-rule group-focus-visible:bg-ring" />

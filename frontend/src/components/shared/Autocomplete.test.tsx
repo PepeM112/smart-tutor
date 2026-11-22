@@ -18,10 +18,11 @@ type HarnessProps = {
   initial?: string[];
   fetchOptions?: (search: string) => Promise<string[]>;
   maxItems?: number;
+  allowCreate?: boolean;
   onChange?: (value: string[]) => void;
 };
 
-function Harness({ initial = [], fetchOptions, maxItems, onChange }: HarnessProps) {
+function Harness({ initial = [], fetchOptions, maxItems, allowCreate = true, onChange }: HarnessProps) {
   const [value, setValue] = useState(initial);
   return (
     <Autocomplete
@@ -33,7 +34,7 @@ function Harness({ initial = [], fetchOptions, maxItems, onChange }: HarnessProp
       queryKey={['test-tags']}
       fetchOptions={fetchOptions ?? (() => Promise.resolve(EXISTING))}
       normalize={raw => raw.trim().toLowerCase()}
-      allowCreate
+      allowCreate={allowCreate}
       maxItems={maxItems}
       aria-label="Tags"
     />
@@ -153,6 +154,34 @@ describe('Autocomplete', () => {
     type(input, '');
     fireEvent.keyDown(input, { key: 'Backspace' });
     expect(onChange).toHaveBeenCalledWith(['a']);
+  });
+
+  it('ignores Enter while an IME composition is open', () => {
+    const onChange = vi.fn();
+    const input = renderField({ onChange });
+
+    type(input, 'トポ');
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith(['トポ']);
+  });
+
+  it('does not add the first option on Enter when the list is closed and create is off', async () => {
+    const onChange = vi.fn();
+    const input = renderField({ allowCreate: false, onChange });
+    fireEvent.focus(input);
+    await screen.findByRole('option', { name: 'algebra' });
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.click(input);
+    await screen.findByRole('option', { name: 'algebra' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith(['algebra']);
   });
 
   it('closes the list on Escape', async () => {

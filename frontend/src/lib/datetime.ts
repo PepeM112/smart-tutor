@@ -49,7 +49,7 @@ function toDateTime(value: DateInput, prefs: DateTimePrefs): DateTime {
     value instanceof Date
       ? DateTime.fromJSDate(value)
       : typeof value === 'string'
-        ? DateTime.fromISO(value)
+        ? DateTime.fromISO(value, { zone: 'utc' })
         : DateTime.fromMillis(value);
   const zoned = parsed.setZone(prefs.zone);
   return prefs.locale ? zoned.setLocale(prefs.locale) : zoned;
@@ -82,9 +82,7 @@ export function formatDate(value: DateInput, prefs: DateTimePrefs, style: DateSt
 
 /** A calendar day as text. It has no zone, so it never moves to the day before or after. */
 export function formatDay(day: DayParts, prefs: DateTimePrefs, style: DateStyle = 'medium'): string {
-  return toDateTime(DateTime.fromObject(day, { zone: 'utc' }).toMillis(), { ...prefs, zone: 'utc' }).toLocaleString(
-    DATE_OPTIONS[style]
-  );
+  return DateTime.fromObject(day, { zone: 'utc', locale: prefs.locale }).toLocaleString(DATE_OPTIONS[style]);
 }
 
 /** "14:05" or "2:05 PM". */
@@ -101,7 +99,12 @@ export const to12Hour = (hour: number): number => hour % 12 || 12;
  * A time that exists twice (the hour repeated in autumn) gives the later one (standard time).
  */
 export function toUtcIso(wall: WallTime, zone: string): string {
-  const instant = DateTime.fromObject(wall, { zone }).toUTC().toISO();
+  const first = DateTime.fromObject(wall, { zone });
+  // Luxon picks the instant of a repeated time from the current offset, so it is not stable. One hour later
+  // shows the same wall time only when the time is repeated: then that is the later instant.
+  const later = first.plus({ hours: 1 });
+  const isRepeated = later.hour === wall.hour && later.minute === wall.minute;
+  const instant = (isRepeated ? later : first).toUTC().toISO();
   if (!instant) throw new RangeError(`Invalid wall time in ${zone}: ${JSON.stringify(wall)}`);
   return instant;
 }

@@ -181,6 +181,7 @@
     "embedding": "Embedding"
   },
   "review": {
+    "next_review_none": "n/d",
     "title": "Repasar Ahora",
     "failed_to_load": "Error al cargar las preguntas de repaso. Inténtalo de nuevo.",
     "no_questions": "Aún no hay preguntas.",
@@ -210,6 +211,7 @@
     "description": "Responde preguntas una a una con retroalimentación instantánea. Próximamente."
   },
   "tests": {
+    "type_count_label": "{type}: {count, plural, one {# pregunta} other {# preguntas}}",
     "title": "Tests",
     "subtitle": "Crea y gestiona tus colecciones de preguntas aquí.",
     "create_test": "Crear Test",

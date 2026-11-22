@@ -113,8 +113,14 @@ export function useDebouncedUpdateUser(): SaveUser {
         clearTimeout(pending.get(field));
         pending.delete(field);
         if (!change) return;
-        untrackUnconfirmed(field);
-        sdk.usersUpdateMe({ body: change.body, keepalive: true }).catch(() => undefined);
+        // Untrack after the send settles: after a bfcache restore, `me` responses must keep the value on top
+        // while the request is in flight. A newer choice of the field stays tracked.
+        sdk
+          .usersUpdateMe({ body: change.body, keepalive: true })
+          .catch(() => undefined)
+          .finally(() => {
+            if (getUnconfirmed(field) === change) untrackUnconfirmed(field);
+          });
       });
     };
     window.addEventListener('pagehide', handlePageHide);

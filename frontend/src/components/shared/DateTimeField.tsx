@@ -54,50 +54,51 @@ function DateTimeField({ id, value, onCommit, className }: DateTimeFieldProps) {
   const draftIso = toUtcIso(draft, prefs.zone);
 
   return (
-    <FloatingCard open={isOpen} onOpenChange={handleOpenChange}>
-      <FloatingCardTrigger>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          data-slot="date-time-field"
-          className={cn('w-full justify-start font-normal', !value && 'text-muted-foreground', className)}
-        >
-          <CalendarDays data-icon="inline-start" />
-          {value ? formatDateTime(value, prefs) : t('pick_date_time')}
-        </Button>
-      </FloatingCardTrigger>
-      <FloatingCardContent className="w-auto max-w-[calc(100vw-2rem)]">
-        <div className="flex flex-wrap gap-4">
-          <Calendar
-            mode="single"
-            required
-            selected={dateFromDay(draft)}
-            defaultMonth={dateFromDay(draft)}
-            onSelect={date => setDraft(current => ({ ...current, ...dayFromDate(date) }))}
-            today={dateFromDay(todayParts(prefs.zone))}
-          />
-          <TimePicker
-            hour12={prefs.hour12}
-            value={draft}
-            onChange={time => setDraft(current => ({ ...current, ...time }))}
-          />
-        </div>
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
-          <span className="text-xs text-muted-foreground">{formatDateTime(draftIso, prefs)}</span>
-          <div className="flex gap-2">
-            {value && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => commit(null)}>
-                {t('clear')}
-              </Button>
-            )}
-            <Button type="button" size="sm" onClick={() => commit(draftIso)}>
-              {t('done')}
-            </Button>
+    <div data-slot="date-time-field">
+      <FloatingCard open={isOpen} onOpenChange={handleOpenChange}>
+        <FloatingCardTrigger>
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            className={cn('w-full justify-start font-normal', !value && 'text-muted-foreground', className)}
+          >
+            <CalendarDays data-icon="inline-start" />
+            {value ? formatDateTime(value, prefs) : t('pick_date_time')}
+          </Button>
+        </FloatingCardTrigger>
+        <FloatingCardContent className="w-auto max-w-[calc(100vw-2rem)]">
+          <div className="flex flex-wrap gap-4">
+            <Calendar
+              mode="single"
+              required
+              selected={dateFromDay(draft)}
+              defaultMonth={dateFromDay(draft)}
+              onSelect={date => setDraft(current => ({ ...current, ...dayFromDate(date) }))}
+              today={dateFromDay(todayParts(prefs.zone))}
+            />
+            <TimePicker
+              hour12={prefs.hour12}
+              value={draft}
+              onChange={time => setDraft(current => ({ ...current, ...time }))}
+            />
           </div>
-        </div>
-      </FloatingCardContent>
-    </FloatingCard>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
+            <span className="text-xs text-muted-foreground">{formatDateTime(draftIso, prefs)}</span>
+            <div className="flex gap-2">
+              {value && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => commit(null)}>
+                  {t('clear')}
+                </Button>
+              )}
+              <Button type="button" size="sm" onClick={() => commit(draftIso)}>
+                {t('done')}
+              </Button>
+            </div>
+          </div>
+        </FloatingCardContent>
+      </FloatingCard>
+    </div>
   );
 }
 

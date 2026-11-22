@@ -10,7 +10,7 @@ import { AiEffort, type UserRead } from '@/client';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { sdk } from '@/lib/apiClient';
 
-import { clearUnconfirmedChanges } from './unconfirmedUserChanges';
+import { clearUnconfirmedChanges, getUnconfirmed } from './unconfirmedUserChanges';
 import { SAVE_DELAY_MS, useDebouncedUpdateUser } from './useDebouncedUpdateUser';
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
@@ -104,6 +104,22 @@ describe('useDebouncedUpdateUser', () => {
     await advance(SAVE_DELAY_MS);
 
     expect(updateMe.mock.calls).toEqual([[{ body: { theme: 'dark' }, keepalive: true }]]);
+  });
+
+  it('keeps the change tracked until the pagehide request settles', async () => {
+    let settle: (value: never) => void = () => undefined;
+    updateMe.mockImplementationOnce(() => new Promise(resolve => (settle = resolve)) as never);
+    const { result } = renderSaver();
+
+    act(() => result.current({ theme: 'dark' }, { field: 'theme' }));
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(getUnconfirmed('theme')?.body).toEqual({ theme: 'dark' });
+
+    settle(reply({ theme: 'dark' }));
+    await advance(0);
+    expect(getUnconfirmed('theme')).toBeUndefined();
   });
 
   it('does not let a late response put an older value back', async () => {

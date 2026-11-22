@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { Settings } from 'luxon';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createPrefs,
@@ -99,9 +100,29 @@ describe('wall time <-> UTC', () => {
     expect(toUtcIso({ year: 2026, month: 3, day: 29, hour: 2, minute: 30 }, MADRID)).toBe('2026-03-29T01:30:00.000Z');
   });
 
-  it('gives the later occurrence of a repeated autumn time (02:30 on 2026-10-25)', () => {
-    // The second 02:30 is standard time (UTC+1).
-    expect(toUtcIso({ year: 2026, month: 10, day: 25, hour: 2, minute: 30 }, MADRID)).toBe('2026-10-25T01:30:00.000Z');
+  // Luxon reads the offset of a repeated time from the clock, so the result must not depend on the month of "now".
+  describe.each([
+    ['July (summer time)', '2026-07-15T12:00:00Z'],
+    ['December (standard time)', '2026-12-15T12:00:00Z'],
+  ])('with the clock in %s', (_label, now) => {
+    const realNow = Settings.now;
+    beforeEach(() => {
+      Settings.now = () => Date.parse(now);
+    });
+    afterEach(() => {
+      Settings.now = realNow;
+    });
+
+    it('gives the later occurrence of a repeated autumn time (02:30 on 2026-10-25)', () => {
+      // The second 02:30 is standard time (UTC+1).
+      expect(toUtcIso({ year: 2026, month: 10, day: 25, hour: 2, minute: 30 }, MADRID)).toBe(
+        '2026-10-25T01:30:00.000Z'
+      );
+    });
+
+    it('still moves a time inside the spring gap forward', () => {
+      expect(toUtcIso({ year: 2026, month: 3, day: 29, hour: 2, minute: 30 }, MADRID)).toBe('2026-03-29T01:30:00.000Z');
+    });
   });
 
   it('round-trips every wall time of a normal day', () => {

@@ -225,14 +225,14 @@
   /* The frame variants paint the ground with the sidebar color. The handle between the sheets gets its own
      colors: the defaults are made for a light ground. */
   [data-theme='light-frame'] {
-    --ground: #8e5e4b;
+    --ground: var(--sidebar);
     --ground-handle: #d6bfb1;
     --ground-handle-hover: #fffdf8;
     --ground-handle-focus: #fffdf8;
   }
 
   [data-theme='light-ink-frame'] {
-    --ground: #1c1a17;
+    --ground: var(--sidebar);
     --ground-handle: #7a7266;
     --ground-handle-hover: #ece6da;
     --ground-handle-focus: #ece6da;

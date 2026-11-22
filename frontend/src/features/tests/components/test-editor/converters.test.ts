@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { QuestionGroupType, QuestionType, type QuestionRead, type TestQuestionGroupRead } from '@/client';
+import {
+  QuestionGroupType,
+  QuestionType,
+  type GeneratedQuestionPreviewOutput,
+  type QuestionRead,
+  type TestQuestionGroupRead,
+} from '@/client';
 
-import { fromApiToEditorItems, groupToApiGroup, longTextToApiQuestion, mcToApiQuestion } from './converters';
+import {
+  fromApiToEditorItems,
+  groupToApiGroup,
+  longTextToApiQuestion,
+  mcToApiQuestion,
+  mergeAiEditResult,
+} from './converters';
 
 import type { LongTextQuestionData } from '../LongTextQuestionBlock';
 import type { MultipleChoiceQuestionData } from '../MultipleChoiceQuestionBlock';
@@ -89,5 +101,37 @@ describe('test editor converters keep question tags, hint and explanation', () =
   it('keeps hint and explanation of a grouped question', () => {
     const question = groupToApiGroup(items[3] as QuestionGroupData, 3).questions?.[0];
     expect([question?.hint, question?.explanation]).toEqual(['Grouped hint', 'Grouped explanation']);
+  });
+});
+
+describe('mergeAiEditResult keeps tags, hint and explanation', () => {
+  const items = fromApiToEditorItems([mcRead, longRead, simpleRead], [groupRead]);
+  // Flat order: MC, long text, standalone simple row, grouped simple row.
+  const aiQuestions = [
+    {
+      questionType: QuestionType.MULTIPLE_CHOICE,
+      prompt: 'AI MC',
+      content: { options: ['x', 'y'], correctIndices: [1] },
+    },
+    { questionType: QuestionType.LONG_TEXT, prompt: 'AI long', content: { lengthLimit: 2, rubric: [] } },
+    { questionType: QuestionType.SIMPLE, prompt: 'AI simple', content: { answers: ['a'] } },
+    { questionType: QuestionType.SIMPLE, prompt: 'AI grouped', content: { answers: ['b'] } },
+  ] as unknown as GeneratedQuestionPreviewOutput[];
+  const merged = mergeAiEditResult(items, aiQuestions, [0, 3]);
+
+  it('keeps them on a multiple choice block', () => {
+    const payload = mcToApiQuestion(merged[0] as MultipleChoiceQuestionData, 0);
+    expect(payload.prompt).toBe('AI MC');
+    expect([payload.tags, payload.hint, payload.explanation]).toEqual([['verbs', 'a1'], 'A hint', 'An explanation']);
+  });
+
+  it('keeps them on a grouped row', () => {
+    const question = groupToApiGroup(merged[3] as QuestionGroupData, 3).questions?.[0];
+    expect(question?.prompt).toBe('AI grouped');
+    expect([question?.tags, question?.hint, question?.explanation]).toEqual([
+      ['grouped'],
+      'Grouped hint',
+      'Grouped explanation',
+    ]);
   });
 });

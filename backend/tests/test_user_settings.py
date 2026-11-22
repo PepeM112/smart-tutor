@@ -27,7 +27,10 @@ def test_time_format_rejects_null() -> None:
         UserUpdate(time_format=None)
 
 
-@pytest.mark.parametrize("zone", ["Europe/Madrid", "America/New_York", "UTC"])
+# Legacy names: browsers still report them, and slim images only know them through the `tzdata` package.
+@pytest.mark.parametrize(
+    "zone", ["Europe/Madrid", "America/New_York", "UTC", "Asia/Calcutta", "Europe/Kiev", "Asia/Saigon", "US/Eastern"]
+)
 def test_timezone_accepts_iana_zones(zone: str) -> None:
     assert UserUpdate(timezone=zone).timezone == zone
 

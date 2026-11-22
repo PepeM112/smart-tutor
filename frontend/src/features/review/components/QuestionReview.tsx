@@ -140,7 +140,9 @@ export function QuestionReview({
                 <p className="text-xs font-mono text-muted-foreground">
                   SRS: ease={checkResult.srsState.easeFactor.toFixed(2)} interval={checkResult.srsState.interval}d reps=
                   {checkResult.srsState.repetitions} next=
-                  {checkResult.srsState.nextReview ? formatDate(checkResult.srsState.nextReview, prefs) : 'n/a'}
+                  {checkResult.srsState.nextReview
+                    ? formatDate(checkResult.srsState.nextReview, prefs)
+                    : t('review.next_review_none')}
                 </p>
               </div>
             )}

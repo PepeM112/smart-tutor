@@ -10,6 +10,8 @@ export type PresetId = 'today' | 'last_7_days' | 'last_30_days' | 'this_month';
 
 export const PRESET_IDS: PresetId[] = ['today', 'last_7_days', 'last_30_days', 'this_month'];
 
+const MS_PER_DAY = 86_400_000;
+
 const dayKey = ({ year, month, day }: DayParts): number => year * 10_000 + month * 100 + day;
 
 /**
@@ -41,7 +43,7 @@ export function isRangeEqual(a: DayRange, b: DayRange): boolean {
 /** Days from start to end, both included. */
 export function countDays({ from, to }: Required<DayRange>): number {
   const utc = ({ year, month, day }: DayParts): number => Date.UTC(year, month - 1, day);
-  return Math.round((utc(to) - utc(from)) / 86_400_000) + 1;
+  return Math.round((utc(to) - utc(from)) / MS_PER_DAY) + 1;
 }
 
 /** The days of a stored filter value, read in the user zone. */

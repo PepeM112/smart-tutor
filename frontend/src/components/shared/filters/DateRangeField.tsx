@@ -48,11 +48,16 @@ export function DateRangeField({ value, onChange }: DateRangeFieldProps) {
   const today = todayParts(prefs.zone);
   const range = toDayRange(value, prefs.zone);
   const [isOpen, setIsOpen] = useState(false);
+  // The URL-backed `value` can lag behind a click. The popover reads this draft, so the second click ends the range.
+  const [draft, setDraft] = useState<DayRange>(range);
   const [month, setMonth] = useState<Date>(() => dateFromDay(range.from ?? today));
   const [hoverDay, setHoverDay] = useState<DayParts>();
 
   const handleOpenChange = (shouldOpen: boolean): void => {
-    if (shouldOpen) setMonth(dateFromDay(range.from ?? today));
+    if (shouldOpen) {
+      setDraft(range);
+      setMonth(dateFromDay(range.from ?? today));
+    }
     setIsOpen(shouldOpen);
   };
 
@@ -63,7 +68,13 @@ export function DateRangeField({ value, onChange }: DateRangeFieldProps) {
 
   const handlePreset = (id: PresetId): void => commit(presetRange(id, today));
 
-  const hasOpenRange = !!range.from && !range.to;
+  const handleDayClick = (date: Date): void => {
+    const next = pickDay(draft, dayFromDate(date));
+    setDraft(next);
+    commit(next);
+  };
+
+  const hasOpenRange = !!draft.from && !draft.to;
   const previewEnd = hasOpenRange && hoverDay ? dateFromDay(hoverDay) : undefined;
 
   return (
@@ -82,14 +93,14 @@ export function DateRangeField({ value, onChange }: DateRangeFieldProps) {
         <FloatingCardContent className="w-auto max-w-[calc(100vw-2rem)]" onMouseLeave={() => setHoverDay(undefined)}>
           <div className="flex flex-col gap-3">
             <span className="text-xs text-muted-foreground" aria-live="polite">
-              {summary(range, prefs, t)}
+              {summary(draft, prefs, t)}
             </span>
             <div className="flex flex-wrap gap-1.5">
               {PRESET_IDS.map(id => (
                 <button
                   key={id}
                   type="button"
-                  aria-pressed={isRangeEqual(range, presetRange(id, today))}
+                  aria-pressed={isRangeEqual(draft, presetRange(id, today))}
                   onClick={() => handlePreset(id)}
                   className={cn(
                     'rounded-full border border-border px-2.5 py-1 text-xs transition-colors hover:bg-muted',
@@ -105,10 +116,10 @@ export function DateRangeField({ value, onChange }: DateRangeFieldProps) {
               month={month}
               onMonthChange={setMonth}
               today={dateFromDay(today)}
-              selected={range.from && { from: dateFromDay(range.from), to: dateFromDay(range.to ?? range.from) }}
-              onDayClick={date => commit(pickDay(range, dayFromDate(date)))}
+              selected={draft.from && { from: dateFromDay(draft.from), to: dateFromDay(draft.to ?? draft.from) }}
+              onDayClick={handleDayClick}
               onDayMouseEnter={date => setHoverDay(dayFromDate(date))}
-              modifiers={{ preview: range.from && previewEnd && { from: dateFromDay(range.from), to: previewEnd } }}
+              modifiers={{ preview: draft.from && previewEnd && { from: dateFromDay(draft.from), to: previewEnd } }}
               modifiersClassNames={{ preview: '[&>button]:border [&>button]:border-dashed [&>button]:border-primary' }}
               className="self-center"
             />

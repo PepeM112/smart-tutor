@@ -5,11 +5,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TimePicker } from './time-picker';
 
+const locale = vi.hoisted(() => ({ current: 'en' }));
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => locale.current,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  locale.current = 'en';
+});
 
 function setup(hour: number, minute: number, hour12 = false) {
   const onChange = vi.fn();
@@ -35,6 +41,22 @@ describe('TimePicker', () => {
       within(screen.getByRole('listbox', { name: 'hour' })).getByRole('option', { name: '12', selected: true })
     ).toBeTruthy();
     expect(screen.getByRole('option', { name: 'AM', selected: true })).toBeTruthy();
+  });
+
+  it.each([
+    ['en', 'AM', 'PM'],
+    ['es', 'a. m.', 'p. m.'],
+  ])('names the AM/PM column in the %s locale', (code, am, pm) => {
+    locale.current = code;
+    setup(14, 0, true);
+
+    // Luxon separates "a. m." with a narrow no-break space.
+    const labels = (selector: string): (string | undefined)[] =>
+      Array.from(screen.getByRole('listbox', { name: 'am_pm' }).querySelectorAll(selector)).map(option =>
+        option.textContent?.replace(/\s/g, ' ')
+      );
+    expect(labels('[role=option]')).toEqual([am, pm]);
+    expect(labels('[aria-selected=true]')).toEqual([pm]);
   });
 
   it('does not wrap past the first or last hour', () => {

@@ -181,6 +181,7 @@
     "embedding": "Embedding"
   },
   "review": {
+    "next_review_none": "n/a",
     "title": "Review Now",
     "failed_to_load": "Failed to load review questions. Please try again.",
     "no_questions": "No questions yet.",
@@ -210,6 +211,7 @@
     "description": "Answer questions one by one with instant feedback. Coming soon."
   },
   "tests": {
+    "type_count_label": "{type}: {count, plural, one {# question} other {# questions}}",
     "title": "Tests",
     "subtitle": "Create and manage your question sets here.",
     "create_test": "Create Test",

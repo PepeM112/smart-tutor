@@ -149,10 +149,10 @@ export function QuestionsPage() {
     queryFn: () =>
       sdk.questionsList({
         query: {
-          question_type: questionType?.map(Number) ?? undefined,
-          test_id: testId?.map(String) ?? undefined,
+          question_type: questionType?.map(Number),
+          test_id: testId?.map(String),
           search: search || undefined,
-          tags: tags?.map(String) ?? undefined,
+          tags: tags?.map(String),
           grouping: grouping || undefined,
           page,
           per_page: PER_PAGE,

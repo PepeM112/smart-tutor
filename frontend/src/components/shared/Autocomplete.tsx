@@ -109,7 +109,8 @@ export function Autocomplete({
     if (active) return addValues([active.value]);
     if (allowCreate) return addValues([input]);
     // Without create, Enter takes the first match: there is no free text to commit.
-    if (options[0]) addValues([options[0].value]);
+    // A closed list (Escape) must not add an option the user cannot see.
+    if (isListVisible && options[0]) addValues([options[0].value]);
   }
 
   const keyActions: Record<string, (e: KeyboardEvent<HTMLInputElement>) => void> = {
@@ -124,6 +125,8 @@ export function Autocomplete({
       setActiveIndex(index => (options.length === 0 ? -1 : (index <= 0 ? options.length : index) - 1));
     },
     Enter: e => {
+      // Enter that confirms an IME candidate (Japanese, Chinese, Korean) is not a commit.
+      if (e.nativeEvent.isComposing) return;
       // Keeps a surrounding form from submitting while the user picks a value.
       e.preventDefault();
       handleEnter();

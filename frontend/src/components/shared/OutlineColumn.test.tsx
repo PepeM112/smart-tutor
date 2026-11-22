@@ -78,3 +78,54 @@ describe('Contents drawer', () => {
     expect(useOutlineStore.getState().isDrawerOpen).toBe(true);
   });
 });
+
+describe('Outline card fade', () => {
+  const card = (): HTMLElement => screen.getByRole('navigation', { hidden: true }).parentElement!;
+  const advance = (ms: number): void => {
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+  };
+  // Each phase sets its timer after a render, so every step needs its own `act`.
+  const finishFold = (): void => {
+    advance(150);
+    advance(300);
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    breakpoint.isDesktop = true;
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      media: query,
+      matches: false,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('close: the card fades out and is inert at once, then the content is removed after the fold', () => {
+    renderColumn();
+    expect(card().className).toContain('opacity-100');
+
+    act(() => useOutlineStore.getState().setOpen(false));
+    expect(card().className).toContain('opacity-0');
+    expect(screen.getByRole('navigation', { hidden: true }).hasAttribute('inert')).toBe(true);
+
+    finishFold();
+    expect(screen.queryByRole('navigation', { hidden: true })).toBeNull();
+  });
+
+  it('open: the card shows at opacity 0 and fades in after the delay', () => {
+    renderColumn();
+    act(() => useOutlineStore.getState().setOpen(false));
+    finishFold();
+
+    act(() => useOutlineStore.getState().setOpen(true));
+    expect(card().className).toContain('opacity-0');
+    advance(150);
+    expect(card().className).toContain('opacity-100');
+  });
+});

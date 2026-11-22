@@ -1,6 +1,7 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { Info } from 'luxon';
+import { useLocale, useTranslations } from 'next-intl';
 import * as React from 'react';
 
 import { to12Hour } from '@/lib/datetime';
@@ -31,14 +32,13 @@ const pad = (n: number): string => String(n).padStart(2, '0');
 const HOURS_24: ColumnOption[] = range(0, 23).map(value => ({ value, label: pad(value) }));
 const HOURS_12: ColumnOption[] = range(1, 12).map(value => ({ value, label: String(value) }));
 const MINUTES: ColumnOption[] = range(0, 59).map(value => ({ value, label: pad(value) }));
-const MERIDIEMS: ColumnOption[] = [
-  { value: 0, label: 'AM' },
-  { value: 1, label: 'PM' },
-];
+const meridiemOptions = (locale: string): ColumnOption[] =>
+  Info.meridiems({ locale }).map((label, value) => ({ value, label }));
 
 /** Hour, minute and AM/PM as three short lists. Each list stops at its ends: 23 does not roll over to 0. */
 function TimePicker({ value, onChange, hour12 = false, className }: TimePickerProps) {
   const t = useTranslations('common');
+  const locale = useLocale();
   const isPm = value.hour >= 12;
 
   const handleHour = (selected: number): void => {
@@ -65,7 +65,7 @@ function TimePicker({ value, onChange, hour12 = false, className }: TimePickerPr
       {hour12 && (
         <TimeColumn
           label={t('am_pm')}
-          options={MERIDIEMS}
+          options={meridiemOptions(locale)}
           selected={isPm ? 1 : 0}
           onSelect={handleMeridiem}
           className="w-16"

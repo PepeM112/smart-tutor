@@ -178,11 +178,17 @@ def list_tags(db: Session, *, user_id: str, search: str | None, limit: int) -> l
     Same scope as the questions list, so a tag only shows up while a visible question carries it.
     """
     owning_test = aliased(Test)
-    tag = func.jsonb_array_elements_text(Question.tags).column_valued("tag")
+    # Explicit lateral join: the from-linter cannot see that the tag function reads from `question`.
+    # `render_derived` names the column (`AS question_tag(tag)`); a plain alias would rename it.
+    tags_fn = (
+        func.jsonb_array_elements_text(Question.tags).table_valued("tag").render_derived(name="question_tag").lateral()
+    )
+    tag = tags_fn.c.tag
     uses = func.count().label("uses")
     stmt = (
         select(tag)
         .select_from(Question)
+        .join(tags_fn, sa.true())
         .outerjoin(TestQuestionGroup, Question.group_id == TestQuestionGroup.id)
         .outerjoin(owning_test, func.coalesce(Question.test_id, TestQuestionGroup.test_id) == owning_test.id)
         .where(

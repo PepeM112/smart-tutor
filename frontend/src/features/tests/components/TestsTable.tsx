@@ -133,11 +133,13 @@ function QuestionTypeBadge({ type, count }: { type: QuestionType; count: number 
   const t = useTranslations();
   if (count === 0) return null;
   const { icon: Icon, labelKey } = getQuestionTypeInfo(type);
+  const label = t('tests.type_count_label', { type: t(labelKey), count });
   return (
-    <HoverHint label={`${count} ${t(labelKey)}`}>
+    <HoverHint label={label}>
       <span className="inline-flex items-center gap-1 rounded-md border border-hairline bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
-        <Icon className="size-3.5" />
-        {count}
+        <Icon className="size-3.5" aria-hidden />
+        <span aria-hidden>{count}</span>
+        <span className="sr-only">{label}</span>
       </span>
     </HoverHint>
   );

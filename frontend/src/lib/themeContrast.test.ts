@@ -16,8 +16,18 @@ function readPalette(selector: string): Record<string, string> {
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selectors]) =>
     selectors.split(',').some(candidate => candidate.trim() === selector)
   );
+  const raw: Record<string, string> = Object.fromEntries(
+    rules.flatMap(([, , body]) =>
+      [...body.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3,6}|var\(--[\w-]+\))\s*;/g)].map(m => [m[1], m[2]])
+    )
+  );
+  // A token can alias another one of the same theme (`--ground: var(--sidebar)`).
   return Object.fromEntries(
-    rules.flatMap(([, , body]) => [...body.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)].map(m => [m[1], m[2]]))
+    Object.entries(raw).flatMap(([name, value]) => {
+      const alias = /^var\(--([\w-]+)\)$/.exec(value)?.[1];
+      const resolved = alias ? raw[alias] : value;
+      return resolved && resolved.startsWith('#') ? [[name, resolved]] : [];
+    })
   );
 }
 
