@@ -8,6 +8,7 @@ from app.database import get_session
 from app.dependencies.auth import CurrentUser
 from app.models.answer import Answer
 from app.schemas.answer import AnswerOverrideRequest, AnswerRead, ChallengeRequest
+from app.schemas.error import coded_errors
 from app.schemas.test_result import TestResultRead
 from app.services import challenge_service, grade_override_service, grading_service, test_result_service
 
@@ -16,7 +17,7 @@ router = APIRouter()
 DbSession: TypeAlias = Annotated[Session, Depends(get_session)]
 
 
-@router.post("/{answer_id}/challenge", response_model=AnswerRead)
+@router.post("/{answer_id}/challenge", response_model=AnswerRead, responses=coded_errors(409))
 def challenge(
     answer_id: str,
     request: ChallengeRequest,
@@ -34,7 +35,7 @@ def challenge(
     return answer
 
 
-@router.put("/{answer_id}/override", response_model=TestResultRead)
+@router.put("/{answer_id}/override", response_model=TestResultRead, responses=coded_errors(400, 409))
 def set_override(
     answer_id: str, data: AnswerOverrideRequest, db: DbSession, current_user: CurrentUser
 ) -> TestResultRead:
@@ -44,7 +45,7 @@ def set_override(
     return test_result_service.teacher_read(db, result=result, current_user=current_user)
 
 
-@router.delete("/{answer_id}/override", response_model=TestResultRead)
+@router.delete("/{answer_id}/override", response_model=TestResultRead, responses=coded_errors(400, 409))
 def clear_override(
     answer_id: str, db: DbSession, current_user: CurrentUser, background_tasks: BackgroundTasks
 ) -> TestResultRead:

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 
 import { DataTable } from '@/components/shared/DataTable';
 import { type MobileAction, DataTableV2 } from '@/components/shared/DataTableV2';
-import { expandToggleColumn } from '@/components/shared/expandToggleColumn';
+import { expandToggleColumn } from '@/components/shared/ExpandToggleColumn';
 import { Pagination } from '@/components/shared/Pagination';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 
@@ -50,9 +50,9 @@ const renderPreview = (item: DemoItem) => (
 
 const sortItems = (items: DemoItem[], { column, order }: SortState): DemoItem[] => {
   if (!column || !order) return items;
-  const key = column as keyof DemoItem;
   const direction = order === 'asc' ? 1 : -1;
-  return [...items].sort((a, b) => String(a[key]).localeCompare(String(b[key])) * direction);
+  const valueOf = (item: DemoItem): string => String(Object.entries(item).find(([name]) => name === column)?.[1]);
+  return [...items].sort((a, b) => valueOf(a).localeCompare(valueOf(b)) * direction);
 };
 
 export function TablesSection() {

@@ -101,7 +101,7 @@ export function NoteOutline({ editor, containerRef, noteId }: NoteOutlineProps) 
   useEffect(() => {
     if (!open) return;
     const closeOnOutside = (event: globalThis.PointerEvent) => {
-      if (!navRef.current?.contains(event.target as Node)) setOpen(false);
+      if (event.target instanceof Node && !navRef.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener('pointerdown', closeOnOutside);
     return () => document.removeEventListener('pointerdown', closeOnOutside);

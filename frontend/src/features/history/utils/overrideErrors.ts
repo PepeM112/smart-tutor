@@ -1,20 +1,23 @@
+import { type ErrorCode, errorCase, errorCode, errorNumber } from '@/lib/errorCode';
+
 /** An i18n key (under `history.`) and its values for a refused override, challenge or similar request. */
 export type OverrideErrorText = { key: string; values?: Record<string, string> };
 
-const NOT_CLASSROOM = 'Grade overrides are only available in classrooms';
-const ARCHIVED = 'The classroom is archived';
-const RANGE_RE = /^The score must be between 0 and (.+)$/;
-const CHALLENGE_REFUSED = 'A teacher graded this answer. It cannot be challenged.';
+const OVERRIDE_ERROR_KEYS: Partial<Record<ErrorCode, string>> = {
+  override_not_classroom: 'override_error_not_classroom',
+  space_archived: 'override_error_archived',
+  answer_overridden: 'override_error_challenge_refused',
+};
 
 /**
- * Gives the text key for a `detail` that the backend sends in English only.
- * `null` when the detail has no own text (the caller shows a generic error).
+ * Gives the text key for a refused override or challenge request.
+ * `null` when the error has no own text (the caller shows a generic error).
  */
-export function overrideErrorText(detail: string | undefined): OverrideErrorText | null {
-  if (detail === undefined) return null;
-  if (detail === NOT_CLASSROOM) return { key: 'override_error_not_classroom' };
-  if (detail === ARCHIVED) return { key: 'override_error_archived' };
-  if (detail === CHALLENGE_REFUSED) return { key: 'override_error_challenge_refused' };
-  const range = RANGE_RE.exec(detail);
-  return range ? { key: 'override_error_range', values: { points: range[1] } } : null;
+export function overrideErrorText(error: unknown): OverrideErrorText | null {
+  const points = errorNumber(error, 'maxPoints');
+  if (errorCode(error) === 'override_score_out_of_range' && points !== undefined) {
+    return { key: 'override_error_range', values: { points: String(points) } };
+  }
+  const key = errorCase(OVERRIDE_ERROR_KEYS, error);
+  return key ? { key } : null;
 }

@@ -17,6 +17,10 @@ export const fontSizes: FontSizeOption[] = [
   { id: 'extra-large', label: 'Extra Large', value: '20px' },
 ];
 
+export function isFontSizeId(value: unknown): value is FontSizeId {
+  return fontSizes.some(f => f.id === value);
+}
+
 export function getFontSizeValue(id: FontSizeId): string {
   return fontSizes.find(f => f.id === id)?.value ?? '16px';
 }

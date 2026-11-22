@@ -135,7 +135,7 @@ export function QuestionsPage() {
   const testId = getValue<Primitive[]>('test_id');
   const search = getValue<string>('search');
   const tags = getValue<Primitive[]>('tags');
-  const grouping = getValue<string>('grouping') as 'grouped' | 'ungrouped' | undefined;
+  const grouping = getValue<'grouped' | 'ungrouped'>('grouping');
 
   const listParams = { questionType, testId, search, tags, grouping, page, sortBy, sortOrder };
 

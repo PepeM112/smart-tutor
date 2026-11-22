@@ -26,6 +26,7 @@ from app.api.v1.endpoints import (
 )
 
 from .config import settings
+from .core.errors import AppError, app_error_handler
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -40,6 +41,7 @@ def custom_generate_unique_id(route: APIRoute) -> str:
 
 
 app = FastAPI(title="SmartTutor API", generate_unique_id_function=custom_generate_unique_id)
+app.add_exception_handler(AppError, app_error_handler)
 
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(tests.router, prefix="/api/v1/tests", tags=["tests"])

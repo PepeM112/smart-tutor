@@ -316,7 +316,7 @@ def stream_assist(
         classified = classify_provider_error(exc)
         if isinstance(exc, AIKeyError):
             logger.warning("No AI key for the assistant: %s", exc)
-            yield _sse("error", {"message": str(exc)})
+            yield _sse("error", {"message": str(exc), **({"code": exc.code} if exc.code else {})})
         elif isinstance(exc, AIRefusalError):
             yield _sse("error", {"message": str(exc)})
         elif classified:

@@ -54,14 +54,14 @@ export function useNotificationPages(
 ): UseInfiniteQueryResult<InfiniteData<CursorPageNotificationRead, string | null>> {
   return useInfiniteQuery({
     queryKey: notificationQueryKeys.pages(unreadOnly),
-    queryFn: async ({ pageParam }): Promise<CursorPageNotificationRead> =>
+    queryFn: async ({ pageParam }: { pageParam: string | null }): Promise<CursorPageNotificationRead> =>
       (
         await sdk.notificationsListNotifications({
           query: { unread_only: unreadOnly, limit: PAGE_LIMIT, ...(pageParam ? { cursor: pageParam } : {}) },
           throwOnError: true,
         })
       ).data,
-    initialPageParam: null as string | null,
+    initialPageParam: null,
     getNextPageParam: lastPage => lastPage.nextCursor,
   });
 }

@@ -1,14 +1,14 @@
 import { useTranslations } from 'next-intl';
 
-import type { SimpleContent } from '@/client';
+import { isSimpleContent } from '@/features/tests/utils/questionContent';
 
 import type { DiffQuestionProps } from './types';
 
 export function DiffQuestionSimple({ old: oldQ, new: newQ }: DiffQuestionProps) {
   const t = useTranslations('test_editor');
-  // SAFETY: caller only renders this component for SIMPLE-type question diffs
-  const oldContent = oldQ.content as SimpleContent;
-  const newContent = newQ.content as SimpleContent;
+  if (!isSimpleContent(oldQ.content) || !isSimpleContent(newQ.content)) return null;
+  const oldContent = oldQ.content;
+  const newContent = newQ.content;
 
   return (
     <div className="space-y-2">

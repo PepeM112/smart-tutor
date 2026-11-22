@@ -28,6 +28,7 @@ const baseQuestion = {
   tags: ['verbs', 'a1'],
   hint: 'A hint',
   explanation: 'An explanation',
+  originId: 'source-q1',
 } as const;
 
 const mcRead = {
@@ -59,7 +60,16 @@ const groupRead = {
   order: 3,
   title: 'Group',
   points: 1,
-  questions: [{ ...simpleRead, id: 'q4', tags: ['grouped'], hint: 'Grouped hint', explanation: 'Grouped explanation' }],
+  questions: [
+    {
+      ...simpleRead,
+      id: 'q4',
+      tags: ['grouped'],
+      hint: 'Grouped hint',
+      explanation: 'Grouped explanation',
+      originId: 'source-q4',
+    },
+  ],
 } as unknown as TestQuestionGroupRead;
 
 describe('test editor converters keep question tags, hint and explanation', () => {
@@ -101,6 +111,26 @@ describe('test editor converters keep question tags, hint and explanation', () =
   it('keeps hint and explanation of a grouped question', () => {
     const question = groupToApiGroup(items[3] as QuestionGroupData, 3).questions?.[0];
     expect([question?.hint, question?.explanation]).toEqual(['Grouped hint', 'Grouped explanation']);
+  });
+});
+
+describe('test editor converters keep the origin of a copied question', () => {
+  const items = fromApiToEditorItems([mcRead, longRead, simpleRead], [groupRead]);
+
+  it('keeps originId of a multiple choice question', () => {
+    expect(mcToApiQuestion(items[0] as MultipleChoiceQuestionData, 0).originId).toBe('source-q1');
+  });
+
+  it('keeps originId of a long text question', () => {
+    expect(longTextToApiQuestion(items[1] as LongTextQuestionData, 1).originId).toBe('source-q1');
+  });
+
+  it('keeps originId of a standalone simple question', () => {
+    expect(groupToApiGroup(items[2] as QuestionGroupData, 2).questions?.[0].originId).toBe('source-q1');
+  });
+
+  it('keeps originId of a grouped question', () => {
+    expect(groupToApiGroup(items[3] as QuestionGroupData, 3).questions?.[0].originId).toBe('source-q4');
   });
 });
 

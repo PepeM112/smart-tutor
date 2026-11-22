@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import type { RubricResultItem } from '@/client';
 import { sdk } from '@/lib/apiClient';
+import { getErrorDetail } from '@/lib/utils';
 
 import { overrideErrorText } from '../utils/overrideErrors';
 
@@ -31,9 +32,10 @@ export function useChallengeMode(items: RubricResultItem[], answerId: string) {
       setSelectedCriteria(new Map());
       void queryClient.invalidateQueries({ queryKey: ['results'] });
     },
-    onError: (error: Error & { status?: number; body?: { detail?: string } }) => {
-      const detail = error.body?.detail ?? error.message;
-      const known = overrideErrorText(detail);
+    onError: (error: unknown) => {
+      // The SDK error body is flat (`{ detail, code }`), so `detail` sits on the error itself.
+      const detail = getErrorDetail(error, error instanceof Error ? error.message : '');
+      const known = overrideErrorText(error);
       toast.error(t('challenge.challenge_failed', { error: known ? t(`history.${known.key}`, known.values) : detail }));
     },
   });

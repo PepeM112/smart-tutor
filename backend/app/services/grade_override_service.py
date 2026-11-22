@@ -18,6 +18,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import AnswerStatus, NotificationType
+from app.core.errors import AppError
 from app.crud import answer as answer_crud
 from app.crud import question as question_crud
 from app.crud import test_result as test_result_crud
@@ -48,8 +49,8 @@ def _get_reviewable(db: Session, *, answer_id: str, current_user: User) -> tuple
     if found is None or resolve_role(db, space=found[1], user_id=current_user.id) not in EDIT_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     if not is_classroom_space(found[1]):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Grade overrides are only available in classrooms"
+        raise AppError(
+            status.HTTP_400_BAD_REQUEST, "Grade overrides are only available in classrooms", "override_not_classroom"
         )
     require_active(db, found[1])
 
@@ -109,9 +110,11 @@ def set_override(db: Session, *, answer_id: str, score: float, current_user: Use
     """Give `score` points to the answer. Returns the updated result."""
     answer, result, question = _get_reviewable(db, answer_id=answer_id, current_user=current_user)
     if score > question.points:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"The score must be between 0 and {question.points:g}",
+        raise AppError(
+            status.HTTP_400_BAD_REQUEST,
+            f"The score must be between 0 and {question.points:g}",
+            "override_score_out_of_range",
+            max_points=question.points,
         )
     result = _refresh_result(db, result)
     target = next(a for a in result.answers if a.id == answer.id)

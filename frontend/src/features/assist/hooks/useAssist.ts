@@ -8,11 +8,13 @@ import { toast } from 'sonner';
 
 import { sdk } from '@/lib/apiClient';
 import { courseItemRouteForAttempt } from '@/lib/routes';
+import { getErrorDetail } from '@/lib/utils';
 
 import { useAssistAttachmentsStore } from '../store/useAssistAttachmentsStore';
 import { useAssistDiffStore } from '../store/useAssistDiffStore';
 import { assistRefusalKey } from '../utils/assistErrors';
 import { buildInterruptedMessages, buildStreamMessages } from '../utils/buildStreamMessages';
+import { parseSSEEvent } from '../utils/sseEvents';
 import { consumeSSEStream } from '../utils/sseStream';
 import { getQueryKeysToInvalidate, isWriteTool } from '../utils/toolRegistry';
 
@@ -26,13 +28,6 @@ import type {
   AssistTurn,
   ConfirmHandler,
   PageContext,
-  SSEConfirmRequired,
-  SSEError,
-  SSERoundEnd,
-  SSETextDelta,
-  SSEToolCall,
-  SSEToolExecuting,
-  SSEToolResult,
   TextSegment,
   ToolCallData,
   ToolConfirmation,
@@ -209,14 +204,12 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
         });
 
         if (!response.ok) {
-          const error = (await response.json().catch(() => ({ detail: tAssist('request_failed') }))) as {
-            detail?: string;
-          };
-          const refusalKey = assistRefusalKey(error.detail);
+          const error: unknown = await response.json().catch(() => ({ detail: tAssist('request_failed') }));
+          const refusalKey = assistRefusalKey(error);
           const errorSeg: TurnSegment = {
             type: 'error',
             id: nextId(),
-            message: refusalKey ? tAssist(refusalKey) : (error.detail ?? tAssist('error_generic')),
+            message: refusalKey ? tAssist(refusalKey) : getErrorDetail(error, tAssist('error_generic')),
           };
           setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));
           return;
@@ -229,7 +222,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
           handleSSEEvent(event, data);
         });
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
+        if (!(err instanceof Error && err.name === 'AbortError')) {
           const errorSeg: TurnSegment = {
             type: 'error',
             id: nextId(),
@@ -255,10 +248,13 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
         }
       }
 
-      function handleSSEEvent(event: string, data: unknown): void {
-        switch (event) {
+      function handleSSEEvent(rawEvent: string, rawData: unknown): void {
+        const parsed = parseSSEEvent(rawEvent, rawData);
+        if (!parsed) return;
+
+        switch (parsed.event) {
           case 'text_delta': {
-            const { content } = data as SSETextDelta;
+            const { content } = parsed.data;
             accumulatedText += content;
             roundText += content;
 
@@ -277,7 +273,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
           }
 
           case 'tool_call': {
-            const tc = data as SSEToolCall;
+            const tc = parsed.data;
             roundToolCalls.push({ id: tc.id, name: tc.name, arguments: tc.arguments });
             textSegmentOpen = false;
 
@@ -294,7 +290,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
           }
 
           case 'tool_executing': {
-            const { id } = data as SSEToolExecuting;
+            const { id } = parsed.data;
             queue.enqueue('tool_executing', () => {
               setTurns(prev =>
                 updateSegment(prev, id, seg =>
@@ -306,7 +302,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
           }
 
           case 'tool_result': {
-            const tr = data as SSEToolResult;
+            const tr = parsed.data;
             toolResults.push({ toolCallId: tr.id, output: tr.output });
             textSegmentOpen = false;
 
@@ -381,7 +377,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
           }
 
           case 'confirm_required': {
-            const cr = data as SSEConfirmRequired;
+            const cr = parsed.data;
             pendingToolIdsRef.current.set(cr.id, cr.name);
             textSegmentOpen = false;
 
@@ -400,7 +396,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
           }
 
           case 'round_end': {
-            const { thinking_blocks: thinkingBlocks } = data as SSERoundEnd;
+            const { thinking_blocks: thinkingBlocks } = parsed.data;
             rounds.push({ text: roundText, toolCalls: roundToolCalls, thinkingBlocks });
             roundText = '';
             roundToolCalls = [];
@@ -450,8 +446,8 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
           }
 
           case 'error': {
-            const { message } = data as SSEError;
-            const refusalKey = assistRefusalKey(message);
+            const { message } = parsed.data;
+            const refusalKey = assistRefusalKey(parsed.data);
             const errorSeg: TurnSegment = {
               type: 'error',
               id: nextId(),

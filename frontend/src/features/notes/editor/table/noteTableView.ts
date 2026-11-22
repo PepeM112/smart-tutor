@@ -10,6 +10,8 @@
 
 import { TableView } from '@tiptap/extension-table';
 
+import { numberArrayAttr, numberAttr } from '@/lib/prosemirrorAttrs';
+
 import { parseTableLayout } from './tableAttributes';
 
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
@@ -41,10 +43,13 @@ export class NoteTableView extends TableView {
     const cells: ProseMirrorNode[] = [];
     node.firstChild?.forEach(cell => cells.push(cell));
     const widths = cells.flatMap(cell =>
-      Array.from({ length: cell.attrs.colspan as number }, (_, i) => (cell.attrs.colwidth as number[] | null)?.[i] ?? 0)
+      Array.from(
+        { length: numberAttr(cell.attrs, 'colspan') ?? 1 },
+        (_, i) => numberArrayAttr(cell.attrs, 'colwidth')?.[i] ?? 0
+      )
     );
     Array.from(this.colgroup.children).forEach((col, index) => {
-      if (!widths[index]) (col as HTMLElement).style.removeProperty('width');
+      if (!widths[index] && col instanceof HTMLElement) col.style.removeProperty('width');
     });
   }
 

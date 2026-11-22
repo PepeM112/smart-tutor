@@ -11,6 +11,11 @@ import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 
 import type { MentionCandidate } from '../context/PageDataContext';
 
+/** Drops the empty lines and the `null` ones, so that the lines are all text. */
+function isPresent(line: string | null): line is string {
+  return Boolean(line);
+}
+
 /** The Files view the user sees: the folders and notes after the search filter. Ids let the AI call tools on them. */
 export function formatFilesView(
   folders: FileTreeFolder[],
@@ -54,7 +59,7 @@ export function formatTestDetail(test: TestRead | TestReadStripped): string {
     `Test: "${test.title}" (ID: ${test.id})`,
     test.description ? `Description: ${test.description}` : null,
     '',
-  ].filter(Boolean) as string[];
+  ].filter(isPresent);
 
   const allQuestions = getAllQuestions(test);
 
@@ -100,7 +105,7 @@ export function formatResultDetail(result: {
     `Correct: ${result.correctAnswers}/${result.totalQuestions}`,
     pct != null ? `Points: ${result.earnedPoints}/${result.totalPoints} (${pct}%)` : null,
     `Date: ${String(result.createdAt)}`,
-  ].filter(Boolean) as string[];
+  ].filter(isPresent);
   return lines.join('\n');
 }
 

@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { type TestResultRead } from '@/client';
 import { classroomQueryKeys } from '@/features/classrooms/lib/queryKeys';
 import { sdk } from '@/lib/apiClient';
-import { getErrorDetail } from '@/lib/utils';
 
 import { overrideErrorText } from '../utils/overrideErrors';
 
@@ -27,7 +26,7 @@ export function useAnswerOverride(resultId: string) {
   };
 
   const onFailed = (error: unknown): void => {
-    const text = overrideErrorText(getErrorDetail(error, ''));
+    const text = overrideErrorText(error);
     toast.error(text ? t(`history.${text.key}`, text.values) : t('history.override_failed'));
   };
 

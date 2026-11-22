@@ -26,10 +26,7 @@ export function useCountdown(deadlineAt: Date | null | undefined, onTimeout: () 
   });
 
   useEffect(() => {
-    if (!deadlineAt) {
-      setRemaining(null);
-      return;
-    }
+    if (!deadlineAt) return;
 
     const fire = () => {
       if (hasFired.current) return;
@@ -64,5 +61,6 @@ export function useCountdown(deadlineAt: Date | null | undefined, onTimeout: () 
     };
   }, [deadlineAt]);
 
-  return remaining;
+  // Derived, not reset in the effect: a removed deadline must show null at once.
+  return deadlineAt ? remaining : null;
 }

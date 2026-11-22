@@ -13,6 +13,7 @@ import { ExamView } from '@/features/tests/components/ExamView';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
+import { getErrorDetail } from '@/lib/utils';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -55,8 +56,7 @@ export default function TakeTestPage({ params }: Props) {
       router.push(Routes.RESULT_DETAIL(resultId));
     },
     onError: (err: unknown) => {
-      const detail = (err as { detail?: string })?.detail;
-      toast.error(detail ?? t('tests.failed_to_submit'));
+      toast.error(getErrorDetail(err, t('tests.failed_to_submit')));
     },
   });
 

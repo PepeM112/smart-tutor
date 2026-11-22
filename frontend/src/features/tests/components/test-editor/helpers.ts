@@ -1,7 +1,7 @@
 import { QuestionGroupType, QuestionType } from '@/client';
 
 import type { LongTextQuestionData } from '../LongTextQuestionBlock';
-import type { Choice, MultipleChoiceQuestionData } from '../MultipleChoiceQuestionBlock';
+import type { MultipleChoiceQuestionData } from '../MultipleChoiceQuestionBlock';
 import type { QuestionGroupData } from '../QuestionGroupBlock';
 
 export function newMultipleChoice(): MultipleChoiceQuestionData {
@@ -12,7 +12,7 @@ export function newMultipleChoice(): MultipleChoiceQuestionData {
     choices: [
       { text: '', isCorrect: false },
       { text: '', isCorrect: false },
-    ] as Choice[],
+    ],
     points: 1,
   };
 }

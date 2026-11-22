@@ -112,6 +112,9 @@ class QuestionBase(BaseSchema):
 # Tag limits live on the input schemas only: `QuestionRead` inherits `QuestionBase`, and a limit there
 # would make stored questions that are over it fail to serialize (same rule as `NoteBase`).
 class QuestionCreate(QuestionBase):
+    # The editor sends back the link it read, so a save does not drop the source of a copied question.
+    origin_id: str | None = None
+
     @field_validator("tags")
     @classmethod
     def _validate_tags(cls, tags: list[str]) -> list[str]:

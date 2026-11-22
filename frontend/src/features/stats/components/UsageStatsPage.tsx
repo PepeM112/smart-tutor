@@ -7,7 +7,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { sdk } from '@/lib/apiClient';
-import type { FilterValue, Primitive } from '@/lib/filters';
+import { isPrimitiveArray, isPrimitiveValue, type FilterValue } from '@/lib/filters';
 
 import { UsageFilters } from './UsageFilters';
 import { UsageTotals } from './UsageTotals';
@@ -27,13 +27,13 @@ export function UsageStatsPage() {
   const [filters, setFilters] = useState<FilterValue>({});
 
   const provider = useMemo(() => {
-    const v = filters.provider as Primitive | undefined;
-    return v != null ? Number(v) : null;
+    const v = filters.provider;
+    return isPrimitiveValue(v) && v != null ? Number(v) : null;
   }, [filters.provider]);
 
   const features = useMemo(() => {
-    const v = filters.feature as Primitive[] | undefined;
-    return v?.length ? v.map(Number) : null;
+    const v = filters.feature;
+    return isPrimitiveArray(v) && v.length ? v.map(Number) : null;
   }, [filters.feature]);
 
   const timeRangeItems: ButtonGroupItem<number>[] = useMemo(

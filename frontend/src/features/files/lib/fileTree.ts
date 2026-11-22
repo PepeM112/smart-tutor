@@ -1,4 +1,5 @@
 import type { FileTree, FileTreeFolder, FileTreeNote } from '@/client';
+import { isRecord } from '@/lib/typeGuards';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,19 +35,18 @@ export type DropTargetData = {
 // so a wrong payload is ignored instead of crashing a drop handler.
 
 export function isDraggedItem(value: unknown): value is DraggedItem {
-  if (typeof value !== 'object' || value === null) return false;
-  const v = value as Record<string, unknown>;
+  if (!isRecord(value)) return false;
   return (
-    (v.kind === 'folder' || v.kind === 'note') &&
-    typeof v.id === 'string' &&
-    (v.parentId === null || typeof v.parentId === 'string') &&
-    typeof v.name === 'string'
+    (value.kind === 'folder' || value.kind === 'note') &&
+    typeof value.id === 'string' &&
+    (value.parentId === null || typeof value.parentId === 'string') &&
+    typeof value.name === 'string'
   );
 }
 
 export function isDropTargetData(value: unknown): value is DropTargetData {
-  if (typeof value !== 'object' || value === null) return false;
-  const folderId = (value as Record<string, unknown>).folderId;
+  if (!isRecord(value)) return false;
+  const folderId = value.folderId;
   return folderId === null || typeof folderId === 'string';
 }
 
@@ -66,7 +66,7 @@ export function buildChildrenIndex<F extends FileTreeFolder, N extends FileTreeN
   const bucket = (key: string | null) => {
     const existing = index.get(key);
     if (existing) return existing;
-    const entry = { folders: [] as F[], notes: [] as N[] };
+    const entry: { folders: F[]; notes: N[] } = { folders: [], notes: [] };
     index.set(key, entry);
     return entry;
   };

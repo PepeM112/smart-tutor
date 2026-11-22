@@ -14,6 +14,8 @@ import { Extension, type Editor } from '@tiptap/core';
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
+import { isRecord } from '@/lib/typeGuards';
+
 export type ChunkHighlightState = 'pending' | 'ready' | 'active';
 
 type ChunkSpec = { chunkId: string; state: ChunkHighlightState };
@@ -22,6 +24,11 @@ type ChunkHighlightMeta =
   | { type: 'add'; id: string; from: number; to: number }
   | { type: 'remove'; id: string }
   | { type: 'setState'; id: string; state: ChunkHighlightState };
+
+const isChunkHighlightMeta = (value: unknown): value is ChunkHighlightMeta =>
+  isRecord(value) && (value.type === 'add' || value.type === 'remove' || value.type === 'setState');
+
+const isChunkSpec = (value: unknown): value is ChunkSpec => isRecord(value) && typeof value.chunkId === 'string';
 
 export type ChunkHighlightStorage = {
   /** Set by the owner of the diffs. In storage, not options: the extension list is memoized. */
@@ -79,9 +86,10 @@ export const ChunkHighlight = Extension.create<object, ChunkHighlightStorage>({
           decorations: state => chunkHighlightKey.getState(state),
           handleClick: (view, pos) => {
             const hit = findDecorations(view.state).find(
-              d => d.from <= pos && pos <= d.to && specOf(d).state !== 'pending'
+              d => d.from <= pos && pos <= d.to && specOf(d)?.state !== 'pending'
             );
-            if (hit) storage.onClick?.(specOf(hit).chunkId);
+            const chunkId = hit && specOf(hit)?.chunkId;
+            if (chunkId) storage.onClick?.(chunkId);
             // Not handled: the click still places the cursor.
             return false;
           },
@@ -117,19 +125,19 @@ export function setChunkHighlightState(editor: Editor, id: string, state: ChunkH
 
 /** Current (mapped) range of the chunk, or null when its text was deleted. */
 export function getChunkRange(editor: Editor, id: string): { from: number; to: number } | null {
-  const deco = findDecorations(editor.state).find(d => specOf(d).chunkId === id);
+  const deco = findDecorations(editor.state).find(d => specOf(d)?.chunkId === id);
   return deco ? { from: deco.from, to: deco.to } : null;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function applyMeta(tr: Transaction, set: DecorationSet): DecorationSet {
-  const meta = tr.getMeta(chunkHighlightKey) as ChunkHighlightMeta | undefined;
-  if (!meta) return set;
+  const meta: unknown = tr.getMeta(chunkHighlightKey);
+  if (!isChunkHighlightMeta(meta)) return set;
   if (meta.type === 'add') {
     return set.add(tr.doc, [createDecoration(meta.from, meta.to, { chunkId: meta.id, state: 'pending' })]);
   }
-  const current = set.find(undefined, undefined, spec => (spec as ChunkSpec).chunkId === meta.id);
+  const current = set.find(undefined, undefined, spec => isChunkSpec(spec) && spec.chunkId === meta.id);
   // Decoration attributes are fixed: a state change replaces the decoration.
   // Build the new ones first: `remove` sets the entries of the array it gets to null.
   const replacements =
@@ -153,9 +161,9 @@ function findDecorations(state: EditorState): Decoration[] {
   return chunkHighlightKey.getState(state)?.find() ?? [];
 }
 
-function specOf(deco: Decoration): ChunkSpec {
-  // SAFETY: every decoration in this plugin is made by `createDecoration`.
-  return deco.spec as ChunkSpec;
+function specOf(deco: Decoration): ChunkSpec | undefined {
+  const spec: unknown = deco.spec;
+  return isChunkSpec(spec) ? spec : undefined;
 }
 
 function dispatchMeta(editor: Editor, meta: ChunkHighlightMeta): void {

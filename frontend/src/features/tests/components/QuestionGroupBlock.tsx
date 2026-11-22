@@ -24,6 +24,7 @@ export type SimpleRow = {
   tags?: string[];
   hint?: string | null;
   explanation?: string | null;
+  originId?: string | null;
 };
 
 export type QuestionGroupData = {

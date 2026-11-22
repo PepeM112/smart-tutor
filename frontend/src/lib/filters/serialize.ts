@@ -24,14 +24,18 @@ export function isPrimitiveValue(val: unknown): val is Primitive {
   return t === 'string' || t === 'number' || t === 'boolean';
 }
 
+export function isPrimitiveArray(val: unknown): val is Primitive[] {
+  return Array.isArray(val) && val.every(isPrimitiveValue);
+}
+
 export function isFilterEntity(val: unknown): val is FilterEntity {
   return (
     !!val &&
     typeof val === 'object' &&
     'label' in val &&
-    typeof (val as FilterEntity).label === 'string' &&
+    typeof val.label === 'string' &&
     'value' in val &&
-    isPrimitiveValue((val as FilterEntity).value)
+    isPrimitiveValue(val.value)
   );
 }
 
@@ -124,6 +128,7 @@ export function deserializeFilterValue(
   const isMultiple = [FilterType.MULTIPLE, FilterType.MULTIPLE_SELECT].includes(filterItem.type);
   const mapped = allValues.map(urlVal => castValue(urlVal, filterItem));
 
+  // In `returnObject` mode `mapped` can mix entities and raw values that matched no item; `FilterValue` has no type for the mix
   if (isMultiple) return mapped as Primitive[];
   return mapped[0];
 }

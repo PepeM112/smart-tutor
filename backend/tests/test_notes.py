@@ -1084,7 +1084,8 @@ class TestMarkdownToPlainText:
     def test_many_unclosed_marks_run_in_linear_time(self, unit: str) -> None:
         text = unit * 50_000
 
-        started = time.perf_counter()
+        # CPU time, not wall time: waiting under load from parallel tests must not fail the check.
+        started = time.process_time()
         markdown_to_plain_text(text)
 
-        assert time.perf_counter() - started < 1.0
+        assert time.process_time() - started < 1.0

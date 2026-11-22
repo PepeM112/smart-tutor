@@ -401,27 +401,24 @@ Shared actions use the `/spaces` routes: get, update, archive, unarchive, delete
 | AI key | `GET /{id}/ai-key-status` (any member), `GET /{id}/token-usage` (owner) |
 | Override (`/api/v1/answers`) | `PUT` / `DELETE /{id}/override` |
 
-### Error strings that the frontend matches
-The backend sends English `detail` only. The frontend matches the exact text and shows its own translated text (en / es). If a text changes, the match fails and the user sees a generic error. Change both sides together.
+### Error codes that the frontend reads
+A refused request that the frontend shows in its own words carries a stable `code` next to the English `detail`: `{"detail": "...", "code": "attempt_cooldown", "nextAttemptAt": "..."}`. The backend raises `AppError` (`core/errors.py`). One handler in `main.py` builds the body. The codes are the `ErrorCode` literal in `schemas/error.py`, so they appear in the OpenAPI schema and in the generated client. The frontend maps each code to a translated text (en / es) with a lookup table. The text of `detail` can change with no effect on the frontend. An error with no `code` keeps the plain `{"detail": "..."}` shape, and the user sees a generic error or the `detail`. Add a new code in `ErrorCode`, raise it with `AppError`, run `make frontend-gen` and add it to the table of the classifier.
 
-| `detail` | Where | Frontend file |
-|---|---|---|
-| "The test is not open yet" | attempt start (409) | `courses/lib/attemptErrors.ts` |
-| "The test is closed" | attempt start and submit (409) | `attemptErrors.ts` |
-| "The classroom is archived" / "The course is archived" | writes (409) | `attemptErrors.ts`, `history/utils/overrideErrors.ts` |
-| "Grade overrides are only available in classrooms" | override (400) | `overrideErrors.ts` |
-| "The score must be between 0 and N" | override (400) | `overrideErrors.ts` |
-| "A teacher graded this answer. It cannot be challenged." | challenge (409) | `overrideErrors.ts` |
-| "AI is not configured. Please add your API key in Settings." | any AI call (HTTP 403, or SSE `error` in the Assistant) | `assist/utils/assistErrors.ts` |
-| "The AI budget of this classroom is used up for this month. Add your own API key in Settings to continue." | any AI call (HTTP 403, or SSE `error` in the Assistant) | `assistErrors.ts` |
-| "The assistant is not available during a course test" | `/assist` (409) | `assistErrors.ts` |
-| "Only the teacher can post in this classroom" | feed post (403) | `feed/lib/feedErrors.ts` |
-| "Only the teacher can comment in this classroom" | feed comment (403) | `feedErrors.ts` |
-| "Only the author can edit this post" / "Only the author can edit this comment" | feed edit (403) | `feedErrors.ts` |
-| "The classroom is archived" | feed writes (409) | `feedErrors.ts` |
-| "The best score of the student reaches the pass threshold" | Remove completion (409) | `classrooms/lib/completionErrors.ts` |
-| "The classroom is archived" | Remove completion (409) | `completionErrors.ts` |
-| "Completion not found" | Remove completion (404) | `completionErrors.ts` |
+| `code` | Status | Where | Frontend file |
+|---|---|---|---|
+| `attempt_not_open`, `attempt_closed`, `attempt_window_closed`, `attempt_time_over`, `attempt_no_attempts_left`, `attempt_no_questions` | 409 | attempt start and submit | `courses/lib/attemptErrors.ts` |
+| `attempt_cooldown` (field `nextAttemptAt`) | 409 | attempt start | `attemptErrors.ts` |
+| `space_archived` | 409 | any write in an archived course or classroom | `attemptErrors.ts`, `overrideErrors.ts`, `feedErrors.ts`, `completionErrors.ts` |
+| `removed_course_has_results` | 409 | classwork course removal | `courses/lib/spaceErrors.ts` |
+| `override_not_classroom` | 400 | grade override | `history/utils/overrideErrors.ts` |
+| `override_score_out_of_range` (field `maxPoints`) | 400 | grade override | `overrideErrors.ts` |
+| `answer_overridden` | 409 | challenge of a graded answer | `overrideErrors.ts` |
+| `ai_not_configured`, `ai_budget_used_up` | 403 | any AI call (HTTP, or SSE `error` event in the Assistant) | `assist/utils/assistErrors.ts` |
+| `assist_blocked_by_course_test` | 409 | `/assist` | `assistErrors.ts` |
+| `feed_teacher_only_post`, `feed_teacher_only_comment`, `feed_author_only_edit` | 403 | feed writes | `feed/lib/feedErrors.ts` |
+| `feed_post_not_found`, `feed_comment_not_found` | 404 | feed writes | `feedErrors.ts` |
+| `completion_passed` | 409 | Remove completion | `classrooms/lib/completionErrors.ts` |
+| `completion_not_found` | 404 | Remove completion | `completionErrors.ts` |
 
 ### Frontend (`src/features/classrooms/`)
 - Routes `/classrooms` (list, create) and `/classrooms/[slug-id]` (the tab is in the URL, `?tab=`). The sidebar has a Spaces section (Courses, Classrooms) between Library and Analytics. `spaceHref` gives the right link for a course or a classroom. Join and invitations route by kind.
@@ -485,7 +482,7 @@ The cursor is the id of the last item on the page, not of the lookahead row. The
 - `PostCard` shows the author, the relative time (`lib/relativeTime.ts`, `Intl.RelativeTimeFormat` with the locale), the "edited" label, the comments and the comment composer when `canComment`. `BodyForm` is the one composer and edit form (with a counter). Delete uses `ConfirmDialog`.
 - No live refresh. `usePosts` refetches on window focus, and every write refetches the pages (also after an error, because a refused write often means that the permission changed).
 - Saving the classroom settings invalidates the feed query, so the composers follow the new permission.
-- Refused writes: `lib/feedErrors.ts` matches the `detail` text (see [Error strings](#error-strings-that-the-frontend-matches)).
+- Refused writes: `lib/feedErrors.ts` maps the error `code` (see [Error codes](#error-codes-that-the-frontend-reads)).
 
 ---
 

@@ -9,6 +9,7 @@ from app.database import get_session
 from app.dependencies.auth import CurrentUser
 from app.models.test_result import TestResult
 from app.schemas.correction import TestSubmission
+from app.schemas.error import coded_errors
 from app.schemas.space import (
     PaginatedSpaceSummary,
     SpaceAttemptStart,
@@ -147,12 +148,12 @@ def enter_edit_mode(space_id: str, db: DbSession, current_user: CurrentUser) -> 
     return space_draft_service.enter_edit_mode(db, space_id=space_id, current_user=current_user)
 
 
-@router.post("/{space_id}/draft/discard", response_model=SpaceDetail)
+@router.post("/{space_id}/draft/discard", response_model=SpaceDetail, responses=coded_errors(409))
 def discard_draft(space_id: str, db: DbSession, current_user: CurrentUser) -> SpaceDetail:
     return space_draft_service.discard(db, space_id=space_id, current_user=current_user)
 
 
-@router.post("/{space_id}/draft/publish", response_model=SpaceDetail)
+@router.post("/{space_id}/draft/publish", response_model=SpaceDetail, responses=coded_errors(409))
 def publish(
     space_id: str,
     data: SpacePublishRequest,
@@ -184,7 +185,7 @@ def rename_section(
     )
 
 
-@router.delete("/{space_id}/sections/{section_id}", response_model=SpaceDetail)
+@router.delete("/{space_id}/sections/{section_id}", response_model=SpaceDetail, responses=coded_errors(409))
 def delete_section(space_id: str, section_id: str, db: DbSession, current_user: CurrentUser) -> SpaceDetail:
     return space_draft_service.delete_section(db, space_id=space_id, section_id=section_id, current_user=current_user)
 
@@ -200,7 +201,7 @@ def copy_item(space_id: str, data: SpaceItemCopy, db: DbSession, current_user: C
     return space_draft_service.copy_item(db, space_id=space_id, current_user=current_user, data=data)
 
 
-@router.delete("/{space_id}/items/{item_id}", response_model=SpaceDetail)
+@router.delete("/{space_id}/items/{item_id}", response_model=SpaceDetail, responses=coded_errors(409))
 def delete_item(space_id: str, item_id: str, db: DbSession, current_user: CurrentUser) -> SpaceDetail:
     return space_draft_service.delete_item(db, space_id=space_id, item_id=item_id, current_user=current_user)
 
@@ -289,14 +290,17 @@ def visit(space_id: str, data: SpaceVisitRequest, db: DbSession, current_user: C
     space_member_service.record_visit(db, space_id=space_id, item_id=data.item_id, current_user=current_user)
 
 
-@router.post("/{space_id}/items/{item_id}/attempts", response_model=SpaceAttemptStart)
+@router.post("/{space_id}/items/{item_id}/attempts", response_model=SpaceAttemptStart, responses=coded_errors(409))
 def start_attempt(space_id: str, item_id: str, db: DbSession, current_user: CurrentUser) -> SpaceAttemptStart:
     """Start an attempt on a TEST item, or resume the open one."""
     return space_attempt_service.start_attempt(db, space_id=space_id, item_id=item_id, current_user=current_user)
 
 
 @router.post(
-    "/{space_id}/attempts/{attempt_id}/submit", response_model=TestResultRead, status_code=status.HTTP_201_CREATED
+    "/{space_id}/attempts/{attempt_id}/submit",
+    response_model=TestResultRead,
+    status_code=status.HTTP_201_CREATED,
+    responses=coded_errors(409),
 )
 def submit_attempt(
     space_id: str,
@@ -383,6 +387,11 @@ def list_posts(
     return space_feed_service.list_posts(db, space_id=space_id, current_user=current_user, cursor=cursor, limit=limit)
 
 
-@router.post("/{space_id}/posts", response_model=SpacePostRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{space_id}/posts",
+    response_model=SpacePostRead,
+    status_code=status.HTTP_201_CREATED,
+    responses=coded_errors(403, 404, 409),
+)
 def create_post(space_id: str, data: SpacePostCreate, db: DbSession, current_user: CurrentUser) -> SpacePostRead:
     return space_feed_service.create_post(db, space_id=space_id, current_user=current_user, data=data)

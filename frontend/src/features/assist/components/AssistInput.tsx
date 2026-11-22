@@ -7,6 +7,8 @@ import { ArrowUp, Square } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { stringAttr } from '@/lib/prosemirrorAttrs';
+
 import { usePageData, type MentionCandidate } from '../context/PageDataContext';
 import { AtomArrowNav } from '../extensions/atomArrowNav';
 import { ChipNode } from '../extensions/chipNode';
@@ -34,7 +36,12 @@ const COMMANDS: SlashCommand[] = [
 
 // Commands that only make sense while viewing a specific note — hidden from
 // the menu everywhere else (there is no "current note" to act on).
-const NOTE_PAGE_COMMANDS = new Set(['/refine-notes', '/generate-test']);
+const NOTE_PAGE_COMMANDS = ['/refine-notes', '/generate-test'] as const satisfies readonly AssistCommand[];
+type NotePageCommand = (typeof NOTE_PAGE_COMMANDS)[number];
+
+function isNotePageCommand(name: string): name is NotePageCommand {
+  return NOTE_PAGE_COMMANDS.some(command => command === name);
+}
 
 const ATTACHMENT_HEADINGS: Record<ChatAttachment['type'], string> = {
   note_chunk: '[Selected text from note]',
@@ -170,7 +177,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       const chipIds = new Set<string>();
       ed.state.doc.descendants(node => {
         if (node.type.name === 'assistCommand') hasCmd = true;
-        if (node.type.name === 'assistChip') chipIds.add(node.attrs.id as string);
+        if (node.type.name === 'assistChip') chipIds.add(stringAttr(node.attrs, 'id'));
       });
 
       const store = useAssistAttachmentsStore.getState();
@@ -245,7 +252,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
   /* ─── slash-command menu ─── */
 
   const availableCommands = useMemo(
-    () => (isNotePage ? COMMANDS : COMMANDS.filter(c => !NOTE_PAGE_COMMANDS.has(c.name))),
+    () => (isNotePage ? COMMANDS : COMMANDS.filter(c => !isNotePageCommand(c.name))),
     [isNotePage]
   );
   const query = draft.startsWith('/') ? draft.slice(1).toLowerCase() : '';
@@ -276,8 +283,8 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
       // onTransaction's "command node missing" cleanup before the chip insertion
       // microtask runs, immediately nulling the command back out.
       editor?.commands.clearContent();
-      if (NOTE_PAGE_COMMANDS.has(cmd.name)) {
-        setActiveCommand(cmd.name as AssistCommand);
+      if (isNotePageCommand(cmd.name)) {
+        setActiveCommand(cmd.name);
       } else {
         onCommand(cmd.name);
       }
@@ -404,7 +411,7 @@ export function AssistInput({ onSend, onCommand, onStop, isStreaming }: AssistIn
           cmdPos = pos;
           cmdSize = node.nodeSize;
         }
-        if (node.type.name === 'assistChip') editorChipIds.add(node.attrs.id as string);
+        if (node.type.name === 'assistChip') editorChipIds.add(stringAttr(node.attrs, 'id'));
       });
 
       let chain = editor.chain();
@@ -626,7 +633,7 @@ function collectMentionContent(doc: PmNode): string[] {
   const mentions: string[] = [];
   doc.descendants(node => {
     if (node.type.name === 'assistMention') {
-      mentions.push(node.attrs.content as string);
+      mentions.push(stringAttr(node.attrs, 'content'));
     }
   });
   return mentions;
@@ -638,11 +645,11 @@ function buildDisplayFromDoc(doc: PmNode): string {
     if (node.isText) {
       result += node.text ?? '';
     } else if (node.type.name === 'assistMention') {
-      result += `@${node.attrs.label as string}`;
+      result += `@${stringAttr(node.attrs, 'label')}`;
     } else if (node.type.name === 'assistChip') {
-      result += `[${node.attrs.label as string}]`;
+      result += `[${stringAttr(node.attrs, 'label')}]`;
     } else if (node.type.name === 'assistCommand') {
-      result += node.attrs.command as string;
+      result += stringAttr(node.attrs, 'command');
     }
   });
   return result.trim();

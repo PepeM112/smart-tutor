@@ -1249,6 +1249,73 @@ export const DueSoonPayloadSchema = {
     title: 'DueSoonPayload'
 } as const;
 
+export const ErrorWithCodeSchema = {
+    properties: {
+        detail: {
+            type: 'string',
+            title: 'Detail'
+        },
+        code: {
+            type: 'string',
+            enum: [
+                'space_archived',
+                'removed_course_has_results',
+                'attempt_no_attempts_left',
+                'attempt_cooldown',
+                'attempt_time_over',
+                'attempt_closed',
+                'attempt_not_open',
+                'attempt_window_closed',
+                'attempt_no_questions',
+                'assist_blocked_by_course_test',
+                'ai_not_configured',
+                'ai_budget_used_up',
+                'override_not_classroom',
+                'override_score_out_of_range',
+                'answer_overridden',
+                'feed_teacher_only_post',
+                'feed_teacher_only_comment',
+                'feed_author_only_edit',
+                'feed_post_not_found',
+                'feed_comment_not_found',
+                'completion_passed',
+                'completion_not_found'
+            ],
+            title: 'Code'
+        },
+        nextAttemptAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nextattemptat'
+        },
+        maxPoints: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Maxpoints'
+        }
+    },
+    type: 'object',
+    required: [
+        'detail',
+        'code'
+    ],
+    title: 'ErrorWithCode',
+    description: 'The body of a coded error: `detail` as in every error, plus a stable `code` and optional fields.'
+} as const;
+
 export const FeedAuthorSchema = {
     properties: {
         userId: {
@@ -3211,6 +3278,17 @@ export const QuestionCreateSchema = {
             type: 'array',
             title: 'Tags',
             default: []
+        },
+        originId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Originid'
         }
     },
     type: 'object',

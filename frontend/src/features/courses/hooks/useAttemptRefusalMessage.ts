@@ -3,13 +3,12 @@ import { useCallback } from 'react';
 
 import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
 import { formatDateTime } from '@/lib/datetime';
-import { getErrorDetail } from '@/lib/utils';
 
 import { classifyAttemptRefusal } from '../lib/attemptErrors';
 
 /**
  * Turns a refused attempt call (HTTP 409) into text in the user language.
- * The server sends English text only, so the case comes from `classifyAttemptRefusal`.
+ * The server text is English only, so the case comes from the error `code` (`classifyAttemptRefusal`).
  */
 export function useAttemptRefusalMessage(): (error: unknown) => string {
   const t = useTranslations();
@@ -17,7 +16,7 @@ export function useAttemptRefusalMessage(): (error: unknown) => string {
 
   return useCallback(
     (error: unknown): string => {
-      const refusal = classifyAttemptRefusal(getErrorDetail(error, ''));
+      const refusal = classifyAttemptRefusal(error);
       switch (refusal.kind) {
         case 'cooldown':
           return refusal.nextAttemptAt

@@ -19,6 +19,7 @@ import { AiFeature, AiProvider, type TokenUsageDailySummary } from '@/client';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { AI_FEATURE_LABEL_KEYS } from '@/lib/aiFeature';
 import { formatChartDate, formatCost, formatTokens } from '@/lib/format';
+import { numberField } from '@/lib/typeGuards';
 
 import type { UsageGroupBy as GroupBy } from '../types';
 
@@ -168,7 +169,7 @@ export function UsageChart({ daily, groupBy }: Props) {
     const keysWithData = new Set(
       data.flatMap(row =>
         Object.entries(row)
-          .filter(([k, v]) => k.startsWith(prefix) && !k.endsWith('_cost') && (v as number) > 0)
+          .filter(([k, v]) => k.startsWith(prefix) && !k.endsWith('_cost') && typeof v === 'number' && v > 0)
           .map(([k]) => k)
       )
     );
@@ -208,8 +209,7 @@ export function UsageChart({ daily, groupBy }: Props) {
             const key = String(entry.dataKey);
             const isCumulative = key === 'cumulative';
             const seriesLabel = isCumulative ? t('dashboard.cumulative') : (seriesLabelMap[key] ?? key);
-            const dataPoint = entry.payload as Record<string, number> | undefined;
-            const costValue = isCumulative ? undefined : dataPoint?.[`${key}_cost`];
+            const costValue = isCumulative ? undefined : numberField(entry.payload, `${key}_cost`);
             return (
               <div key={key} className={cumulativeIdx > 0 && i === cumulativeIdx ? 'mt-2' : undefined}>
                 <div className="flex items-center justify-between gap-6 py-0.5">

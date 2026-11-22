@@ -23,6 +23,7 @@ from app.core.enums import (
     SpaceStatus,
     SpaceVisibility,
 )
+from app.core.errors import AppError
 from app.crud import note as note_crud
 from app.crud import space as space_crud
 from app.crud import space_content as space_content_crud
@@ -142,6 +143,14 @@ def conflict(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
 
+def archived_error(*, is_classroom: bool) -> AppError:
+    return AppError(
+        status.HTTP_409_CONFLICT,
+        "The classroom is archived" if is_classroom else "The course is archived",
+        "space_archived",
+    )
+
+
 def is_archived(db: Session, *, space: Space) -> bool:
     """Archived, or a course of an archived classroom."""
     parent = space_crud.get_by_id(db, id=space.parent_id) if space.parent_id else None
@@ -152,7 +161,7 @@ def require_active(db: Session, space: Space) -> None:
     """Archived spaces are read-only for everyone. A course of an archived classroom is archived too."""
     if is_archived(db, space=space):
         is_classroom = space.kind == int(SpaceKind.CLASSROOM) or space.parent_id is not None
-        raise conflict("The classroom is archived" if is_classroom else "The course is archived")
+        raise archived_error(is_classroom=is_classroom)
 
 
 def require_owner(db: Session, *, space: Space, user: User) -> Membership:

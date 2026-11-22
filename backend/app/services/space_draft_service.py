@@ -22,6 +22,7 @@ from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import NotificationType, SpaceItemKind, SpaceKind
+from app.core.errors import AppError
 from app.crud import note as note_crud
 from app.crud import space as space_crud
 from app.crud import space_attempt as space_attempt_crud
@@ -133,7 +134,7 @@ def _sweep_orphan_courses(db: Session, *, space: Space) -> None:
     if space_content_crud.has_member_data(db, space_ids=[s.id for s in orphans], excluded_user_ids=list(teachers)):
         # The caller wrote draft rows before this check. Roll them back: a refused call changes nothing.
         db.rollback()
-        raise conflict(ORPHAN_HAS_RESULTS)
+        raise AppError(status.HTTP_409_CONFLICT, ORPHAN_HAS_RESULTS, "removed_course_has_results")
     delete_spaces_forever(db, spaces=orphans)
 
 

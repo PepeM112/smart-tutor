@@ -21,6 +21,8 @@ from fastapi import HTTPException, status
 
 from app.core.ai_settings import DEFAULT_ANTHROPIC_MODEL, EFFORT_MODELS, AiAction, AiEffort, AnthropicModel
 from app.core.enums import AIProvider, KeySource
+from app.core.errors import AppError
+from app.schemas.error import ErrorCode
 from app.services.ai_settings_service import anthropic_model_of, efforts_of
 
 if TYPE_CHECKING:
@@ -52,6 +54,18 @@ class AIKeyError(ValueError):
     def __init__(self, message: str, *, cap_reached: bool = False) -> None:
         super().__init__(message)
         self.cap_reached = cap_reached
+
+    @property
+    def code(self) -> ErrorCode | None:
+        """The stable code of the two errors that the frontend shows with its own text. None for the others."""
+        if self.cap_reached:
+            return "ai_budget_used_up"
+        return "ai_not_configured" if str(self) == NO_KEY_MESSAGE else None
+
+    def to_http_error(self) -> HTTPException:
+        if self.code is None:
+            return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(self))
+        return AppError(status.HTTP_403_FORBIDDEN, str(self), self.code)
 
 
 class AIRefusalError(Exception):
@@ -585,10 +599,8 @@ def complete_for_user(
         llm = resolved.client if resolved is not None else get_user_llm_client(user)
     except ValueError as exc:
         logger.error("User AI provider unavailable: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(exc) if isinstance(exc, AIKeyError) else NO_KEY_MESSAGE,
-        ) from exc
+        key_error = exc if isinstance(exc, AIKeyError) else AIKeyError(NO_KEY_MESSAGE)
+        raise key_error.to_http_error() from exc
 
     effort = resolved.effort(action) if resolved is not None else efforts_of(user)[action]
     result = _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens, effort=effort)

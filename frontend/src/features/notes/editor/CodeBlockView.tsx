@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FloatingCard, FloatingCardContent, FloatingCardTrigger } from '@/components/ui/floating-card';
 import { HoverHint } from '@/components/ui/hover-hint';
 import { copyText } from '@/lib/copyText';
+import { optionalStringAttr } from '@/lib/prosemirrorAttrs';
 import { cn } from '@/lib/utils';
 
 import { buildToggleCodeWrapTransaction, isCodeWrapped } from './codeBlockWrap';
@@ -33,7 +34,7 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
   // Set by an outside click: the user already put the cursor where they clicked, so the
   // close must not move it back into this block.
   const closedByOutside = useRef(false);
-  const language = (node.attrs.language as string | null) ?? null;
+  const language = optionalStringAttr(node.attrs, 'language');
 
   // True while the selection is inside this block. The editor does not re-render the
   // node view for a selection change, so read it from the editor state.
@@ -63,6 +64,7 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
     if (tr) editor.view.dispatch(tr);
   };
 
+  // `extension.options` is `any` in tiptap; this view is only used by the CodeBlock extension that sets `lowlight`
   const lowlight = (extension.options as { lowlight: Lowlight }).lowlight;
 
   const selectLanguage = (next: string | null) => {

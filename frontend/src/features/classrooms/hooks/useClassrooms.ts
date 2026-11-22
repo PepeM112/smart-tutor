@@ -118,7 +118,7 @@ export function useRemoveCompletion(classroomId: string) {
       toast.success(t('classrooms.completion_removed'));
     },
     onError: err => {
-      const key = removeCompletionErrorKey(getErrorDetail(err, ''));
+      const key = removeCompletionErrorKey(err);
       toast.error(t(`classrooms.${key ?? 'completion_remove_failed'}`));
       // A refused request often means the gradebook is stale (the score changed): show the real state.
       void queryClient.invalidateQueries({ queryKey: classroomQueryKeys.gradebook(classroomId) });

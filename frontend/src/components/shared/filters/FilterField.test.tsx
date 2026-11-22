@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { type FilterItem, FilterType } from '@/lib/filters';
 
@@ -51,5 +51,48 @@ describe('multi select filter field', () => {
     cleanup();
     fireEvent.keyDown(renderField(), { key: 'ArrowDown' });
     expect(screen.getByText('Tests')).toBeTruthy();
+  });
+});
+
+describe('select filter field', () => {
+  const SELECT_ITEM: FilterItem = {
+    label: 'Kind',
+    key: 'kind',
+    type: FilterType.SELECT,
+    options: { items: [{ label: 'Tests', value: 'tests' }] },
+  };
+
+  // jsdom lacks the pointer and layout APIs that Radix Select calls when its list opens
+  beforeAll(() => {
+    window.HTMLElement.prototype.hasPointerCapture = () => false;
+    window.HTMLElement.prototype.scrollIntoView = () => undefined;
+    window.ResizeObserver ??= class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    };
+  });
+
+  function chooseOption(name: string): void {
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('option', { name }));
+  }
+
+  it('reports the picked value', () => {
+    const onChange = vi.fn();
+    render(<FilterField item={SELECT_ITEM} value={undefined} onChange={onChange} />);
+
+    chooseOption('Tests');
+
+    expect(onChange).toHaveBeenCalledWith('tests');
+  });
+
+  it('clears the filter when the all option is picked', () => {
+    const onChange = vi.fn();
+    render(<FilterField item={SELECT_ITEM} value="tests" onChange={onChange} />);
+
+    chooseOption('common.all');
+
+    expect(onChange).toHaveBeenCalledWith(undefined);
   });
 });

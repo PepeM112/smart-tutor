@@ -111,7 +111,9 @@ export function TestsPage() {
       sdk.testsList({
         query: {
           search: search || undefined,
-          question_type: questionType?.length ? (questionType as number[]) : undefined,
+          question_type: questionType?.length
+            ? questionType.filter((value): value is number => typeof value === 'number')
+            : undefined,
           created_from: created?.from ?? undefined,
           created_to: created?.to ?? undefined,
           page,

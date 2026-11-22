@@ -1,9 +1,13 @@
-const REMOVED_COURSE_HAS_RESULTS = 'A removed course has student results. Delete the course forever first.';
+import { type ErrorCode, errorCase } from '@/lib/errorCode';
+
+const SPACE_ERROR_KEYS: Partial<Record<ErrorCode, string>> = {
+  removed_course_has_results: 'classrooms.error_removed_course_has_results',
+};
 
 /**
- * Gives the i18n key for a `detail` of a refused space write that the backend sends in English only.
- * `null` when the detail has no own text (the caller shows the detail or a generic text).
+ * Gives the i18n key for a refused space write that has its own text.
+ * `null` when the error has no own text (the caller shows the detail or a generic text).
  */
-export function spaceErrorKey(detail: string | undefined): string | null {
-  return detail === REMOVED_COURSE_HAS_RESULTS ? 'classrooms.error_removed_course_has_results' : null;
+export function spaceErrorKey(error: unknown): string | null {
+  return errorCase(SPACE_ERROR_KEYS, error) ?? null;
 }

@@ -28,8 +28,13 @@ declare module '@tiptap/core' {
   }
 }
 
-export const isNoteColor = (value: string | null): value is NoteColor =>
-  value !== null && (NOTE_COLORS as readonly string[]).includes(value);
+export const isNoteColor = (value: string | null): value is NoteColor => NOTE_COLORS.some(color => color === value);
+
+/** The color attributes of a mark or node. A missing or unknown name becomes `null`. */
+export function readNoteColorAttrs(attrs: Record<string, unknown> | undefined): NoteColorAttrs {
+  const toColor = (value: unknown): NoteColor | null => NOTE_COLORS.find(color => color === value) ?? null;
+  return { color: toColor(attrs?.color), bg: toColor(attrs?.bg) };
+}
 
 export const NoteColorMark = Mark.create({
   name: 'noteColor',
@@ -68,7 +73,7 @@ export const NoteColorMark = Mark.create({
   },
 
   renderMarkdown: (node, h) => {
-    const { color, bg } = (node.attrs ?? {}) as NoteColorAttrs;
+    const { color, bg } = readNoteColorAttrs(node.attrs);
     const attrs = [color && `data-color="${color}"`, bg && `data-bg="${bg}"`].filter(Boolean).join(' ');
     return `<span ${attrs}>${h.renderChildren(node)}</span>`;
   },
@@ -78,8 +83,7 @@ export const NoteColorMark = Mark.create({
     const apply =
       (key: keyof NoteColorAttrs, value: NoteColor | null) =>
       ({ editor, chain }: { editor: Editor; chain: () => ChainedCommands }) => {
-        const current = editor.getAttributes(this.name) as Partial<NoteColorAttrs>;
-        const next: NoteColorAttrs = { color: current.color ?? null, bg: current.bg ?? null, [key]: value };
+        const next: NoteColorAttrs = { ...readNoteColorAttrs(editor.getAttributes(this.name)), [key]: value };
         if (!next.color && !next.bg) return chain().unsetMark(this.name).run();
         return chain().setMark(this.name, next).run();
       };

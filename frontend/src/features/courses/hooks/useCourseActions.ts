@@ -410,6 +410,6 @@ function useNavigatingMutation<V, R>(
 
 /** The error toast of a write: an own text for a known refusal, else the backend detail, else the fallback. */
 function toastWriteError(err: unknown, fallback: string, t: ReturnType<typeof useTranslations>): void {
-  const key = spaceErrorKey(getErrorDetail(err, ''));
+  const key = spaceErrorKey(err);
   toast.error(key ? t(key) : getErrorDetail(err, fallback));
 }

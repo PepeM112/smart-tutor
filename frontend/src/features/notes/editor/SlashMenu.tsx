@@ -228,7 +228,7 @@ export const SlashMenuExtension = Extension.create({
         items: () => SLASH_ITEMS,
 
         command: ({ editor, range, props: item }) => {
-          // SAFETY: Suggestion<SlashItem> guarantees props is SlashItem.
+          // Tiptap types Suggestion `props` as `any`; the list only offers SlashItem values.
           (item as SlashItem).execute({ editor, range });
         },
 

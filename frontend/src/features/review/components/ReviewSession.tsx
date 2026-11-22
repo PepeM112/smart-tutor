@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
-import type { AnswerStatus, QuestionCheckResponse, QuestionReadStripped } from '@/client';
+import type { AnswerStatus, QuestionReadStripped } from '@/client';
 import { sdk } from '@/lib/apiClient';
 
 import { REVIEW_BATCH_SIZE } from '../helpers';
@@ -48,8 +48,8 @@ export function ReviewSession({ initialQuestions, mode, scope }: Props) {
         body: { userAnswer },
       }),
     onSuccess: (response, { userAnswer }) => {
-      // SAFETY: SDK returns QuestionCheckResponse on success; throwOnError handles failures
-      const data = response.data as QuestionCheckResponse;
+      const data = response.data;
+      if (!data) return;
       const result: CheckResult = {
         status: data.status,
         correctAnswers: data.correctAnswers,

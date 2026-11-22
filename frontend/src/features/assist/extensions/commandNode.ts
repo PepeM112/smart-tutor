@@ -1,5 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 
+import { stringAttr } from '@/lib/prosemirrorAttrs';
+
 export const CommandNode = Node.create({
   name: 'assistCommand',
   group: 'inline',
@@ -26,7 +28,7 @@ export const CommandNode = Node.create({
         contenteditable: 'false',
         style: 'font-weight: 500; color: var(--primary); font-size: 13px; margin-right: 0.375rem;',
       }),
-      node.attrs.command as string,
+      stringAttr(node.attrs, 'command'),
     ];
   },
 });

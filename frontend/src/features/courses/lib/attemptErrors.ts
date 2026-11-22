@@ -1,3 +1,5 @@
+import { type ErrorCode, errorCase, errorCode, errorDate } from '@/lib/errorCode';
+
 export type AttemptRefusal =
   | { kind: 'cooldown'; nextAttemptAt: Date | null }
   | {
@@ -12,37 +14,26 @@ export type AttemptRefusal =
         | 'unknown';
     };
 
-const COOLDOWN_PREFIX = 'The next attempt is possible at ';
+type SimpleRefusalKind = Exclude<AttemptRefusal['kind'], 'cooldown' | 'unknown'>;
+
+const REFUSAL_KINDS: Partial<Record<ErrorCode, SimpleRefusalKind>> = {
+  attempt_no_attempts_left: 'no_attempts_left',
+  attempt_time_over: 'time_over',
+  attempt_closed: 'closed',
+  attempt_not_open: 'not_open',
+  attempt_window_closed: 'window_closed',
+  space_archived: 'archived',
+  attempt_no_questions: 'no_questions',
+};
 
 /**
- * Maps the `detail` text of an attempt 409 to a case. The backend sends English text only, so the
- * page matches these exact strings (`space_attempt_service.py`, `space_service.py`) and shows its own
- * translated text. If the backend text changes, the match fails and the case is `unknown` (a generic text).
+ * Maps the `code` of an attempt 409 to a case. The backend text is English only, so the page shows its own
+ * translated text per case. A code that is not in the table gives `unknown` (a generic text).
  */
-export function classifyAttemptRefusal(detail: string | undefined): AttemptRefusal {
-  if (!detail) return { kind: 'unknown' };
-  if (detail.startsWith(COOLDOWN_PREFIX)) {
-    const date = new Date(detail.slice(COOLDOWN_PREFIX.length));
-    return { kind: 'cooldown', nextAttemptAt: Number.isNaN(date.getTime()) ? null : date };
+export function classifyAttemptRefusal(error: unknown): AttemptRefusal {
+  if (errorCode(error) === 'attempt_cooldown') {
+    return { kind: 'cooldown', nextAttemptAt: errorDate(error, 'nextAttemptAt') ?? null };
   }
-  switch (detail) {
-    case 'No attempts left':
-      return { kind: 'no_attempts_left' };
-    case 'Time is over':
-      return { kind: 'time_over' };
-    case 'This attempt is already closed':
-    case 'This attempt can not be continued':
-      return { kind: 'closed' };
-    case 'The test is not open yet':
-      return { kind: 'not_open' };
-    case 'The test is closed':
-      return { kind: 'window_closed' };
-    case 'The course is archived':
-    case 'The classroom is archived':
-      return { kind: 'archived' };
-    case 'This test has no questions available':
-      return { kind: 'no_questions' };
-    default:
-      return { kind: 'unknown' };
-  }
+  const kind = errorCase(REFUSAL_KINDS, error);
+  return kind ? { kind } : { kind: 'unknown' };
 }

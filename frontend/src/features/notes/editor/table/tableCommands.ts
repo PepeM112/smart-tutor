@@ -24,6 +24,8 @@ import {
   removeRow,
 } from '@tiptap/pm/tables';
 
+import { optionalStringAttr } from '@/lib/prosemirrorAttrs';
+
 import { isNoteColor, type NoteColor } from '../noteColor';
 
 import type { TableLayout } from './tableAttributes';
@@ -97,7 +99,7 @@ export function readCommonCellColors(state: EditorState, target: TableTarget): C
   const cells = info ? cellOffsets(info, target).map(offset => info.node.nodeAt(offset)) : [];
   const common = (key: CellColorKey): NoteColor | null | undefined => {
     const values = cells.map(cell => {
-      const value = (cell?.attrs[key] as string | null | undefined) ?? null;
+      const value = cell ? optionalStringAttr(cell.attrs, key) : null;
       return isNoteColor(value) ? value : null;
     });
     return values.length > 0 && values.every(value => value === values[0]) ? values[0] : undefined;
@@ -309,7 +311,7 @@ function locateCell(selection: Selection): { cellPos: number; tablePos: number }
   }
   const { $from } = selection;
   const cellDepth = Array.from({ length: $from.depth }, (_, i) => $from.depth - i).find(depth => {
-    const role = $from.node(depth).type.spec.tableRole as string | undefined;
+    const role: unknown = $from.node(depth).type.spec.tableRole;
     return role === 'cell' || role === 'header_cell';
   });
   return cellDepth === undefined ? null : { cellPos: $from.before(cellDepth), tablePos: $from.before(cellDepth - 2) };

@@ -136,6 +136,7 @@ export const NoteToggle = Node.create({
   },
 
   parseMarkdown: (token, helpers) => {
+    // `MarkdownToken` has an `any` index signature; the tokenizer above always sets `summaryTokens` to inline tokens.
     const summaryTokens = (token.summaryTokens ?? []) as MarkdownToken[];
     const children = helpers.parseChildren(token.tokens ?? []);
     const summary: JSONContent = helpers.createNode('toggleSummary', undefined, helpers.parseInline(summaryTokens));

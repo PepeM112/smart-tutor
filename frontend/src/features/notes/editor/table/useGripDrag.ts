@@ -22,6 +22,15 @@ import { gapFromPoint, type Band } from './tableGeometry';
 /** Distance in px that turns a click into a drag. */
 const DRAG_THRESHOLD = 4;
 
+/** Capture listener on the window. Gives back the function that removes it. */
+function listenOnWindow<K extends keyof WindowEventMap>(
+  type: K,
+  handler: (event: WindowEventMap[K]) => void
+): () => void {
+  window.addEventListener(type, handler, true);
+  return () => window.removeEventListener(type, handler, true);
+}
+
 type Session = {
   start: number;
   dragging: boolean;
@@ -165,17 +174,15 @@ export function useGripDrag(options: Options): GripDrag {
         optionsRef.current.onGapChange(null);
       };
 
-      const listeners: [string, EventListener][] = [
-        ['pointermove', onMove as EventListener],
-        ['pointerup', onUp as EventListener],
-        ['pointercancel', onCancel as EventListener],
-        ['pointerdown', onPress],
-        ['blur', onBlur as EventListener],
-        ['keydown', onKeyDown as EventListener],
+      const removers = [
+        listenOnWindow('pointermove', onMove),
+        listenOnWindow('pointerup', onUp),
+        listenOnWindow('pointercancel', onCancel),
+        listenOnWindow('pointerdown', onPress),
+        listenOnWindow('blur', onBlur),
+        listenOnWindow('keydown', onKeyDown),
       ];
-      listeners.forEach(([type, listener]) => window.addEventListener(type, listener, true));
-      stopListening.current = () =>
-        listeners.forEach(([type, listener]) => window.removeEventListener(type, listener, true));
+      stopListening.current = () => removers.forEach(remove => remove());
     },
     [finish]
   );
