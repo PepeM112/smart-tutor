@@ -221,6 +221,13 @@ def create_one(db: Session, *, data: QuestionCreateStandalone, user_id: str) -> 
     return obj
 
 
+def existing_ids(db: Session, *, ids: set[str]) -> set[str]:
+    """The subset of `ids` that exist as a question row (any status)."""
+    if not ids:
+        return set()
+    return set(db.scalars(select(Question.id).where(Question.id.in_(ids))).all())
+
+
 def create_many(
     db: Session,
     *,
@@ -242,6 +249,7 @@ def create_many(
             order=q.order,
             points=q.points,
             tags=q.tags,
+            origin_id=q.origin_id,
         )
         for q in questions
     ]

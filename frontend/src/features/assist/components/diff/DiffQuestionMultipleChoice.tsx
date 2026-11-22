@@ -1,13 +1,13 @@
 import { Check, X } from 'lucide-react';
 
-import type { MultipleChoiceContent } from '@/client';
+import { isMCContent } from '@/features/tests/utils/questionContent';
 
 import type { DiffQuestionProps } from './types';
 
 export function DiffQuestionMultipleChoice({ old: oldQ, new: newQ }: DiffQuestionProps) {
-  // SAFETY: caller only renders this component for MULTIPLE_CHOICE-type question diffs
-  const oldContent = oldQ.content as MultipleChoiceContent;
-  const newContent = newQ.content as MultipleChoiceContent;
+  if (!isMCContent(oldQ.content) || !isMCContent(newQ.content)) return null;
+  const oldContent = oldQ.content;
+  const newContent = newQ.content;
 
   return (
     <div className="space-y-2">

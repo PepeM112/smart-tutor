@@ -44,6 +44,7 @@ if (typeof window !== 'undefined') {
     }
 
     try {
+      // SAFETY: the value is zustand persist output that this store wrote; a guard would only copy the generated UserRead type
       const parsed = JSON.parse(e.newValue) as { state?: { user?: UserRead | null } };
       const user = parsed.state?.user ?? null;
       useAuthStore.getState().setUser(user);

@@ -21,6 +21,8 @@ from fastapi import HTTPException, status
 
 from app.core.ai_settings import DEFAULT_ANTHROPIC_MODEL, EFFORT_MODELS, AiAction, AiEffort, AnthropicModel
 from app.core.enums import AIProvider, KeySource
+from app.core.errors import AppError
+from app.schemas.error import ErrorCode
 from app.services.ai_settings_service import anthropic_model_of, efforts_of
 
 if TYPE_CHECKING:
@@ -49,9 +51,18 @@ class AIKeyError(ValueError):
     A `ValueError`, as the error of `get_user_llm_client`, so the callers that catch a missing key still work.
     """
 
-    def __init__(self, message: str, *, cap_reached: bool = False) -> None:
+    def __init__(self, message: str, *, code: ErrorCode | None = None) -> None:
         super().__init__(message)
-        self.cap_reached = cap_reached
+        self.code: ErrorCode | None = code
+
+    @property
+    def cap_reached(self) -> bool:
+        return self.code == "ai_budget_used_up"
+
+    def to_http_error(self) -> HTTPException:
+        if self.code is None:
+            return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(self))
+        return AppError(status.HTTP_403_FORBIDDEN, str(self), self.code)
 
 
 class AIRefusalError(Exception):
@@ -452,7 +463,7 @@ def decrypt_key(ciphertext: str) -> str:
         return decrypt(ciphertext)
     except InvalidToken as exc:
         logger.error("A stored AI key cannot be decrypted")
-        raise AIKeyError(KEY_UNREADABLE_MESSAGE) from exc
+        raise AIKeyError(KEY_UNREADABLE_MESSAGE, code="ai_key_unreadable") from exc
 
 
 def get_user_llm_client(user: User) -> LLMClient:
@@ -585,10 +596,8 @@ def complete_for_user(
         llm = resolved.client if resolved is not None else get_user_llm_client(user)
     except ValueError as exc:
         logger.error("User AI provider unavailable: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(exc) if isinstance(exc, AIKeyError) else NO_KEY_MESSAGE,
-        ) from exc
+        key_error = exc if isinstance(exc, AIKeyError) else AIKeyError(NO_KEY_MESSAGE, code="ai_not_configured")
+        raise key_error.to_http_error() from exc
 
     effort = resolved.effort(action) if resolved is not None else efforts_of(user)[action]
     result = _run_completion(llm, system=system, user_prompt=user_prompt, max_tokens=max_tokens, effort=effort)

@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { isMCContent, isSimpleContent } from '@/features/tests/utils/questionContent';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
 
@@ -289,10 +290,9 @@ function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: M
 
 function initSimpleData(q?: QuestionRead): SimpleFormData {
   if (q && q.questionType === QuestionType.SIMPLE) {
-    const content = q.content as { answers?: string[] };
     return {
       prompt: q.prompt,
-      answers: content.answers ?? [''],
+      answers: isSimpleContent(q.content) ? q.content.answers : [''],
       hint: q.hint ?? '',
       explanation: q.explanation ?? '',
       points: q.points ?? 1,
@@ -304,11 +304,10 @@ function initSimpleData(q?: QuestionRead): SimpleFormData {
 
 function initMCData(q?: QuestionRead): MCFormData {
   if (q && q.questionType === QuestionType.MULTIPLE_CHOICE) {
-    const content = q.content as { options?: string[]; correctIndices?: number[] };
-    const choices = (content.options ?? ['', '']).map((text, i) => ({
-      text,
-      isCorrect: content.correctIndices?.includes(i) ?? false,
-    }));
+    // Throws on bad content: empty choices would be saved over the stored question.
+    const content = q.content;
+    if (!isMCContent(content)) throw new Error(`Question ${q.id} has no valid multiple choice content`);
+    const choices = content.options.map((text, i) => ({ text, isCorrect: content.correctIndices.includes(i) }));
     return {
       prompt: q.prompt,
       choices,

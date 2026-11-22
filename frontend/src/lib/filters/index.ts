@@ -13,6 +13,7 @@ export {
   deserializeFilterValue,
   isDateFilterValue,
   isFilterEntity,
+  isPrimitiveArray,
   isPrimitiveValue,
   isRangeFilterValue,
   serializeFilterValue,

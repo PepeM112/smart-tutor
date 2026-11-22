@@ -14,11 +14,12 @@ delete (but not edit) anyone's, for moderation -- which sends no notification.
 
 from __future__ import annotations
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.core.constants import NOTIFICATION_EXCERPT_MAX
 from app.core.enums import FeedPermission, NotificationType
+from app.core.errors import AppError
 from app.crud import classroom_settings as classroom_settings_crud
 from app.crud import space_comment as space_comment_crud
 from app.crud import space_member as space_member_crud
@@ -28,6 +29,7 @@ from app.models.space import Space
 from app.models.space_comment import SpaceComment
 from app.models.space_post import SpacePost
 from app.models.user import User
+from app.schemas.error import ErrorCode
 from app.schemas.notification import CommentCreatedPayload, PostCreatedPayload
 from app.schemas.space_feed import (
     FeedAuthor,
@@ -50,8 +52,12 @@ from app.services.space_service import (
 )
 
 
-def _not_found(detail: str) -> HTTPException:
-    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+def _not_found(detail: str, code: ErrorCode) -> AppError:
+    return AppError(status.HTTP_404_NOT_FOUND, detail, code)
+
+
+def _forbidden(detail: str, code: ErrorCode) -> AppError:
+    return AppError(status.HTTP_403_FORBIDDEN, detail, code)
 
 
 def _feed_permission(db: Session, *, classroom: Space) -> FeedPermission:
@@ -83,18 +89,18 @@ def _can_comment(permission: FeedPermission, *, membership: Membership) -> bool:
 
 def _require_can_post(db: Session, *, classroom: Space, membership: Membership) -> None:
     if not _can_post(_feed_permission(db, classroom=classroom), membership=membership):
-        raise forbidden("Only the teacher can post in this classroom")
+        raise _forbidden("Only the teacher can post in this classroom", "feed_teacher_only_post")
 
 
 def _require_can_comment(db: Session, *, classroom: Space, membership: Membership) -> None:
     if not _can_comment(_feed_permission(db, classroom=classroom), membership=membership):
-        raise forbidden("Only the teacher can comment in this classroom")
+        raise _forbidden("Only the teacher can comment in this classroom", "feed_teacher_only_comment")
 
 
 def _get_post_and_classroom(db: Session, *, post_id: str) -> tuple[SpacePost, Space]:
     post = space_post_crud.get(db, post_id=post_id)
     if post is None:
-        raise _not_found("Post not found")
+        raise _not_found("Post not found", "feed_post_not_found")
     classroom = get_classroom_or_404(db, space_id=post.space_id)
     return post, classroom
 
@@ -102,7 +108,7 @@ def _get_post_and_classroom(db: Session, *, post_id: str) -> tuple[SpacePost, Sp
 def _get_comment_and_context(db: Session, *, comment_id: str) -> tuple[SpaceComment, SpacePost, Space]:
     comment = space_comment_crud.get(db, comment_id=comment_id)
     if comment is None:
-        raise _not_found("Comment not found")
+        raise _not_found("Comment not found", "feed_comment_not_found")
     post, classroom = _get_post_and_classroom(db, post_id=comment.post_id)
     return comment, post, classroom
 
@@ -228,7 +234,7 @@ def update_post(db: Session, *, post_id: str, current_user: User, data: SpacePos
     post, classroom = _get_post_and_classroom(db, post_id=post_id)
     membership = _require_member(db, classroom=classroom, user=current_user)
     if post.author_id != current_user.id:
-        raise forbidden("Only the author can edit this post")
+        raise _forbidden("Only the author can edit this post", "feed_author_only_edit")
     require_active(db, classroom)
     space_post_crud.update(db, post=post, body=data.body)
     db.commit()
@@ -290,7 +296,7 @@ def update_comment(db: Session, *, comment_id: str, current_user: User, data: Sp
     comment, _post, classroom = _get_comment_and_context(db, comment_id=comment_id)
     membership = _require_member(db, classroom=classroom, user=current_user)
     if comment.author_id != current_user.id:
-        raise forbidden("Only the author can edit this comment")
+        raise _forbidden("Only the author can edit this comment", "feed_author_only_edit")
     require_active(db, classroom)
     space_comment_crud.update(db, comment=comment, body=data.body)
     db.commit()

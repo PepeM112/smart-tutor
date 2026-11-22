@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import SpaceItemKind, SpaceKind, SpaceRole, SpaceVisibility
+from app.core.errors import AppError
 from app.crud import classroom_settings as classroom_settings_crud
 from app.crud import space as space_crud
 from app.crud import space_item as space_item_crud
@@ -200,7 +201,9 @@ def update_settings(
         and settings.encrypted_class_key
         and data.class_key is None
     ):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=PROVIDER_CHANGE_NEEDS_KEY)
+        raise AppError(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, PROVIDER_CHANGE_NEEDS_KEY, "class_key_provider_change_needs_key"
+        )
     if "feed_permission" in sent and data.feed_permission is not None:
         settings.feed_permission = int(data.feed_permission)
     if "key_priority" in sent and data.key_priority is not None:
@@ -271,10 +274,10 @@ def remove_completion(db: Session, *, classroom_id: str, item_id: str, user_id: 
     # `recheck_test_completion`): a parallel pass waits here, so the best score below is never older than it.
     space_progress_service.get_member_row(db, space_id=item.space_id, user_id=user_id, for_update=True)
     if item.id not in space_item_completion_crud.list_completed_ids(db, user_id=user_id, item_ids=[item.id]):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Completion not found")
+        raise AppError(status.HTTP_404_NOT_FOUND, "Completion not found", "completion_not_found")
     best = test_result_crud.best_scores_by_item(db, user_id=user_id, item_ids=[item.id]).get(item.id)
     if space_progress_service.reaches_threshold(item, best):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=COMPLETION_PASSED)
+        raise AppError(status.HTTP_409_CONFLICT, COMPLETION_PASSED, "completion_passed")
     space_item_completion_crud.remove(db, item_id=item.id, user_id=user_id)
     space_progress_service.sync_member_completion(db, space_id=item.space_id, user_id=user_id)
     db.commit()

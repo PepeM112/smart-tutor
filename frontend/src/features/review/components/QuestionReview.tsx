@@ -47,8 +47,7 @@ export function QuestionReview({
   const prefs = useDateTimePrefs();
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isSimple = question.questionType === QuestionType.SIMPLE;
-  // SAFETY: isMC check below guards all MC-specific access; content is opaque JSON from the API
-  const content = question.content as Record<string, unknown> | undefined;
+  const mcOptions = isMC && 'options' in question.content ? question.content.options : undefined;
   const isChecked = checkResult !== null;
 
   const statusLabel = (status: AnswerStatus) => t(statusLabelKey(status));
@@ -81,20 +80,11 @@ export function QuestionReview({
           />
         )}
 
-        {isMC &&
-          content &&
+        {mcOptions &&
           (isChecked && checkResult?.correctIndices ? (
-            <MultipleChoiceReview
-              options={(content.options ?? []) as string[]}
-              answer={answer}
-              correctIndices={checkResult.correctIndices}
-            />
+            <MultipleChoiceReview options={mcOptions} answer={answer} correctIndices={checkResult.correctIndices} />
           ) : (
-            <MultipleChoiceInput
-              options={(content.options ?? []) as string[]}
-              answer={answer}
-              onToggle={handleCheckboxToggle}
-            />
+            <MultipleChoiceInput options={mcOptions} answer={answer} onToggle={handleCheckboxToggle} />
           ))}
 
         {!isChecked && (

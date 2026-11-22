@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.constants import ATTEMPT_GRACE_SECONDS
 from app.core.enums import AttemptStatus, SpaceItemKind, SpaceRole
+from app.core.errors import AppError
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_item as space_item_crud
 from app.crud import space_item_test as space_item_test_crud
@@ -30,6 +31,7 @@ from app.models.test import Test
 from app.models.test_result import TestResult
 from app.models.user import User
 from app.schemas.correction import TestSubmission
+from app.schemas.error import ErrorCode
 from app.schemas.question import QuestionReadStripped
 from app.schemas.space import SpaceAttemptStart
 from app.schemas.test import TestReadStripped
@@ -39,16 +41,32 @@ from app.services.grading_service import grade_pending_answers
 from app.services.question_helpers import build_stripped_test, without_explanations
 from app.services.space_service import (
     Membership,
-    conflict,
     forbidden,
     get_membership,
     get_space_or_404,
     require_active,
 )
 
-# The frontend (`attemptErrors.ts`) matches these `detail` strings exactly.
-NOT_OPEN_YET = "The test is not open yet"
-TEST_CLOSED = "The test is closed"
+
+def _refused(detail: str, code: ErrorCode, *, next_attempt_at: datetime | None = None) -> AppError:
+    """A 409 with a code: the frontend shows its own text for each code."""
+    return AppError(status.HTTP_409_CONFLICT, detail, code, next_attempt_at=next_attempt_at)
+
+
+def _not_open_yet() -> AppError:
+    return _refused("The test is not open yet", "attempt_not_open")
+
+
+def _test_closed() -> AppError:
+    return _refused("The test is closed", "attempt_window_closed")
+
+
+def _attempt_closed() -> AppError:
+    return _refused("This attempt can not be continued", "attempt_closed")
+
+
+def _no_questions() -> AppError:
+    return _refused("This test has no questions available", "attempt_no_questions")
 
 
 def _get_published_test_item_or_404(db: Session, *, space: Space, item_id: str, hide_future: bool) -> SpaceItem:
@@ -65,12 +83,12 @@ def _get_published_test_item_or_404(db: Session, *, space: Space, item_id: str, 
     return item
 
 
-def _window_error(item: SpaceItem, *, at: datetime) -> str | None:
-    """A new attempt can start only inside the window `opens_at` .. `closes_at`. The 409 detail, or None."""
+def _window_error(item: SpaceItem, *, at: datetime) -> AppError | None:
+    """A new attempt can start only inside the window `opens_at` .. `closes_at`. The 409 error, or None."""
     if item.opens_at is not None and at < item.opens_at:
-        return NOT_OPEN_YET
+        return _not_open_yet()
     if item.closes_at is not None and at >= item.closes_at:
-        return TEST_CLOSED
+        return _test_closed()
     return None
 
 
@@ -88,7 +106,7 @@ def require_no_open_attempt(db: Session, *, user: User) -> None:
     if space_attempt_crud.has_live_open(
         db, user_id=user.id, now=space_progress_service.utcnow(), grace_seconds=ATTEMPT_GRACE_SECONDS
     ):
-        raise conflict("The assistant is not available during a course test")
+        raise _refused("The assistant is not available during a course test", "assist_blocked_by_course_test")
 
 
 def _all_questions(test: Test) -> list[Question]:
@@ -102,7 +120,7 @@ def _pinned_test(db: Session, *, attempt: SpaceAttempt) -> Test:
         return live
     frozen = test_crud.get_snapshot(db, parent_id=attempt.test_id, version=attempt.test_version)
     if frozen is None:
-        raise conflict("This attempt can not be continued")
+        raise _attempt_closed()
     return frozen
 
 
@@ -196,7 +214,7 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
     if membership.can_author:
         variants = _available_variants(db, item=item)
         if not variants:
-            raise conflict("This test has no questions available")
+            raise _no_questions()
         return SpaceAttemptStart(
             attempt_id=None,
             test=_present(variants[0], live_id=variants[0].id),
@@ -228,19 +246,22 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
         )
     if (window_error := _window_error(item, at=at)) is not None:
         db.commit()
-        raise conflict(window_error)
+        raise window_error
     if state.attempts_left == 0:
         db.commit()
-        raise conflict("No attempts left")
+        raise _refused("No attempts left", "attempt_no_attempts_left")
     if state.next_attempt_at is not None:
         db.commit()
-        # The frontend matches the prefix "The next attempt is possible at " and reads the date after it.
-        raise conflict(f"The next attempt is possible at {state.next_attempt_at.isoformat()}")
+        raise _refused(
+            f"The next attempt is possible at {state.next_attempt_at.isoformat()}",
+            "attempt_cooldown",
+            next_attempt_at=state.next_attempt_at,
+        )
 
     variants = _available_variants(db, item=item)
     if not variants:
         db.commit()
-        raise conflict("This test has no questions available")
+        raise _no_questions()
     test = _pick_variant(db, item=item, user_id=current_user.id, variants=variants)
     deadline = _deadline(item, at=at)
     exam = _present(test, live_id=test.id)
@@ -279,25 +300,25 @@ def submit_attempt(
     _require_viewer(get_membership(db, space=space, user=current_user))
     require_active(db, space)
     if attempt.status != int(AttemptStatus.OPEN):
-        raise conflict("This attempt is already closed")
+        raise _refused("This attempt is already closed", "attempt_closed")
 
     at = space_progress_service.utcnow()
     if item.closes_at is not None and at > item.closes_at + timedelta(seconds=ATTEMPT_GRACE_SECONDS):
         # Also when the teacher set `closes_at` after the attempt started (its `deadline_at` does not know it).
         space_attempt_crud.close(db, attempt=attempt, status=AttemptStatus.EXPIRED, finished_at=item.closes_at)
         db.commit()
-        raise conflict(TEST_CLOSED)
+        raise _test_closed()
     if space_progress_service.is_past_grace(attempt, at=at):
         space_attempt_crud.close(
             db, attempt=attempt, status=AttemptStatus.EXPIRED, finished_at=attempt.deadline_at or at
         )
         db.commit()
-        raise conflict("Time is over")
+        raise _refused("Time is over", "attempt_time_over")
     # A start can race with a publish that removes the variant (the publish only expires the attempts it sees).
     if attempt.test_id not in space_item_test_crud.list_by_items(db, item_ids=[item.id]).get(item.id, []):
         space_attempt_crud.close(db, attempt=attempt, status=AttemptStatus.EXPIRED, finished_at=at)
         db.commit()
-        raise conflict("This attempt can not be continued")
+        raise _attempt_closed()
 
     pinned = _pinned_test(db, attempt=attempt)
     result = grade_submission(

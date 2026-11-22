@@ -18,6 +18,7 @@ import {
 import { AiProvider, type TokenUsageDailySummary } from '@/client';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { formatChartDate, formatCost, formatTokens } from '@/lib/format';
+import { numberField } from '@/lib/typeGuards';
 
 const PROVIDER_COLORS: Record<number, { fill: string; label: string }> = {
   [AiProvider.ANTHROPIC]: { fill: 'var(--chart-provider-anthropic)', label: 'Anthropic' },
@@ -114,8 +115,7 @@ export function TokenUsageChart({ daily }: Props) {
               : providerKey !== null
                 ? PROVIDER_COLORS[providerKey].label
                 : key;
-            const dataPoint = entry.payload as Record<string, number> | undefined;
-            const costValue = isCumulative ? undefined : dataPoint?.[`${key}_cost`];
+            const costValue = isCumulative ? undefined : numberField(entry.payload, `${key}_cost`);
             return (
               <div key={key} className={cumulativeIdx > 0 && i === cumulativeIdx ? 'mt-2' : undefined}>
                 <div className="flex items-center justify-between gap-6 py-0.5">

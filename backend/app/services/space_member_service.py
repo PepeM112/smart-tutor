@@ -27,6 +27,7 @@ from app.schemas.space import SpaceDetail, SpaceMemberRead, SpaceProgress
 from app.services import notification_service, space_progress_service
 from app.services.space_service import (
     Membership,
+    archived_error,
     build_detail,
     conflict,
     forbidden,
@@ -56,7 +57,7 @@ def _require_joinable(db: Session, space: Space) -> None:
     if not _is_classroom(space) and space.published_at is None:
         raise conflict("The course is not published yet")
     if is_archived(db, space=space):
-        raise conflict("The classroom is archived" if _is_classroom(space) else "The course is archived")
+        raise archived_error(is_classroom=_is_classroom(space))
 
 
 def _require_manager(db: Session, *, space: Space, user: User) -> Membership:

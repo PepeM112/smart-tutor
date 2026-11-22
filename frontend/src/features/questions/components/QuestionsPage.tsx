@@ -43,6 +43,8 @@ const GROUPING_OPTIONS = [
   { label: 'questions.grouping_standalone', value: 'ungrouped' },
 ];
 
+const GROUPING_VALUES = ['grouped', 'ungrouped'] as const;
+
 export function QuestionsPage() {
   const t = useTranslations();
   const queryClient = useQueryClient();
@@ -135,7 +137,9 @@ export function QuestionsPage() {
   const testId = getValue<Primitive[]>('test_id');
   const search = getValue<string>('search');
   const tags = getValue<Primitive[]>('tags');
-  const grouping = getValue<string>('grouping') as 'grouped' | 'ungrouped' | undefined;
+  // The URL can hold any text; only a known value reaches the request
+  const rawGrouping = getValue<Primitive>('grouping');
+  const grouping = GROUPING_VALUES.find(value => value === rawGrouping);
 
   const listParams = { questionType, testId, search, tags, grouping, page, sortBy, sortOrder };
 

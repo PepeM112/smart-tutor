@@ -5,10 +5,14 @@ import { useTranslations } from 'next-intl';
 import { type KeyboardEvent, useCallback, useMemo, useRef, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   FilterType,
+  isDateFilterValue,
   isFilterEntity,
-  type DateFilterValue,
+  isPrimitiveArray,
+  isPrimitiveValue,
+  isRangeFilterValue,
   type FilterEntity,
   type FilterItem,
   type FilterValue,
@@ -20,6 +24,9 @@ import { cn } from '@/lib/utils';
 import { AsyncMultiSelectField } from './AsyncMultiSelectField';
 import { DateRangeField } from './DateRangeField';
 
+// Radix Select cannot hold an empty-string value, so "no filter" uses a sentinel
+const ALL_VALUE = '__all__';
+
 type Props = {
   item: FilterItem;
   value: FilterValue[string] | undefined;
@@ -27,29 +34,28 @@ type Props = {
 };
 
 export function FilterField({ item, value, onChange }: Props) {
+  const primitiveValue = isPrimitiveValue(value) ? value : undefined;
+  const primitiveList = isPrimitiveArray(value) ? value : undefined;
+
   switch (item.type) {
     case FilterType.SINGLE:
-      return <SingleField value={value as Primitive} onChange={onChange} />;
+      return <SingleField value={primitiveValue} onChange={onChange} />;
     case FilterType.MULTIPLE:
-      return <MultipleField value={value as Primitive[] | undefined} onChange={onChange} />;
+      return <MultipleField value={primitiveList} onChange={onChange} />;
     case FilterType.SELECT:
-      return <SelectField item={item} value={value as Primitive} onChange={onChange} />;
+      return <SelectField item={item} value={primitiveValue} onChange={onChange} />;
     case FilterType.MULTIPLE_SELECT:
       return item.options?.asyncItems ? (
-        <AsyncMultiSelectField
-          source={item.options.asyncItems}
-          value={value as Primitive[] | undefined}
-          onChange={onChange}
-        />
+        <AsyncMultiSelectField source={item.options.asyncItems} value={primitiveList} onChange={onChange} />
       ) : (
-        <SearchableMultiSelectField item={item} value={value as Primitive[] | undefined} onChange={onChange} />
+        <SearchableMultiSelectField item={item} value={primitiveList} onChange={onChange} />
       );
     case FilterType.TOGGLE:
-      return <ToggleField item={item} value={value as Primitive | undefined} onChange={onChange} />;
+      return <ToggleField item={item} value={primitiveValue} onChange={onChange} />;
     case FilterType.DATE:
-      return <DateRangeField value={value as DateFilterValue | undefined} onChange={onChange} />;
+      return <DateRangeField value={isDateFilterValue(value) ? value : undefined} onChange={onChange} />;
     case FilterType.RANGE:
-      return <RangeField value={value as RangeFilterValue | undefined} onChange={onChange} />;
+      return <RangeField value={isRangeFilterValue(value) ? value : undefined} onChange={onChange} />;
     default:
       return null;
   }
@@ -153,26 +159,29 @@ function SelectField({
   const items = item.options?.items ?? [];
 
   return (
-    <select
-      value={value != null ? String(value) : ''}
-      onChange={e => {
-        const v = e.target.value;
-        if (!v) return onChange(undefined);
+    <Select
+      value={value != null ? String(value) : ALL_VALUE}
+      onValueChange={v => {
+        if (v === ALL_VALUE) return onChange(undefined);
         if (item.options?.number) return onChange(Number(v));
         onChange(v);
       }}
-      className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
     >
-      <option value="">{t('common.all')}</option>
-      {items.map(opt => {
-        const entity = isFilterEntity(opt) ? opt : { label: String(opt), value: opt };
-        return (
-          <option key={String(entity.value)} value={String(entity.value)}>
-            {t(entity.label)}
-          </option>
-        );
-      })}
-    </select>
+      <SelectTrigger className="h-8" aria-label={item.label}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL_VALUE}>{t('common.all')}</SelectItem>
+        {items.map(opt => {
+          const entity = isFilterEntity(opt) ? opt : { label: String(opt), value: opt };
+          return (
+            <SelectItem key={String(entity.value)} value={String(entity.value)}>
+              {t(entity.label)}
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -189,15 +198,15 @@ function ToggleField({
 
   const options = useMemo(() => {
     const items = item.options?.items ?? [];
-    // '__all__' sentinel maps back to undefined (no filter) on click
-    const all: FilterEntity[] = [{ label: item.options?.allLabel ?? 'common.all', value: '__all__' }];
+    // ALL_VALUE maps back to undefined (no filter) on click
+    const all: FilterEntity[] = [{ label: item.options?.allLabel ?? 'common.all', value: ALL_VALUE }];
     items.forEach(opt => {
       all.push(isFilterEntity(opt) ? opt : { label: String(opt), value: opt });
     });
     return all;
   }, [item.options?.items, item.options?.allLabel]);
 
-  const activeValue = value ?? '__all__';
+  const activeValue = value ?? ALL_VALUE;
 
   return (
     <div className="flex rounded-md border border-input bg-muted/30 p-0.5">
@@ -207,7 +216,7 @@ function ToggleField({
           <button
             key={String(opt.value)}
             type="button"
-            onClick={() => onChange(opt.value === '__all__' ? undefined : opt.value)}
+            onClick={() => onChange(opt.value === ALL_VALUE ? undefined : opt.value)}
             className={cn(
               'flex-1 basis-0 rounded-sm px-3 py-1.5 text-center text-sm font-medium transition-colors',
               isActive ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'

@@ -50,7 +50,7 @@ export type SSEDone = {
   usage: { input_tokens: number; output_tokens: number };
   pending_confirmations?: string[];
 };
-export type SSEError = { message: string };
+export type SSEError = { message: string; code?: string };
 
 export type ToolResultMetadata = {
   route?: string;

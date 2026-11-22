@@ -3,14 +3,12 @@ import {
   QuestionType,
   type GeneratedQuestionPreviewInput,
   type GeneratedQuestionPreviewOutput,
-  type LongTextContent,
-  type MultipleChoiceContent,
   type QuestionCreate,
   type QuestionRead,
-  type SimpleContent,
   type TestQuestionGroupCreate,
   type TestQuestionGroupRead,
 } from '@/client';
+import { isLongTextContent, isMCContent, isSimpleContent } from '@/features/tests/utils/questionContent';
 
 import type { Criterion, LongTextQuestionData } from '../LongTextQuestionBlock';
 import type { Choice, MultipleChoiceQuestionData } from '../MultipleChoiceQuestionBlock';
@@ -30,6 +28,7 @@ export function mcToApiQuestion(q: MultipleChoiceQuestionData, order: number): Q
     tags: q.tags,
     hint: q.hint,
     explanation: q.explanation,
+    originId: q.originId,
     content: {
       options: q.choices.map(c => c.text),
       correctIndices: q.choices.flatMap((c, i) => (c.isCorrect ? [i] : [])),
@@ -46,6 +45,7 @@ export function longTextToApiQuestion(q: LongTextQuestionData, order: number): Q
     tags: q.tags,
     hint: q.hint,
     explanation: q.explanation,
+    originId: q.originId,
     content: {
       lengthLimit: q.lengthLimit,
       rubric: q.criteria.map(c => ({
@@ -70,6 +70,7 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
       tags: row.tags,
       hint: row.hint,
       explanation: row.explanation,
+      originId: row.originId,
       content: {
         answers: row.answers.filter(Boolean),
       },
@@ -81,35 +82,37 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
 /*  API response → Editor items                                       */
 /* ------------------------------------------------------------------ */
 
+// Both converters throw on bad content: an empty block would be saved over the stored question.
 function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
-  // SAFETY: caller filters by questionType === MULTIPLE_CHOICE before calling
-  const content = q.content as { options: string[]; correctIndices: number[] };
+  const content = q.content;
+  if (!isMCContent(content)) throw new Error(`Question ${q.id} has no valid multiple choice content`);
   return {
     key: crypto.randomUUID(),
     id: q.id,
     type: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
-    choices: (content.options ?? []).map((text, i) => ({
+    choices: content.options.map((text, i) => ({
       text,
-      isCorrect: (content.correctIndices ?? []).includes(i),
+      isCorrect: content.correctIndices.includes(i),
     })) satisfies Choice[],
     points: q.points ?? 1,
     tags: q.tags,
     hint: q.hint,
     explanation: q.explanation,
+    originId: q.originId,
   };
 }
 
 function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
-  // SAFETY: caller filters by questionType === LONG_TEXT before calling
-  const content = q.content as { lengthLimit: number; rubric: { point: string; weight: number; category?: string }[] };
+  const content = q.content;
+  if (!isLongTextContent(content)) throw new Error(`Question ${q.id} has no valid long text content`);
   return {
     key: crypto.randomUUID(),
     id: q.id,
     type: QuestionType.LONG_TEXT,
     prompt: q.prompt,
     lengthLimit: content.lengthLimit ?? 2,
-    criteria: (content.rubric ?? []).map(r => ({
+    criteria: content.rubric.map(r => ({
       point: r.point,
       weight: r.weight,
       category: r.category ?? '',
@@ -118,6 +121,7 @@ function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
     tags: q.tags,
     hint: q.hint,
     explanation: q.explanation,
+    originId: q.originId,
   };
 }
 
@@ -128,15 +132,14 @@ function fromApiGroup(g: TestQuestionGroupRead): QuestionGroupData {
     groupType: g.type ?? QuestionGroupType.GENERIC,
     title: g.title ?? '',
     rows: (g.questions ?? []).map(q => {
-      // SAFETY: group questions are always SIMPLE type with { answers: string[] } content
-      const content = q.content as { answers: string[] };
       return {
         id: q.id,
         prompt: q.prompt,
-        answers: content.answers ?? [],
+        answers: isSimpleContent(q.content) ? q.content.answers : [],
         tags: q.tags,
         hint: q.hint,
         explanation: q.explanation,
+        originId: q.originId,
       } satisfies SimpleRow;
     }),
     points: g.points ?? 1,
@@ -295,7 +298,8 @@ export function mergeAiEditResult(
     // MC block: single question, rebuild with AI content
     if (item.type === QuestionType.MULTIPLE_CHOICE) {
       const q = entries[0].question;
-      const content = q.content as MultipleChoiceContent;
+      const content = q.content;
+      if (!isMCContent(content)) return item;
       return {
         ...item,
         prompt: q.prompt,
@@ -310,11 +314,12 @@ export function mergeAiEditResult(
     // Long Text block: single question, rebuild with AI content
     if (item.type === QuestionType.LONG_TEXT) {
       const q = entries[0].question;
-      const content = q.content as LongTextContent;
+      const content = q.content;
+      if (!isLongTextContent(content)) return item;
       return {
         ...item,
         prompt: q.prompt,
-        lengthLimit: content.lengthLimit,
+        lengthLimit: content.lengthLimit ?? 2,
         criteria: content.rubric.map(r => ({
           point: r.point,
           weight: r.weight,
@@ -333,8 +338,8 @@ export function mergeAiEditResult(
         const aiQ = aiByFlat.get(flatCursor);
         flatCursor++;
         if (!aiQ) return row;
-        const content = aiQ.content as SimpleContent;
-        return { ...row, prompt: aiQ.prompt, answers: content.answers } satisfies SimpleRow;
+        if (!isSimpleContent(aiQ.content)) return row;
+        return { ...row, prompt: aiQ.prompt, answers: aiQ.content.answers } satisfies SimpleRow;
       }),
     };
   });

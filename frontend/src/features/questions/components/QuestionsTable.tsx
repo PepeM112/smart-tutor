@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 import { type QuestionType, type QuestionListRead } from '@/client';
 import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
-import { expandToggleColumn } from '@/components/shared/expandToggleColumn';
+import { expandToggleColumn } from '@/components/shared/ExpandToggleColumn';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip } from '@/components/ui/tooltip';

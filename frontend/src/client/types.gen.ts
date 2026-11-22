@@ -714,6 +714,30 @@ export type DueSoonPayload = {
 };
 
 /**
+ * ErrorWithCode
+ *
+ * The body of a coded error: `detail` as in every error, plus a stable `code` and optional fields.
+ */
+export type ErrorWithCode = {
+    /**
+     * Detail
+     */
+    detail: string;
+    /**
+     * Code
+     */
+    code: 'space_archived' | 'removed_course_has_results' | 'attempt_no_attempts_left' | 'attempt_cooldown' | 'attempt_time_over' | 'attempt_closed' | 'attempt_not_open' | 'attempt_window_closed' | 'attempt_no_questions' | 'assist_blocked_by_course_test' | 'ai_not_configured' | 'ai_key_unreadable' | 'class_key_provider_change_needs_key' | 'ai_budget_used_up' | 'override_not_classroom' | 'override_score_out_of_range' | 'answer_overridden' | 'feed_teacher_only_post' | 'feed_teacher_only_comment' | 'feed_author_only_edit' | 'feed_post_not_found' | 'feed_comment_not_found' | 'completion_passed' | 'completion_not_found';
+    /**
+     * Nextattemptat
+     */
+    nextAttemptAt?: Date | null;
+    /**
+     * Maxpoints
+     */
+    maxPoints?: number | null;
+};
+
+/**
  * FeedAuthor
  *
  * Mirrors the identifying fields of `SpaceMemberRead`. The owner is an author too (no member row).
@@ -1932,6 +1956,10 @@ export type QuestionCreate = {
      * Tags
      */
     tags?: Array<string>;
+    /**
+     * Originid
+     */
+    originId?: string | null;
 };
 
 /**
@@ -5230,6 +5258,10 @@ export type AnswersChallengeData = {
 
 export type AnswersChallengeErrors = {
     /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -5260,6 +5292,14 @@ export type AnswersClearOverrideData = {
 
 export type AnswersClearOverrideErrors = {
     /**
+     * Bad Request
+     */
+    400: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -5289,6 +5329,14 @@ export type AnswersSetOverrideData = {
 };
 
 export type AnswersSetOverrideErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
     /**
      * Validation Error
      */
@@ -6003,6 +6051,10 @@ export type AssistAssistData = {
 
 export type AssistAssistErrors = {
     /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -6430,6 +6482,10 @@ export type SpacesDiscardDraftData = {
 
 export type SpacesDiscardDraftErrors = {
     /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -6459,6 +6515,10 @@ export type SpacesPublishData = {
 };
 
 export type SpacesPublishErrors = {
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
     /**
      * Validation Error
      */
@@ -6553,6 +6613,10 @@ export type SpacesDeleteSectionData = {
 };
 
 export type SpacesDeleteSectionErrors = {
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
     /**
      * Validation Error
      */
@@ -6681,6 +6745,10 @@ export type SpacesDeleteItemData = {
 };
 
 export type SpacesDeleteItemErrors = {
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
     /**
      * Validation Error
      */
@@ -7023,6 +7091,10 @@ export type SpacesStartAttemptData = {
 
 export type SpacesStartAttemptErrors = {
     /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -7056,6 +7128,10 @@ export type SpacesSubmitAttemptData = {
 };
 
 export type SpacesSubmitAttemptErrors = {
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
     /**
      * Validation Error
      */
@@ -7410,6 +7486,18 @@ export type SpacesCreatePostData = {
 
 export type SpacesCreatePostErrors = {
     /**
+     * Forbidden
+     */
+    403: ErrorWithCode;
+    /**
+     * Not Found
+     */
+    404: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -7531,9 +7619,13 @@ export type ClassroomsUpdateSettingsData = {
 
 export type ClassroomsUpdateSettingsErrors = {
     /**
-     * Validation Error
+     * Conflict
      */
-    422: HttpValidationError;
+    409: ErrorWithCode;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorWithCode;
 };
 
 export type ClassroomsUpdateSettingsError = ClassroomsUpdateSettingsErrors[keyof ClassroomsUpdateSettingsErrors];
@@ -7691,6 +7783,14 @@ export type ClassroomsRemoveCompletionData = {
 
 export type ClassroomsRemoveCompletionErrors = {
     /**
+     * Not Found
+     */
+    404: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -7781,6 +7881,18 @@ export type PostsDeletePostData = {
 
 export type PostsDeletePostErrors = {
     /**
+     * Forbidden
+     */
+    403: ErrorWithCode;
+    /**
+     * Not Found
+     */
+    404: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -7810,6 +7922,18 @@ export type PostsUpdatePostData = {
 };
 
 export type PostsUpdatePostErrors = {
+    /**
+     * Forbidden
+     */
+    403: ErrorWithCode;
+    /**
+     * Not Found
+     */
+    404: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
     /**
      * Validation Error
      */
@@ -7841,6 +7965,18 @@ export type PostsCreateCommentData = {
 
 export type PostsCreateCommentErrors = {
     /**
+     * Forbidden
+     */
+    403: ErrorWithCode;
+    /**
+     * Not Found
+     */
+    404: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -7871,6 +8007,18 @@ export type CommentsDeleteCommentData = {
 
 export type CommentsDeleteCommentErrors = {
     /**
+     * Forbidden
+     */
+    403: ErrorWithCode;
+    /**
+     * Not Found
+     */
+    404: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -7900,6 +8048,18 @@ export type CommentsUpdateCommentData = {
 };
 
 export type CommentsUpdateCommentErrors = {
+    /**
+     * Forbidden
+     */
+    403: ErrorWithCode;
+    /**
+     * Not Found
+     */
+    404: ErrorWithCode;
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
     /**
      * Validation Error
      */

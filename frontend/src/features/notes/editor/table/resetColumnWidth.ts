@@ -14,6 +14,8 @@ import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { columnResizingPluginKey, TableMap } from '@tiptap/pm/tables';
 
+import { numberArrayAttr, numberAttr } from '@/lib/prosemirrorAttrs';
+
 import type { EditorState, Transaction } from '@tiptap/pm/state';
 
 /**
@@ -30,7 +32,7 @@ export function buildResetColumnWidthTransaction(state: EditorState, cellPos: nu
   const table = $cell.node(-1);
   const tableStart = $cell.start(-1);
   const map = TableMap.get(table);
-  const column = map.colCount($cell.pos - tableStart) + (cell.attrs.colspan as number) - 1;
+  const column = map.colCount($cell.pos - tableStart) + (numberAttr(cell.attrs, 'colspan') ?? 1) - 1;
 
   const tr = state.tr;
   Array.from({ length: map.height }, (_, row) => row * map.width + column)
@@ -39,7 +41,7 @@ export function buildResetColumnWidthTransaction(state: EditorState, cellPos: nu
     .forEach(index => {
       const pos = map.map[index];
       const node = table.nodeAt(pos);
-      const widths = node?.attrs.colwidth as number[] | null | undefined;
+      const widths = node ? numberArrayAttr(node.attrs, 'colwidth') : null;
       if (!node || !widths) return;
 
       const next = widths.slice();

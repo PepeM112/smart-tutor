@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 
-import { AiProvider, type AiEffort, type AiEffortSettings, type AnthropicModel } from '@/client';
+import { AiProvider, type AiEffort, type AiEffortSettings } from '@/client';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -43,12 +43,12 @@ export function AiModelSection({ provider }: Props) {
         {isAnthropic && (
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor={modelId}>{t('settings.ai_model')}</Label>
-            {/* SAFETY: the items are built from ANTHROPIC_MODELS, so the value is one of them */}
             <Select
               value={user.anthropicModel}
-              onValueChange={value =>
-                saveUser({ anthropicModel: value as AnthropicModel }, { field: 'anthropicModel' })
-              }
+              onValueChange={value => {
+                const model = ANTHROPIC_MODELS.find(candidate => String(candidate) === value);
+                if (model) saveUser({ anthropicModel: model }, { field: 'anthropicModel' });
+              }}
             >
               <SelectTrigger id={modelId} className="w-44">
                 <SelectValue />
@@ -98,8 +98,14 @@ function EffortRow({ label, value, disabled, onChange }: EffortRowProps) {
   return (
     <li className="flex items-center justify-between gap-3 py-3">
       <span className="min-w-0 text-sm text-foreground">{label}</span>
-      {/* SAFETY: the items are built from EFFORT_LEVELS, so the value is one of them */}
-      <Select value={value} disabled={disabled} onValueChange={next => onChange(next as AiEffort)}>
+      <Select
+        value={value}
+        disabled={disabled}
+        onValueChange={next => {
+          const level = EFFORT_LEVELS.find(candidate => String(candidate) === next);
+          if (level) onChange(level);
+        }}
+      >
         <SelectTrigger aria-label={t('settings.ai_effort_select', { action: label })} className="w-32">
           <SelectValue />
         </SelectTrigger>

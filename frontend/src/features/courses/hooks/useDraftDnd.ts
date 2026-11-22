@@ -58,10 +58,12 @@ export function useDraftDnd({ sections, onCommit }: Options) {
     (event, args) => {
       const { active, droppableContainers } = args.context;
       if (!active) return undefined;
-      const targets = {
+      const filteredContainers = {
         get: (id: string | number) => droppableContainers.get(id),
         getEnabled: () => targetsFor(active.id, droppableContainers.getEnabled()),
-      } as unknown as DroppableContainers;
+      };
+      // SAFETY: `DroppableContainers` is a dnd-kit class; the keyboard getter only calls `get` and `getEnabled`
+      const targets = filteredContainers as unknown as DroppableContainers;
       return sortableKeyboardCoordinates(event, {
         ...args,
         context: { ...args.context, droppableContainers: targets },
@@ -127,10 +129,10 @@ export function useDraftDnd({ sections, onCommit }: Options) {
   }
 
   const titles = new Map<string, string>(
-    sections.flatMap(
-      section =>
-        [[section.id, section.title], ...section.items.map(item => [item.id, item.title])] as [string, string][]
-    )
+    sections.flatMap((section): [string, string][] => [
+      [section.id, section.title],
+      ...section.items.map((item): [string, string] => [item.id, item.title]),
+    ])
   );
   const titleOf = (id: string | number): string => titles.get(String(id)) ?? '';
   const announcements: Announcements = {

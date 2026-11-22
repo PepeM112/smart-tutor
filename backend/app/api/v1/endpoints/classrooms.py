@@ -11,6 +11,7 @@ from app.core.enums import SpaceRole
 from app.database import get_session
 from app.dependencies.auth import CurrentUser
 from app.schemas.classroom_grades import AIKeyStatusRead, ClassroomTokenUsageRead, GradebookRead
+from app.schemas.error import coded_errors
 from app.schemas.space import (
     ClassroomCourseCreate,
     ClassroomCourseDuplicate,
@@ -51,7 +52,7 @@ def get_settings(classroom_id: str, db: DbSession, current_user: CurrentUser) ->
     return classroom_service.get_settings(db, classroom_id=classroom_id, current_user=current_user)
 
 
-@router.patch("/{classroom_id}/settings", response_model=ClassroomSettingsRead)
+@router.patch("/{classroom_id}/settings", response_model=ClassroomSettingsRead, responses=coded_errors(409, 422))
 def update_settings(
     classroom_id: str, data: ClassroomSettingsUpdate, db: DbSession, current_user: CurrentUser
 ) -> ClassroomSettingsRead:
@@ -85,7 +86,11 @@ def gradebook(classroom_id: str, db: DbSession, current_user: CurrentUser) -> Gr
     return gradebook_service.get_gradebook(db, classroom_id=classroom_id, current_user=current_user)
 
 
-@router.delete("/{classroom_id}/items/{item_id}/students/{user_id}/completion", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{classroom_id}/items/{item_id}/students/{user_id}/completion",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=coded_errors(404, 409),
+)
 def remove_completion(classroom_id: str, item_id: str, user_id: str, db: DbSession, current_user: CurrentUser) -> None:
     """Owner or editor. Undo a pass of one student: only while the best score is below the pass threshold (409)."""
     classroom_service.remove_completion(

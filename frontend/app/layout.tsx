@@ -6,8 +6,7 @@ import { getLocale, getMessages } from 'next-intl/server';
 import { FontSizeProvider } from '@/components/FontSizeProvider';
 import { Providers } from '@/components/Providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { FONT_SIZE_COOKIE, getFontSizeValue } from '@/lib/fontSize';
-import type { FontSizeId } from '@/lib/fontSize';
+import { FONT_SIZE_COOKIE, getFontSizeValue, isFontSizeId } from '@/lib/fontSize';
 import { parseTheme, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/themes';
 
 import type { Metadata, Viewport } from 'next';
@@ -58,9 +57,8 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   // parseTheme maps a cookie from the old palette system (for example "midnight") to light or dark.
   const theme = parseTheme(cookieStore.get(THEME_COOKIE)?.value);
-  // SAFETY: cookie value is set by useFontSizeProvider which only writes valid FontSizeId values
-  const fontSize = cookieStore.get(FONT_SIZE_COOKIE)?.value as FontSizeId | undefined;
-  const fontSizeStyle = fontSize ? { fontSize: getFontSizeValue(fontSize) } : undefined;
+  const fontSizeCookie = cookieStore.get(FONT_SIZE_COOKIE)?.value;
+  const fontSizeStyle = isFontSizeId(fontSizeCookie) ? { fontSize: getFontSizeValue(fontSizeCookie) } : undefined;
   const locale = await getLocale();
   const messages = await getMessages();
 

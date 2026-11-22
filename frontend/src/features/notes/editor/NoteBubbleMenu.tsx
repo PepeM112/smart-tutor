@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 import { ColorSwatch } from './ColorSwatch';
 import { normalizeLinkHref } from './link/linkHref';
 import { selectionToMarkdown } from './markdown';
-import { NOTE_PALETTE, type NoteColor } from './noteColor';
+import { NOTE_PALETTE, readNoteColorAttrs, type NoteColor } from './noteColor';
 
 import type { Editor } from '@tiptap/core';
 
@@ -124,8 +124,7 @@ export function NoteBubbleMenu({ editor, onAskAi, onSendToAssistant }: NoteBubbl
       strike: ed.isActive('strike'),
       code: ed.isActive('code'),
       link: ed.isActive('link'),
-      color: (ed.getAttributes('noteColor') as ColorAttrs).color ?? null,
-      bg: (ed.getAttributes('noteColor') as ColorAttrs).bg ?? null,
+      ...readNoteColorAttrs(ed.getAttributes('noteColor')),
     }),
   });
   const colorAttrs: ColorAttrs = { color: active.color, bg: active.bg };

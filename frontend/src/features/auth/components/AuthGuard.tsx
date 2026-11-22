@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
+import { errorStatus } from '@/lib/utils';
 
 import { useAuthStore } from '../store/authStore';
 
@@ -29,7 +30,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return res;
     },
     retry: (failureCount, err) => {
-      const status = (err as { status?: number })?.status;
+      const status = errorStatus(err);
       if (status === 401 || status === 403) return false;
       return failureCount < 2;
     },
@@ -37,8 +38,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     refetchOnWindowFocus: true,
   });
 
-  const errorStatus = (error as { status?: number })?.status;
-  const isAuthError = isError && (errorStatus === 401 || errorStatus === 403);
+  const status = errorStatus(error);
+  const isAuthError = isError && (status === 401 || status === 403);
 
   useEffect(() => {
     if (isAuthError && !didRedirect.current) {

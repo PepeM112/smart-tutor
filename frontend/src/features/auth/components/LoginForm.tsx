@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
+import { errorStatus } from '@/lib/utils';
 
 import { useAuthStore } from '../store/authStore';
 
@@ -22,7 +23,7 @@ type LoginErrorKey = 'auth.invalid_credentials' | 'auth.network_error' | 'auth.s
 
 function getLoginErrorKey(error: unknown): LoginErrorKey {
   if (error instanceof TypeError) return 'auth.network_error';
-  const status = (error as { status?: number })?.status;
+  const status = errorStatus(error);
   if (status && status >= 500) return 'auth.server_error';
   return 'auth.invalid_credentials';
 }

@@ -36,6 +36,7 @@ export type LongTextQuestionData = {
   tags?: string[];
   hint?: string | null;
   explanation?: string | null;
+  originId?: string | null;
 };
 
 type Props = {

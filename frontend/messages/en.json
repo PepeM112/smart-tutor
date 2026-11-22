@@ -1236,6 +1236,7 @@
     "key_notice_none": "AI is not available here. Add your own API key in Settings to use it.",
     "key_notice_cap_reached": "Your AI budget for this month is used up. Add your own API key in Settings to continue.",
     "class_key_provider_needs_key": "Type a new key when you change the provider. The saved key belongs to the old provider.",
+    "error_space_archived": "This course or classroom is archived and cannot be changed.",
     "error_removed_course_has_results": "This course has student results, so it cannot be removed here. Open the course settings and delete it forever first. This cannot be undone."
   },
   "assist": {
@@ -1357,6 +1358,7 @@
       }
     },
     "ai_not_configured": "AI is not configured. Add your API key in Settings.",
+    "ai_key_unreadable": "Your saved API key cannot be read. Enter it again in Settings.",
     "ai_budget_used_up": "The AI budget of this classroom is used up for this month. Add your own API key in Settings to continue."
   },
   "feed": {

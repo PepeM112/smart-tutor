@@ -62,6 +62,38 @@ describe('useCountdown', () => {
     expect(onTimeout).toHaveBeenCalledTimes(1);
   });
 
+  it('calls onTimeout again for a new deadline after one fired', () => {
+    const onTimeout = vi.fn();
+    const { rerender } = renderHook<number | null, { at: Date }>(({ at }) => useCountdown(at, onTimeout), {
+      initialProps: { at: inSeconds(10) },
+    });
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+
+    rerender({ at: inSeconds(20) });
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(onTimeout).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not call onTimeout again for a new Date object with the same time', () => {
+    const onTimeout = vi.fn();
+    const { rerender } = renderHook<number | null, { at: Date }>(({ at }) => useCountdown(at, onTimeout), {
+      initialProps: { at: inSeconds(10) },
+    });
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    rerender({ at: inSeconds(10) });
+
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onTimeout at once when the deadline is already past at mount', () => {
     const onTimeout = vi.fn();
     const deadline = inSeconds(-30);

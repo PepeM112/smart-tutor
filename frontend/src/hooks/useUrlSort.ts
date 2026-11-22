@@ -24,7 +24,7 @@ export function useUrlSort<T extends string>(
   const rawSortBy = searchParams.get('sort_c');
   const rawSortOrder = searchParams.get('sort_o');
 
-  const sortBy = rawSortBy && (validSortKeys as readonly string[]).includes(rawSortBy) ? (rawSortBy as T) : undefined;
+  const sortBy = validSortKeys.find(key => key === rawSortBy);
 
   const sortOrder = rawSortOrder === 'asc' || rawSortOrder === 'desc' ? rawSortOrder : undefined;
 

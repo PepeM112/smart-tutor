@@ -87,12 +87,13 @@ describe('providerChangeNeedsKey', () => {
 
 describe('classSettingsErrorKey', () => {
   it('maps the refusal for a provider change without a new key', () => {
-    expect(classSettingsErrorKey('Send a new Class key when you change the provider')).toBe(
+    expect(classSettingsErrorKey({ detail: 'Any text', code: 'class_key_provider_change_needs_key' })).toBe(
       'classrooms.class_key_provider_needs_key'
     );
   });
-  it('gives null for other details', () => {
-    expect(classSettingsErrorKey('Something new')).toBeNull();
+  it('gives null for other codes, text only or no body', () => {
+    expect(classSettingsErrorKey({ code: 'a_new_code' })).toBeNull();
+    expect(classSettingsErrorKey({ detail: 'Send a new Class key when you change the provider' })).toBeNull();
     expect(classSettingsErrorKey(undefined)).toBeNull();
   });
 });

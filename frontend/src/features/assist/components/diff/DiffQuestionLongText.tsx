@@ -1,11 +1,11 @@
-import type { LongTextContent } from '@/client';
+import { isLongTextContent } from '@/features/tests/utils/questionContent';
 
 import type { DiffQuestionProps } from './types';
 
 export function DiffQuestionLongText({ old: oldQ, new: newQ }: DiffQuestionProps) {
-  // SAFETY: caller only renders this component for LONG_TEXT-type question diffs
-  const oldContent = oldQ.content as LongTextContent;
-  const newContent = newQ.content as LongTextContent;
+  if (!isLongTextContent(oldQ.content) || !isLongTextContent(newQ.content)) return null;
+  const oldContent = oldQ.content;
+  const newContent = newQ.content;
 
   return (
     <div className="space-y-2">

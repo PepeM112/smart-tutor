@@ -211,7 +211,7 @@ export const SlashMenuExtension = Extension.create({
 
   addProseMirrorPlugins() {
     return [
-      Suggestion<SlashItem>({
+      Suggestion<SlashItem, SlashItem>({
         editor: this.editor,
         char: '/',
         allowSpaces: false,
@@ -228,8 +228,7 @@ export const SlashMenuExtension = Extension.create({
         items: () => SLASH_ITEMS,
 
         command: ({ editor, range, props: item }) => {
-          // SAFETY: Suggestion<SlashItem> guarantees props is SlashItem.
-          (item as SlashItem).execute({ editor, range });
+          item.execute({ editor, range });
         },
 
         render: () => {

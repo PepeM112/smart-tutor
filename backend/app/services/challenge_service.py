@@ -10,6 +10,7 @@ from openai import AuthenticationError as OpenAIAuthError
 from sqlalchemy.orm import Session
 
 from app.core.enums import AIFeature, AnswerStatus, QuestionType
+from app.core.errors import AppError
 from app.crud import answer as answer_crud
 from app.crud import question as question_crud
 from app.crud import test_result as test_result_crud
@@ -45,7 +46,7 @@ def _validate_challenge_eligibility(
 
     # The teacher grade is final: it replaces the AI grade, so a challenge to the AI has no effect.
     if answer.override_score is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=OVERRIDDEN_ANSWER_MESSAGE)
+        raise AppError(status.HTTP_409_CONFLICT, OVERRIDDEN_ANSWER_MESSAGE, "answer_overridden")
 
     if QuestionType(question.question_type) != QuestionType.LONG_TEXT:
         raise HTTPException(

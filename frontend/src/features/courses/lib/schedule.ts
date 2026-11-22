@@ -12,7 +12,7 @@ export type ScheduleLabel = {
 };
 
 const isFuture = (date: Date | null | undefined, now: Date): date is Date =>
-  Boolean(date) && (date as Date).getTime() > now.getTime();
+  date instanceof Date && date.getTime() > now.getTime();
 
 /** True when the item is not visible to students yet (`visibleFrom` in the future). */
 export function isHiddenByVisibleFrom(item: Pick<ScheduleFields, 'visibleFrom'>, now: Date): boolean {
@@ -36,9 +36,9 @@ export function scheduleLabels(item: ScheduleFields, now: Date, isAuthor: boolea
   const labels: (ScheduleLabel | null)[] = [
     isAuthor && isFuture(item.visibleFrom, now) ? { kind: 'scheduled', date: item.visibleFrom } : null,
     item.dueAt ? { kind: 'due', date: item.dueAt } : null,
-    state === 'not_open' ? { kind: 'opens', date: item.opensAt as Date } : null,
+    state === 'not_open' && item.opensAt ? { kind: 'opens', date: item.opensAt } : null,
     state === 'open' && item.closesAt ? { kind: 'closes', date: item.closesAt } : null,
-    state === 'closed' ? { kind: 'closed', date: item.closesAt as Date } : null,
+    state === 'closed' && item.closesAt ? { kind: 'closed', date: item.closesAt } : null,
   ];
   return labels.filter((label): label is ScheduleLabel => label !== null);
 }

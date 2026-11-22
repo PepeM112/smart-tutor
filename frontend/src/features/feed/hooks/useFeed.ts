@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { type SpaceCommentRead, type SpacePostPage, type SpacePostRead } from '@/client';
 import { sdk } from '@/lib/apiClient';
 import { resetToFirstPage } from '@/lib/infiniteQuery';
-import { getErrorDetail, retryUnlessDenied } from '@/lib/utils';
+import { retryUnlessDenied } from '@/lib/utils';
 
 import { feedErrorKey } from '../lib/feedErrors';
 import { feedQueryKeys } from '../lib/queryKeys';
@@ -24,7 +24,7 @@ import { feedQueryKeys } from '../lib/queryKeys';
 export function usePosts(classroomId: string): UseInfiniteQueryResult<InfiniteData<SpacePostPage, string | null>> {
   return useInfiniteQuery({
     queryKey: feedQueryKeys.posts(classroomId),
-    queryFn: async ({ pageParam }): Promise<SpacePostPage> =>
+    queryFn: async ({ pageParam }: { pageParam: string | null }): Promise<SpacePostPage> =>
       (
         await sdk.spacesListPosts({
           path: { space_id: classroomId },
@@ -32,7 +32,7 @@ export function usePosts(classroomId: string): UseInfiniteQueryResult<InfiniteDa
           throwOnError: true,
         })
       ).data,
-    initialPageParam: null as string | null,
+    initialPageParam: null,
     getNextPageParam: lastPage => lastPage.nextCursor,
     // The app default is off. The Stream is the one list that others write to, so it refreshes when the tab gets focus.
     refetchOnWindowFocus: true,
@@ -46,7 +46,7 @@ export function usePosts(classroomId: string): UseInfiniteQueryResult<InfiniteDa
  */
 function useWriteErrorToast(fallbackKey: string): (err: unknown) => void {
   const t = useTranslations();
-  return err => toast.error(t(feedErrorKey(getErrorDetail(err, '')) ?? fallbackKey));
+  return err => toast.error(t(feedErrorKey(err) ?? fallbackKey));
 }
 
 type PostsRefresh = {

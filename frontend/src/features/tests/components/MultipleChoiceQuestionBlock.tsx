@@ -31,6 +31,7 @@ export type MultipleChoiceQuestionData = {
   tags?: string[];
   hint?: string | null;
   explanation?: string | null;
+  originId?: string | null;
 };
 
 const MIN_CHOICES = 2;

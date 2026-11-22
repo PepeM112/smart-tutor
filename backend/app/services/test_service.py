@@ -118,10 +118,27 @@ def _validate_source_note(db: Session, *, note_id: str | None, current_user: Use
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Draft notes can not be a source")
 
 
+def _clear_unknown_origins(
+    db: Session, *, questions: list[QuestionCreate], groups: list[TestQuestionGroupCreate]
+) -> None:
+    """Set `origin_id` to None where the id is no question row.
+
+    The editor sends `origin_id` back as the client holds it. A stale or made-up id would break the
+    foreign key on insert (500), and the link is only a hint, so the save keeps the question without it.
+    """
+    all_questions = [*questions, *(q for group in groups for q in group.questions)]
+    claimed = {q.origin_id for q in all_questions if q.origin_id}
+    unknown = claimed - question_crud.existing_ids(db, ids=claimed)
+    for q in all_questions:
+        if q.origin_id in unknown:
+            q.origin_id = None
+
+
 def create_test(db: Session, *, current_user: User, data: TestCreate) -> Test:
     # On create there are no existing orders — only check for internal duplicates
     _validate_order_space(data.questions, data.question_groups)
     _validate_source_note(db, note_id=data.source_note_id, current_user=current_user)
+    _clear_unknown_origins(db, questions=data.questions, groups=data.question_groups)
 
     test = test_crud.create(
         db,
@@ -157,6 +174,12 @@ def update_test(db: Session, *, test_id: str, current_user: User, data: TestUpda
     _validate_order_space(
         (data.questions or []) if replacing_questions else [],
         (data.question_groups or []) if replacing_groups else [],
+    )
+
+    _clear_unknown_origins(
+        db,
+        questions=(data.questions or []) if replacing_questions else [],
+        groups=(data.question_groups or []) if replacing_groups else [],
     )
 
     if replacing_questions:

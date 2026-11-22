@@ -19,21 +19,20 @@ export function useCountdown(deadlineAt: Date | null | undefined, onTimeout: () 
     deadlineAt ? secondsLeft(deadlineAt, clockNow()) : null
   );
   const timeoutRef = useRef(onTimeout);
-  const hasFired = useRef(false);
+  // The deadline that already fired, not a flag: a new `Date` object with the same time must not fire again.
+  const firedDeadlineMs = useRef<number | null>(null);
 
   useEffect(() => {
     timeoutRef.current = onTimeout;
   });
 
   useEffect(() => {
-    if (!deadlineAt) {
-      setRemaining(null);
-      return;
-    }
+    if (!deadlineAt) return;
 
+    const deadlineMs = deadlineAt.getTime();
     const fire = () => {
-      if (hasFired.current) return;
-      hasFired.current = true;
+      if (firedDeadlineMs.current === deadlineMs) return;
+      firedDeadlineMs.current = deadlineMs;
       timeoutRef.current();
     };
     const tick = () => {
@@ -64,5 +63,6 @@ export function useCountdown(deadlineAt: Date | null | undefined, onTimeout: () 
     };
   }, [deadlineAt]);
 
-  return remaining;
+  // Derived, not reset in the effect: a removed deadline must show null at once.
+  return deadlineAt ? remaining : null;
 }

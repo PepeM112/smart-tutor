@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 
 import { type QuestionRead, QuestionType, type TestRead } from '@/client';
 import { DataTableV2, type MobileAction } from '@/components/shared/DataTableV2';
-import { expandToggleColumn } from '@/components/shared/expandToggleColumn';
+import { expandToggleColumn } from '@/components/shared/ExpandToggleColumn';
 import { FormattedDate } from '@/components/shared/FormattedDate';
 import { type SortDirection, type SortState } from '@/components/shared/SortableHeader';
 import { HoverHint } from '@/components/ui/hover-hint';

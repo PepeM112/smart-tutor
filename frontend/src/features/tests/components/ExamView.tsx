@@ -7,8 +7,6 @@ import {
   LongTextLength,
   QuestionGroupType,
   QuestionType,
-  type LongTextContentStripped,
-  type MultipleChoiceContentStripped,
   type QuestionReadStripped,
   type TestQuestionGroupReadStripped,
   type TestReadStripped,
@@ -345,11 +343,10 @@ function QuestionBody({ question, answer, onTextChange, onCheckboxToggle }: Ques
   const isMC = question.questionType === QuestionType.MULTIPLE_CHOICE;
   const isLongText = question.questionType === QuestionType.LONG_TEXT;
   // Fall back to MEDIUM tier when lengthLimit is missing or unrecognized
-  // SAFETY: isLongText is true only when questionType === LONG_TEXT, guaranteeing LT content shape
+  const lengthLimit = isLongText && content && 'lengthLimit' in content ? content.lengthLimit : undefined;
+  const mcOptions = isMC && content && 'options' in content ? content.options : undefined;
   const longTextTier = isLongText
-    ? (LONG_TEXT_LENGTH_TIERS.find(
-        tier => tier.value === (content as LongTextContentStripped | undefined)?.lengthLimit
-      ) ?? LONG_TEXT_LENGTH_TIERS[1])
+    ? (LONG_TEXT_LENGTH_TIERS.find(tier => tier.value === lengthLimit) ?? LONG_TEXT_LENGTH_TIERS[1])
     : null;
 
   return (
@@ -368,10 +365,9 @@ function QuestionBody({ question, answer, onTextChange, onCheckboxToggle }: Ques
       )}
 
       {/* Multiple choice checkboxes */}
-      {isMC && content && (
+      {mcOptions && (
         <div className="space-y-2">
-          {/* SAFETY: isMC is true only when questionType === MULTIPLE_CHOICE */}
-          {((content as MultipleChoiceContentStripped).options ?? []).map((option, idx) => {
+          {mcOptions.map((option, idx) => {
             const checked = parseMcAnswer(answer).includes(idx);
             return (
               <Label

@@ -28,6 +28,8 @@
 
 import { DOMSerializer, Fragment, type Schema } from '@tiptap/pm/model';
 
+import { numberArrayAttr, optionalStringAttr } from '@/lib/prosemirrorAttrs';
+
 import { DEFAULT_TABLE_LAYOUT, parseCellColor, parseTableLayout } from './tableAttributes';
 
 import type { JSONContent } from '@tiptap/core';
@@ -67,10 +69,10 @@ function cellContentToHtml(cell: JSONContent, schema: Schema | null): string {
 function cellAttributesToHtml(attrs: Attrs): string {
   const colspan = Number(attrs.colspan ?? 1);
   const rowspan = Number(attrs.rowspan ?? 1);
-  const widths = Array.isArray(attrs.colwidth) ? (attrs.colwidth as number[]) : [];
+  const widths = numberArrayAttr(attrs, 'colwidth') ?? [];
   const align = attrs.align === 'left' || attrs.align === 'center' || attrs.align === 'right' ? attrs.align : null;
-  const color = parseCellColor((attrs.color as string | null | undefined) ?? null);
-  const bg = parseCellColor((attrs.bg as string | null | undefined) ?? null);
+  const color = parseCellColor(optionalStringAttr(attrs, 'color'));
+  const bg = parseCellColor(optionalStringAttr(attrs, 'bg'));
 
   return [
     colspan > 1 && `colspan="${colspan}"`,

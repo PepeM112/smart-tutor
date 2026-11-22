@@ -8,6 +8,7 @@ import {
   FONT_SIZE_STORAGE_KEY,
   fontSizes,
   getFontSizeValue,
+  isFontSizeId,
   type FontSizeId,
 } from '@/lib/fontSize';
 
@@ -22,9 +23,8 @@ export const FontSizeContext = createContext<FontSizeContextValue>({
 });
 
 function readStoredFontSize(): FontSizeId {
-  // SAFETY: setFontSize only writes valid FontSizeId values; the .some() check below handles stale/tampered values
-  const stored = localStorage.getItem(FONT_SIZE_STORAGE_KEY) as FontSizeId | null;
-  return stored && fontSizes.some(f => f.id === stored) ? stored : DEFAULT_FONT_SIZE_ID;
+  const stored = localStorage.getItem(FONT_SIZE_STORAGE_KEY);
+  return isFontSizeId(stored) ? stored : DEFAULT_FONT_SIZE_ID;
 }
 
 const subscribers = new Set<() => void>();

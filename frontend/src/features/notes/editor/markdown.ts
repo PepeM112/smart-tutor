@@ -54,8 +54,9 @@ export function selectionToMarkdown(editor: Editor): string {
   const manager = getManager(editor);
   // Extract the selected fragment and wrap it in a doc-level JSON envelope
   // so MarkdownManager.serialize receives a valid document structure.
-  const fragmentJson = editor.state.doc.slice(from, to).content.toJSON() as JSONContent[] | null;
-  const docJson: JSONContent = { type: 'doc', content: fragmentJson ?? [] };
+  // `Fragment.toJSON()` is typed `any`; ProseMirror returns an array of nodes, or null for an empty fragment.
+  const fragmentJson: unknown = editor.state.doc.slice(from, to).content.toJSON();
+  const docJson: JSONContent = { type: 'doc', content: Array.isArray(fragmentJson) ? fragmentJson : [] };
   return manager.serialize(docJson);
 }
 
