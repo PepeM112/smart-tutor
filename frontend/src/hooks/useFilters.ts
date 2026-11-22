@@ -71,7 +71,7 @@ export function useFilters(filterList: FilterItem[]) {
     }
   }, [filters, filterList, pathname, router]);
 
-  // The caller states the type of the key, as its filter config declares it; `filters` is one union for all keys
+  // SAFETY: the caller states the type of the key, as its filter config declares it; `filters` is one union for all keys
   const getValue = useCallback(<R>(key: string): R | undefined => filters[key] as R | undefined, [filters]);
 
   const setFilter = useCallback((key: string, value: FilterValue[string] | undefined) => {

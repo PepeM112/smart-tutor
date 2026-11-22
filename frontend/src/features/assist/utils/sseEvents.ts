@@ -48,8 +48,11 @@ function isRoundEnd(data: unknown): data is SSERoundEnd {
   return isRecord(data) && (data.thinking_blocks === undefined || Array.isArray(data.thinking_blocks));
 }
 
-function isSSEError(data: unknown): data is SSEError {
-  return isRecord(data) && typeof data.message === 'string';
+// An error event always reaches the user: a body without a text becomes an empty message, and the caller shows a generic text.
+function toSSEError(data: unknown): SSEError {
+  if (!isRecord(data)) return { message: '' };
+  const message = typeof data.message === 'string' ? data.message : '';
+  return typeof data.code === 'string' ? { message, code: data.code } : { message };
 }
 
 /** Types one parsed SSE event by its name. `undefined` for an unknown event or a data shape that the handler cannot read. */
@@ -70,7 +73,7 @@ export function parseSSEEvent(event: string, data: unknown): SSEEvent | undefine
     case 'done':
       return { event };
     case 'error':
-      return isSSEError(data) ? { event, data } : undefined;
+      return { event, data: toSSEError(data) };
     default:
       return undefined;
   }

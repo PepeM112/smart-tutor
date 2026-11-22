@@ -17,6 +17,8 @@ ErrorCode = Literal[
     "attempt_no_questions",
     "assist_blocked_by_course_test",
     "ai_not_configured",
+    "ai_key_unreadable",
+    "class_key_provider_change_needs_key",
     "ai_budget_used_up",
     "override_not_classroom",
     "override_score_out_of_range",
@@ -43,5 +45,9 @@ class ErrorWithCode(BaseSchema):
 
 
 def coded_errors(*statuses: int) -> dict[int | str, dict[str, Any]]:
-    """For `responses=` of a route: shows `ErrorWithCode` in OpenAPI, so the frontend gets the code type."""
+    """For `responses=` of a route: shows `ErrorWithCode` in OpenAPI, so the frontend gets the code type.
+
+    The same status can also return a plain `{"detail"}` body (a `forbidden()` or a 404 without a code).
+    So the frontend must read `code` with a runtime check and not trust the generated type.
+    """
     return {status: {"model": ErrorWithCode} for status in statuses}

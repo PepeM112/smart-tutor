@@ -451,7 +451,7 @@ export function useAssist(pageContext: PageContext, spaceId: string | null = nul
             const errorSeg: TurnSegment = {
               type: 'error',
               id: nextId(),
-              message: refusalKey ? tAssist(refusalKey) : message,
+              message: refusalKey ? tAssist(refusalKey) : message || tAssist('error_generic'),
             };
             queue.runImmediately(() => {
               setTurns(prev => appendSegmentToTurn(prev, activeTurnId, errorSeg));

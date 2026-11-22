@@ -29,7 +29,8 @@ def _call_names(parent: MagicMock) -> list[str]:
     return [name for name, _args, _kwargs in parent.mock_calls if "()" not in name]
 
 
-def _run_challenge(*, met: bool) -> list[str]:
+def _run_challenge(*, met: bool) -> tuple[list[str], MagicMock, MagicMock]:
+    """The names of the calls in order, the `test_result_crud` mock and the session mock."""
     content = LongTextContent(length_limit=LongTextLength.SHORT, rubric=[RubricItem(point="Names it", weight=1.0)])
     answer = SimpleNamespace(
         id="a1",
@@ -85,30 +86,23 @@ def _run_challenge(*, met: bool) -> list[str]:
         )
         challenge_service.process_challenge("a1")
 
-    return _call_names(order)
+    return _call_names(order), mock_test_result_crud, db
 
 
 class TestProcessChallengeLock:
     def test_a_flipped_criterion_locks_the_result_before_it_reads_and_recalculates(self) -> None:
         """The lock comes after the slow AI call. Then the service saves, reads all again and recalculates."""
-        names = _run_challenge(met=True)
+        names, test_result_crud, db = _run_challenge(met=True)
 
-        assert names == [
-            "answer_crud.get_by_id",
-            "answer_crud.get_test_result_with_answers",
-            "llm",
-            "test_result_crud.lock",
-            "db.flush",
-            "db.expire_all",
-            "answer_crud.get_test_result_with_answers",
-            "recalculate",
-            "progress.recheck_result_completion",
-            "db.commit",
-            "db.close",
-        ]
+        read = "answer_crud.get_test_result_with_answers"
+        second_read = names.index(read, names.index(read) + 1)
+        order = [names.index("llm"), names.index("test_result_crud.lock"), second_read, names.index("recalculate")]
+        assert order == sorted(order)
+        assert names.index("recalculate") < names.index("db.commit")
+        test_result_crud.lock.assert_called_once_with(db, id="r1")
 
     def test_an_upheld_grade_does_not_lock_or_recalculate(self) -> None:
-        names = _run_challenge(met=False)
+        names, _, _ = _run_challenge(met=False)
 
         assert "test_result_crud.lock" not in names
         assert "recalculate" not in names

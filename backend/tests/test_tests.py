@@ -12,6 +12,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
+from app.schemas import test as test_schemas
+from app.schemas.question import QuestionCreate
 from app.services import test_service
 
 
@@ -76,10 +78,29 @@ class TestCreateTestSourceNote:
         mock_test_crud.create.assert_not_called()
 
 
+class TestCreateTestOrigin:
+    def test_unknown_origin_id_is_saved_as_none_and_known_id_is_kept(self, mock_test_crud: MagicMock) -> None:
+        data = test_schemas.TestCreate.model_validate(
+            {
+                "title": "T",
+                "questions": [
+                    {"questionType": 1, "prompt": "a", "order": 0, "content": {"answers": ["x"]}, "originId": "known"},
+                    {"questionType": 1, "prompt": "b", "order": 1, "content": {"answers": ["x"]}, "originId": "gone"},
+                ],
+            }
+        )
+        with patch("app.services.test_service.question_crud") as mock_question_crud:
+            mock_question_crud.existing_ids.return_value = {"known"}
+            test_service.create_test(MagicMock(), current_user=MagicMock(id="u1"), data=data)
+
+        created = mock_question_crud.create_many.call_args.kwargs["questions"]
+        assert {q.prompt: q.origin_id for q in created} == {"a": "known", "b": None}
+
+
 class TestUpdateTestKeepsOrigin:
     """The editor saves a test by sending all its questions again, so `origin_id` must go with them."""
 
-    def _save(self, data: object, known_ids: set[str] | None = None) -> MagicMock:
+    def _save(self, data: test_schemas.TestUpdate, known_ids: set[str] | None = None) -> MagicMock:
         db = MagicMock()
         stored_test = MagicMock(questions=[], question_groups=[])
         with (
@@ -88,7 +109,7 @@ class TestUpdateTestKeepsOrigin:
             patch("app.services.test_service.test_crud"),
             patch("app.services.test_service.question_crud.existing_ids", return_value=known_ids or set()),
         ):
-            test_service.update_test(db, test_id="t1", current_user=MagicMock(id="u1"), data=data)  # type: ignore[arg-type]
+            test_service.update_test(db, test_id="t1", current_user=MagicMock(id="u1"), data=data)
         return db
 
     @staticmethod
@@ -96,10 +117,7 @@ class TestUpdateTestKeepsOrigin:
         return [q for call in db.add_all.call_args_list for q in call.args[0]]
 
     def test_standalone_question_keeps_origin_id(self) -> None:
-        from app.schemas.question import QuestionCreate
-        from app.schemas.test import TestUpdate
-
-        data = TestUpdate(
+        data = test_schemas.TestUpdate(
             questions=[
                 QuestionCreate.model_validate(
                     {
@@ -117,9 +135,7 @@ class TestUpdateTestKeepsOrigin:
         assert [q.origin_id for q in questions] == ["source-1"]
 
     def test_grouped_question_keeps_origin_id(self) -> None:
-        from app.schemas.test import TestUpdate
-
-        data = TestUpdate.model_validate(
+        data = test_schemas.TestUpdate.model_validate(
             {
                 "questionGroups": [
                     {
@@ -144,9 +160,7 @@ class TestUpdateTestKeepsOrigin:
         assert [q.origin_id for q in questions] == ["source-2"]
 
     def test_unknown_origin_id_is_saved_as_none_and_known_id_is_kept(self) -> None:
-        from app.schemas.test import TestUpdate
-
-        data = TestUpdate.model_validate(
+        data = test_schemas.TestUpdate.model_validate(
             {
                 "questions": [
                     {"questionType": 1, "prompt": "a", "order": 0, "content": {"answers": ["x"]}, "originId": "known"},

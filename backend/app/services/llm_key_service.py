@@ -30,6 +30,7 @@ from app.models.classroom_settings import ClassroomSettings
 from app.models.space import Space
 from app.models.test_result import TestResult
 from app.models.user import User
+from app.schemas.error import ErrorCode
 from app.services import access_service, ai_settings_service, space_service
 from app.services.llm import (
     CAP_REACHED_MESSAGE,
@@ -70,7 +71,10 @@ class KeyPlan:
     settings: ClassroomSettings | None = None
     classroom_id: str | None = None
     message: str | None = None
-    cap_reached: bool = False
+    code: ErrorCode | None = None
+
+
+_NO_KEY_PLAN = KeyPlan(None, message=NO_KEY_MESSAGE, code="ai_not_configured")
 
 
 def month_start(now: datetime | None = None) -> datetime:
@@ -154,13 +158,13 @@ def _plan_for_classroom(
 ) -> KeyPlan:
     """The R38 matrix for one classroom."""
     if settings is None or not can_use_class_key(db, classroom=classroom, settings=settings, user_id=user.id):
-        return KeyPlan(KeySource.STUDENT) if student_key else KeyPlan(None, message=NO_KEY_MESSAGE)
+        return KeyPlan(KeySource.STUDENT) if student_key else _NO_KEY_PLAN
 
     over_cap = _is_over_cap(db, user_id=user.id, classroom_id=classroom.id, settings=settings)
     class_plan = KeyPlan(KeySource.CLASS, settings=settings, classroom_id=classroom.id)
     if not student_key:
         if over_cap:
-            return KeyPlan(None, message=CAP_REACHED_MESSAGE, cap_reached=True)
+            return KeyPlan(None, message=CAP_REACHED_MESSAGE, code="ai_budget_used_up")
         return class_plan
     if settings.key_priority == int(KeyPriority.STUDENT) or over_cap:
         return KeyPlan(KeySource.STUDENT)
@@ -173,7 +177,7 @@ def plan_key(db: Session, user: User, space_id: str | None) -> KeyPlan:
     if space_id is not None:
         classroom = classroom_of(db, space_id)
         if classroom is None:
-            return KeyPlan(KeySource.STUDENT) if student_key else KeyPlan(None, message=NO_KEY_MESSAGE)
+            return KeyPlan(KeySource.STUDENT) if student_key else _NO_KEY_PLAN
         settings = classroom_settings_crud.get(db, space_id=classroom.id)
         return _plan_for_classroom(db, user=user, classroom=classroom, settings=settings, student_key=student_key)
 
@@ -188,14 +192,14 @@ def plan_key(db: Session, user: User, space_id: str | None) -> KeyPlan:
             blocked = plan
     if student_key:
         return KeyPlan(KeySource.STUDENT)
-    return blocked or KeyPlan(None, message=NO_KEY_MESSAGE)
+    return blocked or _NO_KEY_PLAN
 
 
 def resolve_llm(db: Session, user: User, space_id: str | None = None) -> ResolvedLLM:
     """The client for a call, and who pays for it. Raises `AIKeyError` when no key can be used."""
     plan = plan_key(db, user, space_id)
     if plan.source is None:
-        raise AIKeyError(plan.message or NO_KEY_MESSAGE, cap_reached=plan.cap_reached)
+        raise AIKeyError(plan.message or NO_KEY_MESSAGE, code=plan.code or "ai_not_configured")
 
     if plan.source == KeySource.CLASS and plan.settings is not None and plan.settings.encrypted_class_key:
         provider = AIProvider(plan.settings.ai_provider)

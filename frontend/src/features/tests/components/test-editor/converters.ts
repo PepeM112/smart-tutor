@@ -82,16 +82,18 @@ export function groupToApiGroup(g: QuestionGroupData, order: number): TestQuesti
 /*  API response → Editor items                                       */
 /* ------------------------------------------------------------------ */
 
+// Both converters throw on bad content: an empty block would be saved over the stored question.
 function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
-  const content = isMCContent(q.content) ? q.content : undefined;
+  const content = q.content;
+  if (!isMCContent(content)) throw new Error(`Question ${q.id} has no valid multiple choice content`);
   return {
     key: crypto.randomUUID(),
     id: q.id,
     type: QuestionType.MULTIPLE_CHOICE,
     prompt: q.prompt,
-    choices: (content?.options ?? []).map((text, i) => ({
+    choices: content.options.map((text, i) => ({
       text,
-      isCorrect: (content?.correctIndices ?? []).includes(i),
+      isCorrect: content.correctIndices.includes(i),
     })) satisfies Choice[],
     points: q.points ?? 1,
     tags: q.tags,
@@ -102,14 +104,15 @@ function fromApiMcQuestion(q: QuestionRead): MultipleChoiceQuestionData {
 }
 
 function fromApiLongTextQuestion(q: QuestionRead): LongTextQuestionData {
-  const content = isLongTextContent(q.content) ? q.content : undefined;
+  const content = q.content;
+  if (!isLongTextContent(content)) throw new Error(`Question ${q.id} has no valid long text content`);
   return {
     key: crypto.randomUUID(),
     id: q.id,
     type: QuestionType.LONG_TEXT,
     prompt: q.prompt,
-    lengthLimit: content?.lengthLimit ?? 2,
-    criteria: (content?.rubric ?? []).map(r => ({
+    lengthLimit: content.lengthLimit ?? 2,
+    criteria: content.rubric.map(r => ({
       point: r.point,
       weight: r.weight,
       category: r.category ?? '',
@@ -316,7 +319,7 @@ export function mergeAiEditResult(
       return {
         ...item,
         prompt: q.prompt,
-        lengthLimit: content.lengthLimit,
+        lengthLimit: content.lengthLimit ?? 2,
         criteria: content.rubric.map(r => ({
           point: r.point,
           weight: r.weight,

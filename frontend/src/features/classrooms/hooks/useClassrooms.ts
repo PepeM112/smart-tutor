@@ -64,7 +64,7 @@ export function useUpdateClassroomSettings(classroomId: string) {
       toast.success(t('classrooms.settings_saved'));
     },
     onError: err => {
-      const key = classSettingsErrorKey(getErrorDetail(err, ''));
+      const key = classSettingsErrorKey(err);
       toast.error(key ? t(key) : getErrorDetail(err, t('classrooms.failed_to_save_settings')));
     },
   });

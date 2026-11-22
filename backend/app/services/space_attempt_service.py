@@ -49,7 +49,7 @@ from app.services.space_service import (
 
 
 def _refused(detail: str, code: ErrorCode, *, next_attempt_at: datetime | None = None) -> AppError:
-    """A 409 with a code: the frontend (`attemptErrors.ts`) shows its own text for each code."""
+    """A 409 with a code: the frontend shows its own text for each code."""
     return AppError(status.HTTP_409_CONFLICT, detail, code, next_attempt_at=next_attempt_at)
 
 

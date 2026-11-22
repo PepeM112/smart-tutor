@@ -1085,7 +1085,8 @@ class TestMarkdownToPlainText:
         text = unit * 50_000
 
         # CPU time, not wall time: waiting under load from parallel tests must not fail the check.
+        # The linear run takes about 1 s here, and a quadratic one takes minutes, so 5 s has margin on both sides.
         started = time.process_time()
         markdown_to_plain_text(text)
 
-        assert time.process_time() - started < 1.0
+        assert time.process_time() - started < 5.0

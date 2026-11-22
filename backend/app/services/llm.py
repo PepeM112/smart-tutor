@@ -51,16 +51,13 @@ class AIKeyError(ValueError):
     A `ValueError`, as the error of `get_user_llm_client`, so the callers that catch a missing key still work.
     """
 
-    def __init__(self, message: str, *, cap_reached: bool = False) -> None:
+    def __init__(self, message: str, *, code: ErrorCode | None = None) -> None:
         super().__init__(message)
-        self.cap_reached = cap_reached
+        self.code: ErrorCode | None = code
 
     @property
-    def code(self) -> ErrorCode | None:
-        """The stable code of the two errors that the frontend shows with its own text. None for the others."""
-        if self.cap_reached:
-            return "ai_budget_used_up"
-        return "ai_not_configured" if str(self) == NO_KEY_MESSAGE else None
+    def cap_reached(self) -> bool:
+        return self.code == "ai_budget_used_up"
 
     def to_http_error(self) -> HTTPException:
         if self.code is None:
@@ -466,7 +463,7 @@ def decrypt_key(ciphertext: str) -> str:
         return decrypt(ciphertext)
     except InvalidToken as exc:
         logger.error("A stored AI key cannot be decrypted")
-        raise AIKeyError(KEY_UNREADABLE_MESSAGE) from exc
+        raise AIKeyError(KEY_UNREADABLE_MESSAGE, code="ai_key_unreadable") from exc
 
 
 def get_user_llm_client(user: User) -> LLMClient:
@@ -599,7 +596,7 @@ def complete_for_user(
         llm = resolved.client if resolved is not None else get_user_llm_client(user)
     except ValueError as exc:
         logger.error("User AI provider unavailable: %s", exc)
-        key_error = exc if isinstance(exc, AIKeyError) else AIKeyError(NO_KEY_MESSAGE)
+        key_error = exc if isinstance(exc, AIKeyError) else AIKeyError(NO_KEY_MESSAGE, code="ai_not_configured")
         raise key_error.to_http_error() from exc
 
     effort = resolved.effort(action) if resolved is not None else efforts_of(user)[action]

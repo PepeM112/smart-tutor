@@ -201,7 +201,9 @@ def update_settings(
         and settings.encrypted_class_key
         and data.class_key is None
     ):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=PROVIDER_CHANGE_NEEDS_KEY)
+        raise AppError(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, PROVIDER_CHANGE_NEEDS_KEY, "class_key_provider_change_needs_key"
+        )
     if "feed_permission" in sent and data.feed_permission is not None:
         settings.feed_permission = int(data.feed_permission)
     if "key_priority" in sent and data.key_priority is not None:

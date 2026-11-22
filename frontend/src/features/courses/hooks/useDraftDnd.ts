@@ -62,7 +62,7 @@ export function useDraftDnd({ sections, onCommit }: Options) {
         get: (id: string | number) => droppableContainers.get(id),
         getEnabled: () => targetsFor(active.id, droppableContainers.getEnabled()),
       };
-      // `DroppableContainers` is a dnd-kit class; the keyboard getter only calls `get` and `getEnabled`
+      // SAFETY: `DroppableContainers` is a dnd-kit class; the keyboard getter only calls `get` and `getEnabled`
       const targets = filteredContainers as unknown as DroppableContainers;
       return sortableKeyboardCoordinates(event, {
         ...args,

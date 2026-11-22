@@ -64,7 +64,7 @@ export function CodeBlockView({ node, editor, extension, getPos, updateAttribute
     if (tr) editor.view.dispatch(tr);
   };
 
-  // `extension.options` is `any` in tiptap; this view is only used by the CodeBlock extension that sets `lowlight`
+  // SAFETY: `extension.options` is `any` in tiptap; this view is only used by the CodeBlock extension that sets `lowlight`
   const lowlight = (extension.options as { lowlight: Lowlight }).lowlight;
 
   const selectLanguage = (next: string | null) => {

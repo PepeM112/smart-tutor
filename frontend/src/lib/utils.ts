@@ -1,12 +1,14 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+import { isRecord } from './typeGuards';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function getErrorDetail(error: unknown, fallback: string): string {
-  if (typeof error === 'object' && error !== null && 'detail' in error && typeof error.detail === 'string') {
+  if (isRecord(error) && typeof error.detail === 'string') {
     return error.detail;
   }
   return fallback;
@@ -14,7 +16,7 @@ export function getErrorDetail(error: unknown, fallback: string): string {
 
 /** The HTTP status of an SDK error (`apiClient` adds it in the error interceptor). `undefined` for other errors. */
 export function errorStatus(error: unknown): number | undefined {
-  if (typeof error === 'object' && error !== null && 'status' in error && typeof error.status === 'number') {
+  if (isRecord(error) && typeof error.status === 'number') {
     return error.status;
   }
   return undefined;

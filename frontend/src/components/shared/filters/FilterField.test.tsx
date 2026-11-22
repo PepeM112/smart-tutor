@@ -78,6 +78,12 @@ describe('select filter field', () => {
     fireEvent.click(screen.getByRole('option', { name }));
   }
 
+  it('names the trigger with the label of the filter', () => {
+    render(<FilterField item={SELECT_ITEM} value={undefined} onChange={vi.fn()} />);
+
+    expect(screen.getByRole('combobox', { name: 'Kind' })).toBeTruthy();
+  });
+
   it('reports the picked value', () => {
     const onChange = vi.fn();
     render(<FilterField item={SELECT_ITEM} value={undefined} onChange={onChange} />);

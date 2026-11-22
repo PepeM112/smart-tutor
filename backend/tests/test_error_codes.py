@@ -15,12 +15,14 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from cryptography.fernet import InvalidToken
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from app.core.enums import AttemptStatus, FeedPermission, SpaceItemKind, SpaceKind, SpaceRole
 from app.core.errors import AppError, app_error_handler
 from app.schemas.error import ErrorCode
+from app.schemas.space import ClassroomSettingsUpdate
 from app.services import (
     assist_service,
     challenge_service,
@@ -392,6 +394,31 @@ class TestFeed:
         _assert_coded(error, status=403, code="feed_author_only_edit")
 
 
+# ── Class key settings ────────────────────────────────────────────────────────
+
+
+class TestClassKeySettings:
+    def test_provider_change_without_a_new_key_has_a_code(self) -> None:
+        settings = SimpleNamespace(ai_provider=1, encrypted_class_key="stored")
+        data = ClassroomSettingsUpdate.model_validate({"aiProvider": 2})
+        with (
+            patch.object(classroom_service, "get_classroom_or_404", return_value=SimpleNamespace(id="c1")),
+            patch.object(classroom_service, "require_owner"),
+            patch.object(classroom_service, "require_active"),
+            patch.object(classroom_service, "_get_settings", return_value=settings),
+        ):
+            error = _error_of(
+                classroom_service.update_settings,
+                MagicMock(),
+                classroom_id="c1",
+                current_user=SimpleNamespace(id="t1"),
+                data=data,
+            )
+
+        coded = _assert_coded(error, status=422, code="class_key_provider_change_needs_key")
+        assert coded.detail == classroom_service.PROVIDER_CHANGE_NEEDS_KEY
+
+
 # ── Remove completion ─────────────────────────────────────────────────────────
 
 
@@ -438,17 +465,31 @@ class TestRemoveCompletion:
 
 class TestAIKeyErrors:
     def test_missing_key_has_a_code(self) -> None:
-        assert AIKeyError(llm.NO_KEY_MESSAGE).code == "ai_not_configured"
+        assert AIKeyError(llm.NO_KEY_MESSAGE, code="ai_not_configured").code == "ai_not_configured"
 
     def test_used_up_budget_has_a_code(self) -> None:
-        assert AIKeyError(llm.CAP_REACHED_MESSAGE, cap_reached=True).code == "ai_budget_used_up"
+        assert AIKeyError(llm.CAP_REACHED_MESSAGE, code="ai_budget_used_up").code == "ai_budget_used_up"
 
-    def test_unreadable_key_has_no_code_and_stays_a_plain_403(self) -> None:
-        http_error = AIKeyError(llm.KEY_UNREADABLE_MESSAGE).to_http_error()
+    def test_unreadable_key_has_its_own_code(self) -> None:
+        http_error = AIKeyError(llm.KEY_UNREADABLE_MESSAGE, code="ai_key_unreadable").to_http_error()
+
+        coded = _assert_coded(http_error, status=403, code="ai_key_unreadable")
+        assert coded.detail == llm.KEY_UNREADABLE_MESSAGE
+
+    def test_a_stored_key_that_cannot_be_read_raises_the_unreadable_code(self) -> None:
+        with (
+            patch("app.services.encryption.decrypt", side_effect=InvalidToken),
+            pytest.raises(AIKeyError) as exc_info,
+        ):
+            llm.decrypt_key("not-valid")
+
+        assert exc_info.value.code == "ai_key_unreadable"
+
+    def test_an_error_without_a_code_stays_a_plain_403(self) -> None:
+        http_error = AIKeyError("Something else").to_http_error()
 
         assert not isinstance(http_error, AppError)
         assert http_error.status_code == 403
-        assert http_error.detail == llm.KEY_UNREADABLE_MESSAGE
 
     def test_complete_for_user_without_a_key_sends_the_code(self) -> None:
         with patch.object(llm, "get_user_llm_client", side_effect=ValueError("No Anthropic API key configured")):
@@ -465,7 +506,7 @@ class TestAIKeyErrors:
         assert coded.detail == llm.NO_KEY_MESSAGE
 
     def test_complete_for_user_over_the_class_cap_sends_the_code(self) -> None:
-        cap_error = AIKeyError(llm.CAP_REACHED_MESSAGE, cap_reached=True)
+        cap_error = AIKeyError(llm.CAP_REACHED_MESSAGE, code="ai_budget_used_up")
         with patch("app.services.llm_key_service.resolve_llm", side_effect=cap_error):
             error = _error_of(
                 llm.complete_for_user,
@@ -492,11 +533,16 @@ def _error_events(exc: Exception) -> list[dict[str, Any]]:
 
 class TestAssistStreamErrors:
     def test_missing_key_event_has_the_code(self) -> None:
-        events = _error_events(AIKeyError(llm.NO_KEY_MESSAGE))
+        events = _error_events(AIKeyError(llm.NO_KEY_MESSAGE, code="ai_not_configured"))
 
         assert events == [{"message": llm.NO_KEY_MESSAGE, "code": "ai_not_configured"}]
 
-    def test_unreadable_key_event_has_no_code(self) -> None:
-        events = _error_events(AIKeyError(llm.KEY_UNREADABLE_MESSAGE))
+    def test_unreadable_key_event_has_its_own_code(self) -> None:
+        events = _error_events(AIKeyError(llm.KEY_UNREADABLE_MESSAGE, code="ai_key_unreadable"))
 
-        assert events == [{"message": llm.KEY_UNREADABLE_MESSAGE}]
+        assert events == [{"message": llm.KEY_UNREADABLE_MESSAGE, "code": "ai_key_unreadable"}]
+
+    def test_error_without_a_code_has_no_code_field(self) -> None:
+        events = _error_events(AIKeyError("Something else"))
+
+        assert events == [{"message": "Something else"}]

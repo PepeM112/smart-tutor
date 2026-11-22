@@ -2,6 +2,7 @@ import { type ErrorCode, errorCase } from '@/lib/errorCode';
 
 const SPACE_ERROR_KEYS: Partial<Record<ErrorCode, string>> = {
   removed_course_has_results: 'classrooms.error_removed_course_has_results',
+  space_archived: 'classrooms.error_space_archived',
 };
 
 /**

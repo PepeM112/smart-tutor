@@ -1,4 +1,5 @@
 import type { ClassroomSettingsRead, ClassroomSettingsUpdate, KeySource, KeySourceUsage } from '@/client';
+import { type ErrorCode, errorCase } from '@/lib/errorCode';
 
 export type TokenCapParse = { ok: true; value: number | null } | { ok: false };
 
@@ -62,14 +63,16 @@ export function usageForSource(bySource: KeySourceUsage[], source: KeySource): K
   return bySource.find(entry => entry.keySource === source);
 }
 
-const PROVIDER_NEEDS_KEY = 'Send a new Class key when you change the provider';
-
 /** True when the owner changed the provider while a key is saved and typed no new key (the key belongs to the old provider). */
 export function providerChangeNeedsKey(form: ClassKeyForm, saved: ClassroomSettingsRead): boolean {
   return saved.hasClassKey && form.aiProvider !== saved.aiProvider && form.keyInput.trim() === '';
 }
 
-/** The i18n key for a refused settings write that the backend explains in English only. `null` for any other detail. */
-export function classSettingsErrorKey(detail: string | undefined): string | null {
-  return detail === PROVIDER_NEEDS_KEY ? 'classrooms.class_key_provider_needs_key' : null;
+const SETTINGS_ERROR_KEYS: Partial<Record<ErrorCode, string>> = {
+  class_key_provider_change_needs_key: 'classrooms.class_key_provider_needs_key',
+};
+
+/** The i18n key for a refused settings write that has its own text. `null` for any other error. */
+export function classSettingsErrorKey(error: unknown): string | null {
+  return errorCase(SETTINGS_ERROR_KEYS, error) ?? null;
 }

@@ -167,7 +167,7 @@ function SelectField({
         onChange(v);
       }}
     >
-      <SelectTrigger className="h-8">
+      <SelectTrigger className="h-8" aria-label={item.label}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

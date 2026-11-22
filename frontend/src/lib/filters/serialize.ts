@@ -128,7 +128,7 @@ export function deserializeFilterValue(
   const isMultiple = [FilterType.MULTIPLE, FilterType.MULTIPLE_SELECT].includes(filterItem.type);
   const mapped = allValues.map(urlVal => castValue(urlVal, filterItem));
 
-  // In `returnObject` mode `mapped` can mix entities and raw values that matched no item; `FilterValue` has no type for the mix
+  // SAFETY: in `returnObject` mode `mapped` can mix entities and raw values that matched no item; `FilterValue` has no type for the mix
   if (isMultiple) return mapped as Primitive[];
   return mapped[0];
 }

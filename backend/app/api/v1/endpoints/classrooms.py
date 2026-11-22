@@ -52,7 +52,7 @@ def get_settings(classroom_id: str, db: DbSession, current_user: CurrentUser) ->
     return classroom_service.get_settings(db, classroom_id=classroom_id, current_user=current_user)
 
 
-@router.patch("/{classroom_id}/settings", response_model=ClassroomSettingsRead)
+@router.patch("/{classroom_id}/settings", response_model=ClassroomSettingsRead, responses=coded_errors(409, 422))
 def update_settings(
     classroom_id: str, data: ClassroomSettingsUpdate, db: DbSession, current_user: CurrentUser
 ) -> ClassroomSettingsRead:

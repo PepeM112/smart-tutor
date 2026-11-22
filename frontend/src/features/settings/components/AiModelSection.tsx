@@ -69,7 +69,6 @@ export function AiModelSection({ provider }: Props) {
           {effortDisabledKey && <p className="text-xs text-muted-foreground">{t(effortDisabledKey)}</p>}
           <ul className="divide-y divide-hairline border-y border-hairline">
             {/* SAFETY: the record is typed Record<EffortAction, string>, so its keys are exactly EffortAction */}
-            {/* `Object.keys` returns `string[]`; the record is keyed by EffortAction */}
             {(Object.keys(EFFORT_ACTION_LABEL_KEYS) as EffortAction[]).map(action => (
               <EffortRow
                 key={action}

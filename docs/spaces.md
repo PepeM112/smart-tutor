@@ -408,17 +408,18 @@ A refused request that the frontend shows in its own words carries a stable `cod
 |---|---|---|---|
 | `attempt_not_open`, `attempt_closed`, `attempt_window_closed`, `attempt_time_over`, `attempt_no_attempts_left`, `attempt_no_questions` | 409 | attempt start and submit | `courses/lib/attemptErrors.ts` |
 | `attempt_cooldown` (field `nextAttemptAt`) | 409 | attempt start | `attemptErrors.ts` |
-| `space_archived` | 409 | any write in an archived course or classroom | `attemptErrors.ts`, `overrideErrors.ts`, `feedErrors.ts`, `completionErrors.ts` |
+| `space_archived` | 409 | any write in an archived course or classroom | `attemptErrors.ts`, `overrideErrors.ts`, `feedErrors.ts`, `completionErrors.ts`, `spaceErrors.ts` |
 | `removed_course_has_results` | 409 | classwork course removal | `courses/lib/spaceErrors.ts` |
 | `override_not_classroom` | 400 | grade override | `history/utils/overrideErrors.ts` |
 | `override_score_out_of_range` (field `maxPoints`) | 400 | grade override | `overrideErrors.ts` |
 | `answer_overridden` | 409 | challenge of a graded answer | `overrideErrors.ts` |
-| `ai_not_configured`, `ai_budget_used_up` | 403 | any AI call (HTTP, or SSE `error` event in the Assistant) | `assist/utils/assistErrors.ts` |
+| `ai_not_configured`, `ai_budget_used_up`, `ai_key_unreadable` | 403 | any AI call (HTTP, or SSE `error` event in the Assistant) | `assist/utils/assistErrors.ts` |
 | `assist_blocked_by_course_test` | 409 | `/assist` | `assistErrors.ts` |
 | `feed_teacher_only_post`, `feed_teacher_only_comment`, `feed_author_only_edit` | 403 | feed writes | `feed/lib/feedErrors.ts` |
 | `feed_post_not_found`, `feed_comment_not_found` | 404 | feed writes | `feedErrors.ts` |
 | `completion_passed` | 409 | Remove completion | `classrooms/lib/completionErrors.ts` |
 | `completion_not_found` | 404 | Remove completion | `completionErrors.ts` |
+| `class_key_provider_change_needs_key` | 422 | Class key settings (provider change with a saved key and no new key) | `classrooms/lib/classKey.ts` |
 
 ### Frontend (`src/features/classrooms/`)
 - Routes `/classrooms` (list, create) and `/classrooms/[slug-id]` (the tab is in the URL, `?tab=`). The sidebar has a Spaces section (Courses, Classrooms) between Library and Analytics. `spaceHref` gives the right link for a course or a classroom. Join and invitations route by kind.

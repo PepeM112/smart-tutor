@@ -726,7 +726,7 @@ export type ErrorWithCode = {
     /**
      * Code
      */
-    code: 'space_archived' | 'removed_course_has_results' | 'attempt_no_attempts_left' | 'attempt_cooldown' | 'attempt_time_over' | 'attempt_closed' | 'attempt_not_open' | 'attempt_window_closed' | 'attempt_no_questions' | 'assist_blocked_by_course_test' | 'ai_not_configured' | 'ai_budget_used_up' | 'override_not_classroom' | 'override_score_out_of_range' | 'answer_overridden' | 'feed_teacher_only_post' | 'feed_teacher_only_comment' | 'feed_author_only_edit' | 'feed_post_not_found' | 'feed_comment_not_found' | 'completion_passed' | 'completion_not_found';
+    code: 'space_archived' | 'removed_course_has_results' | 'attempt_no_attempts_left' | 'attempt_cooldown' | 'attempt_time_over' | 'attempt_closed' | 'attempt_not_open' | 'attempt_window_closed' | 'attempt_no_questions' | 'assist_blocked_by_course_test' | 'ai_not_configured' | 'ai_key_unreadable' | 'class_key_provider_change_needs_key' | 'ai_budget_used_up' | 'override_not_classroom' | 'override_score_out_of_range' | 'answer_overridden' | 'feed_teacher_only_post' | 'feed_teacher_only_comment' | 'feed_author_only_edit' | 'feed_post_not_found' | 'feed_comment_not_found' | 'completion_passed' | 'completion_not_found';
     /**
      * Nextattemptat
      */
@@ -7619,9 +7619,13 @@ export type ClassroomsUpdateSettingsData = {
 
 export type ClassroomsUpdateSettingsErrors = {
     /**
-     * Validation Error
+     * Conflict
      */
-    422: HttpValidationError;
+    409: ErrorWithCode;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorWithCode;
 };
 
 export type ClassroomsUpdateSettingsError = ClassroomsUpdateSettingsErrors[keyof ClassroomsUpdateSettingsErrors];

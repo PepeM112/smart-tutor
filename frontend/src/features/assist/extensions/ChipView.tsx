@@ -17,7 +17,7 @@ export function ChipView({ node }: NodeViewProps) {
     label: stringAttr(node.attrs, 'label'),
     content: stringAttr(node.attrs, 'content'),
     type: toAttachmentType(stringAttr(node.attrs, 'type')),
-    // The attribute holds the JSON that AssistInput wrote from a `ChatAttachment['metadata']`; a guard would only copy that type
+    // SAFETY: the attribute holds the JSON that AssistInput wrote from a `ChatAttachment['metadata']`; a guard would only copy that type
     metadata: JSON.parse(rawMetadata) as ChatAttachment['metadata'],
   };
 

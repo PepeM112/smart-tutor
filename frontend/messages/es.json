@@ -1236,6 +1236,7 @@
     "key_notice_none": "La IA no está disponible aquí. Añade tu propia clave de API en Ajustes para usarla.",
     "key_notice_cap_reached": "Has agotado tu presupuesto de IA de este mes. Añade tu propia clave de API en Ajustes para continuar.",
     "class_key_provider_needs_key": "Escribe una clave nueva al cambiar de proveedor. La clave guardada es del proveedor anterior.",
+    "error_space_archived": "Este curso o clase está archivado y no se puede modificar.",
     "error_removed_course_has_results": "Este curso tiene resultados de alumnos, así que no se puede quitar desde aquí. Abre los ajustes del curso y elimínalo para siempre antes. No se puede deshacer."
   },
   "assist": {
@@ -1357,6 +1358,7 @@
       }
     },
     "ai_not_configured": "La IA no está configurada. Añade tu clave de API en Ajustes.",
+    "ai_key_unreadable": "No se puede leer tu clave de API guardada. Vuelve a introducirla en Ajustes.",
     "ai_budget_used_up": "El presupuesto de IA de esta clase está agotado este mes. Añade tu propia clave de API en Ajustes para continuar."
   },
   "feed": {

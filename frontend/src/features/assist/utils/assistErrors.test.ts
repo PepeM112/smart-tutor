@@ -11,6 +11,7 @@ describe('assistRefusalKey', () => {
 
   it('maps the AI key and budget errors, also from a stream event', () => {
     expect(assistRefusalKey({ message: 'Any text', code: 'ai_not_configured' })).toBe('ai_not_configured');
+    expect(assistRefusalKey({ message: 'Any text', code: 'ai_key_unreadable' })).toBe('ai_key_unreadable');
     expect(assistRefusalKey({ message: 'Any text', code: 'ai_budget_used_up' })).toBe('ai_budget_used_up');
   });
 

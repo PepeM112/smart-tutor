@@ -223,6 +223,6 @@ AI operations can fail for a few distinct reasons, and the system treats them di
 | Parsing    | AI response doesn't match expected structure             | `502` — rejected and reported as invalid                                      |
 | System config | The environment-based fallback (`get_llm_client`) has no provider configured — system-level calls only | `503` — reported as unavailable                    |
 
-The two key errors carry the `code` `ai_not_configured` or `ai_budget_used_up` (HTTP body and SSE `error` event). The frontend maps the code to a translated text (`assist/utils/assistErrors.ts`). See [Error codes](spaces.md#error-codes-that-the-frontend-reads).
+The key errors carry the `code` `ai_not_configured`, `ai_budget_used_up` or `ai_key_unreadable` (HTTP body and SSE `error` event). The frontend maps the code to a translated text (`assist/utils/assistErrors.ts`). See [Error codes](spaces.md#error-codes-that-the-frontend-reads).
 
 For asynchronous features (grading, challenges), a failure moves the record to a terminal "failed" state instead of leaving it stuck pending forever — the user sees that grading didn't succeed rather than waiting indefinitely. For synchronous features (notes, test generation, chunk editing, question editing), the failure surfaces immediately as an error the user can retry.

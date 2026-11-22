@@ -134,6 +134,20 @@ describe('test editor converters keep the origin of a copied question', () => {
   });
 });
 
+describe('test editor converters refuse bad content', () => {
+  it('throws for a multiple choice question without options', () => {
+    const broken = { ...mcRead, content: {} } as unknown as QuestionRead;
+
+    expect(() => fromApiToEditorItems([broken], [])).toThrow('q1');
+  });
+
+  it('throws for a long text question without a rubric', () => {
+    const broken = { ...longRead, content: {} } as unknown as QuestionRead;
+
+    expect(() => fromApiToEditorItems([broken], [])).toThrow('q2');
+  });
+});
+
 describe('mergeAiEditResult keeps tags, hint and explanation', () => {
   const items = fromApiToEditorItems([mcRead, longRead, simpleRead], [groupRead]);
   // Flat order: MC, long text, standalone simple row, grouped simple row.

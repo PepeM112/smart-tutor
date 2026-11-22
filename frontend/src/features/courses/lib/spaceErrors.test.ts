@@ -9,6 +9,10 @@ describe('spaceErrorKey', () => {
     );
   });
 
+  it('maps the refusal for a write to an archived space', () => {
+    expect(spaceErrorKey({ detail: 'Any text', code: 'space_archived' })).toBe('classrooms.error_space_archived');
+  });
+
   it('gives null for other codes or no code', () => {
     expect(spaceErrorKey({ code: 'a_new_code' })).toBeNull();
     expect(spaceErrorKey({ detail: 'A removed course has student results.' })).toBeNull();

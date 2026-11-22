@@ -304,11 +304,10 @@ function initSimpleData(q?: QuestionRead): SimpleFormData {
 
 function initMCData(q?: QuestionRead): MCFormData {
   if (q && q.questionType === QuestionType.MULTIPLE_CHOICE) {
-    const content = isMCContent(q.content) ? q.content : undefined;
-    const choices = (content?.options ?? ['', '']).map((text, i) => ({
-      text,
-      isCorrect: content?.correctIndices.includes(i) ?? false,
-    }));
+    // Throws on bad content: empty choices would be saved over the stored question.
+    const content = q.content;
+    if (!isMCContent(content)) throw new Error(`Question ${q.id} has no valid multiple choice content`);
+    const choices = content.options.map((text, i) => ({ text, isCorrect: content.correctIndices.includes(i) }));
     return {
       prompt: q.prompt,
       choices,

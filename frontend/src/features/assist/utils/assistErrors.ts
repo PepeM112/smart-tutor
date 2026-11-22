@@ -1,10 +1,12 @@
 import { type ErrorCode, errorCase } from '@/lib/errorCode';
 
-export type AssistRefusalKey = 'unavailable_in_course_test' | 'ai_not_configured' | 'ai_budget_used_up';
+export type AssistRefusalKey =
+  'unavailable_in_course_test' | 'ai_not_configured' | 'ai_key_unreadable' | 'ai_budget_used_up';
 
 const REFUSAL_KEYS: Partial<Record<ErrorCode, AssistRefusalKey>> = {
   assist_blocked_by_course_test: 'unavailable_in_course_test',
   ai_not_configured: 'ai_not_configured',
+  ai_key_unreadable: 'ai_key_unreadable',
   ai_budget_used_up: 'ai_budget_used_up',
 };
 

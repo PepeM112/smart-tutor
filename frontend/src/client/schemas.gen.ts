@@ -1269,6 +1269,8 @@ export const ErrorWithCodeSchema = {
                 'attempt_no_questions',
                 'assist_blocked_by_course_test',
                 'ai_not_configured',
+                'ai_key_unreadable',
+                'class_key_provider_change_needs_key',
                 'ai_budget_used_up',
                 'override_not_classroom',
                 'override_score_out_of_range',
