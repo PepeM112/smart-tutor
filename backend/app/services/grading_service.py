@@ -1,7 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from anthropic import APIStatusError as AnthropicAPIError
 from anthropic import AuthenticationError as AnthropicAuthError
@@ -22,7 +22,7 @@ from app.models.question import Question
 from app.models.test_result import TestResult
 from app.schemas.question import LongTextContent, RubricItem
 from app.services import space_progress_service
-from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
+from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, parse_ai_json
 from app.services.llm import AIRefusalError, CompletionResult, LLMClient
 from app.services.llm_key_service import resolve_llm, space_id_of_result
 
@@ -48,8 +48,7 @@ def grade(
     """Grade a long-text answer against a rubric via the provided LLM client."""
     user_prompt = build_grading_user_prompt(prompt, rubric, answer)
     completion = llm.complete(system=GRADING_SYSTEM_PROMPT, user_prompt=user_prompt, max_tokens=2048, effort=effort)
-    cleaned = strip_code_fences(completion.text)
-    data: dict[str, list[_RawCriterionDict]] = json.loads(cleaned)
+    data: dict[str, list[_RawCriterionDict]] = cast(dict[str, list[_RawCriterionDict]], parse_ai_json(completion.text))
     criteria = [
         CriterionResult(index=item["index"], met=item["met"], reason=item.get("reason", "")) for item in data["results"]
     ]

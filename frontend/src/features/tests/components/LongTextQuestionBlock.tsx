@@ -6,6 +6,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { LongTextLength, type QuestionType } from '@/client';
 import { AutoTextarea } from '@/components/shared/AutoTextarea';
+import { MarkdownTextarea } from '@/components/shared/MarkdownTextarea';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
@@ -108,7 +110,7 @@ export function LongTextQuestionBlock({ data, onChange, onRemove, index, selecte
       {/* Mobile: row 1 = title + delete, row 2 = selector + points */}
       {/* Desktop: single row with flex-wrap */}
       <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:flex-wrap sm:items-start">
-        <AutoTextarea
+        <MarkdownTextarea
           rows={1}
           placeholder={`${t('test_editor.question_prompt')} (${t('test_editor.question_prompt_example')})`}
           value={data.prompt}
@@ -216,7 +218,7 @@ function CriteriaReadOnly({ criteria }: { criteria: Criterion[] }) {
                 <span className="shrink-0 tabular-nums text-xs text-muted-foreground w-5 text-right">
                   {(c.weight * 100).toFixed(0)}%
                 </span>
-                <span>{c.point || <span className="text-muted-foreground italic">—</span>}</span>
+                {c.point ? <RichText text={c.point} inline /> : <span className="text-muted-foreground italic">—</span>}
               </li>
             ))}
           </ul>

@@ -1,6 +1,7 @@
 'use client';
 
 import { type AnswerRead, QuestionGroupType } from '@/client';
+import { RichText } from '@/components/shared/RichText';
 
 import { QuestionDetailPanel } from './QuestionDetailPanel';
 import { type ResultQuestion } from './resultDetailUtils';
@@ -22,10 +23,10 @@ export function GroupDetailPanel({ type, questions, answerMap }: GroupDetailPane
     <div className="space-y-4">
       {questions.map((q, idx) => (
         <div key={q.id} className="space-y-4 rounded-lg border border-border p-4">
-          <p className="font-medium">
-            <span className="mr-1.5 text-muted-foreground">{idx + 1}.</span>
-            {q.prompt}
-          </p>
+          <div className="flex gap-1.5 font-medium">
+            <span className="shrink-0 text-muted-foreground">{idx + 1}.</span>
+            <RichText text={q.prompt} className="min-w-0 flex-1" />
+          </div>
           <QuestionDetailPanel question={q} answer={answerMap.get(q.id)} />
         </div>
       ))}

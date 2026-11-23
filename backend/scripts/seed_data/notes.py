@@ -93,6 +93,32 @@ NOTES = [
         ),
         "tags": ["history", "wwii", "timeline"],
     },
+    {
+        "title": "Binary Search and Big O",
+        "content": (
+            "# Binary Search and Big O\n\n"
+            "Binary search finds a value in a **sorted** list by halving the search range at each step.\n\n"
+            "```python\n"
+            "def binary_search(items: list[int], target: int) -> int:\n"
+            "    low, high = 0, len(items) - 1\n"
+            "    while low <= high:\n"
+            "        mid = (low + high) // 2\n"
+            "        if items[mid] == target:\n"
+            "            return mid\n"
+            "        if items[mid] < target:\n"
+            "            low = mid + 1\n"
+            "        else:\n"
+            "            high = mid - 1\n"
+            "    return -1\n"
+            "```\n\n"
+            "## Complexity\n"
+            "After $k$ steps at most $n / 2^k$ items remain, so the search ends after "
+            "$k = \\log_2 n$ steps. The time complexity is $O(\\log n)$.\n\n"
+            "$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$\n\n"
+            "The sum above is the cost of a linear scan repeated for every item: $O(n^2)$.\n"
+        ),
+        "tags": ["programming", "algorithms", "math"],
+    },
 ]
 
 

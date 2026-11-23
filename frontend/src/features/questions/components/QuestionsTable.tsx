@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip } from '@/components/ui/tooltip';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
 import { sdk } from '@/lib/apiClient';
+import { toPlainPreview } from '@/lib/plainPreview';
 import { Routes } from '@/lib/routes';
 
 import { AssignDialog } from './AssignDialog';
@@ -100,7 +101,7 @@ export function QuestionsTable({ data, sort, onSort, selectedIds, onSelectionCha
             </Tooltip>
           )}
         </div>
-        <p className="text-sm font-medium text-foreground truncate">{question.prompt}</p>
+        <p className="text-sm font-medium text-foreground truncate">{toPlainPreview(question.prompt)}</p>
       </div>
     ),
     [t]
@@ -254,17 +255,17 @@ function useQuestionsColumns({
           checked={selectedIds.has(row.original.id)}
           onCheckedChange={() => onToggleSelect(row.original.id)}
           onClick={e => e.stopPropagation()}
-          aria-label={t('questions.select_row', { prompt: row.original.prompt })}
+          aria-label={t('questions.select_row', { prompt: toPlainPreview(row.original.prompt) })}
         />
       ),
     },
-    expandToggleColumn<QuestionListRead>(question => question.prompt),
+    expandToggleColumn<QuestionListRead>(question => toPlainPreview(question.prompt)),
     {
       accessorKey: 'prompt',
       meta: { label: t('questions.column_prompt'), sortKey: 'prompt', grow: true },
       cell: ({ row }) => (
         <div className="min-w-0">
-          <p className="font-medium text-foreground truncate">{row.original.prompt}</p>
+          <p className="font-medium text-foreground truncate">{toPlainPreview(row.original.prompt)}</p>
         </div>
       ),
     },

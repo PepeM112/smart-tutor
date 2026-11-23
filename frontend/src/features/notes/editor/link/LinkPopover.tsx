@@ -19,8 +19,9 @@ import { Check, Copy, ExternalLink, Pencil, Unlink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from 'react';
 
-import { HoverHint } from '@/components/ui/hover-hint';
 import { copyText } from '@/lib/copyText';
+
+import { PopoverButton } from '../PopoverButton';
 
 import { normalizeLinkHref, openLink } from './linkHref';
 import { useLinkTarget, type LinkTarget } from './useLinkTarget';
@@ -207,25 +208,3 @@ export function LinkPopover({ editor, containerRef }: LinkPopoverProps) {
 
 const modKey = (): string =>
   typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl+';
-
-type PopoverButtonProps = {
-  label: string;
-  shortcut?: string;
-  onClick: () => void;
-  children: React.ReactNode;
-};
-
-function PopoverButton({ label, shortcut, onClick, children }: PopoverButtonProps) {
-  return (
-    <HoverHint label={label} shortcut={shortcut}>
-      <button
-        type="button"
-        aria-label={label}
-        onClick={onClick}
-        className="flex size-7 shrink-0 items-center justify-center rounded-md text-foreground/70 transition-colors duration-75 hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
-      >
-        {children}
-      </button>
-    </HoverHint>
-  );
-}

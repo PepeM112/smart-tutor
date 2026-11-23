@@ -3,6 +3,7 @@
 import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { toPlainPreview } from '@/lib/plainPreview';
 import { cn } from '@/lib/utils';
 
 import { type ExamEntry, isEntryAnswered } from '../utils/examProgress';
@@ -58,7 +59,7 @@ export function ExamOutline({ entries, activeAnchorId, onJump }: ExamOutlineProp
               )}
             >
               <span className="w-5 shrink-0 text-right text-muted-foreground tabular-nums">{entry.number}</span>
-              <span className="min-w-0 flex-1 truncate">{entry.title}</span>
+              <span className="min-w-0 flex-1 truncate">{toPlainPreview(entry.title)}</span>
               <EntryState entry={entry} />
             </button>
           </li>

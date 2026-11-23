@@ -16,9 +16,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { memo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Routes } from '@/lib/routes';
@@ -87,23 +86,12 @@ export const AssistantBubble = memo(function AssistantBubble({
 // Shared markdown renderer
 // ---------------------------------------------------------------------------
 
-/** Element styles for markdown in the chat. The caller sets the base text size and color with `className`. */
-const MARKDOWN_STYLES = cn(
-  'markdown-body',
-  '[&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0',
+/** Chat-only spacing and heading sizes, on top of the `RichText` styles. Chat text wraps as Markdown does. */
+const CHAT_STYLES = cn(
+  '[&>*+*]:mt-1 [&_p]:whitespace-normal',
   '[&_ul]:pl-4 [&_ol]:pl-4',
-  '[&_strong]:font-semibold',
-  '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs',
-  '[&_pre]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre]:text-xs',
-  '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
-  '[&_h1]:text-[1.25rem] [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-0.5',
-  '[&_h2]:text-[1rem] [&_h2]:font-bold [&_h2]:mt-1.5 [&_h2]:mb-0.5',
-  '[&_h3]:text-[0.875rem] [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0',
-  '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
-  '[&_a]:text-primary [&_a]:underline',
-  '[&_table]:w-full [&_table]:text-xs [&_table]:my-1.5',
-  '[&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-0.5 [&_th]:text-left [&_th]:font-medium',
-  '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5'
+  '[&_h1]:mt-2 [&_h1]:text-[1.25rem] [&_h1]:font-bold [&_h2]:mt-1.5 [&_h2]:text-[1rem] [&_h2]:font-bold [&_h3]:mt-1.5 [&_h3]:text-[0.875rem]',
+  '[&_table]:w-full [&_table]:text-xs [&_th]:text-left [&_th]:font-medium'
 );
 
 type AssistMarkdownProps = {
@@ -115,8 +103,8 @@ type AssistMarkdownProps = {
 
 function AssistMarkdown({ children, className, trailing }: AssistMarkdownProps) {
   return (
-    <div className={cn(MARKDOWN_STYLES, className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+    <div className={className}>
+      <RichText text={children} variant="chat" className={CHAT_STYLES} />
       {trailing}
     </div>
   );
@@ -361,7 +349,7 @@ export const ActionCard = memo(function ActionCard({
               key={q.id}
               className="rounded-lg border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-[11px] leading-[1.4] text-foreground"
             >
-              {q.prompt}
+              <RichText text={q.prompt} />
             </div>
           ))}
         </div>

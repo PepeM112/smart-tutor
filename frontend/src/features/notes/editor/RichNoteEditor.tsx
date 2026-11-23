@@ -16,10 +16,14 @@ import { BlockHandle } from './block/BlockHandle';
 import { createNoteExtensions } from './extensions';
 import { LinkPopover } from './link/LinkPopover';
 import { parseMarkdown, serializeMarkdown } from './markdown';
+import { MathPopover } from './math/MathPopover';
 import { NoteBubbleMenu, type SelectionContext } from './NoteBubbleMenu';
 import { NoteOutline } from './outline/NoteOutline';
 import { TableControls } from './table/TableControls';
+import 'katex/dist/katex.min.css';
+import '@/styles/code-highlight.css';
 import './note-editor.css';
+import './math/note-math.css';
 
 import type { Editor } from '@tiptap/core';
 
@@ -161,6 +165,7 @@ export function RichNoteEditor({
       {editor && editable && <TableControls editor={editor} containerRef={containerRef} />}
       {editor && editable && <BlockHandle editor={editor} containerRef={containerRef} />}
       {editor && editable && <LinkPopover editor={editor} containerRef={containerRef} />}
+      {editor && editable && <MathPopover editor={editor} containerRef={containerRef} />}
       {editor && hasOutline && <NoteOutline editor={editor} containerRef={containerRef} noteId={noteId} />}
     </div>
   );

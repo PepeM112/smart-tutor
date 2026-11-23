@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 import { QuestionType, type QuestionRead } from '@/client';
 import { AutoTextarea } from '@/components/shared/AutoTextarea';
+import { MarkdownTextarea } from '@/components/shared/MarkdownTextarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -129,7 +130,7 @@ export function QuestionForm({ question }: Props) {
 
       <div className="space-y-2">
         <Label>{t('test_editor.question_prompt')}</Label>
-        <AutoTextarea
+        <MarkdownTextarea
           value={data.prompt}
           onChange={e => setField('prompt', e.target.value)}
           placeholder={t('test_editor.question_prompt_example')}
@@ -243,8 +244,9 @@ function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: M
     <div className="space-y-2">
       <Label>{t('questions.options_label')}</Label>
       {data.choices.map((choice, i) => (
-        <div key={i} className="flex items-center gap-2">
+        <div key={i} className="flex items-start gap-2">
           <Checkbox
+            className="mt-1.5"
             checked={choice.isCorrect}
             onCheckedChange={checked => {
               const updated = [...data.choices];
@@ -252,7 +254,7 @@ function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: M
               onChange({ ...data, choices: updated });
             }}
           />
-          <Input
+          <MarkdownTextarea
             value={choice.text}
             onChange={e => {
               const updated = [...data.choices];
@@ -265,7 +267,8 @@ function MCChoicesEditor({ data, onChange }: { data: MCFormData; onChange: (d: M
           {data.choices.length > 2 && (
             <Button
               variant="ghost"
-              size="icon-lg"
+              size="icon"
+              aria-label={t('common.delete')}
               onClick={() => onChange({ ...data, choices: data.choices.filter((_, j) => j !== i) })}
             >
               <Trash2 className="size-4 text-destructive" />

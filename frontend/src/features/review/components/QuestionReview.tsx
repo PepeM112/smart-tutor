@@ -4,13 +4,15 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Circle, MinusCircle, XCircle }
 import { useTranslations } from 'next-intl';
 
 import { AnswerStatus, type QuestionReadStripped, QuestionType, type SrsStateResponse } from '@/client';
+import { OptionRow } from '@/components/shared/OptionRow';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { parseMcAnswer, toggleMcOption } from '@/features/tests/utils/questionContent';
 import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
 import { formatDate } from '@/lib/datetime';
+import { shouldToggleOnRowClick } from '@/lib/optionRowClick';
 import { cn } from '@/lib/utils';
 
 import { feedbackBg, feedbackTextColor, statusLabelKey } from '../helpers';
@@ -60,7 +62,7 @@ export function QuestionReview({
     <>
       <div className="mx-auto max-w-2xl rounded-xl border border-border bg-card p-8 space-y-6">
         <div className="text-center space-y-2">
-          <p className="text-lg font-semibold">{question.prompt}</p>
+          <RichText text={question.prompt} className="text-lg font-semibold [&_pre]:text-left" />
           {question.hint && (
             <p className="text-sm text-muted-foreground italic">{t('review.hint', { hint: question.hint })}</p>
           )}
@@ -189,16 +191,17 @@ function MultipleChoiceInput({
               'flex items-center gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors',
               checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
             )}
-            onClick={() => onToggle(idx)}
+            onClick={e => shouldToggleOnRowClick(e) && onToggle(idx)}
           >
-            <Checkbox id={`review-opt-${idx}`} checked={checked} onCheckedChange={() => onToggle(idx)} />
-            <Label
-              htmlFor={`review-opt-${idx}`}
-              className="text-sm cursor-pointer flex-1"
-              onClick={e => e.preventDefault()}
-            >
-              {option}
-            </Label>
+            <Checkbox
+              id={`review-opt-${idx}`}
+              aria-labelledby={`review-opt-${idx}-label`}
+              checked={checked}
+              onCheckedChange={() => onToggle(idx)}
+            />
+            <div id={`review-opt-${idx}-label`} className="min-w-0 flex-1 text-sm">
+              <RichText text={option} />
+            </div>
           </div>
         );
       })}
@@ -243,10 +246,13 @@ function MultipleChoiceReview({
         }
 
         return (
-          <div key={idx} className={cn('flex items-center gap-2 rounded-md px-3 py-2', bg)}>
-            <Icon className={cn('size-4 shrink-0', iconColor)} />
-            <span className="text-sm">{option}</span>
-          </div>
+          <OptionRow
+            key={idx}
+            icon={<Icon className={cn('size-4 shrink-0', iconColor)} />}
+            text={option}
+            className={cn('items-center rounded-md px-3 py-2', bg)}
+            textClassName="text-sm"
+          />
         );
       })}
     </div>

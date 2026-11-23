@@ -18,7 +18,12 @@ import pytest
 
 from app.core.enums import AnswerStatus, LongTextLength
 from app.schemas.question import LongTextContent, RubricItem
-from app.services.grading_prompts import GRADING_SYSTEM_PROMPT, build_grading_user_prompt, strip_code_fences
+from app.services.grading_prompts import (
+    GRADING_SYSTEM_PROMPT,
+    build_grading_user_prompt,
+    parse_ai_json,
+    strip_code_fences,
+)
 from app.services.grading_service import (
     CriterionResult,
     _build_rubric_result,
@@ -93,6 +98,31 @@ class TestStripCodeFences:
     def test_strips_surrounding_whitespace(self) -> None:
         raw = '  \n {"results": []}  \n '
         assert strip_code_fences(raw) == '{"results": []}'
+
+
+class TestParseAiJson:
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            (r'{"a": "costs \$5"}', r"costs \$5"),
+            (r'{"a": "\sqrt{2}"}', r"\sqrt{2}"),
+            (r'{"a": "\frac{1}{2}"}', r"\frac{1}{2}"),
+            (r'{"a": "\beta"}', r"\beta"),
+            (r'{"a": "\binom{n}{k}"}', r"\binom{n}{k}"),
+            (r'{"a": "\\frac{1}{2}"}', r"\frac{1}{2}"),
+            (r'{"a": "line\nbreak"}', "line\nbreak"),
+            (r'{"a": "say \"hi\""}', 'say "hi"'),
+            (r'{"a": "caf\u00e9"}', "café"),
+            ('{"a": "café"}', "café"),
+            ('```json\n{"a": "\\alpha"}\n```', r"\alpha"),
+        ],
+    )
+    def test_parses_latex_and_valid_escapes(self, raw: str, expected: str) -> None:
+        assert parse_ai_json(raw) == {"a": expected}
+
+    def test_still_raises_on_invalid_json(self) -> None:
+        with pytest.raises(json.JSONDecodeError):
+            parse_ai_json("not json")
 
 
 # ---------------------------------------------------------------------------

@@ -356,59 +356,6 @@
   overflow-wrap: anywhere;
 }
 
-/* The code block is always dark, so one palette serves every theme. */
-.note-editor-content pre .hljs-comment,
-.note-editor-content pre .hljs-quote {
-  color: #7f848e;
-  font-style: italic;
-}
-
-.note-editor-content pre .hljs-keyword,
-.note-editor-content pre .hljs-selector-tag,
-.note-editor-content pre .hljs-doctag {
-  color: #c678dd;
-}
-
-.note-editor-content pre .hljs-string,
-.note-editor-content pre .hljs-regexp,
-.note-editor-content pre .hljs-addition {
-  color: #98c379;
-}
-
-.note-editor-content pre .hljs-number,
-.note-editor-content pre .hljs-literal,
-.note-editor-content pre .hljs-attr,
-.note-editor-content pre .hljs-attribute {
-  color: #d19a66;
-}
-
-.note-editor-content pre .hljs-title,
-.note-editor-content pre .hljs-section,
-.note-editor-content pre .hljs-function .hljs-title {
-  color: #61afef;
-}
-
-.note-editor-content pre .hljs-built_in,
-.note-editor-content pre .hljs-type,
-.note-editor-content pre .hljs-class .hljs-title {
-  color: #e5c07b;
-}
-
-.note-editor-content pre .hljs-variable,
-.note-editor-content pre .hljs-template-variable,
-.note-editor-content pre .hljs-name,
-.note-editor-content pre .hljs-tag,
-.note-editor-content pre .hljs-deletion {
-  color: #e06c75;
-}
-
-.note-editor-content pre .hljs-meta,
-.note-editor-content pre .hljs-symbol,
-.note-editor-content pre .hljs-bullet,
-.note-editor-content pre .hljs-link {
-  color: #56b6c2;
-}
-
 /* ── Table ──────────────────────────────────────────────────── */
 
 /* Colors come from the --note-table-* tokens (defined below, per theme).

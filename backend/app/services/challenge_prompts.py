@@ -1,5 +1,7 @@
 import json
 
+from app.services.content_format_prompts import FEEDBACK_FORMAT_PROMPT
+
 CHALLENGE_SYSTEM_PROMPT = """\
 You are a fair but strict academic evaluator performing a re-evaluation. \
 A student has challenged your original grading. You must ONLY reverse a \
@@ -32,6 +34,8 @@ Respond ONLY with a JSON object matching this interface:
   ]
 }
 Do not include any other text."""
+
+CHALLENGE_SYSTEM_PROMPT += "\n\n" + FEEDBACK_FORMAT_PROMPT
 
 
 def build_challenge_user_prompt(

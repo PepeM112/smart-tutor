@@ -372,8 +372,93 @@ def seed_tests(db: Session, user_id: str) -> dict[str, Test]:
     ]
     db.add(t4)
 
+    # ── Test 5: Rich content (code, math, escaped dollar) ──
+    t5 = Test(
+        user_id=user_id,
+        title="Code and Math — Rich Content",
+        description="Markdown code blocks and KaTeX math in prompts, options and rubric criteria",
+    )
+    t5.questions = [
+        Question(
+            question_type=QuestionType.SIMPLE,
+            prompt="What does this Python code print?\n\n```python\nitems = [3, 1, 2]\nitems.sort()\nprint(items[0])\n```",
+            content={"answers": ["1"]},
+            explanation="`sort()` orders the list in place, so index 0 holds the smallest value.",
+            order=0,
+        ),
+        Question(
+            question_type=QuestionType.SIMPLE,
+            prompt="Which SQL keyword removes duplicate rows from the result?\n\n"
+            "```sql\nSELECT ____ country FROM customers;\n```",
+            content={"answers": ["DISTINCT"]},
+            order=1,
+        ),
+        Question(
+            question_type=QuestionType.SIMPLE,
+            prompt="Solve for $x$: $2x + 6 = 14$",
+            content={"answers": ["4", "x=4"]},
+            order=2,
+        ),
+        Question(
+            question_type=QuestionType.SIMPLE,
+            prompt="Evaluate the integral:\n\n$$\\int_0^1 2x\\,dx$$",
+            content={"answers": ["1"]},
+            order=3,
+        ),
+        Question(
+            question_type=QuestionType.MULTIPLE_CHOICE,
+            prompt="Which snippet reverses a list in Python?",
+            content={
+                "options": [
+                    "```python\nitems.reverse()\n```",
+                    "```python\nitems.sort()\n```",
+                    "```python\nitems.pop()\n```",
+                ],
+                "correct_indices": [0],
+            },
+            order=4,
+        ),
+        Question(
+            question_type=QuestionType.MULTIPLE_CHOICE,
+            prompt="Which of these are equal to $\\frac{1}{2}$?",
+            content={
+                "options": ["$0.5$", "$\\frac{2}{4}$", "$\\frac{2}{3}$", "$\\sqrt{\\frac{1}{4}}$"],
+                "correct_indices": [0, 1, 3],
+            },
+            order=5,
+        ),
+        Question(
+            question_type=QuestionType.SIMPLE,
+            prompt="A coffee costs \\$5 and a sandwich costs \\$7. How much do they cost together? (number only)",
+            content={"answers": ["12"]},
+            order=6,
+        ),
+        Question(
+            question_type=QuestionType.LONG_TEXT,
+            order=7,
+            points=2.0,
+            prompt="Explain why binary search needs a sorted list and state its time complexity.",
+            content={
+                "length_limit": 1,
+                "rubric": [
+                    {
+                        "point": "States that the list must be sorted so that each comparison can discard half of it",
+                        "weight": 0.5,
+                        "category": "Concept",
+                    },
+                    {
+                        "point": "Gives the time complexity $O(\\log n)$ and explains that the search range halves each step",
+                        "weight": 0.5,
+                        "category": "Complexity",
+                    },
+                ],
+            },
+        ),
+    ]
+    db.add(t5)
+
     # Set user_id on all questions (required NOT NULL field)
-    for test in [t1, t2, t3, t4]:
+    for test in [t1, t2, t3, t4, t5]:
         for q in test.questions:
             q.user_id = user_id
         for g in test.question_groups:
@@ -381,4 +466,4 @@ def seed_tests(db: Session, user_id: str) -> dict[str, Test]:
                 q.user_id = user_id
 
     db.flush()
-    return {"spanish_vocab": t1, "geography": t2, "spanish_mc": t3, "history": t4}
+    return {"spanish_vocab": t1, "geography": t2, "spanish_mc": t3, "history": t4, "rich_content": t5}

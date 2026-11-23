@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { AnswerStatus, type AnswerRead, QuestionType } from '@/client';
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
 import { QueryState } from '@/components/shared/QueryState';
+import { RichText } from '@/components/shared/RichText';
 import { Routes } from '@/lib/routes';
 
 import { useResultTest } from '../hooks/useResultTest';
@@ -89,7 +90,7 @@ export function ResultPreviewPanel({ resultId, onClose }: Props) {
                   <div className="ml-4 space-y-3 rounded-lg bg-muted/40 p-3">
                     {(item.group.questions ?? []).map(question => (
                       <div key={question.id} className="space-y-1">
-                        <p className="text-sm font-medium">{question.prompt}</p>
+                        <RichText text={question.prompt} className="text-sm font-medium" />
                         <AnswerSummary question={question} answer={answerMap.get(question.id)} />
                       </div>
                     ))}

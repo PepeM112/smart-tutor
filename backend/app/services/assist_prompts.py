@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.schemas.assist import PageContext
+from app.services.content_format_prompts import CONTENT_FORMAT_PROMPT
 
 ASSIST_SYSTEM_PROMPT = """\
 You are SmartTutor Assistant — a helpful AI built into a self-paced learning \
@@ -128,6 +129,14 @@ which is Multiple Choice?"
 permissions; appearance = theme, font size, language)
 - /stats — AI usage statistics
 """
+
+ASSIST_SYSTEM_PROMPT += (
+    "\n## Code and math\n\n"
+    "The chat and the question text render Markdown with math. When you show code or a formula in a reply, "
+    "use the format below.\n\n" + CONTENT_FORMAT_PROMPT + "\n"
+    "In your chat replies (not in question text you write with a tool), write math only between double dollar "
+    "signs ($$...$$). A single $ is plain text in chat, so write prices as $5 and never wrap them in math.\n"
+)
 
 
 def build_system_prompt(page_context: PageContext | None) -> str:

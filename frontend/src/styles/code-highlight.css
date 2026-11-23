@@ -1,0 +1,55 @@
+/* stylelint-disable selector-class-pattern -- highlight.js owns these class names (hljs-built_in). */
+
+/* Token colors for highlight.js classes (notes, question text, chat).
+   The code block is always dark, so one palette serves every theme. */
+pre .hljs-comment,
+pre .hljs-quote {
+  color: #7f848e;
+  font-style: italic;
+}
+
+pre .hljs-keyword,
+pre .hljs-selector-tag,
+pre .hljs-doctag {
+  color: #c678dd;
+}
+
+pre .hljs-string,
+pre .hljs-regexp,
+pre .hljs-addition {
+  color: #98c379;
+}
+
+pre .hljs-number,
+pre .hljs-literal,
+pre .hljs-attr,
+pre .hljs-attribute {
+  color: #d19a66;
+}
+
+pre .hljs-title,
+pre .hljs-section,
+pre .hljs-function .hljs-title {
+  color: #61afef;
+}
+
+pre .hljs-built_in,
+pre .hljs-type,
+pre .hljs-class .hljs-title {
+  color: #e5c07b;
+}
+
+pre .hljs-variable,
+pre .hljs-template-variable,
+pre .hljs-name,
+pre .hljs-tag,
+pre .hljs-deletion {
+  color: #e06c75;
+}
+
+pre .hljs-meta,
+pre .hljs-symbol,
+pre .hljs-bullet,
+pre .hljs-link {
+  color: #56b6c2;
+}

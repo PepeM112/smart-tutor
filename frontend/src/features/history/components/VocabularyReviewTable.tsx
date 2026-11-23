@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 
 import { type AnswerRead } from '@/client';
+import { RichText } from '@/components/shared/RichText';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +47,7 @@ export function VocabularyReviewTable({
             <TableRow key={q.id}>
               <TableCell className="text-muted-foreground font-medium">{idx + 1}</TableCell>
               <TableCell className="font-medium">
-                {q.prompt}
+                <RichText text={q.prompt} inline />
                 {q.hint && <span className="text-xs text-muted-foreground italic ml-2">({q.hint})</span>}
               </TableCell>
               <TableCell>
