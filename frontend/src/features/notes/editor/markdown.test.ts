@@ -20,7 +20,6 @@ import { readFileSync } from 'node:fs';
 import { Editor } from '@tiptap/core';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
-import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -28,6 +27,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NoteCallout } from './callout/noteCallout';
 import { NoteLink } from './link/noteLink';
 import { parseMarkdown, serializeMarkdown, selectionToMarkdown, replaceSelectionWithMarkdown } from './markdown';
+import { createNoteMathExtensions, NoteMarkdown } from './math/noteMath';
 import { NoteCodeBlock } from './noteCodeBlock';
 import { NoteColorMark } from './noteColor';
 import { createNoteTableExtensions } from './table/noteTable';
@@ -47,7 +47,7 @@ beforeAll(() => {
         codeBlock: false,
         heading: { levels: [1, 2, 3] },
       }),
-      Markdown,
+      NoteMarkdown,
       NoteLink.configure({ openOnClick: false, autolink: true }),
       ...createNoteTableExtensions(),
       TaskList,
@@ -57,6 +57,7 @@ beforeAll(() => {
       NoteCallout,
       NoteToggle,
       NoteToggleSummary,
+      ...createNoteMathExtensions(),
     ],
     content: '',
   });
@@ -572,5 +573,121 @@ describe('replaceSelectionWithMarkdown', () => {
 
     const output = serializeMarkdown(editor);
     expect(output).toContain('Updated');
+  });
+});
+
+describe('math round-trip', () => {
+  // The serializer ends a document that finishes with a block (code, list, math) with blank lines.
+  const trip = (md: string): string => roundTrip(md).trimEnd();
+
+  const nodeTypes = (): string[] => {
+    const types: string[] = [];
+    editor.state.doc.descendants(node => {
+      types.push(node.type.name);
+    });
+    return types;
+  };
+
+  it('inline math round-trips exactly and becomes a node', () => {
+    const md = 'Energy is $E = mc^2$ here.';
+    expect(trip(md)).toBe(md);
+    expect(nodeTypes()).toContain('inlineMath');
+  });
+
+  it('block math round-trips exactly and becomes a node', () => {
+    const md = 'Before\n\n$$\n\\frac{a}{b} = c\n$$\n\nAfter';
+    expect(trip(md)).toBe(md);
+    expect(nodeTypes()).toContain('blockMath');
+  });
+
+  it('one-line block math is saved in the multi-line form', () => {
+    const once = trip('$$x^2$$');
+    expect(once).toBe('$$\nx^2\n$$');
+    expect(trip(once)).toBe(once);
+  });
+
+  it('multi-line block math keeps its lines', () => {
+    const md = '$$\na = b \\\\\nc = d\n$$';
+    expect(trip(md)).toBe(md);
+  });
+
+  it('an escaped dollar stays text', () => {
+    const md = 'It costs \\$5 today.';
+    expect(trip(md)).toBe(md);
+    expect(nodeTypes()).not.toContain('inlineMath');
+  });
+
+  it('two escaped dollars in a line do not make math', () => {
+    const md = 'From \\$5 to \\$10.';
+    expect(trip(md)).toBe(md);
+    expect(nodeTypes()).not.toContain('inlineMath');
+  });
+
+  it('unescaped currency is text and is saved escaped', () => {
+    expect(trip('Pay $5 or $10 now.')).toBe('Pay \\$5 or \\$10 now.');
+    expect(nodeTypes()).not.toContain('inlineMath');
+  });
+
+  it('keeps an escaped dollar inside the latex', () => {
+    const md = 'Cost $a \\$ b$ end.';
+    expect(trip(md)).toBe(md);
+    expect(nodeTypes()).toContain('inlineMath');
+  });
+
+  it('a dollar in inline code stays text', () => {
+    const md = 'Use `echo $HOME and $PATH` here.';
+    expect(trip(md)).toBe(md);
+    expect(nodeTypes()).not.toContain('inlineMath');
+  });
+
+  it('math markers in a code block stay text', () => {
+    const md = '```bash\necho $a$ $$\nx\n$$\n```';
+    expect(trip(md)).toBe(md);
+    expect(nodeTypes()).not.toContain('inlineMath');
+    expect(nodeTypes()).not.toContain('blockMath');
+  });
+
+  it('math inside bold and a list item survives', () => {
+    const md = '- **Area** is $\\pi r^2$\n- Next';
+    expect(trip(md)).toBe(md);
+  });
+
+  it('a note with math and a code block', () => {
+    const md = [
+      '# Circle',
+      '',
+      'The area is $A = \\pi r^2$.',
+      '',
+      '$$',
+      '\\int_0^1 x\\,dx = \\frac{1}{2}',
+      '$$',
+      '',
+      '```python',
+      'price = "$5"',
+      '```',
+    ].join('\n');
+    expect(trip(md)).toBe(md);
+    assertStable(md);
+  });
+
+  it('an empty math node is not saved', () => {
+    editor.commands.setContent({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'a' },
+            { type: 'inlineMath', attrs: { latex: '' } },
+          ],
+        },
+      ],
+    });
+    expect(serializeMarkdown(editor)).toBe('a');
+  });
+
+  it('invalid latex is kept as written', () => {
+    const md = 'Bad $\\frac{1$ math.';
+    expect(trip(md)).toBe(md);
   });
 });

@@ -17,10 +17,11 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
+import { RichText } from '@/components/RichText';
 import { Button } from '@/components/ui/button';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { RICH_REHYPE_PLUGINS, RICH_REMARK_PLUGINS } from '@/lib/richTextPlugins';
 import { Routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
@@ -94,7 +95,7 @@ const MARKDOWN_STYLES = cn(
   '[&_ul]:pl-4 [&_ol]:pl-4',
   '[&_strong]:font-semibold',
   '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs',
-  '[&_pre]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-2.5 [&_pre]:text-xs',
+  '[&_pre]:my-1.5 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-code-bg [&_pre]:p-2.5 [&_pre]:text-xs [&_pre]:text-code-fg',
   '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
   '[&_h1]:text-[1.25rem] [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-0.5',
   '[&_h2]:text-[1rem] [&_h2]:font-bold [&_h2]:mt-1.5 [&_h2]:mb-0.5',
@@ -116,7 +117,9 @@ type AssistMarkdownProps = {
 function AssistMarkdown({ children, className, trailing }: AssistMarkdownProps) {
   return (
     <div className={cn(MARKDOWN_STYLES, className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={RICH_REMARK_PLUGINS} rehypePlugins={RICH_REHYPE_PLUGINS}>
+        {children}
+      </ReactMarkdown>
       {trailing}
     </div>
   );
@@ -361,7 +364,7 @@ export const ActionCard = memo(function ActionCard({
               key={q.id}
               className="rounded-lg border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-[11px] leading-[1.4] text-foreground"
             >
-              {q.prompt}
+              <RichText text={q.prompt} />
             </div>
           ))}
         </div>

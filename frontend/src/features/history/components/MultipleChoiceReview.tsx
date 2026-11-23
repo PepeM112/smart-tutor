@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Circle, MinusCircle, XCircle } from 'lucide-react';
 
+import { RichText } from '@/components/RichText';
 import { isMCContent } from '@/features/tests/utils/questionContent';
 import { cn } from '@/lib/utils';
 
@@ -47,9 +48,9 @@ export function MultipleChoiceReview({ question, userAnswer }: { question: Resul
         }
 
         return (
-          <div key={idx} className={cn('flex items-center gap-2 rounded-md px-2.5 py-1.5', bg)}>
-            <Icon className={cn('size-4 shrink-0', iconColor)} />
-            <span className="text-sm">{option}</span>
+          <div key={idx} className={cn('flex items-start gap-2 rounded-md px-2.5 py-1.5', bg)}>
+            <Icon className={cn('mt-0.5 size-4 shrink-0', iconColor)} />
+            <RichText text={option} className="min-w-0 text-sm" />
           </div>
         );
       })}

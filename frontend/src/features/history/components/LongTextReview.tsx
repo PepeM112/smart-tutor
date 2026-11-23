@@ -4,6 +4,7 @@ import { Check, Clock, Loader2, RotateCcw, Scale, Send, ShieldCheck, X } from 'l
 import { useTranslations } from 'next-intl';
 
 import { AnswerStatus, type AnswerRead, type RubricResultItem } from '@/client';
+import { RichText } from '@/components/RichText';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/useAiAvailable';
@@ -207,14 +208,14 @@ function CriterionCard({
     <>
       <span className="block min-w-0 flex-1 space-y-0.5">
         <span className="block text-sm">
-          {item.point}
+          <RichText text={item.point} inline />
           <span className="ml-1.5 text-muted-foreground tabular-nums">({item.weight.toFixed(2)})</span>
         </span>
-        {item.reason && <span className="block text-xs text-muted-foreground italic">{item.reason}</span>}
+        {item.reason && <RichText text={item.reason} inline className="block text-xs text-muted-foreground italic" />}
         {(isOverturned || isUpheld) && cr?.reason && (
           <span className="mt-1 flex items-start gap-1.5 text-xs text-feedback-partial italic">
             <Scale className="mt-0.5 size-3 shrink-0" aria-hidden />
-            {cr.reason}
+            <RichText text={cr.reason} inline />
           </span>
         )}
       </span>

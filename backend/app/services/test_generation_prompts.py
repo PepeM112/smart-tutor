@@ -1,4 +1,5 @@
 from app.core.enums import QuestionType
+from app.services.content_format_prompts import CONTENT_FORMAT_PROMPT, JSON_ESCAPE_PROMPT
 
 TEST_GENERATION_SYSTEM_PROMPT = """\
 You are a test question generator for an educational platform. Your job is to \
@@ -72,6 +73,8 @@ General rules:
 - Questions must be directly answerable from the provided study material
 - Do not invent facts not present in the notes\
 """
+
+TEST_GENERATION_SYSTEM_PROMPT += "\n\n" + CONTENT_FORMAT_PROMPT + "\n" + JSON_ESCAPE_PROMPT
 
 _DIFFICULTY_GUIDANCE: dict[str, str] = {
     "easy": (

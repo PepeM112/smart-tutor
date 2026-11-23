@@ -11,6 +11,7 @@ import {
   type TestQuestionGroupReadStripped,
   type TestReadStripped,
 } from '@/client';
+import { RichText } from '@/components/RichText';
 import { OutlineColumn } from '@/components/shared/OutlineColumn';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -203,7 +204,7 @@ function ExamSection({ item, anchorId, number, answers, onTextChange, onCheckbox
       points: questionPoints(question),
     });
     return (
-      <SectionFrame anchorId={anchorId} titleId={titleId} meta={meta} title={question.prompt}>
+      <SectionFrame anchorId={anchorId} titleId={titleId} meta={meta} title={<RichText text={question.prompt} />}>
         <QuestionBody
           question={question}
           answer={answers[question.id] ?? ''}
@@ -224,7 +225,7 @@ function ExamSection({ item, anchorId, number, answers, onTextChange, onCheckbox
       anchorId={anchorId}
       titleId={titleId}
       meta={meta}
-      title={item.group.title ?? t('exam.question_group')}
+      title={item.group.title ? <RichText text={item.group.title} /> : t('exam.question_group')}
     >
       <GroupBody group={item.group} answers={answers} onTextChange={onTextChange} onCheckboxToggle={onCheckboxToggle} />
     </SectionFrame>
@@ -235,7 +236,7 @@ interface SectionFrameProps {
   anchorId: string;
   titleId: string;
   meta: string;
-  title: string;
+  title: ReactNode;
   children: ReactNode;
 }
 
@@ -244,9 +245,10 @@ function SectionFrame({ anchorId, titleId, meta, title, children }: SectionFrame
     <section id={anchorId} aria-labelledby={titleId} className="scroll-mt-4 space-y-4 py-8 first:pt-0">
       <div className="space-y-2">
         <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">{meta}</p>
-        <h2 id={titleId} className="font-serif text-xl font-medium text-balance">
+        {/* A div, not an h2: the title can hold block Markdown (code, lists). */}
+        <div id={titleId} role="heading" aria-level={2} className="font-serif text-xl font-medium text-balance">
           {title}
-        </h2>
+        </div>
       </div>
       {children}
     </section>
@@ -269,7 +271,7 @@ function GroupBody({ group, answers, onTextChange, onCheckboxToggle }: GroupBody
     <div className="space-y-4">
       {questions.map(question => (
         <div key={question.id} className="space-y-3 rounded-lg bg-muted/40 p-4">
-          <p className="font-medium">{question.prompt}</p>
+          <RichText text={question.prompt} className="font-medium" />
           <QuestionBody
             question={question}
             answer={answers[question.id] ?? ''}
@@ -309,7 +311,7 @@ function VocabularyTable({ questions, answers, onTextChange }: VocabularyTablePr
           <TableRow key={q.id}>
             <TableCell className="text-muted-foreground font-medium">{idx + 1}</TableCell>
             <TableCell className="font-medium">
-              {q.prompt}
+              <RichText text={q.prompt} inline />
               {q.hint && <span className="text-xs text-muted-foreground italic ml-2">({q.hint})</span>}
             </TableCell>
             <TableCell>
@@ -383,7 +385,7 @@ function QuestionBody({ question, answer, onTextChange, onCheckboxToggle }: Ques
                   checked={checked}
                   onCheckedChange={() => onCheckboxToggle(question.id, idx)}
                 />
-                {option}
+                <RichText text={option} className="min-w-0" />
               </Label>
             );
           })}

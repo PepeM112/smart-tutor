@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 
 import { type AnswerRead } from '@/client';
+import { RichText } from '@/components/RichText';
 import { Button } from '@/components/ui/button';
 import { QUESTION_TYPE_LABEL_KEYS } from '@/features/tests/constants';
 
@@ -62,7 +63,10 @@ function EntryHeader({ entry, item }: Pick<ResultEntryDetailProps, 'entry' | 'it
           </span>
         </p>
       </div>
-      <h2 className="font-serif text-xl font-medium text-balance">{entry.title}</h2>
+      {/* A div, not an h2: the title can hold block Markdown (code, lists). */}
+      <div role="heading" aria-level={2} className="font-serif text-xl font-medium text-balance">
+        <RichText text={entry.title} />
+      </div>
     </header>
   );
 }

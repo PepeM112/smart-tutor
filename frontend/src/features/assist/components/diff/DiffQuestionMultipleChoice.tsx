@@ -1,5 +1,6 @@
 import { Check, X } from 'lucide-react';
 
+import { RichText } from '@/components/RichText';
 import { isMCContent } from '@/features/tests/utils/questionContent';
 
 import type { DiffQuestionProps } from './types';
@@ -12,7 +13,7 @@ export function DiffQuestionMultipleChoice({ old: oldQ, new: newQ }: DiffQuestio
   return (
     <div className="space-y-2">
       <div className="rounded-lg border border-feedback-wrong-border bg-feedback-wrong-bg p-3 space-y-2">
-        <p className="text-sm text-foreground font-medium">{oldQ.prompt}</p>
+        <RichText text={oldQ.prompt} className="text-sm text-foreground font-medium" />
         <div className="space-y-1 pl-1">
           {oldContent.options.map((opt, i) => (
             <div key={i} className="flex items-start gap-2 text-xs text-foreground/80">
@@ -21,14 +22,14 @@ export function DiffQuestionMultipleChoice({ old: oldQ, new: newQ }: DiffQuestio
               ) : (
                 <X className="size-3.5 shrink-0 mt-0.5 text-feedback-wrong" />
               )}
-              <span>{opt}</span>
+              <RichText text={opt} className="min-w-0" />
             </div>
           ))}
         </div>
       </div>
 
       <div className="rounded-lg border border-feedback-correct-border bg-feedback-correct-bg p-3 space-y-2">
-        <p className="text-sm text-foreground font-medium">{newQ.prompt}</p>
+        <RichText text={newQ.prompt} className="text-sm text-foreground font-medium" />
         <div className="space-y-1 pl-1">
           {newContent.options.map((opt, i) => (
             <div key={i} className="flex items-start gap-2 text-xs text-foreground/80">
@@ -37,7 +38,7 @@ export function DiffQuestionMultipleChoice({ old: oldQ, new: newQ }: DiffQuestio
               ) : (
                 <X className="size-3.5 shrink-0 mt-0.5 text-feedback-wrong" />
               )}
-              <span>{opt}</span>
+              <RichText text={opt} className="min-w-0" />
             </div>
           ))}
         </div>

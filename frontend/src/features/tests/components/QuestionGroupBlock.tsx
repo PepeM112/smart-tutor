@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 
 import { QuestionGroupType } from '@/client';
-import { AutoTextarea } from '@/components/shared/AutoTextarea';
+import { RichText } from '@/components/RichText';
+import { MarkdownTextarea } from '@/components/shared/MarkdownTextarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 
 import { QuestionBlockAction } from './QuestionBlockAction';
 import { QuestionBlockWrapper } from './QuestionBlockWrapper';
-import { QuestionCardHeader } from './QuestionCardHeader';
+import { PromptLine, QuestionCardHeader } from './QuestionCardHeader';
 
 export type SimpleRow = {
   /** Backend question ID. Undefined for newly-added, not-yet-saved rows. */
@@ -80,13 +81,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, index, selected, 
     const prefix = index != null ? `${index + 1}. ` : '';
     return (
       <QuestionBlockWrapper mode="view" selected={selected} onClick={onClick} className="px-4 py-3 sm:px-6">
-        <p className="text-sm font-medium">
-          {prefix}
-          {row.prompt || <span className="text-muted-foreground italic">—</span>}
-          <span className="ml-1.5 text-sm font-normal tabular-nums text-muted-foreground">
-            ({t('common.points_abbr', { count: data.points })})
-          </span>
-        </p>
+        <PromptLine prefix={prefix} text={row.prompt || '—'} points={t('common.points_abbr', { count: data.points })} />
         <p className="text-[0.8rem] text-muted-foreground mt-0.5 ml-2">
           {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
         </p>
@@ -110,7 +105,11 @@ export function QuestionGroupBlock({ data, onChange, onRemove, index, selected, 
                 {data.rows.map((row, i) => (
                   <tr key={i}>
                     <td className="py-1.5 pr-4 font-medium">
-                      {row.prompt || <span className="text-muted-foreground italic">—</span>}
+                      {row.prompt ? (
+                        <RichText text={row.prompt} inline />
+                      ) : (
+                        <span className="text-muted-foreground italic">—</span>
+                      )}
                     </td>
                     <td className="py-1.5 text-muted-foreground">
                       {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
@@ -123,7 +122,11 @@ export function QuestionGroupBlock({ data, onChange, onRemove, index, selected, 
             <div className="space-y-2 text-[0.8rem]">
               {data.rows.map((row, i) => (
                 <div key={i} className="space-y-0.5">
-                  <p className="font-medium">{row.prompt || <span className="text-muted-foreground italic">—</span>}</p>
+                  {row.prompt ? (
+                    <RichText text={row.prompt} className="font-medium" />
+                  ) : (
+                    <p className="font-medium text-muted-foreground italic">—</p>
+                  )}
                   <p className="text-muted-foreground pl-2">
                     {row.answers.filter(Boolean).join(', ') || <span className="italic">—</span>}
                   </p>
@@ -140,7 +143,7 @@ export function QuestionGroupBlock({ data, onChange, onRemove, index, selected, 
   return (
     <QuestionBlockWrapper mode="edit" selected={selected} onClick={onClick}>
       <div className="flex items-start gap-2 mb-3">
-        <AutoTextarea
+        <MarkdownTextarea
           rows={1}
           placeholder={t('test_editor.group_title')}
           value={data.title}
@@ -214,8 +217,9 @@ export function QuestionGroupBlock({ data, onChange, onRemove, index, selected, 
       ) : (
         <div className="space-y-3">
           {data.rows.map((row, i) => (
-            <div key={i} className="flex items-center gap-2 max-sm:flex-col max-sm:items-stretch">
-              <Input
+            <div key={i} className="flex items-start gap-2 max-sm:flex-col max-sm:items-stretch">
+              <MarkdownTextarea
+                rows={1}
                 placeholder={t('test_editor.prompt')}
                 value={row.prompt}
                 onChange={e => updateRow(i, { prompt: e.target.value })}

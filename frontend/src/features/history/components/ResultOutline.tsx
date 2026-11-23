@@ -7,6 +7,7 @@ import { AnswerStatus, type TestResultRead } from '@/client';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useDateTimePrefs } from '@/hooks/useDateTimePrefs';
 import { formatDate } from '@/lib/datetime';
+import { toPlainPreview } from '@/lib/plainPreview';
 import { cn } from '@/lib/utils';
 
 import { formatPoints, summarizeEntries, type ResultEntry } from '../utils/resultEntries';
@@ -112,7 +113,7 @@ function EntryRow({ entry, isSelected, onSelect }: EntryRowProps) {
     >
       <span className="flex items-baseline gap-2">
         <span className="w-5 shrink-0 text-right text-muted-foreground tabular-nums">{entry.number}</span>
-        <span className="min-w-0 flex-1 truncate">{entry.title}</span>
+        <span className="min-w-0 flex-1 truncate">{toPlainPreview(entry.title)}</span>
       </span>
       <span className="flex items-center gap-2 pl-7">
         <ResultMark status={entry.status} />

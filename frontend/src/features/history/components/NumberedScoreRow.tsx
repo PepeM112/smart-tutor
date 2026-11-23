@@ -1,4 +1,5 @@
 import { getScoreTextColor } from '@/features/history/utils/scoreColors';
+import { toPlainPreview } from '@/lib/plainPreview';
 import { cn } from '@/lib/utils';
 
 export function NumberedScoreRow({
@@ -18,7 +19,7 @@ export function NumberedScoreRow({
     <div className="flex items-start justify-between gap-2">
       <p className="font-medium">
         <span className="text-muted-foreground mr-1.5">{number}.</span>
-        {title}
+        {toPlainPreview(title)}
       </p>
       <span className={cn('text-sm font-semibold tabular-nums shrink-0', getScoreTextColor(pct))}>
         {correctCount.toFixed(2)}/{totalCount.toFixed(2)}

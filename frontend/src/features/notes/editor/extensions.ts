@@ -4,7 +4,6 @@
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
-import { Markdown } from '@tiptap/markdown';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
@@ -15,6 +14,7 @@ import { ChunkHighlight } from './chunkHighlight';
 import { CodeBlockView } from './CodeBlockView';
 import { NoteCodeWrap } from './codeBlockWrap';
 import { NoteLink } from './link/noteLink';
+import { createNoteMathExtensions, NoteMarkdown } from './math/noteMath';
 import { NoteCodeBlock } from './noteCodeBlock';
 import { NoteColorMark } from './noteColor';
 import { HeadingAnchors } from './outline/headingAnchors';
@@ -49,8 +49,8 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
       link: false,
     }),
 
-    // Official @tiptap/markdown — parses GFM on load, serializes on save.
-    Markdown,
+    // Official @tiptap/markdown — parses GFM on load, serializes on save. Also escapes `$` (see `math/`).
+    NoteMarkdown,
 
     // Cmd/Ctrl+click opens the link; the popover (`link/LinkPopover.tsx`) edits it.
     NoteLink.configure({
@@ -77,6 +77,9 @@ export function createNoteExtensions(options: NoteExtensionOptions = {}): AnyExt
     }).configure({ lowlight }),
     // "Wrap lines" of a code block (view only, not saved). Not inside `NoteCodeBlock`: see `codeBlockWrap.ts`.
     NoteCodeWrap,
+
+    // Inline `$x$` and block `$$ … $$` math drawn with KaTeX; edited in `math/MathPopover.tsx`.
+    ...createNoteMathExtensions(),
 
     // Callout (`> [!TIP]`) and toggle (`<details>`): see `callout/` and `toggle/`.
     NoteCallout.extend({

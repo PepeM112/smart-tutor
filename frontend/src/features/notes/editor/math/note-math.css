@@ -1,0 +1,41 @@
+/* Math nodes (KaTeX). The KaTeX CSS itself is imported once in the app layout. */
+
+.note-editor-content .tiptap-mathematics-render {
+  border-radius: 0.25rem;
+}
+
+.note-editor-content[contenteditable='true'] .tiptap-mathematics-render--editable {
+  cursor: pointer;
+}
+
+.note-editor-content[contenteditable='true'] .tiptap-mathematics-render:hover,
+.note-editor-content .tiptap-mathematics-render.ProseMirror-selectednode {
+  background: var(--muted);
+}
+
+.note-editor-content .tiptap-mathematics-render.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* A math block is centered and scrolls sideways when the formula is wider than the note. */
+.note-editor-content .tiptap-mathematics-render[data-type='block-math'] {
+  margin: var(--note-block-gap) 0;
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  text-align: center;
+}
+
+/* An empty formula (just inserted) has nothing to draw: show a mark so it can still be seen and clicked. */
+.note-editor-content .tiptap-mathematics-render[data-latex='']::before {
+  content: '∑';
+  color: var(--muted-foreground);
+}
+
+/* Invalid LaTeX: the source shows as text. */
+.note-editor-content .inline-math-error,
+.note-editor-content .block-math-error {
+  color: var(--destructive);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+}

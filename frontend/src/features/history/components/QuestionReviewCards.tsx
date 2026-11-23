@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 
 import { AnswerStatus, type AnswerRead } from '@/client';
+import { RichText } from '@/components/RichText';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   getScoreTextColor,
@@ -73,10 +74,10 @@ export function CompactQuestionCard({
     >
       <CardContent className="p-0">
         <div className="flex items-start justify-between gap-2">
-          <p className="font-medium">
-            <span className="text-muted-foreground mr-1.5">{number}.</span>
-            {question.prompt}
-          </p>
+          <div className="flex min-w-0 gap-1.5 font-medium">
+            <span className="shrink-0 text-muted-foreground">{number}.</span>
+            <RichText text={question.prompt} className="min-w-0 flex-1" />
+          </div>
           {isFailed ? (
             <span className="text-sm font-semibold text-destructive shrink-0">{score?.label}</span>
           ) : score ? (

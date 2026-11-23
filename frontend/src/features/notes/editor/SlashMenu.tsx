@@ -22,6 +22,8 @@ import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'reac
 
 import { cn } from '@/lib/utils';
 
+import { insertMath } from './math/mathCommands';
+
 import type { Editor, Range } from '@tiptap/core';
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion';
 
@@ -115,6 +117,18 @@ const SLASH_ITEMS: SlashItem[] = [
     icon: '⊞',
     execute: ({ editor, range }) =>
       editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+  },
+  {
+    labelKey: 'slash_math_inline',
+    label: 'Inline math',
+    icon: 'x²',
+    execute: ({ editor, range }) => insertMath(editor, range, 'inlineMath'),
+  },
+  {
+    labelKey: 'slash_math_block',
+    label: 'Math block',
+    icon: '∑',
+    execute: ({ editor, range }) => insertMath(editor, range, 'blockMath'),
   },
 ];
 

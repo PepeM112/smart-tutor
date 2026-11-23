@@ -215,7 +215,7 @@ type PopoverButtonProps = {
   children: React.ReactNode;
 };
 
-function PopoverButton({ label, shortcut, onClick, children }: PopoverButtonProps) {
+export function PopoverButton({ label, shortcut, onClick, children }: PopoverButtonProps) {
   return (
     <HoverHint label={label} shortcut={shortcut}>
       <button

@@ -4,7 +4,8 @@ import { Check, CircleMinus, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import type { QuestionType } from '@/client';
-import { AutoTextarea } from '@/components/shared/AutoTextarea';
+import { RichText } from '@/components/RichText';
+import { MarkdownTextarea } from '@/components/shared/MarkdownTextarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -86,15 +87,20 @@ export function MultipleChoiceQuestionBlock({
         />
         <div className="px-6 pb-4 space-y-1 sm:px-8">
           {data.choices.map((choice, i) => (
-            <div key={i} className="flex items-center gap-2 text-[0.8rem]">
+            <div key={i} className="flex items-start gap-2 text-[0.8rem]">
               {choice.isCorrect ? (
-                <Check className="size-3.5 shrink-0 text-feedback-correct" />
+                <Check className="mt-0.5 size-3.5 shrink-0 text-feedback-correct" />
               ) : (
-                <X className="size-3.5 shrink-0 text-muted-foreground/40" />
+                <X className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/40" />
               )}
-              <span className={cn(choice.isCorrect && 'text-feedback-correct font-medium')}>
-                {choice.text || <span className="text-muted-foreground italic">—</span>}
-              </span>
+              {choice.text ? (
+                <RichText
+                  text={choice.text}
+                  className={cn('min-w-0', choice.isCorrect && 'text-feedback-correct font-medium')}
+                />
+              ) : (
+                <span className="text-muted-foreground italic">—</span>
+              )}
             </div>
           ))}
         </div>
@@ -106,7 +112,7 @@ export function MultipleChoiceQuestionBlock({
   return (
     <QuestionBlockWrapper mode="edit" selected={selected} onClick={onClick}>
       <div className="flex items-start gap-2 mb-4">
-        <AutoTextarea
+        <MarkdownTextarea
           rows={2}
           placeholder={t('test_editor.question_prompt')}
           value={data.prompt}
@@ -127,12 +133,13 @@ export function MultipleChoiceQuestionBlock({
 
       <div className="space-y-2">
         {data.choices.map((choice, ci) => (
-          <div key={ci} className="flex items-center gap-2">
+          <div key={ci} className="flex items-start gap-2">
             <Checkbox
+              className="mt-1.5"
               checked={choice.isCorrect}
               onCheckedChange={checked => updateChoice(ci, { isCorrect: checked === true })}
             />
-            <AutoTextarea
+            <MarkdownTextarea
               rows={1}
               placeholder={t('test_editor.option', { n: ci + 1 })}
               value={choice.text}
@@ -143,8 +150,9 @@ export function MultipleChoiceQuestionBlock({
               <Button
                 variant="ghost"
                 size="icon-sm"
+                aria-label={t('common.delete')}
                 onClick={() => removeChoice(ci)}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="mt-0.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 <CircleMinus className="size-4" />
               </Button>

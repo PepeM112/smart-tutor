@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Circle, MinusCircle, XCircle }
 import { useTranslations } from 'next-intl';
 
 import { AnswerStatus, type QuestionReadStripped, QuestionType, type SrsStateResponse } from '@/client';
+import { RichText } from '@/components/RichText';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -60,7 +61,7 @@ export function QuestionReview({
     <>
       <div className="mx-auto max-w-2xl rounded-xl border border-border bg-card p-8 space-y-6">
         <div className="text-center space-y-2">
-          <p className="text-lg font-semibold">{question.prompt}</p>
+          <RichText text={question.prompt} className="text-lg font-semibold [&_pre]:text-left" />
           {question.hint && (
             <p className="text-sm text-muted-foreground italic">{t('review.hint', { hint: question.hint })}</p>
           )}
@@ -197,7 +198,7 @@ function MultipleChoiceInput({
               className="text-sm cursor-pointer flex-1"
               onClick={e => e.preventDefault()}
             >
-              {option}
+              <RichText text={option} />
             </Label>
           </div>
         );
@@ -245,7 +246,7 @@ function MultipleChoiceReview({
         return (
           <div key={idx} className={cn('flex items-center gap-2 rounded-md px-3 py-2', bg)}>
             <Icon className={cn('size-4 shrink-0', iconColor)} />
-            <span className="text-sm">{option}</span>
+            <RichText text={option} className="min-w-0 text-sm" />
           </div>
         );
       })}

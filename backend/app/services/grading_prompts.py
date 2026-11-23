@@ -2,6 +2,7 @@ import json
 import re
 
 from app.schemas.question import RubricItem
+from app.services.content_format_prompts import FEEDBACK_FORMAT_PROMPT
 
 GRADING_SYSTEM_PROMPT = (
     "You are an exam grader. You receive a question, a rubric of criteria, "
@@ -11,6 +12,7 @@ GRADING_SYSTEM_PROMPT = (
     '"index" (int, zero-based), "met" (bool), and "reason" (string — one sentence '
     "explaining why the criterion was or was not met, referencing what the student "
     "wrote or omitted). "
+    f"{FEEDBACK_FORMAT_PROMPT} "
     "Do not include any other text."
 )
 

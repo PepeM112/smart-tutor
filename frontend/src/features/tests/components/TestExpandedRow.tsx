@@ -9,6 +9,7 @@ import { type TestRead } from '@/client';
 import { Button } from '@/components/ui/button';
 import { getAllQuestions } from '@/features/tests/utils/questionCounts';
 import { getQuestionTypeInfo } from '@/features/tests/utils/questionIcons';
+import { toPlainPreview } from '@/lib/plainPreview';
 import { Routes } from '@/lib/routes';
 
 const FIRST_QUESTIONS_COUNT = 5;
@@ -39,7 +40,7 @@ export function TestExpandedRow({ test }: { test: TestRead }) {
                   <Icon role="img" aria-label={t(labelKey)} className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <p className="min-w-0 flex-1">
                     <span className="mr-1.5 text-muted-foreground tabular-nums">{index + 1}.</span>
-                    {question.prompt}
+                    {toPlainPreview(question.prompt)}
                   </p>
                 </li>
               );

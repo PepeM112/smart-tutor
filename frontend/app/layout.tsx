@@ -10,6 +10,8 @@ import { FONT_SIZE_COOKIE, getFontSizeValue, isFontSizeId } from '@/lib/fontSize
 import { parseTheme, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/themes';
 
 import type { Metadata, Viewport } from 'next';
+import 'katex/dist/katex.min.css';
+import '@/styles/code-highlight.css';
 import './globals.css';
 
 // Titles. Variable font: one file per style covers every weight.

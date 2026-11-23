@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { type QuestionListRead, QuestionType } from '@/client';
+import { RichText } from '@/components/RichText';
 import { Button } from '@/components/ui/button';
 import { isLongTextContent, isMCContent, isSimpleContent } from '@/features/tests/utils/questionContent';
 import { Routes } from '@/lib/routes';
@@ -93,7 +94,7 @@ function QuestionContent({ question }: { question: QuestionListRead }) {
                   isCorrect && 'bg-feedback-correct-bg text-feedback-correct'
                 )}
               >
-                <span className="min-w-0 flex-1">{option}</span>
+                <RichText text={option} className="min-w-0 flex-1" />
                 {isCorrect && (
                   <>
                     <Check aria-hidden className="size-4 shrink-0" />
@@ -119,7 +120,7 @@ function QuestionContent({ question }: { question: QuestionListRead }) {
               className="flex items-start gap-2 rounded-md border border-hairline bg-card px-3 py-2 text-sm"
             >
               <span className="min-w-0 flex-1">
-                {criterion.point}
+                <RichText text={criterion.point} inline />
                 {criterion.category && (
                   <span className="ml-2 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                     {criterion.category}
