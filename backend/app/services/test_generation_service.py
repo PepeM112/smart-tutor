@@ -18,7 +18,7 @@ from app.schemas.test_generation import (
 )
 from app.services import token_usage_service
 from app.services.access_service import AccessLevel
-from app.services.grading_prompts import strip_code_fences
+from app.services.grading_prompts import parse_ai_json
 from app.services.llm import CompletionResult, complete_for_user
 from app.services.note_service import get_live_note
 from app.services.test_generation_prompts import (
@@ -63,7 +63,7 @@ def _validate_generated_questions(
     errors: list[str] = []
 
     try:
-        data = json.loads(strip_code_fences(raw_json))
+        data = parse_ai_json(raw_json)
     except json.JSONDecodeError as exc:
         return [], [f"Invalid JSON: {exc}"]
 
@@ -95,7 +95,7 @@ def _validate_generated_questions(
             continue
         seen_prompts.add(normalized_prompt)
 
-        type_str = q.get("type", "")
+        type_str = str(q.get("type", ""))
         try:
             q_type = QuestionType[type_str]
         except (KeyError, ValueError):

@@ -7,7 +7,7 @@
 
 # --- Frontend (Next.js) ---
 frontend/build/
-frontend/node_modules/
+node_modules/
 frontend/out/
 frontend/next-env.d.ts
 frontend/.next/

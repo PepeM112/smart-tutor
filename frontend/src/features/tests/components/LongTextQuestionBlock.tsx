@@ -5,9 +5,9 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { LongTextLength, type QuestionType } from '@/client';
-import { RichText } from '@/components/RichText';
 import { AutoTextarea } from '@/components/shared/AutoTextarea';
 import { MarkdownTextarea } from '@/components/shared/MarkdownTextarea';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup, type ButtonGroupItem } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';

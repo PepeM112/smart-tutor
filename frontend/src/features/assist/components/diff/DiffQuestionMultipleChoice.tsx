@@ -1,9 +1,18 @@
 import { Check, X } from 'lucide-react';
 
-import { RichText } from '@/components/RichText';
+import { OptionRow } from '@/components/shared/OptionRow';
+import { RichText } from '@/components/shared/RichText';
 import { isMCContent } from '@/features/tests/utils/questionContent';
 
 import type { DiffQuestionProps } from './types';
+
+function OptionIcon({ correct }: { correct: boolean }) {
+  return correct ? (
+    <Check className="size-3.5 shrink-0 mt-0.5 text-feedback-correct" />
+  ) : (
+    <X className="size-3.5 shrink-0 mt-0.5 text-feedback-wrong" />
+  );
+}
 
 export function DiffQuestionMultipleChoice({ old: oldQ, new: newQ }: DiffQuestionProps) {
   if (!isMCContent(oldQ.content) || !isMCContent(newQ.content)) return null;
@@ -16,14 +25,12 @@ export function DiffQuestionMultipleChoice({ old: oldQ, new: newQ }: DiffQuestio
         <RichText text={oldQ.prompt} className="text-sm text-foreground font-medium" />
         <div className="space-y-1 pl-1">
           {oldContent.options.map((opt, i) => (
-            <div key={i} className="flex items-start gap-2 text-xs text-foreground/80">
-              {oldContent.correctIndices.includes(i) ? (
-                <Check className="size-3.5 shrink-0 mt-0.5 text-feedback-correct" />
-              ) : (
-                <X className="size-3.5 shrink-0 mt-0.5 text-feedback-wrong" />
-              )}
-              <RichText text={opt} className="min-w-0" />
-            </div>
+            <OptionRow
+              key={i}
+              icon={<OptionIcon correct={oldContent.correctIndices.includes(i)} />}
+              text={opt}
+              className="text-xs text-foreground/80"
+            />
           ))}
         </div>
       </div>
@@ -32,14 +39,12 @@ export function DiffQuestionMultipleChoice({ old: oldQ, new: newQ }: DiffQuestio
         <RichText text={newQ.prompt} className="text-sm text-foreground font-medium" />
         <div className="space-y-1 pl-1">
           {newContent.options.map((opt, i) => (
-            <div key={i} className="flex items-start gap-2 text-xs text-foreground/80">
-              {newContent.correctIndices.includes(i) ? (
-                <Check className="size-3.5 shrink-0 mt-0.5 text-feedback-correct" />
-              ) : (
-                <X className="size-3.5 shrink-0 mt-0.5 text-feedback-wrong" />
-              )}
-              <RichText text={opt} className="min-w-0" />
-            </div>
+            <OptionRow
+              key={i}
+              icon={<OptionIcon correct={newContent.correctIndices.includes(i)} />}
+              text={opt}
+              className="text-xs text-foreground/80"
+            />
           ))}
         </div>
       </div>

@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 
 import { type AnswerRead } from '@/client';
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 

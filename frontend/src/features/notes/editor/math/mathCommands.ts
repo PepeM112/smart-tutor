@@ -5,6 +5,7 @@ import { NodeSelection, Selection } from '@tiptap/pm/state';
 import { MATH_FOCUS_META } from './mathFocus';
 
 import type { Editor, Range } from '@tiptap/core';
+import type { Node as ProseNode, ResolvedPos } from '@tiptap/pm/model';
 import type { EditorState, Transaction } from '@tiptap/pm/state';
 
 export type MathKind = 'inlineMath' | 'blockMath';
@@ -23,23 +24,38 @@ export function selectedMath(state: EditorState): MathTarget | null {
 
 /** Slash command: replace the "/" text with an empty math node and select it, so the popover opens. */
 export function insertMath(editor: Editor, range: Range, kind: MathKind): boolean {
-  const { schema } = editor.state;
-  const node = schema.nodes[kind].create({ latex: '' });
-  const isBlock = kind === 'blockMath';
-  // A block needs a paragraph after it, or the cursor has no place to go when the popover closes.
-  const content = isBlock ? [node, schema.nodes.paragraph.create()] : [node];
-
-  const { state } = editor;
-  const tr = state.tr.deleteRange(range.from, range.to);
+  const type = editor.state.schema.nodes[kind];
+  const node = type.create({ latex: '' });
+  const tr = editor.state.tr.deleteRange(range.from, range.to);
   const $from = tr.doc.resolve(range.from);
-  // A block replaces the empty paragraph that held the "/". Inline math goes where the "/" was.
-  const isEmptyParagraph = isBlock && $from.parent.type.name === 'paragraph' && $from.parent.content.size === 0;
-  const at = isEmptyParagraph ? { from: $from.before(), to: $from.after() } : { from: range.from, to: range.from };
-  tr.replaceWith(at.from, at.to, content);
-  tr.setSelection(NodeSelection.create(tr.doc, at.from));
+
+  if (kind === 'inlineMath') tr.insert(range.from, node);
+  const at = kind === 'blockMath' ? insertBlockMath(tr, $from, node) : range.from;
+  tr.setSelection(NodeSelection.create(tr.doc, at));
   editor.view.dispatch(tr.setMeta(MATH_FOCUS_META, true).scrollIntoView());
   editor.view.focus();
   return true;
+}
+
+/** A block never goes inside a line: it replaces the empty paragraph of the "/", or goes after the paragraph. */
+function insertBlockMath(tr: Transaction, $from: ResolvedPos, node: ProseNode): number {
+  const { parent } = $from;
+  const isEmptyParagraph = parent.type.name === 'paragraph' && parent.content.size === 0;
+  // The first paragraph of a list item cannot become a block, so a block goes after it there.
+  const canReplace =
+    isEmptyParagraph &&
+    $from.depth > 0 &&
+    $from.node(-1).canReplaceWith($from.index(-1), $from.indexAfter(-1), node.type);
+
+  if (!canReplace) {
+    const at = $from.after();
+    tr.insert(at, node);
+    return at;
+  }
+  // A paragraph after the block gives the cursor a place to go when the popover closes.
+  const at = $from.before();
+  tr.replaceWith(at, $from.after(), [node, parent.type.create()]);
+  return at;
 }
 
 /** Change the latex of the node at `pos`. The node stays selected: the popover shows for the selected node. */

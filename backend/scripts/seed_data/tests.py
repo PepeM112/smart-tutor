@@ -390,7 +390,7 @@ def seed_tests(db: Session, user_id: str) -> dict[str, Test]:
             question_type=QuestionType.SIMPLE,
             prompt="Which SQL keyword removes duplicate rows from the result?\n\n"
             "```sql\nSELECT ____ country FROM customers;\n```",
-            content={"answers": ["DISTINCT", "distinct"]},
+            content={"answers": ["DISTINCT"]},
             order=1,
         ),
         Question(

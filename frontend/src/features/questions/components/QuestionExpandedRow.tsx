@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { type QuestionListRead, QuestionType } from '@/client';
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { isLongTextContent, isMCContent, isSimpleContent } from '@/features/tests/utils/questionContent';
 import { Routes } from '@/lib/routes';

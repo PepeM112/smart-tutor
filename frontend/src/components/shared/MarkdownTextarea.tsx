@@ -4,8 +4,8 @@ import { Eye, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { RichText } from '@/components/RichText';
 import { AutoTextarea } from '@/components/shared/AutoTextarea';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -18,18 +18,18 @@ export function MarkdownTextarea({ value, className, placeholder, ...props }: Pr
 
   return (
     <div className={cn('relative', className)}>
-      {isPreview ? (
+      {/* Stays mounted while hidden: an outside `<Label htmlFor>` still points at it. */}
+      <AutoTextarea {...props} value={value} placeholder={placeholder} hidden={isPreview} className="pr-9" />
+      {isPreview && (
         <div className="min-h-8 rounded-md border border-input px-2.5 py-1.5 pr-9 text-sm">
           {value.trim() ? <RichText text={value} /> : <span className="text-muted-foreground">{placeholder}</span>}
         </div>
-      ) : (
-        <AutoTextarea {...props} value={value} placeholder={placeholder} className="pr-9" />
       )}
       <Button
         type="button"
         variant="ghost"
         size="icon-xs"
-        aria-label={isPreview ? t('common.write') : t('common.preview')}
+        aria-label={t('common.preview')}
         aria-pressed={isPreview}
         onClick={() => setIsPreview(prev => !prev)}
         className="absolute top-1 right-1 text-muted-foreground"

@@ -1,6 +1,8 @@
 import json
 import re
 
+from pydantic import JsonValue
+
 from app.schemas.question import RubricItem
 from app.services.content_format_prompts import FEEDBACK_FORMAT_PROMPT
 
@@ -23,6 +25,18 @@ def strip_code_fences(text: str) -> str:
     """Strip markdown code fences that LLMs sometimes wrap JSON in."""
     match = _CODE_FENCE_RE.match(text.strip())
     return match.group(1).strip() if match else text.strip()
+
+
+# Keeps valid JSON escapes; any other backslash is a lone LaTeX one and gets doubled.
+# \b and \f followed by a letter are LaTeX (\beta, \frac): real text never has a backspace or form feed.
+# \n, \t and \r stay as JSON escapes: they are ambiguous with \nabla, \times, \rho.
+_JSON_ESCAPE_RE = re.compile(r'\\(?:\\|u[0-9a-fA-F]{4}|["/nrt]|[bf](?![A-Za-z]))|\\')
+
+
+def parse_ai_json(raw: str) -> JsonValue:
+    """Parse JSON from an LLM reply, tolerating code fences and single-backslash LaTeX in strings."""
+    fixed = _JSON_ESCAPE_RE.sub(lambda m: m.group(0) if len(m.group(0)) > 1 else "\\\\", strip_code_fences(raw))
+    return json.loads(fixed)
 
 
 def build_grading_user_prompt(prompt: str, rubric: list[RubricItem], answer: str) -> str:

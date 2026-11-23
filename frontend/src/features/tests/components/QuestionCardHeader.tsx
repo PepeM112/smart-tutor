@@ -1,4 +1,4 @@
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 
 type Props = {
   title: string;

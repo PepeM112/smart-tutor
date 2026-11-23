@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+from typing import cast
 
 from anthropic import APIStatusError as AnthropicAPIError
 from anthropic import AuthenticationError as AnthropicAuthError
@@ -22,7 +23,7 @@ from app.schemas.answer import ChallengeRequest
 from app.schemas.question import LongTextContent
 from app.services import space_progress_service
 from app.services.challenge_prompts import CHALLENGE_SYSTEM_PROMPT, build_challenge_user_prompt
-from app.services.grading_prompts import strip_code_fences
+from app.services.grading_prompts import parse_ai_json
 from app.services.grading_service import effective_met, recalculate_test_result
 from app.services.llm import AIRefusalError
 from app.services.llm_key_service import resolve_llm, space_id_of_result
@@ -219,8 +220,7 @@ def process_challenge(answer_id: str) -> None:
             db, user_id=user.id, result=resolved.tag(completion), feature=AIFeature.CHALLENGE
         )
 
-        cleaned = strip_code_fences(completion.text)
-        parsed = json.loads(cleaned)
+        parsed = cast(dict[str, list[dict[str, object]]], parse_ai_json(completion.text))
         results: list[dict[str, object]] = parsed["results"]
 
         result_map = {int(str(r["index"])): r for r in results}

@@ -134,6 +134,8 @@ ASSIST_SYSTEM_PROMPT += (
     "\n## Code and math\n\n"
     "The chat and the question text render Markdown with math. When you show code or a formula in a reply, "
     "use the format below.\n\n" + CONTENT_FORMAT_PROMPT + "\n"
+    "In your chat replies (not in question text you write with a tool), write math only between double dollar "
+    "signs ($$...$$). A single $ is plain text in chat, so write prices as $5 and never wrap them in math.\n"
 )
 
 

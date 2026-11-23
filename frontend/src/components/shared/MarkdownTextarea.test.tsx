@@ -30,7 +30,7 @@ describe('MarkdownTextarea', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(container.querySelector('pre code')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.write' }));
+    fireEvent.click(screen.getByRole('button', { name: 'common.preview' }));
     expect(screen.getByRole<HTMLTextAreaElement>('textbox').value).toBe('```python\nprint(1)\n```');
   });
 
@@ -40,7 +40,15 @@ describe('MarkdownTextarea', () => {
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
 
     fireEvent.click(toggle);
-    expect(screen.getByRole('button', { name: 'common.write' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'common.preview' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('keeps the textarea mounted but hidden in preview', () => {
+    const { container } = render(<Harness initial="a" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.preview' }));
+
+    expect(container.querySelector('textarea')?.hidden).toBe(true);
   });
 
   it('shows the placeholder in preview when the value is empty', () => {

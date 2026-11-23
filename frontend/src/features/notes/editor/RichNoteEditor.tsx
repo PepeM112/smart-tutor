@@ -20,6 +20,8 @@ import { MathPopover } from './math/MathPopover';
 import { NoteBubbleMenu, type SelectionContext } from './NoteBubbleMenu';
 import { NoteOutline } from './outline/NoteOutline';
 import { TableControls } from './table/TableControls';
+import 'katex/dist/katex.min.css';
+import '@/styles/code-highlight.css';
 import './note-editor.css';
 import './math/note-math.css';
 

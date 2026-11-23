@@ -4,8 +4,8 @@ import { Check, CircleMinus, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import type { QuestionType } from '@/client';
-import { RichText } from '@/components/RichText';
 import { MarkdownTextarea } from '@/components/shared/MarkdownTextarea';
+import { OptionRow } from '@/components/shared/OptionRow';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -87,21 +87,22 @@ export function MultipleChoiceQuestionBlock({
         />
         <div className="px-6 pb-4 space-y-1 sm:px-8">
           {data.choices.map((choice, i) => (
-            <div key={i} className="flex items-start gap-2 text-[0.8rem]">
-              {choice.isCorrect ? (
-                <Check className="mt-0.5 size-3.5 shrink-0 text-feedback-correct" />
-              ) : (
-                <X className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/40" />
+            <OptionRow
+              key={i}
+              icon={
+                choice.isCorrect ? (
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-feedback-correct" />
+                ) : (
+                  <X className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/40" />
+                )
+              }
+              text={choice.text || '—'}
+              className="text-[0.8rem]"
+              textClassName={cn(
+                choice.isCorrect && 'text-feedback-correct font-medium',
+                !choice.text && 'text-muted-foreground italic'
               )}
-              {choice.text ? (
-                <RichText
-                  text={choice.text}
-                  className={cn('min-w-0', choice.isCorrect && 'text-feedback-correct font-medium')}
-                />
-              ) : (
-                <span className="text-muted-foreground italic">—</span>
-              )}
-            </div>
+            />
           ))}
         </div>
       </QuestionBlockWrapper>

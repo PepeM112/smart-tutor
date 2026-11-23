@@ -27,9 +27,22 @@ describe('toPlainPreview', () => {
     );
   });
 
-  it('uses [code] for an unlabelled or unclosed fence', () => {
-    expect(toPlainPreview('A\n```\nx\n```')).toBe('A [code]');
+  it('uses a neutral mark for an unlabelled fence and the language for an unclosed one', () => {
+    expect(toPlainPreview('A\n```\nx\n```')).toBe('A ⟨/⟩');
     expect(toPlainPreview('A\n```sql\nSELECT 1')).toBe('A [sql]');
+  });
+
+  it('handles a tilde fence', () => {
+    expect(toPlainPreview('A\n~~~js\nlet a;\n~~~\nB')).toBe('A [js] B');
+    expect(toPlainPreview('A\n~~~\nx\n~~~')).toBe('A ⟨/⟩');
+  });
+
+  it('keeps the text of a link whose URL holds parentheses', () => {
+    expect(toPlainPreview('See [Foo](https://en.wikipedia.org/wiki/Foo_(bar)) now')).toBe('See Foo now');
+  });
+
+  it('treats an escaped backtick as text, not as code', () => {
+    expect(toPlainPreview('Use \\`a\\` literally')).toBe('Use `a` literally');
   });
 
   it('keeps math source with the dollar signs', () => {

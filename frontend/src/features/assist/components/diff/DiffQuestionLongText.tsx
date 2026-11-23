@@ -1,4 +1,4 @@
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 import { isLongTextContent } from '@/features/tests/utils/questionContent';
 
 import type { DiffQuestionProps } from './types';

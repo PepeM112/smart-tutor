@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 
 import { type AnswerRead } from '@/client';
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { QUESTION_TYPE_LABEL_KEYS } from '@/features/tests/constants';
 

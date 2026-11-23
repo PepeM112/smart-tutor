@@ -4,9 +4,9 @@ import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { AnswerStatus, type AnswerRead, QuestionType } from '@/client';
-import { RichText } from '@/components/RichText';
 import { PreviewPanelFrame } from '@/components/shared/PreviewPanelFrame';
 import { QueryState } from '@/components/shared/QueryState';
+import { RichText } from '@/components/shared/RichText';
 import { Routes } from '@/lib/routes';
 
 import { useResultTest } from '../hooks/useResultTest';

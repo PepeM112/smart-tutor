@@ -18,7 +18,7 @@ import { Check, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 
-import { PopoverButton } from '../link/LinkPopover';
+import { PopoverButton } from '../PopoverButton';
 
 import {
   buildLeaveMathTransaction,
@@ -51,40 +51,32 @@ export function MathPopover({ editor, containerRef }: MathPopoverProps) {
   const [anchor, setAnchor] = useState<MathAnchor | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const shouldFocusField = useRef(false);
-  // The transaction handler reads the anchor of the last render, so it needs no re-subscribe on each change.
+  // The transaction handler reads the last anchor, so it needs no re-subscribe on each change.
   const anchorRef = useRef<MathAnchor | null>(null);
-  useEffect(() => {
-    anchorRef.current = anchor;
-  }, [anchor]);
 
   const focusField = () => popoverRef.current?.querySelector<HTMLElement>('input, textarea')?.focus();
 
   useEffect(() => {
     const onTransaction = ({ transaction }: { transaction: Transaction }) => {
-      const next = measureAnchor(editor, containerRef.current);
-      if (next && (anchorRef.current?.pos !== next.pos || anchorRef.current?.kind !== next.kind)) {
+      const measured = measureAnchor(editor, containerRef.current);
+      const previous = anchorRef.current;
+      const isFocusRequested = Boolean(transaction.getMeta(MATH_FOCUS_META));
+      if (measured && (previous?.pos !== measured.pos || previous?.kind !== measured.kind)) {
         // A mouse selection ("pointer") or the slash command asks for the edit. The arrow keys do not.
-        shouldFocusField.current = Boolean(transaction.getMeta('pointer') || transaction.getMeta(MATH_FOCUS_META));
+        shouldFocusField.current = Boolean(transaction.getMeta('pointer') || isFocusRequested);
+      } else if (measured && isFocusRequested) {
+        // Enter on the node that is already selected: the popover is open, so only the focus is left.
+        focusField();
       }
-      setAnchor(previous => (sameAnchor(previous, next) ? previous : next));
+      const next = sameAnchor(previous, measured) ? previous : measured;
+      anchorRef.current = next;
+      setAnchor(next);
     };
     editor.on('transaction', onTransaction);
     return () => {
       editor.off('transaction', onTransaction);
     };
   }, [editor, containerRef]);
-
-  // Enter on the selected node starts the edit.
-  useEffect(() => {
-    const dom = editor.view.dom;
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== 'Enter' || !selectedMath(editor.state)) return;
-      event.preventDefault();
-      focusField();
-    };
-    dom.addEventListener('keydown', onKeyDown);
-    return () => dom.removeEventListener('keydown', onKeyDown);
-  }, [editor]);
 
   const pos = anchor?.pos;
   const kind = anchor?.kind;

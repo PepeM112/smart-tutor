@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 
 import { QuestionGroupType } from '@/client';
-import { RichText } from '@/components/RichText';
 import { MarkdownTextarea } from '@/components/shared/MarkdownTextarea';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

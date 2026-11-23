@@ -4,7 +4,7 @@ import { Check, Clock, Loader2, RotateCcw, Scale, Send, ShieldCheck, X } from 'l
 import { useTranslations } from 'next-intl';
 
 import { AnswerStatus, type AnswerRead, type RubricResultItem } from '@/client';
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAvailable } from '@/hooks/useAiAvailable';

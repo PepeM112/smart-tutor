@@ -1,6 +1,6 @@
 import { useTranslations } from 'next-intl';
 
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 import { isSimpleContent } from '@/features/tests/utils/questionContent';
 
 import type { DiffQuestionProps } from './types';

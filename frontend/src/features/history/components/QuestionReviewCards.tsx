@@ -3,7 +3,7 @@
 import { Loader2 } from 'lucide-react';
 
 import { AnswerStatus, type AnswerRead } from '@/client';
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   getScoreTextColor,

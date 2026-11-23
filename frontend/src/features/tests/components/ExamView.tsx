@@ -11,16 +11,16 @@ import {
   type TestQuestionGroupReadStripped,
   type TestReadStripped,
 } from '@/client';
-import { RichText } from '@/components/RichText';
 import { OutlineColumn } from '@/components/shared/OutlineColumn';
+import { RichText } from '@/components/shared/RichText';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { usePageActions } from '@/hooks/usePageActions';
 import { usePageSubtitle } from '@/hooks/usePageSubtitle';
+import { shouldToggleOnRowClick } from '@/lib/optionRowClick';
 import { cn } from '@/lib/utils';
 
 import { LONG_TEXT_LENGTH_TIERS, QUESTION_TYPE_LABEL_KEYS } from '../constants';
@@ -372,21 +372,24 @@ function QuestionBody({ question, answer, onTextChange, onCheckboxToggle }: Ques
           {mcOptions.map((option, idx) => {
             const checked = parseMcAnswer(answer).includes(idx);
             return (
-              <Label
+              <div
                 key={idx}
-                htmlFor={`${question.id}-opt-${idx}`}
                 className={cn(
-                  'flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm font-normal transition-colors hover:bg-muted/60',
+                  'flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:bg-muted/60',
                   checked && 'bg-muted'
                 )}
+                onClick={e => shouldToggleOnRowClick(e) && onCheckboxToggle(question.id, idx)}
               >
                 <Checkbox
                   id={`${question.id}-opt-${idx}`}
+                  aria-labelledby={`${question.id}-opt-${idx}-label`}
                   checked={checked}
                   onCheckedChange={() => onCheckboxToggle(question.id, idx)}
                 />
-                <RichText text={option} className="min-w-0" />
-              </Label>
+                <div id={`${question.id}-opt-${idx}-label`} className="min-w-0">
+                  <RichText text={option} />
+                </div>
+              </div>
             );
           })}
         </div>

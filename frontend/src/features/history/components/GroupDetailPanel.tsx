@@ -1,7 +1,7 @@
 'use client';
 
 import { type AnswerRead, QuestionGroupType } from '@/client';
-import { RichText } from '@/components/RichText';
+import { RichText } from '@/components/shared/RichText';
 
 import { QuestionDetailPanel } from './QuestionDetailPanel';
 import { type ResultQuestion } from './resultDetailUtils';
