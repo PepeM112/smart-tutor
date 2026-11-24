@@ -61,7 +61,8 @@ client.interceptors.response.use(async (response, request, options) => {
 client.interceptors.error.use((_error, response) => {
   const err = typeof _error === 'object' && _error !== null ? _error : { detail: String(_error) };
   // SAFETY: error interceptor must return the enriched error object; `as never` satisfies hey-api's error type contract
-  return { ...err, status: response.status };
+  // No response on a network error (hey-api 0.99 runs this interceptor then too): status stays undefined
+  return { ...err, status: response?.status };
 });
 
 export { client, sdk, types };
