@@ -193,6 +193,14 @@
     --chart-feature-assist: #6366f1;
     --chart-feature-embedding: #e11d48;
 
+    /* Chart colors — model (assigned in order of appearance, then repeated) */
+    --chart-model-1: #f97316;
+    --chart-model-2: #16b38c;
+    --chart-model-3: #8b5cf6;
+    --chart-model-4: #ec4899;
+    --chart-model-5: #06b6d4;
+    --chart-model-6: #f59e0b;
+
     /* Chart colors — combined (provider x feature) */
     --chart-both-anthropic-grading: #f97316;
     --chart-both-anthropic-challenge: #fb923c;

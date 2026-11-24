@@ -12,6 +12,7 @@ from app.schemas.correction import TestSubmission
 from app.schemas.error import coded_errors
 from app.schemas.space import (
     PaginatedSpaceSummary,
+    SpaceAttemptDraftSave,
     SpaceAttemptStart,
     SpaceCatalogSort,
     SpaceCreate,
@@ -317,6 +318,20 @@ def submit_attempt(
         current_user=current_user,
         submission=data,
         background_tasks=background_tasks,
+    )
+
+
+@router.put(
+    "/{space_id}/attempts/{attempt_id}/draft",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=coded_errors(409),
+)
+def save_attempt_draft(
+    space_id: str, attempt_id: str, data: SpaceAttemptDraftSave, db: DbSession, current_user: CurrentUser
+) -> None:
+    """Autosave the answers of an open attempt, so a reload or another device can resume them."""
+    space_attempt_service.save_draft(
+        db, space_id=space_id, attempt_id=attempt_id, current_user=current_user, draft=data
     )
 
 

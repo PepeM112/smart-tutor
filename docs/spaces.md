@@ -231,6 +231,7 @@ Most writes return the new `SpaceDetail`, so the frontend replaces its cache wit
 4. **Timer:** `deadline_at = started_at + time_limit_minutes`. The client shows a countdown and submits at 0. A submit after `deadline_at` + `ATTEMPT_GRACE_SECONDS` (60 s) gives 409 "Time is over", and the attempt is EXPIRED (it counts).
 5. **Lazy expiry:** there is no scheduler. Read paths treat an OPEN attempt past the deadline + grace as ended. Start and submit write the EXPIRED status.
 6. **Only way in:** a VIEWER can not call `GET /tests/{id}/exam` on a space test (403). Else the student could bypass the policy.
+7. **Draft** (`PUT /{id}/attempts/{aid}/draft`, 204): the client autosaves the answers (debounced, about 1.5 s) to `space_attempt.draft_answers` + `draft_saved_at`. It uses the same checks as submit (`_require_writable_attempt`): owner only (404 for another user), OPEN, and before the deadline + grace (409). A resume (`resumed: true`) returns `draftAnswers` + `draftSavedAt`. The browser keeps a `localStorage` copy too. On resume the local copy wins only when its `savedAt` is newer (a save failed while offline). A save after submit never changes the result.
 7. **Publish:** every publish that changes a test makes a snapshot and adds 1 to `test.version`, also with no results. A removed variant closes its open attempts as EXPIRED. A removed item deletes its attempts (FK CASCADE). A submit on an attempt whose variant is no longer linked (a start that raced with a publish) closes it as EXPIRED and gives 409 "This attempt can not be continued". A changed variant keeps its open attempts (seen-version grading).
 
 ### Answer key (`reveal_answers`)
@@ -254,7 +255,7 @@ Most writes return the new `SpaceDetail`, so the frontend replaces its cache wit
 |---|---|
 | Policy and variants (edit mode) | `PATCH /{id}/items/{iid}`, variants add / order / remove, `POST /{id}/items/{iid}/draft?test_id=` |
 | Progress | `POST` / `DELETE /{id}/items/{iid}/completion`, `POST /{id}/visit` |
-| Attempts | `POST /{id}/items/{iid}/attempts` (start or resume), `POST /{id}/attempts/{aid}/submit` |
+| Attempts | `POST /{id}/items/{iid}/attempts` (start or resume), `POST /{id}/attempts/{aid}/submit`, `PUT /{id}/attempts/{aid}/draft` |
 | Membership | `PATCH /{id}/membership` (`include_in_srs`) |
 | Other routers | `GET /results/{id}/test`, `POST /notes/{id}/copy-to-library`, `GET /review/questions?scope=` |
 

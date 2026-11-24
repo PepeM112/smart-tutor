@@ -20,6 +20,7 @@ services:
   backend:
     environment:
       - DATABASE_URL=postgresql://smarttutor:smarttutor@db:5432/smarttutor
+      - FETCH_PRICES_ON_STARTUP=false
     depends_on:
       db:
         condition: service_healthy

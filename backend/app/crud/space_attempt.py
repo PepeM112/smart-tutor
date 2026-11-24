@@ -92,6 +92,12 @@ def close(
     db.flush()
 
 
+def save_draft(db: Session, *, attempt: SpaceAttempt, answers: list[dict[str, str]], saved_at: datetime) -> None:
+    attempt.draft_answers = answers
+    attempt.draft_saved_at = saved_at
+    db.flush()
+
+
 def expire_open_for_variants(db: Session, *, item_id: str, test_ids: Sequence[str], finished_at: datetime) -> None:
     """Close the OPEN attempts on variants that left the item (they can not be submitted any more)."""
     if not test_ids:

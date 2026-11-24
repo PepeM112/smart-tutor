@@ -5,6 +5,7 @@ from decimal import Decimal
 import httpx
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.core.model_registry import SDK_TO_OPENROUTER
 from app.crud import model_pricing as pricing_crud
 
@@ -85,3 +86,18 @@ def calculate_cost(
         return None
 
     return (Decimal(str(price.input_price)) * input_tokens) + (Decimal(str(price.output_price)) * output_tokens)
+
+
+def refresh_prices_on_startup() -> None:
+    """Fetch prices in a worker thread at app start. Never raises: a failed fetch must not stop the app."""
+    if not settings.fetch_prices_on_startup:
+        return
+    # Imported here: `app.database` raises at import time when DATABASE_URL is not set.
+    from app.database import SessionLocal
+
+    try:
+        with SessionLocal() as db:
+            inserted = fetch_and_update_prices(db)
+        logger.info("Startup price fetch done: %d new price row(s)", inserted)
+    except Exception as exc:
+        logger.warning("Startup price fetch failed: %s", exc)

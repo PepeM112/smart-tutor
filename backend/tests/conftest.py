@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 import app.models
+from app.config import settings
 
 # Register every model on `Base.metadata`, as `alembic/env.py` does. A test file that imports
 # only some models otherwise fails when SQLAlchemy configures the mappers: string relationships
@@ -57,3 +58,9 @@ def db_session() -> Iterator[Session]:
         session.close()
         outer.rollback()
         connection.close()
+
+
+@pytest.fixture(autouse=True)
+def no_startup_price_fetch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test may call OpenRouter when the app starts."""
+    monkeypatch.setattr(settings, "fetch_prices_on_startup", False)

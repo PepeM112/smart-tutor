@@ -1,1 +1,1 @@
-export type UsageGroupBy = 'provider' | 'feature' | 'both';
+export type UsageGroupBy = 'provider' | 'feature' | 'both' | 'model';

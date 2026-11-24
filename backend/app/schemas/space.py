@@ -18,6 +18,7 @@ from app.core.enums import (
     SpaceVisibility,
 )
 from app.schemas.base import BaseSchema
+from app.schemas.correction import QuestionAnswer
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.tags import normalize_tags
 from app.schemas.test import TestReadStripped
@@ -376,6 +377,15 @@ class SpaceAttemptStart(BaseSchema):
     server_now: datetime
     # True when the attempt was already open (a reload or another device).
     resumed: bool = False
+    # The autosaved answers of a resumed attempt. None when nothing was saved yet.
+    draft_answers: list[QuestionAnswer] | None = None
+    draft_saved_at: datetime | None = None
+
+
+class SpaceAttemptDraftSave(BaseSchema):
+    """The answers of an open attempt to autosave. They replace the previous draft."""
+
+    answers: list[QuestionAnswer]
 
 
 # ── Classrooms ────────────────────────────────────────────────────────────────

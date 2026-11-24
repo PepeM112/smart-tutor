@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     environment: str = "development"
     system_openai_api_key: str = ""
+    fetch_prices_on_startup: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

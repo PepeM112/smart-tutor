@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.enums import AttemptStatus
@@ -42,3 +42,6 @@ class SpaceAttempt(Base, CreatedAtMixin):
     test_result_id: Mapped[str | None] = mapped_column(
         String(26), ForeignKey("test_result.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # The autosaved answers of the OPEN attempt, as a list of `{question_id, user_answer}` (the submit shape).
+    draft_answers: Mapped[list[dict[str, str]] | None] = mapped_column(JSON, nullable=True)
+    draft_saved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -43,6 +43,8 @@ const FEATURE_COLORS: Record<number, string> = {
   [AiFeature.EMBEDDING]: 'var(--chart-feature-embedding)',
 };
 
+const MODEL_COLORS = [1, 2, 3, 4, 5, 6].map(n => `var(--chart-model-${n})`);
+
 const BOTH_COLORS: Record<string, string> = {
   [`${AiProvider.ANTHROPIC}_${AiFeature.GRADING}`]: 'var(--chart-both-anthropic-grading)',
   [`${AiProvider.ANTHROPIC}_${AiFeature.CHALLENGE}`]: 'var(--chart-both-anthropic-challenge)',
@@ -74,7 +76,15 @@ const ALL_FEATURES = [
 
 const ALL_PROVIDERS = [AiProvider.ANTHROPIC, AiProvider.OPENAI];
 
-function getSeriesForGroupBy(groupBy: GroupBy, t: (key: string) => string): SeriesInfo[] {
+function getSeriesForGroupBy(groupBy: GroupBy, t: (key: string) => string, models: string[]): SeriesInfo[] {
+  if (groupBy === 'model') {
+    return models.map((model, i) => ({
+      key: `m_${model}`,
+      label: model,
+      color: MODEL_COLORS[i % MODEL_COLORS.length],
+    }));
+  }
+
   if (groupBy === 'provider') {
     return ALL_PROVIDERS.map(p => ({
       key: `p_${p}`,
@@ -115,6 +125,8 @@ function buildChartData(daily: TokenUsageDailySummary[], groupBy: GroupBy): Reco
     } else if (groupBy === 'feature' && entry.feature != null) {
       const featureKey = entry.feature === AiFeature.NOTE_CHUNK_EDIT ? AiFeature.NOTE_REFINEMENT : entry.feature;
       key = `f_${featureKey}`;
+    } else if (groupBy === 'model' && entry.model != null) {
+      key = `m_${entry.model}`;
     } else if (groupBy === 'both' && entry.provider != null && entry.feature != null) {
       const featureKey = entry.feature === AiFeature.NOTE_CHUNK_EDIT ? AiFeature.NOTE_REFINEMENT : entry.feature;
       key = `pf_${entry.provider}_${featureKey}`;
@@ -150,7 +162,12 @@ export function UsageChart({ daily, groupBy }: Props) {
   const { isMobile } = useBreakpoint();
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
 
-  const series = useMemo(() => getSeriesForGroupBy(groupBy, t), [groupBy, t]);
+  // Sorted so a model keeps its color when the range changes
+  const models = useMemo(
+    () => [...new Set(daily.flatMap(entry => (entry.model != null ? [entry.model] : [])))].sort(),
+    [daily]
+  );
+  const series = useMemo(() => getSeriesForGroupBy(groupBy, t, models), [groupBy, t, models]);
   const data = useMemo(() => buildChartData(daily, groupBy), [daily, groupBy]);
 
   // Deduplicate series with the same key (NOTE_REFINEMENT and NOTE_CHUNK_EDIT share a key)
@@ -164,7 +181,7 @@ export function UsageChart({ daily, groupBy }: Props) {
   }, [series]);
 
   const visibleSeries = useMemo(() => {
-    const prefixes: Record<GroupBy, string> = { provider: 'p_', feature: 'f_', both: 'pf_' };
+    const prefixes: Record<GroupBy, string> = { provider: 'p_', feature: 'f_', both: 'pf_', model: 'm_' };
     const prefix = prefixes[groupBy];
     const keysWithData = new Set(
       data.flatMap(row =>
