@@ -162,7 +162,7 @@ export function UsageChart({ daily, groupBy }: Props) {
   const { isMobile } = useBreakpoint();
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
 
-  // Sorted so a model keeps its color when the range changes
+  // Sorted by name, so a model keeps its color while the set of models stays the same. Colors repeat after 6 models.
   const models = useMemo(
     () => [...new Set(daily.flatMap(entry => (entry.model != null ? [entry.model] : [])))].sort(),
     [daily]

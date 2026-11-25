@@ -193,7 +193,7 @@
     --chart-feature-assist: #6366f1;
     --chart-feature-embedding: #e11d48;
 
-    /* Chart colors — model (assigned in order of appearance, then repeated) */
+    /* Chart colors — model (assigned by model name, sorted; repeats after 6) */
     --chart-model-1: #f97316;
     --chart-model-2: #16b38c;
     --chart-model-3: #8b5cf6;

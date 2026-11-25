@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.constants import ATTEMPT_DRAFT_ANSWER_MAX, ATTEMPT_DRAFT_MAX_ANSWERS
 from app.core.enums import AttemptStatus, QuestionType, RevealAnswers, SpaceItemKind, SpaceVisibility
 from app.core.errors import AppError
 from app.crud import space_attempt as space_attempt_crud
@@ -602,6 +603,25 @@ class TestAttemptDrafts:
         assert refused.value.status_code == 409 and refused.value.body.code == "attempt_closed"
         db_session.expire_all()
         assert db_session.get(TestResult, result.id).score == score  # type: ignore[union-attr]
+
+    def test_submit_clears_the_draft(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        self._save(db_session, space_id, started, viewer, "nope")
+        _submit(db_session, space_id, started, viewer, "ir")
+
+        attempt = db_session.get(SpaceAttempt, started.attempt_id or "")
+        assert attempt is not None
+        assert attempt.draft_answers is None and attempt.draft_saved_at is None
+
+    def test_an_oversized_draft_is_refused(self) -> None:
+        answer = {"questionId": "q1", "userAnswer": "x"}
+        too_many = {"answers": [answer] * (ATTEMPT_DRAFT_MAX_ANSWERS + 1)}
+        too_long = {"answers": [{**answer, "userAnswer": "x" * (ATTEMPT_DRAFT_ANSWER_MAX + 1)}]}
+        for payload in (too_many, too_long):
+            with pytest.raises(ValidationError):
+                SpaceAttemptDraftSave.model_validate(payload)
 
     def test_a_save_past_deadline_and_grace_is_refused_and_expires_the_attempt(
         self, db_session: Session, owner: User

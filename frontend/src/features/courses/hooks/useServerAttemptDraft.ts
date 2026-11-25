@@ -4,14 +4,13 @@ import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { sdk } from '@/lib/apiClient';
-import { errorStatus } from '@/lib/utils';
+import { errorStatus, HTTP_CONFLICT } from '@/lib/utils';
 
 import { classifyAttemptRefusal } from '../lib/attemptErrors';
 
-import { type AttemptAnswers } from './useAttemptDraft';
+import { type AttemptAnswers, toAnswerList } from './useAttemptDraft';
 
 const SAVE_DELAY_MS = 1500;
-const CONFLICT = 409;
 // One id, so a run of failed saves (offline) shows one toast and not one per keystroke.
 const FAILED_TOAST_ID = 'attempt-draft-save-failed';
 
@@ -20,32 +19,53 @@ type ServerAttemptDraft = {
   save: (answers: AttemptAnswers) => void;
   /** Call when the attempt is submitted: no save runs after it, and its errors stay silent. */
   stop: () => void;
+  /** Call when that submit failed and the attempt stays open: autosave runs again. */
+  resume: () => void;
 };
 
 /**
  * Autosaves the answers of an open attempt to the server, so another device or a cleared browser can resume.
  * Success is silent, like the Settings auto-save. `localStorage` (`useAttemptDraft`) still saves at once.
  */
-export function useServerAttemptDraft(courseId: string, attemptId: string | null): ServerAttemptDraft {
+export function useServerAttemptDraft(
+  courseId: string,
+  attemptId: string | null,
+  /** A save that the server refuses for good (time over, closed): the attempt cannot take more answers. */
+  onRefused: (error: unknown) => void
+): ServerAttemptDraft {
   const t = useTranslations();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<AttemptAnswers | null>(null);
   const isStopped = useRef(false);
+  const isMounted = useRef(false);
+
+  const stop = useCallback(() => {
+    isStopped.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    pending.current = null;
+  }, []);
 
   const { mutate: saveDraft } = useMutation({
     mutationFn: async (answers: AttemptAnswers) => {
       if (!attemptId) return;
       await sdk.spacesSaveAttemptDraft({
         path: { space_id: courseId, attempt_id: attemptId },
-        body: { answers: Object.entries(answers).map(([questionId, userAnswer]) => ({ questionId, userAnswer })) },
+        body: { answers: toAnswerList(answers) },
         throwOnError: true,
       });
     },
     onError: (err: unknown) => {
-      if (isStopped.current) return;
-      // A refused save (time over, closed) is explained by the submit that follows. Only a failed call needs a toast.
-      const isRefused = errorStatus(err) === CONFLICT && classifyAttemptRefusal(err).kind !== 'unknown';
-      if (!isRefused) toast.error(t('courses.attempt_draft_save_failed'), { id: FAILED_TOAST_ID });
+      // After unmount the page is gone: a late refusal must not redirect from another page.
+      if (isStopped.current || !isMounted.current) return;
+      const isRefused = errorStatus(err) === HTTP_CONFLICT && classifyAttemptRefusal(err).kind !== 'unknown';
+      if (!isRefused) {
+        toast.error(t('courses.attempt_draft_save_failed'), { id: FAILED_TOAST_ID });
+        return;
+      }
+      // The server will refuse every later save too, so stop and let the page show the reason once.
+      stop();
+      onRefused(err);
     },
   });
 
@@ -67,15 +87,18 @@ export function useServerAttemptDraft(courseId: string, attemptId: string | null
     [attemptId, flush]
   );
 
-  const stop = useCallback(() => {
-    isStopped.current = true;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    pending.current = null;
+  const resume = useCallback(() => {
+    isStopped.current = false;
   }, []);
 
   // Leaving the page sends the last answers that the pause has not sent yet.
-  useEffect(() => flush, [flush]);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      flush();
+      isMounted.current = false;
+    };
+  }, [flush]);
 
-  return { save, stop };
+  return { save, stop, resume };
 }

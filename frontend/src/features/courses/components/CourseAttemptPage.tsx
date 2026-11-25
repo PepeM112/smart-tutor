@@ -18,9 +18,9 @@ import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
-import { errorStatus, getErrorDetail } from '@/lib/utils';
+import { errorStatus, getErrorDetail, HTTP_CONFLICT } from '@/lib/utils';
 
-import { useAttemptDraft, type AttemptAnswers } from '../hooks/useAttemptDraft';
+import { fromAnswerList, toAnswerList, useAttemptDraft, type AttemptAnswers } from '../hooks/useAttemptDraft';
 import { useAttemptRefusalMessage } from '../hooks/useAttemptRefusalMessage';
 import { useCourse } from '../hooks/useCourse';
 import { useVisitItem } from '../hooks/useCourseProgress';
@@ -38,9 +38,6 @@ type Props = {
   courseId: string;
   itemId: string;
 };
-
-/** HTTP status for a refused attempt: time over, course archived, or no attempts left. */
-const CONFLICT = 409;
 
 /**
  * One attempt on a TEST item. An open attempt resumes at once. Without one, the page shows a start card
@@ -91,13 +88,12 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
 
   const attemptId = attempt?.attemptId ?? null;
   const draft = useAttemptDraft(userId, attemptId);
-  const serverDraft = useServerAttemptDraft(courseId, attemptId);
   const initialAnswers = useMemo(
     () =>
       pickNewerAnswers(
         attempt?.draftAnswers
           ? {
-              answers: Object.fromEntries(attempt.draftAnswers.map(a => [a.questionId, a.userAnswer])),
+              answers: fromAnswerList(attempt.draftAnswers),
               savedAt: attempt.draftSavedAt?.getTime() ?? null,
             }
           : null,
@@ -121,6 +117,9 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
     router.replace(courseUrl);
   };
 
+  // A save refused for good (time over, closed) ends the attempt like a refused submit does.
+  const serverDraft = useServerAttemptDraft(courseId, attemptId, error => leaveCourse(refusalMessage(error)));
+
   const {
     mutate: submitAttempt,
     isPending: isSubmitPending,
@@ -131,9 +130,7 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
       return (
         await sdk.spacesSubmitAttempt({
           path: { space_id: courseId, attempt_id: attemptId },
-          body: {
-            answers: Object.entries(answers).map(([questionId, userAnswer]) => ({ questionId, userAnswer })),
-          },
+          body: { answers: toAnswerList(answers) },
           throwOnError: true,
         })
       ).data;
@@ -158,10 +155,12 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
       router.replace(Routes.RESULT_DETAIL(result.id));
     },
     onError: (err: unknown) => {
-      if (errorStatus(err) === CONFLICT) {
+      if (errorStatus(err) === HTTP_CONFLICT) {
         leaveCourse(refusalMessage(err));
         return;
       }
+      // The attempt is still open and ExamView shows the form again: autosave must run again.
+      serverDraft.resume();
       toast.error(getErrorDetail(err, t('tests.failed_to_submit')));
     },
   });
@@ -176,7 +175,7 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
   };
 
   // A refused start (no attempts left, cooldown, archived) sends the student back to the course.
-  const startRefused = isError && errorStatus(error) === CONFLICT;
+  const startRefused = isError && errorStatus(error) === HTTP_CONFLICT;
   useEffect(() => {
     if (!startRefused) return;
     toast.error(refusalMessage(error));

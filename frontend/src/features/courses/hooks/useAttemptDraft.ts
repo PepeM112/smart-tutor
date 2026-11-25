@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
+import { type QuestionAnswer } from '@/client';
+
 export type AttemptAnswers = Record<string, string>;
+
+/** The save and the submit send the same list shape, so both build it here. */
+export function toAnswerList(answers: AttemptAnswers): QuestionAnswer[] {
+  return Object.entries(answers).map(([questionId, userAnswer]) => ({ questionId, userAnswer }));
+}
+
+export function fromAnswerList(list: QuestionAnswer[]): AttemptAnswers {
+  return Object.fromEntries(list.map(a => [a.questionId, a.userAnswer]));
+}
 
 /**
  * A draft older than this is dropped on the next start. Trade-off: an attempt with no time limit and no

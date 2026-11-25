@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from app.core.constants import SPACE_TITLE_MAX
+from app.core.constants import ATTEMPT_DRAFT_ANSWER_MAX, ATTEMPT_DRAFT_MAX_ANSWERS, SPACE_TITLE_MAX
 from app.core.enums import (
     AIProvider,
     FeedPermission,
@@ -385,7 +385,14 @@ class SpaceAttemptStart(BaseSchema):
 class SpaceAttemptDraftSave(BaseSchema):
     """The answers of an open attempt to autosave. They replace the previous draft."""
 
-    answers: list[QuestionAnswer]
+    answers: list[QuestionAnswer] = Field(max_length=ATTEMPT_DRAFT_MAX_ANSWERS)
+
+    @field_validator("answers")
+    @classmethod
+    def _validate_answer_sizes(cls, answers: list[QuestionAnswer]) -> list[QuestionAnswer]:
+        if any(len(answer.user_answer) > ATTEMPT_DRAFT_ANSWER_MAX for answer in answers):
+            raise ValueError(f"An answer is longer than {ATTEMPT_DRAFT_ANSWER_MAX} characters")
+        return answers
 
 
 # ── Classrooms ────────────────────────────────────────────────────────────────

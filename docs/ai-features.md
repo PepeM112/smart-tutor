@@ -145,7 +145,7 @@ cost = input_price × input_tokens + output_price × output_tokens
 
 Prices are sourced from OpenRouter's public models API and kept in sync by `pricing_service.fetch_and_update_prices()`, which maps our model IDs to OpenRouter's IDs via `SDK_TO_OPENROUTER` (`app/core/model_registry.py`). If a model has no matching price row, `estimated_cost` is stored as `null` rather than a guessed value.
 
-The backend runs this fetch once at startup, in a background thread (`pricing_service.refresh_prices_on_startup`, started from the FastAPI lifespan in `main.py`). A failure logs one warning and never stops startup. Set `FETCH_PRICES_ON_STARTUP=false` to turn it off (tests and `docker-compose.e2e.yml` do). `make fetch-prices` still works.
+The backend runs this fetch once at startup, in a background thread (`pricing_service.refresh_prices_on_startup`, started from the FastAPI lifespan in `main.py`). A failure logs one warning and never stops startup. Set `FETCH_PRICES_ON_STARTUP=false` to turn it off (tests and `docker-compose.e2e.yml` do). `make fetch-prices` still works. `docker-compose.yml` (dev) sets it off because `--reload` restarts the backend often; run `make fetch-prices` to refresh prices.
 
 The usage endpoint (`GET /token-usage`) groups by `provider`, `feature`, `both` or `model`. Group by `model` returns one row per model and day, with `model` set, so the totals equal the provider view.
 
