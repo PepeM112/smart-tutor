@@ -55,9 +55,11 @@ def get_daily_summary(
 
     include_provider = group_by in ("provider", "both")
     include_feature = group_by in ("feature", "both")
+    include_model = group_by == "model"
 
     provider_col: Any = TokenUsage.provider if include_provider else literal(None).label("provider")
     feature_col: Any = TokenUsage.feature if include_feature else literal(None).label("feature")
+    model_col: Any = TokenUsage.model if include_model else literal(None).label("model")
 
     conditions: list[Any] = [
         TokenUsage.user_id == user_id,
@@ -74,12 +76,15 @@ def get_daily_summary(
         group_cols.append(TokenUsage.provider)
     if include_feature:
         group_cols.append(TokenUsage.feature)
+    if include_model:
+        group_cols.append(TokenUsage.model)
 
     stmt = (
         select(
             date_col,
             provider_col,
             feature_col,
+            model_col,
             func.sum(TokenUsage.input_tokens).label("input_tokens"),
             func.sum(TokenUsage.output_tokens).label("output_tokens"),
             func.sum(TokenUsage.estimated_cost).label("estimated_cost"),
@@ -104,9 +109,11 @@ def get_hourly_summary(
 
     include_provider = group_by in ("provider", "both")
     include_feature = group_by in ("feature", "both")
+    include_model = group_by == "model"
 
     provider_col: Any = TokenUsage.provider if include_provider else literal(None).label("provider")
     feature_col: Any = TokenUsage.feature if include_feature else literal(None).label("feature")
+    model_col: Any = TokenUsage.model if include_model else literal(None).label("model")
 
     conditions: list[Any] = [
         TokenUsage.user_id == user_id,
@@ -122,12 +129,15 @@ def get_hourly_summary(
         group_cols.append(TokenUsage.provider)
     if include_feature:
         group_cols.append(TokenUsage.feature)
+    if include_model:
+        group_cols.append(TokenUsage.model)
 
     stmt = (
         select(
             hour_col.label("hour"),
             provider_col,
             feature_col,
+            model_col,
             func.sum(TokenUsage.input_tokens).label("input_tokens"),
             func.sum(TokenUsage.output_tokens).label("output_tokens"),
             func.sum(TokenUsage.estimated_cost).label("estimated_cost"),

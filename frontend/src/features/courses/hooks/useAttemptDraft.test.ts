@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   attemptDraftKey,
   DRAFT_MAX_AGE_MS,
-  readAttemptAnswers,
+  readAttemptDraft,
   removeAttemptDrafts,
   useAttemptDraft,
 } from './useAttemptDraft';
@@ -106,19 +106,24 @@ describe('useAttemptDraft', () => {
   });
 });
 
-describe('readAttemptAnswers', () => {
+describe('readAttemptDraft', () => {
   it('returns {} for bad data and drops values that are not text', () => {
     window.localStorage.setItem('k1', 'not json');
     window.localStorage.setItem('k2', '[1,2]');
     window.localStorage.setItem('k3', '{"a":"x","b":3}');
-    expect(readAttemptAnswers('k1')).toEqual({});
-    expect(readAttemptAnswers('k2')).toEqual({});
-    expect(readAttemptAnswers('k3')).toEqual({ a: 'x' });
+    expect(readAttemptDraft('k1').answers).toEqual({});
+    expect(readAttemptDraft('k2').answers).toEqual({});
+    expect(readAttemptDraft('k3').answers).toEqual({ a: 'x' });
   });
 
   it('reads the answers of the timestamped format', () => {
     window.localStorage.setItem('k1', storedDraft(NOW, { a: 'x' }));
-    expect(readAttemptAnswers('k1')).toEqual({ a: 'x' });
+    expect(readAttemptDraft('k1')).toEqual({ answers: { a: 'x' }, savedAt: NOW });
+  });
+
+  it('has no savedAt in the old format', () => {
+    window.localStorage.setItem('k1', '{"a":"x"}');
+    expect(readAttemptDraft('k1').savedAt).toBeNull();
   });
 });
 

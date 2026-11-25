@@ -15,6 +15,12 @@ SPACE_JOIN_CODE_LENGTH = 7
 # Seconds a submit may come after the deadline of a timed attempt (network delay of the auto-submit).
 ATTEMPT_GRACE_SECONDS = 60
 
+# Limits of an autosaved attempt draft (the endpoint is called often, so the body must stay small).
+# No test limit exists: this is a generous bound on questions per test. The answer cap is above the
+# longest Long Text answer (5000 chars).
+ATTEMPT_DRAFT_MAX_ANSWERS = 500
+ATTEMPT_DRAFT_ANSWER_MAX = 10_000
+
 # Default `pass_threshold` of a course test: the share of the points (0..1) that passes.
 DEFAULT_PASS_THRESHOLD = 0.5
 

@@ -449,6 +449,9 @@ const spaceAttemptStartSchemaResponseTransformer = (data: any) => {
         data.deadlineAt = new Date(data.deadlineAt);
     }
     data.serverNow = new Date(data.serverNow);
+    if (data.draftSavedAt) {
+        data.draftSavedAt = new Date(data.draftSavedAt);
+    }
     return data;
 };
 

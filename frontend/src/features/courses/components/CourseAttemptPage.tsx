@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type SpaceAttemptStart } from '@/client';
@@ -13,17 +13,19 @@ import { useHideAssist } from '@/features/assist/store/useAssistHiddenStore';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { classroomQueryKeys } from '@/features/classrooms/lib/queryKeys';
 import { ExamView } from '@/features/tests/components/ExamView';
-import { syncServerClock } from '@/features/tests/utils/countdown';
+import { clientToServerTime, syncServerClock } from '@/features/tests/utils/countdown';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { sdk } from '@/lib/apiClient';
 import { Routes } from '@/lib/routes';
-import { errorStatus, getErrorDetail } from '@/lib/utils';
+import { errorStatus, getErrorDetail, HTTP_CONFLICT } from '@/lib/utils';
 
-import { useAttemptDraft, type AttemptAnswers } from '../hooks/useAttemptDraft';
+import { fromAnswerList, toAnswerList, useAttemptDraft, type AttemptAnswers } from '../hooks/useAttemptDraft';
 import { useAttemptRefusalMessage } from '../hooks/useAttemptRefusalMessage';
 import { useCourse } from '../hooks/useCourse';
 import { useVisitItem } from '../hooks/useCourseProgress';
+import { useServerAttemptDraft } from '../hooks/useServerAttemptDraft';
+import { pickNewerAnswers } from '../lib/attemptDraftPick';
 import { canDo } from '../lib/permissions';
 import { findItem } from '../lib/progress';
 import { courseQueryKeys, markCourseDetailStale } from '../lib/queryKeys';
@@ -37,13 +39,10 @@ type Props = {
   itemId: string;
 };
 
-/** HTTP status for a refused attempt: time over, course archived, or no attempts left. */
-const CONFLICT = 409;
-
 /**
  * One attempt on a TEST item. An open attempt resumes at once. Without one, the page shows a start card
  * and starts the attempt only when the student presses Start (F7). It then shows the exam with a
- * countdown and sends the answers. The answers also stay in `localStorage` (D11), and a leave guard
+ * countdown and sends the answers. The answers autosave to the server and also stay in `localStorage` (D11), and a leave guard
  * asks before the student leaves an open attempt (D12). The Assistant is hidden while the attempt is open.
  */
 export function CourseAttemptPage({ courseId, itemId }: Props) {
@@ -89,7 +88,23 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
 
   const attemptId = attempt?.attemptId ?? null;
   const draft = useAttemptDraft(userId, attemptId);
-
+  const initialAnswers = useMemo(
+    () =>
+      pickNewerAnswers(
+        attempt?.draftAnswers
+          ? {
+              answers: fromAnswerList(attempt.draftAnswers),
+              savedAt: attempt.draftSavedAt?.getTime() ?? null,
+            }
+          : null,
+        // The local time is on the client clock, the server time on the server clock: bring them to one clock.
+        {
+          answers: draft.initialAnswers,
+          savedAt: draft.savedAt === null ? null : clientToServerTime(draft.savedAt),
+        }
+      ),
+    [attempt, draft.initialAnswers, draft.savedAt]
+  );
   // The start opened an attempt: the cached course detail does not know it yet (no `openAttemptId`).
   // Marked stale, the next visit to the course page reads it again.
   useEffect(() => {
@@ -102,6 +117,9 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
     router.replace(courseUrl);
   };
 
+  // A save refused for good (time over, closed) ends the attempt like a refused submit does.
+  const serverDraft = useServerAttemptDraft(courseId, attemptId, error => leaveCourse(refusalMessage(error)));
+
   const {
     mutate: submitAttempt,
     isPending: isSubmitPending,
@@ -112,9 +130,7 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
       return (
         await sdk.spacesSubmitAttempt({
           path: { space_id: courseId, attempt_id: attemptId },
-          body: {
-            answers: Object.entries(answers).map(([questionId, userAnswer]) => ({ questionId, userAnswer })),
-          },
+          body: { answers: toAnswerList(answers) },
           throwOnError: true,
         })
       ).data;
@@ -139,16 +155,27 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
       router.replace(Routes.RESULT_DETAIL(result.id));
     },
     onError: (err: unknown) => {
-      if (errorStatus(err) === CONFLICT) {
+      if (errorStatus(err) === HTTP_CONFLICT) {
         leaveCourse(refusalMessage(err));
         return;
       }
+      // The attempt is still open and ExamView shows the form again: autosave must run again.
+      serverDraft.resume();
       toast.error(getErrorDetail(err, t('tests.failed_to_submit')));
     },
   });
 
+  const saveAnswers = (answers: AttemptAnswers) => {
+    draft.save(answers);
+    serverDraft.save(answers);
+  };
+  const submitAnswers = (answers: AttemptAnswers) => {
+    serverDraft.stop();
+    submitAttempt(answers);
+  };
+
   // A refused start (no attempts left, cooldown, archived) sends the student back to the course.
-  const startRefused = isError && errorStatus(error) === CONFLICT;
+  const startRefused = isError && errorStatus(error) === HTTP_CONFLICT;
   useEffect(() => {
     if (!startRefused) return;
     toast.error(refusalMessage(error));
@@ -188,10 +215,10 @@ export function CourseAttemptPage({ courseId, itemId }: Props) {
             // A new attempt must start with its own answers.
             key={attemptId ?? 'preview'}
             test={attempt.test}
-            onSubmit={submitAttempt}
+            onSubmit={submitAnswers}
             isSubmitting={isSubmitting}
-            initialAnswers={draft.initialAnswers}
-            onAnswersChange={draft.save}
+            initialAnswers={initialAnswers}
+            onAnswersChange={saveAnswers}
             deadlineAt={attempt.deadlineAt}
           />
           <ConfirmDialog

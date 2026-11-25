@@ -1,16 +1,33 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
+import { type QuestionAnswer } from '@/client';
+
 export type AttemptAnswers = Record<string, string>;
+
+/** The save and the submit send the same list shape, so both build it here. */
+export function toAnswerList(answers: AttemptAnswers): QuestionAnswer[] {
+  return Object.entries(answers).map(([questionId, userAnswer]) => ({ questionId, userAnswer }));
+}
+
+export function fromAnswerList(list: QuestionAnswer[]): AttemptAnswers {
+  return Object.fromEntries(list.map(a => [a.questionId, a.userAnswer]));
+}
 
 /**
  * A draft older than this is dropped on the next start. Trade-off: an attempt with no time limit and no
- * `closes_at` never ends, so its draft can be older and is lost. Server-side drafts are the planned fix.
+ * `closes_at` never ends, so its local draft can be older and is lost. The server draft stays.
  */
 export const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+type StoredDraft = { answers: AttemptAnswers; savedAt: number | null };
+
+const EMPTY_DRAFT: StoredDraft = { answers: {}, savedAt: null };
 
 type AttemptDraft = {
   /** The answers saved for this attempt on this device (read once per attempt). */
   initialAnswers: AttemptAnswers;
+  /** When they were saved (client clock, ms). Null when nothing is saved or the format has no timestamp. */
+  savedAt: number | null;
   /** Call on each change. */
   save: (answers: AttemptAnswers) => void;
   /** Call on submit, expiry or a 409. */
@@ -19,12 +36,13 @@ type AttemptDraft = {
 
 /**
  * Keeps the answers of an open course attempt in `localStorage` (D11), so a reload or a closed tab
- * does not lose them on the same device. A change of device loses them: the server holds no draft.
+ * does not lose them on the same device. It is the fallback of the server draft: it holds the answers
+ * of a save that failed (offline).
  */
 export function useAttemptDraft(userId: string | undefined, attemptId: string | null | undefined): AttemptDraft {
   const key = userId && attemptId ? attemptDraftKey(userId, attemptId) : null;
   // The key changes only when the attempt is known, so one read per attempt.
-  const initialAnswers = useMemo(() => (key ? readAttemptAnswers(key) : {}), [key]);
+  const stored = useMemo(() => (key ? readAttemptDraft(key) : EMPTY_DRAFT), [key]);
   const save = useCallback(
     (answers: AttemptAnswers) => {
       if (key) writeAttemptAnswers(key, answers);
@@ -41,7 +59,7 @@ export function useAttemptDraft(userId: string | undefined, attemptId: string | 
     if (userId && attemptId) removeExpiredAttemptDrafts(userId, attemptId);
   }, [userId, attemptId]);
 
-  return { initialAnswers, save, clear };
+  return { initialAnswers: stored.answers, savedAt: stored.savedAt, save, clear };
 }
 
 function attemptDraftPrefix(userId: string): string {
@@ -54,14 +72,16 @@ export function attemptDraftKey(userId: string, attemptId: string): string {
 }
 
 /** Every access is in try/catch: `localStorage` can throw (private mode, blocked site data) or hold bad data. */
-export function readAttemptAnswers(key: string): AttemptAnswers {
+export function readAttemptDraft(key: string): StoredDraft {
   try {
     const raw = window.localStorage.getItem(key);
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     // The old format (a bare answers object) stays readable, so a reload during a deploy keeps the answers.
-    return pickTextAnswers(isTimestampedDraft(parsed) ? parsed.answers : parsed);
+    return isTimestampedDraft(parsed)
+      ? { answers: pickTextAnswers(parsed.answers), savedAt: parsed.savedAt }
+      : { answers: pickTextAnswers(parsed), savedAt: null };
   } catch {
-    return {};
+    return EMPTY_DRAFT;
   }
 }
 

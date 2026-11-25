@@ -14,6 +14,9 @@ export function getErrorDetail(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/** HTTP status for a refused request (time over, closed, no attempts left). */
+export const HTTP_CONFLICT = 409;
+
 /** The HTTP status of an SDK error (`apiClient` adds it in the error interceptor). `undefined` for other errors. */
 export function errorStatus(error: unknown): number | undefined {
   if (isRecord(error) && typeof error.status === 'number') {

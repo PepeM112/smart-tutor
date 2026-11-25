@@ -22,6 +22,11 @@ export function clockNow(): number {
   return Date.now() + serverOffsetMs;
 }
 
+/** A client timestamp (ms) on the server clock, to compare it with a time that the server gave. */
+export function clientToServerTime(clientMs: number): number {
+  return clientMs + serverOffsetMs;
+}
+
 /** Whole seconds left until `deadline`, never below 0. Rounded up, so "0:01" shows until the last moment. */
 export function secondsLeft(deadline: Date, now: number): number {
   return Math.max(0, Math.ceil((deadline.getTime() - now) / 1000));

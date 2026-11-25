@@ -1,5 +1,8 @@
+import asyncio
 import logging
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +30,7 @@ from app.api.v1.endpoints import (
 
 from .config import settings
 from .core.errors import AppError, app_error_handler
+from .services.pricing_service import refresh_prices_on_startup
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -40,7 +44,16 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{tag}{operation_name}"
 
 
-app = FastAPI(title="SmartTutor API", generate_unique_id_function=custom_generate_unique_id)
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    # Background task: a slow or unreachable OpenRouter must not delay startup.
+    # Keeping the reference stops the garbage collector from dropping the task.
+    price_fetch = asyncio.create_task(asyncio.to_thread(refresh_prices_on_startup))
+    yield
+    await price_fetch
+
+
+app = FastAPI(title="SmartTutor API", generate_unique_id_function=custom_generate_unique_id, lifespan=lifespan)
 app.add_exception_handler(AppError, app_error_handler)
 
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])

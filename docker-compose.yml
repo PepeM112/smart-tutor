@@ -15,6 +15,9 @@ services:
       - ./backend/.env
     # environment:
     #   - DATABASE_URL=${NEON_DB_DEV}
+    environment:
+      # --reload restarts often; each start would call OpenRouter. Run `make fetch-prices` instead.
+      - FETCH_PRICES_ON_STARTUP=false
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")'"]
       interval: 5s

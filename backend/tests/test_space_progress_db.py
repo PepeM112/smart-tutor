@@ -12,7 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.constants import ATTEMPT_DRAFT_ANSWER_MAX, ATTEMPT_DRAFT_MAX_ANSWERS
 from app.core.enums import AttemptStatus, QuestionType, RevealAnswers, SpaceItemKind, SpaceVisibility
+from app.core.errors import AppError
 from app.crud import space_attempt as space_attempt_crud
 from app.crud import space_item_completion as space_item_completion_crud
 from app.crud import space_item_test as space_item_test_crud
@@ -27,6 +29,7 @@ from app.models.user import User
 from app.schemas.answer import ChallengeRequest
 from app.schemas.correction import TestSubmission
 from app.schemas.space import (
+    SpaceAttemptDraftSave,
     SpaceAttemptStart,
     SpaceCreate,
     SpaceDetail,
@@ -546,6 +549,101 @@ class TestAttempts:
                 started_at=space_progress_service.utcnow(),
                 deadline_at=None,
             )
+
+
+class TestAttemptDrafts:
+    def _save(self, db: Session, space_id: str, start: SpaceAttemptStart, user: User, user_answer: str = "ir") -> None:
+        space_attempt_service.save_draft(
+            db,
+            space_id=space_id,
+            attempt_id=start.attempt_id or "",
+            current_user=user,
+            draft=SpaceAttemptDraftSave.model_validate(
+                {"answers": _answers(start, user_answer).model_dump()["answers"]}
+            ),
+        )
+
+    def test_the_owner_saves_and_a_resume_returns_the_draft(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        assert started.draft_answers is None and started.draft_saved_at is None
+
+        self._save(db_session, space_id, started, viewer, "ir")
+        self._save(db_session, space_id, started, viewer, "marchar")
+
+        resumed = _start(db_session, space_id, item_id, viewer)
+        assert resumed.resumed is True and resumed.draft_saved_at is not None
+        assert resumed.draft_answers is not None
+        assert {a.question_id for a in resumed.draft_answers} == {q.id for q in started.test.questions}
+        assert {a.user_answer for a in resumed.draft_answers} == {"marchar"}
+
+    def test_another_user_gets_404(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        other = _viewer(db_session, space_id)
+        with pytest.raises(HTTPException) as refused:
+            self._save(db_session, space_id, started, other)
+        assert refused.value.status_code == 404
+
+    def test_a_submitted_attempt_refuses_a_save_and_the_result_is_unchanged(
+        self, db_session: Session, owner: User
+    ) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        self._save(db_session, space_id, started, viewer, "nope")
+        result = _submit(db_session, space_id, started, viewer, "ir")
+        assert isinstance(result, TestResult)
+        score = result.score
+
+        with pytest.raises(AppError) as refused:
+            self._save(db_session, space_id, started, viewer, "nope")
+        assert refused.value.status_code == 409 and refused.value.body.code == "attempt_closed"
+        db_session.expire_all()
+        assert db_session.get(TestResult, result.id).score == score  # type: ignore[union-attr]
+
+    def test_submit_clears_the_draft(self, db_session: Session, owner: User) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        self._save(db_session, space_id, started, viewer, "nope")
+        _submit(db_session, space_id, started, viewer, "ir")
+
+        attempt = db_session.get(SpaceAttempt, started.attempt_id or "")
+        assert attempt is not None
+        assert attempt.draft_answers is None and attempt.draft_saved_at is None
+
+    def test_an_oversized_draft_is_refused(self) -> None:
+        answer = {"questionId": "q1", "userAnswer": "x"}
+        too_many = {"answers": [answer] * (ATTEMPT_DRAFT_MAX_ANSWERS + 1)}
+        too_long = {"answers": [{**answer, "userAnswer": "x" * (ATTEMPT_DRAFT_ANSWER_MAX + 1)}]}
+        for payload in (too_many, too_long):
+            with pytest.raises(ValidationError):
+                SpaceAttemptDraftSave.model_validate(payload)
+
+    def test_a_save_past_deadline_and_grace_is_refused_and_expires_the_attempt(
+        self, db_session: Session, owner: User
+    ) -> None:
+        space_id, item_id, _ = _course_with_test(db_session, owner, time_limit_minutes=5)
+        viewer = _viewer(db_session, space_id)
+        started = _start(db_session, space_id, item_id, viewer)
+        attempt = db_session.get(SpaceAttempt, started.attempt_id or "")
+        assert attempt is not None
+
+        # Inside the grace: accepted.
+        attempt.deadline_at = space_progress_service.utcnow() - timedelta(seconds=30)
+        db_session.flush()
+        self._save(db_session, space_id, started, viewer)
+
+        attempt.deadline_at = space_progress_service.utcnow() - timedelta(minutes=5)
+        db_session.flush()
+        with pytest.raises(AppError) as refused:
+            self._save(db_session, space_id, started, viewer)
+        assert refused.value.status_code == 409 and refused.value.body.code == "attempt_time_over"
+        db_session.expire_all()
+        assert db_session.get(SpaceAttempt, attempt.id).status == int(AttemptStatus.EXPIRED)  # type: ignore[union-attr]
 
 
 class TestRaces:

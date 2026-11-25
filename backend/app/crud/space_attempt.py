@@ -89,6 +89,15 @@ def close(
     attempt.status = int(status)
     attempt.finished_at = finished_at
     attempt.test_result_id = test_result_id
+    # Nothing reads the draft of a closed attempt.
+    attempt.draft_answers = None
+    attempt.draft_saved_at = None
+    db.flush()
+
+
+def save_draft(db: Session, *, attempt: SpaceAttempt, answers: list[dict[str, str]], saved_at: datetime) -> None:
+    attempt.draft_answers = answers
+    attempt.draft_saved_at = saved_at
     db.flush()
 
 

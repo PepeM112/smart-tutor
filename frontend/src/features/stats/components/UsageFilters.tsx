@@ -32,6 +32,7 @@ export function UsageFilters({ groupBy, onGroupByChange, filters, onFilterChange
       { label: t('stats.group_provider'), value: 'provider' },
       { label: t('stats.group_feature'), value: 'feature' },
       { label: t('stats.group_both'), value: 'both' },
+      { label: t('stats.group_model'), value: 'model' },
     ],
     [t]
   );

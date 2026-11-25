@@ -4089,6 +4089,24 @@ export const SimpleContentStrippedSchema = {
     title: 'SimpleContentStripped'
 } as const;
 
+export const SpaceAttemptDraftSaveSchema = {
+    properties: {
+        answers: {
+            items: {
+                $ref: '#/components/schemas/QuestionAnswer'
+            },
+            type: 'array',
+            title: 'Answers'
+        }
+    },
+    type: 'object',
+    required: [
+        'answers'
+    ],
+    title: 'SpaceAttemptDraftSave',
+    description: 'The answers of an open attempt to autosave. They replace the previous draft.'
+} as const;
+
 export const SpaceAttemptStartSchema = {
     properties: {
         attemptId: {
@@ -4138,6 +4156,32 @@ export const SpaceAttemptStartSchema = {
             type: 'boolean',
             title: 'Resumed',
             default: false
+        },
+        draftAnswers: {
+            anyOf: [
+                {
+                    items: {
+                        $ref: '#/components/schemas/QuestionAnswer'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Draftanswers'
+        },
+        draftSavedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Draftsavedat'
         }
     },
     type: 'object',
@@ -6761,6 +6805,17 @@ export const TokenUsageDailySummarySchema = {
                     type: 'null'
                 }
             ]
+        },
+        model: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Model'
         },
         inputTokens: {
             type: 'integer',

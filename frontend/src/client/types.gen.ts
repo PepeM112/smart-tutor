@@ -2380,6 +2380,18 @@ export type SimpleContentStripped = {
 };
 
 /**
+ * SpaceAttemptDraftSave
+ *
+ * The answers of an open attempt to autosave. They replace the previous draft.
+ */
+export type SpaceAttemptDraftSave = {
+    /**
+     * Answers
+     */
+    answers: Array<QuestionAnswer>;
+};
+
+/**
  * SpaceAttemptStart
  *
  * The exam of one attempt. `attempt_id` is None for an author preview (no rows, no limits).
@@ -2406,6 +2418,14 @@ export type SpaceAttemptStart = {
      * Resumed
      */
     resumed?: boolean;
+    /**
+     * Draftanswers
+     */
+    draftAnswers?: Array<QuestionAnswer> | null;
+    /**
+     * Draftsavedat
+     */
+    draftSavedAt?: Date | null;
 };
 
 /**
@@ -3844,6 +3864,10 @@ export type TokenUsageDailySummary = {
     date: string;
     provider?: AiProvider | null;
     feature?: AiFeature | null;
+    /**
+     * Model
+     */
+    model?: string | null;
     /**
      * Inputtokens
      */
@@ -6011,7 +6035,7 @@ export type TokenUsageGetUsageData = {
         /**
          * Groupby
          */
-        groupBy?: 'provider' | 'feature' | 'both';
+        groupBy?: 'provider' | 'feature' | 'both' | 'model';
         /**
          * Feature
          */
@@ -7148,6 +7172,44 @@ export type SpacesSubmitAttemptResponses = {
 };
 
 export type SpacesSubmitAttemptResponse = SpacesSubmitAttemptResponses[keyof SpacesSubmitAttemptResponses];
+
+export type SpacesSaveAttemptDraftData = {
+    body: SpaceAttemptDraftSave;
+    path: {
+        /**
+         * Space Id
+         */
+        space_id: string;
+        /**
+         * Attempt Id
+         */
+        attempt_id: string;
+    };
+    query?: never;
+    url: '/api/v1/spaces/{space_id}/attempts/{attempt_id}/draft';
+};
+
+export type SpacesSaveAttemptDraftErrors = {
+    /**
+     * Conflict
+     */
+    409: ErrorWithCode;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpacesSaveAttemptDraftError = SpacesSaveAttemptDraftErrors[keyof SpacesSaveAttemptDraftErrors];
+
+export type SpacesSaveAttemptDraftResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SpacesSaveAttemptDraftResponse = SpacesSaveAttemptDraftResponses[keyof SpacesSaveAttemptDraftResponses];
 
 export type SpacesJoinData = {
     body?: never;

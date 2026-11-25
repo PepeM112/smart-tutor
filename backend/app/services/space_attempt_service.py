@@ -30,10 +30,10 @@ from app.models.space_item import SpaceItem
 from app.models.test import Test
 from app.models.test_result import TestResult
 from app.models.user import User
-from app.schemas.correction import TestSubmission
+from app.schemas.correction import QuestionAnswer, TestSubmission
 from app.schemas.error import ErrorCode
 from app.schemas.question import QuestionReadStripped
-from app.schemas.space import SpaceAttemptStart
+from app.schemas.space import SpaceAttemptDraftSave, SpaceAttemptStart
 from app.schemas.test import TestReadStripped
 from app.services import space_progress_service
 from app.services.correction_service import grade_submission
@@ -235,6 +235,12 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
         # Build the exam before the commit: a commit expires the test, and a reload would show the retired questions.
         exam = _present(_pinned_test(db, attempt=open_attempt), live_id=open_attempt.test_id)
         started_at, deadline_at = open_attempt.started_at, open_attempt.deadline_at
+        draft_answers = (
+            None
+            if open_attempt.draft_answers is None
+            else [QuestionAnswer.model_validate(answer) for answer in open_attempt.draft_answers]
+        )
+        draft_saved_at = open_attempt.draft_saved_at
         db.commit()
         return SpaceAttemptStart(
             attempt_id=open_attempt.id,
@@ -243,6 +249,8 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
             deadline_at=deadline_at,
             server_now=at,
             resumed=True,
+            draft_answers=draft_answers,
+            draft_saved_at=draft_saved_at,
         )
     if (window_error := _window_error(item, at=at)) is not None:
         db.commit()
@@ -279,19 +287,17 @@ def start_attempt(db: Session, *, space_id: str, item_id: str, current_user: Use
     return SpaceAttemptStart(attempt_id=attempt_id, test=exam, started_at=at, deadline_at=deadline, server_now=at)
 
 
-# ── Submit ────────────────────────────────────────────────────────────────────
+# ── Submit and draft ────────────────────────────────────────────────────────────────
 
 
-def submit_attempt(
-    db: Session,
-    *,
-    space_id: str,
-    attempt_id: str,
-    current_user: User,
-    submission: TestSubmission,
-    background_tasks: BackgroundTasks,
-) -> TestResult:
-    """Grade the attempt against its pinned version, close it and check the completion."""
+def _require_writable_attempt(
+    db: Session, *, space_id: str, attempt_id: str, current_user: User
+) -> tuple[SpaceAttempt, SpaceItem, datetime]:
+    """The OPEN attempt of the user, locked, for a submit or a draft save. It closes an attempt that is past its end.
+
+    Raises 404 for an attempt of another user, 409 for a closed attempt or one past its deadline + grace.
+    Also returns the time of the check.
+    """
     space = get_space_or_404(db, space_id=space_id)
     attempt = space_attempt_crud.get(db, attempt_id=attempt_id, for_update=True)
     item = space_item_crud.get(db, item_id=attempt.item_id) if attempt is not None else None
@@ -319,7 +325,22 @@ def submit_attempt(
         space_attempt_crud.close(db, attempt=attempt, status=AttemptStatus.EXPIRED, finished_at=at)
         db.commit()
         raise _attempt_closed()
+    return attempt, item, at
 
+
+def submit_attempt(
+    db: Session,
+    *,
+    space_id: str,
+    attempt_id: str,
+    current_user: User,
+    submission: TestSubmission,
+    background_tasks: BackgroundTasks,
+) -> TestResult:
+    """Grade the attempt against its pinned version, close it and check the completion."""
+    attempt, item, at = _require_writable_attempt(
+        db, space_id=space_id, attempt_id=attempt_id, current_user=current_user
+    )
     pinned = _pinned_test(db, attempt=attempt)
     result = grade_submission(
         db,
@@ -338,3 +359,14 @@ def submit_attempt(
     if result.pending_answers > 0:
         background_tasks.add_task(grade_pending_answers, result.id)
     return result
+
+
+def save_draft(
+    db: Session, *, space_id: str, attempt_id: str, current_user: User, draft: SpaceAttemptDraftSave
+) -> None:
+    """Autosave the answers of an open attempt. The same rules as the submit, but nothing is graded."""
+    attempt, _, at = _require_writable_attempt(db, space_id=space_id, attempt_id=attempt_id, current_user=current_user)
+    space_attempt_crud.save_draft(
+        db, attempt=attempt, answers=[answer.model_dump() for answer in draft.answers], saved_at=at
+    )
+    db.commit()

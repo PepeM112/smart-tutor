@@ -4,7 +4,7 @@ from typing import Literal
 from app.core.enums import AIFeature, AIProvider
 from app.schemas.base import BaseSchema
 
-UsageGroupBy = Literal["provider", "feature", "both"]
+UsageGroupBy = Literal["provider", "feature", "both", "model"]
 
 
 class TokenUsageRead(BaseSchema):
@@ -24,6 +24,7 @@ class TokenUsageDailySummary(BaseSchema):
     date: str
     provider: AIProvider | None = None
     feature: AIFeature | None = None
+    model: str | None = None
     input_tokens: int
     output_tokens: int
     estimated_cost: str | None
