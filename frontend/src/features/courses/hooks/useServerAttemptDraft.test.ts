@@ -23,8 +23,7 @@ const refusal = { status: 409, code: 'attempt_time_over' };
 function setup() {
   const onRefused = vi.fn();
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-  const wrapper = ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client }, children);
+  const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
   const view = renderHook(() => useServerAttemptDraft('c1', 'a1', onRefused), { wrapper });
   return { ...view, onRefused };
 }
